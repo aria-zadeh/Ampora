@@ -1,11 +1,14 @@
 import React, { useMemo } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTaskStore } from "@/store/taskStore";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Heading } from "@/components/ui/Heading";
+import { PressableScale } from "@/components/ui/PressableScale";
 import { TaskEditorForm } from "@/components/task-editor/TaskEditorForm";
+import { shadows } from "@/utils/design-tokens";
 import type { Task } from "@/types";
 
 /**
@@ -46,19 +49,22 @@ export default function TaskEditScreen() {
   if (!task || !initialDraft) {
     return (
       <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
-        <View className="flex-row items-center border-b border-neutral-200 bg-white px-4 py-3">
-          <Pressable
+        <View
+          className="flex-row items-center border-b border-neutral-200 bg-white px-5 py-3.5"
+          style={shadows.xs}
+        >
+          <PressableScale
             onPress={() => router.back()}
-            hitSlop={8}
-            className="min-h-11 min-w-11 items-center justify-center"
+            haptic="light"
+            className="h-11 w-11 -ml-2 items-center justify-center rounded-full"
             accessibilityRole="button"
             accessibilityLabel="Back"
           >
             <Ionicons name="chevron-back" size={24} color="#18181B" />
-          </Pressable>
-          <Text className="ml-1 text-h4 font-semibold text-neutral-900">
+          </PressableScale>
+          <Heading size="h3" className="ml-1">
             Task
-          </Text>
+          </Heading>
         </View>
         <View className="flex-1 items-center justify-center">
           <EmptyState
@@ -75,19 +81,24 @@ export default function TaskEditScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between border-b border-neutral-200 bg-white px-4 py-3">
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          className="min-h-11 min-w-11 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Ionicons name="chevron-back" size={24} color="#18181B" />
-        </Pressable>
-        <Text className="text-h4 font-semibold text-neutral-900">Edit task</Text>
-        <View className="min-h-11 min-w-11" />
+      {/* Modal header */}
+      <View
+        className="flex-row items-center justify-between border-b border-neutral-200 bg-white px-5 py-3.5"
+        style={shadows.xs}
+      >
+        <View className="min-w-11">
+          <PressableScale
+            onPress={() => router.back()}
+            haptic="light"
+            className="h-11 w-11 -ml-2 items-center justify-center rounded-full"
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            <Ionicons name="chevron-back" size={24} color="#18181B" />
+          </PressableScale>
+        </View>
+        <Heading size="h3">Edit task</Heading>
+        <View className="min-w-11" />
       </View>
 
       <TaskEditorForm

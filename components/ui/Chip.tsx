@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { PressableScale } from "./PressableScale";
 
 interface ChipProps {
   label: string;
@@ -18,21 +19,14 @@ export function Chip({
   onRemove,
 }: ChipProps) {
   const containerClass = selected
-    ? "flex-row items-center rounded-full px-3 py-1 bg-primary-100 border border-primary-200"
-    : "flex-row items-center rounded-full px-3 py-1 bg-neutral-100";
+    ? "flex-row items-center rounded-full px-3 py-1.5 bg-primary-100 border border-primary-200"
+    : "flex-row items-center rounded-full px-3 py-1.5 bg-neutral-100";
   const textClass = selected
-    ? "text-caption text-primary-700"
-    : "text-caption text-neutral-600";
+    ? "text-caption font-medium text-primary-700"
+    : "text-caption font-medium text-neutral-600";
 
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      accessibilityRole={onPress ? "button" : undefined}
-      accessibilityState={{ selected }}
-      accessibilityLabel={label}
-      className={containerClass}
-    >
+  const inner = (
+    <>
       {color ? (
         <View
           className="w-2 h-2 rounded-full mr-1.5"
@@ -55,6 +49,33 @@ export function Chip({
           />
         </Pressable>
       ) : null}
-    </Pressable>
+    </>
+  );
+
+  // Interactive chip: press-scale + light haptic.
+  if (onPress) {
+    return (
+      <PressableScale
+        onPress={onPress}
+        haptic="light"
+        className={containerClass}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ selected }}
+      >
+        {inner}
+      </PressableScale>
+    );
+  }
+
+  // Static chip (display / remove-only).
+  return (
+    <View
+      className={containerClass}
+      accessibilityRole="text"
+      accessibilityLabel={label}
+    >
+      {inner}
+    </View>
   );
 }

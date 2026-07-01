@@ -1,7 +1,16 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, {
+  FadeInDown,
+  FadeOut,
+  LinearTransition,
+} from "react-native-reanimated";
 import { SubtaskRow } from "@/components/ui/SubtaskRow";
+import { PressableScale } from "@/components/ui/PressableScale";
+import { shadows } from "@/utils/design-tokens";
+import { staggerDelay, DURATIONS } from "@/utils/motion";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 import * as taskLogic from "@/core/task-logic";
 import type { Subtask } from "@/types";
 
@@ -28,6 +37,7 @@ export function SubtaskChecklist({
 }: SubtaskChecklistProps) {
   const [newTitle, setNewTitle] = useState("");
   const [newMin, setNewMin] = useState("");
+  const reduceMotion = useReduceMotion();
 
   const commitAdd = () => {
     const title = newTitle.trim();
@@ -41,15 +51,27 @@ export function SubtaskChecklist({
   };
 
   const total = taskLogic.sumEstimatedMin(subtasks);
+  const canAdd = newTitle.trim().length > 0;
 
   return (
     <View>
       {subtasks.length > 0 ? (
-        <View className="rounded-lg border border-neutral-200 bg-white px-3">
+        <Animated.View
+          layout={reduceMotion ? undefined : LinearTransition.duration(DURATIONS.base)}
+          className="overflow-hidden rounded-lg border border-neutral-200 bg-white"
+          style={shadows.xs}
+        >
           {subtasks.map((subtask, index) => (
-            <View
+            <Animated.View
               key={subtask.id}
-              className="flex-row items-center"
+              entering={
+                reduceMotion
+                  ? undefined
+                  : FadeInDown.delay(staggerDelay(index)).duration(DURATIONS.base)
+              }
+              exiting={reduceMotion ? undefined : FadeOut.duration(DURATIONS.fast)}
+              layout={reduceMotion ? undefined : LinearTransition.duration(DURATIONS.base)}
+              className="flex-row items-center px-3"
             >
               <View className="flex-1">
                 <SubtaskRow
@@ -93,15 +115,15 @@ export function SubtaskChecklist({
                   />
                 </Pressable>
               </View>
-            </View>
+            </Animated.View>
           ))}
 
-          <View className="flex-row justify-end py-2">
-            <Text className="text-caption text-neutral-500">
+          <View className="flex-row items-center justify-end border-t border-neutral-100 px-3 py-2.5">
+            <Text className="text-caption font-medium text-neutral-500">
               {subtasks.length} step{subtasks.length === 1 ? "" : "s"} · {total}m total
             </Text>
           </View>
-        </View>
+        </Animated.View>
       ) : null}
 
       {/* Add-row input */}
@@ -127,18 +149,20 @@ export function SubtaskChecklist({
           onSubmitEditing={commitAdd}
           accessibilityLabel="New step estimate in minutes"
         />
-        <Pressable
+        <PressableScale
           onPress={commitAdd}
-          disabled={!newTitle.trim()}
+          haptic={canAdd ? "light" : false}
+          disabled={!canAdd}
           className={`h-12 w-12 items-center justify-center rounded-md ${
-            newTitle.trim() ? "bg-primary-600" : "bg-neutral-200"
+            canAdd ? "bg-primary-600" : "bg-neutral-200"
           }`}
+          style={canAdd ? shadows.xs : undefined}
           accessibilityRole="button"
           accessibilityLabel="Add step"
-          accessibilityState={{ disabled: !newTitle.trim() }}
+          accessibilityState={{ disabled: !canAdd }}
         >
           <Ionicons name="add" size={22} color="#FFFFFF" />
-        </Pressable>
+        </PressableScale>
       </View>
     </View>
   );

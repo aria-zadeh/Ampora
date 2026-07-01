@@ -12,18 +12,26 @@ import {
   ScrollView,
   Pressable,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
+import { Heading } from "@/components/ui/Heading";
 import { signInWithMagicLink } from "@/services/supabase";
 import { useSettingsStore } from "@/store/settingsStore";
+import { shadows, gradients } from "@/utils/design-tokens";
+import { DURATIONS } from "@/utils/motion";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 
 type ScreenState = "idle" | "loading" | "success" | "error";
 
 export default function AuthScreen() {
   const [email, setEmail] = useState("");
+  const [focused, setFocused] = useState(false);
   const [screenState, setScreenState] = useState<ScreenState>("idle");
   const router = useRouter();
+  const reduceMotion = useReduceMotion();
   const onboardingComplete = useSettingsStore((s) => s.settings.onboardingComplete);
 
   const isValidEmail = email.includes("@") && email.includes(".");
@@ -41,72 +49,101 @@ export default function AuthScreen() {
     }
   }
 
+  const enter = (delay: number) =>
+    reduceMotion ? undefined : FadeInDown.delay(delay).duration(DURATIONS.base);
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       className="flex-1 bg-neutral-100"
     >
+      {/* Hero gradient wash behind the brand block */}
+      <LinearGradient
+        colors={gradients.heroWash}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        pointerEvents="none"
+        style={{ position: "absolute", top: 0, left: 0, right: 0, height: 360 }}
+      />
+
       <ScrollView
         contentContainerClassName="flex-grow justify-center"
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View className="px-8 py-12">
+        <View className="px-6 py-16">
           {/* Brand block */}
-          <View className="items-center mb-12">
-            <Ionicons
-              name="aperture-outline"
-              size={64}
-              color="#2563EB"
-              accessibilityLabel="Ampora app icon"
-            />
-            <Text
-              className="text-display font-bold text-neutral-900 mt-4"
+          <Animated.View entering={enter(0)} className="mb-14">
+            <View
+              className="w-14 h-14 rounded-2xl bg-white items-center justify-center mb-6 border border-neutral-200"
+              style={shadows.sm}
+            >
+              <Ionicons
+                name="aperture"
+                size={30}
+                color="#2563EB"
+                accessibilityLabel="Ampora app icon"
+              />
+            </View>
+            <Heading
+              size="display"
+              className="text-neutral-900"
               accessibilityRole="header"
             >
               Ampora
+            </Heading>
+            <Text className="text-body-lg text-neutral-600 mt-3 max-w-[320px] leading-6">
+              Built for brains that work differently. Sign in and pick up right
+              where you left off.
             </Text>
-            <Text className="text-body text-neutral-500 mt-2 text-center">
-              Built for brains that work differently
-            </Text>
-          </View>
+          </Animated.View>
 
           {/* Success state */}
           {screenState === "success" ? (
-            <View
-              className="bg-white border border-neutral-200 rounded-xl p-6 items-center gap-3"
+            <Animated.View
+              entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.slow)}
+              className="bg-white border border-neutral-200 rounded-2xl p-6 gap-3"
+              style={shadows.sm}
               accessibilityLiveRegion="polite"
             >
-              <Ionicons
-                name="mail-outline"
-                size={40}
-                color="#2563EB"
-                accessibilityLabel="Mail icon"
-              />
-              <Text className="text-body-lg font-semibold text-neutral-900 text-center">
-                Check your email — link is on its way
+              <View className="w-11 h-11 rounded-full bg-primary-50 items-center justify-center">
+                <Ionicons
+                  name="mail-outline"
+                  size={22}
+                  color="#2563EB"
+                  accessibilityLabel="Mail icon"
+                />
+              </View>
+              <Heading size="h4">Check your email</Heading>
+              <Text className="text-body text-neutral-600 leading-6">
+                We sent a sign-in link to{" "}
+                <Text className="text-neutral-900 font-medium">{email.trim()}</Text>
+                . Tap it and you are in — no password needed.
               </Text>
-              <Text className="text-caption text-neutral-500 text-center">
-                Tap the link in your inbox to sign in.
-              </Text>
-            </View>
+            </Animated.View>
           ) : (
             /* Form state */
-            <View className="gap-4">
+            <Animated.View entering={enter(90)} className="gap-3">
               {/* Email input */}
               <View>
                 <Text
-                  className="text-caption font-semibold text-neutral-500 mb-2 uppercase tracking-wide"
+                  className="text-overline text-neutral-500 uppercase tracking-wide mb-2"
                   accessibilityLabel="Email address label"
                 >
                   Email address
                 </Text>
                 <TextInput
-                  className="min-h-12 bg-white border border-neutral-200 rounded-md px-4 text-body-lg text-neutral-900"
+                  className={`h-12 bg-white rounded-md px-4 text-body-lg text-neutral-900 border ${
+                    focused ? "border-primary-500" : "border-neutral-200"
+                  }`}
+                  style={shadows.xs}
                   value={email}
                   onChangeText={(t) => {
                     setEmail(t);
                     if (screenState === "error") setScreenState("idle");
                   }}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
                   placeholder="you@example.com"
                   placeholderTextColor="#A1A1AA"
                   keyboardType="email-address"
@@ -124,7 +161,7 @@ export default function AuthScreen() {
               {/* Error message */}
               {screenState === "error" && (
                 <Text
-                  className="text-caption text-danger-600 text-center"
+                  className="text-caption text-danger-600"
                   accessibilityLiveRegion="polite"
                   accessibilityRole="alert"
                 >
@@ -132,21 +169,24 @@ export default function AuthScreen() {
                 </Text>
               )}
 
-              {/* Submit button */}
-              <Button
-                title="Send me a sign-in link"
-                variant="primaryBlue"
-                loading={screenState === "loading"}
-                disabled={!isValidEmail || screenState === "loading"}
-                onPress={handleSend}
-                accessibilityLabel="Send magic link to email"
-                accessibilityHint="Sends a sign-in link to the email address you entered"
-              />
-            </View>
+              {/* Submit button — the single primary action */}
+              <View className="mt-2">
+                <Button
+                  title="Send me a sign-in link"
+                  variant="primaryBlue"
+                  size="lg"
+                  loading={screenState === "loading"}
+                  disabled={!isValidEmail || screenState === "loading"}
+                  onPress={handleSend}
+                  accessibilityLabel="Send magic link to email"
+                  accessibilityHint="Sends a sign-in link to the email address you entered"
+                />
+              </View>
+            </Animated.View>
           )}
 
           {/* Guest mode */}
-          <View className="mt-10 items-center">
+          <Animated.View entering={enter(160)} className="mt-12 items-center">
             <Pressable
               onPress={() => {
                 // Set a global flag so _layout.tsx treats us as "authenticated"
@@ -158,15 +198,16 @@ export default function AuthScreen() {
                   router.replace("/onboarding/welcome");
                 }
               }}
-              className="border border-neutral-200 rounded-md px-5 py-3 min-h-[44px] items-center justify-center"
-              accessibilityLabel="Enter guest mode"
+              className="min-h-[44px] px-4 items-center justify-center"
+              accessibilityLabel="Continue as guest"
               accessibilityRole="button"
             >
-              <Text className="text-caption font-medium text-neutral-500">
-                Guest Mode
+              <Text className="text-label text-neutral-500">
+                Just looking?{" "}
+                <Text className="text-primary-600 font-medium">Continue as guest</Text>
               </Text>
             </Pressable>
-          </View>
+          </Animated.View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

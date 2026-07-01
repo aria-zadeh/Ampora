@@ -1,10 +1,13 @@
 import React from "react";
-import { View, Text, Pressable } from "react-native";
+import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTaskStore } from "@/store/taskStore";
+import { Heading } from "@/components/ui/Heading";
+import { PressableScale } from "@/components/ui/PressableScale";
 import { TaskEditorForm } from "@/components/task-editor/TaskEditorForm";
+import { shadows } from "@/utils/design-tokens";
 import type { Task } from "@/types";
 
 /**
@@ -32,20 +35,25 @@ export default function NewTaskScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between border-b border-neutral-200 bg-white px-4 py-3">
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          className="min-h-11 min-w-11 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-        >
-          <Ionicons name="close" size={24} color="#18181B" />
-        </Pressable>
-        <Text className="text-h4 font-semibold text-neutral-900">New task</Text>
+      {/* Modal header */}
+      <View
+        className="flex-row items-center justify-between border-b border-neutral-200 bg-white px-5 py-3.5"
+        style={shadows.xs}
+      >
+        <View className="min-w-11">
+          <PressableScale
+            onPress={() => router.back()}
+            haptic="light"
+            className="h-11 w-11 -ml-2 items-center justify-center rounded-full"
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+          >
+            <Ionicons name="close" size={24} color="#18181B" />
+          </PressableScale>
+        </View>
+        <Heading size="h3">New task</Heading>
         {/* Spacer to balance the X so the title stays centered */}
-        <View className="min-h-11 min-w-11" />
+        <View className="min-w-11" />
       </View>
 
       <TaskEditorForm

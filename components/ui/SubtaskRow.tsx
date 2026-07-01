@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { PressableScale } from "./PressableScale";
 import * as taskLogic from "@/core/task-logic";
 import type { Subtask } from "@/types";
 
@@ -22,6 +24,12 @@ export function SubtaskRow({
 }: SubtaskRowProps) {
   const done = taskLogic.isSubtaskDone(subtask);
 
+  // Selection tick when toggling a step (calm, not a heavy impact).
+  const handleToggle = useCallback(() => {
+    Haptics.selectionAsync();
+    onToggle?.();
+  }, [onToggle]);
+
   return (
     <View
       className="flex-row items-center py-2 border-b border-neutral-200"
@@ -31,7 +39,7 @@ export function SubtaskRow({
     >
       {/* Checkbox */}
       <Pressable
-        onPress={onToggle}
+        onPress={handleToggle}
         className="min-w-11 min-h-11 items-center justify-center"
         accessibilityRole="checkbox"
         accessibilityState={{ checked: done }}
@@ -47,21 +55,36 @@ export function SubtaskRow({
         </View>
       </Pressable>
 
-      {/* Title */}
-      <Pressable
-        onPress={onEdit ? () => onEdit(subtask.title) : undefined}
-        disabled={!onEdit}
-        className="flex-1 ml-1"
-      >
-        <Text
-          className={`text-body ${
-            done ? "line-through text-neutral-400" : "text-neutral-900"
-          }`}
-          numberOfLines={2}
+      {/* Title — press-scale + light haptic only when editable/tappable. */}
+      {onEdit ? (
+        <PressableScale
+          onPress={() => onEdit(subtask.title)}
+          haptic="light"
+          className="flex-1 ml-1"
+          accessibilityRole="button"
+          accessibilityLabel={`Edit step: ${subtask.title}`}
         >
-          {subtask.title}
-        </Text>
-      </Pressable>
+          <Text
+            className={`text-body ${
+              done ? "line-through text-neutral-400" : "text-neutral-900"
+            }`}
+            numberOfLines={2}
+          >
+            {subtask.title}
+          </Text>
+        </PressableScale>
+      ) : (
+        <View className="flex-1 ml-1">
+          <Text
+            className={`text-body ${
+              done ? "line-through text-neutral-400" : "text-neutral-900"
+            }`}
+            numberOfLines={2}
+          >
+            {subtask.title}
+          </Text>
+        </View>
+      )}
 
       {/* Duration chip */}
       <View className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5">

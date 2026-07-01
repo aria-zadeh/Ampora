@@ -1,7 +1,12 @@
 import React from "react";
 import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeIn } from "react-native-reanimated";
+import { iconSizes } from "@/utils/design-tokens";
+import { DURATIONS } from "@/utils/motion";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { Button } from "./Button";
+import { Heading } from "./Heading";
 
 interface EmptyStateProps {
   title: string;
@@ -18,21 +23,31 @@ export function EmptyState({
   actionLabel,
   onAction,
 }: EmptyStateProps) {
+  const reduceMotion = useReduceMotion();
+  const entering = reduceMotion
+    ? undefined
+    : FadeIn.duration(DURATIONS.slow);
+
   return (
-    <View
+    <Animated.View
+      entering={entering}
       className="items-center justify-center py-12 px-8"
       accessibilityLabel={`${title}. ${subtitle}`}
     >
-      <Ionicons name={icon} size={48} color="#D4D4D8" style={{ marginBottom: 16 }} />
-      <Text className="text-h4 font-semibold text-neutral-900 text-center mb-2">
+      <View className="w-16 h-16 rounded-full bg-neutral-100 items-center justify-center mb-5">
+        <Ionicons name={icon} size={iconSizes.hero} color="#A1A1AA" />
+      </View>
+      <Heading size="h4" className="text-center">
         {title}
-      </Text>
-      <Text className="text-caption text-neutral-500 text-center mb-6">
+      </Heading>
+      <Text className="text-body text-neutral-500 text-center mt-2 max-w-[280px]">
         {subtitle}
       </Text>
       {actionLabel && onAction && (
-        <Button title={actionLabel} onPress={onAction} variant="primaryBlue" />
+        <View className="mt-6">
+          <Button title={actionLabel} onPress={onAction} variant="primaryBlue" />
+        </View>
       )}
-    </View>
+    </Animated.View>
   );
 }

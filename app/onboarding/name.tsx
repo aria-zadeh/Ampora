@@ -1,14 +1,26 @@
 import React, { useState } from "react";
-import { View, Text, TextInput } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
+import { Heading } from "@/components/ui/Heading";
 import { useSettingsStore } from "@/store/settingsStore";
+import { shadows } from "@/utils/design-tokens";
+import { DURATIONS } from "@/utils/motion";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 
 export default function NameScreen() {
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
   const [name, setName] = useState("");
+  const [focused, setFocused] = useState(false);
 
   const handleContinue = () => {
     if (name.trim()) {
@@ -21,52 +33,71 @@ export default function NameScreen() {
     router.push("/onboarding/availability");
   };
 
+  const enter = (delay: number) =>
+    reduceMotion ? undefined : FadeInDown.delay(delay).duration(DURATIONS.base);
+
   return (
-    <View
-      className="flex-1 bg-neutral-100 justify-between px-6"
-      style={{ paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1 bg-neutral-100"
     >
-      <View className="items-center mt-12">
-        <View className="w-24 h-24 rounded-full bg-primary-100 items-center justify-center mb-6">
-          <Ionicons name="person-outline" size={48} color="#2563EB" />
+      <View
+        className="flex-1 justify-between px-6"
+        style={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }}
+      >
+        <View>
+          <Animated.View entering={enter(0)}>
+            <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
+              A quick hello
+            </Text>
+            <Heading size="h1" className="text-neutral-900 max-w-[300px]">
+              What should we call you?
+            </Heading>
+            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[320px]">
+              Just a first name — we’ll use it to keep things personal.
+            </Text>
+          </Animated.View>
+
+          <Animated.View entering={enter(90)} className="mt-10">
+            <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-2">
+              Your name
+            </Text>
+            <TextInput
+              className={`h-12 bg-white rounded-md px-4 text-body-lg text-neutral-900 border ${
+                focused ? "border-primary-500" : "border-neutral-200"
+              }`}
+              style={shadows.xs}
+              placeholder="Your first name"
+              placeholderTextColor="#A1A1AA"
+              value={name}
+              onChangeText={setName}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              autoFocus
+              autoCapitalize="words"
+              returnKeyType="done"
+              onSubmitEditing={handleContinue}
+              accessibilityLabel="Enter your first name"
+            />
+          </Animated.View>
         </View>
-        <Text className="text-h2 font-bold text-neutral-900 text-center mb-3">
-          What should we call you?
-        </Text>
-        <Text className="text-body text-neutral-500 text-center leading-6 max-w-[300px]">
-          We'll use this to personalize your experience.
-        </Text>
-      </View>
 
-      <View className="my-8">
-        <TextInput
-          className="bg-white border border-neutral-200 rounded-md min-h-12 px-4 text-body-lg text-neutral-900"
-          placeholder="Your first name"
-          placeholderTextColor="#A1A1AA"
-          value={name}
-          onChangeText={setName}
-          autoFocus
-          autoCapitalize="words"
-          returnKeyType="done"
-          onSubmitEditing={handleContinue}
-          accessibilityLabel="Enter your first name"
-        />
+        <Animated.View entering={enter(160)} className="gap-2">
+          <Button
+            title="Continue"
+            variant="primaryBlue"
+            size="lg"
+            onPress={handleContinue}
+            accessibilityLabel="Save name and continue"
+          />
+          <Button
+            title="Skip for now"
+            variant="ghost"
+            onPress={handleSkip}
+            accessibilityLabel="Skip name entry and continue"
+          />
+        </Animated.View>
       </View>
-
-      <View className="gap-3">
-        <Button
-          title="Continue"
-          variant="primary"
-          onPress={handleContinue}
-          accessibilityLabel="Save name and continue"
-        />
-        <Button
-          title="Skip"
-          variant="ghost"
-          onPress={handleSkip}
-          accessibilityLabel="Skip name entry and continue"
-        />
-      </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

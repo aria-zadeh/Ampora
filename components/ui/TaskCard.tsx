@@ -1,8 +1,11 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { PressableScale } from "./PressableScale";
 import { ProgressBar } from "./ProgressBar";
 import { Badge } from "./Badge";
+import { shadows } from "@/utils/design-tokens";
 import type { Task } from "@/types";
 
 export interface TaskCardProps {
@@ -57,11 +60,21 @@ export function TaskCard({
     [hasSubtasks, task.progressMin, task.durationMin]
   );
 
+  // Success haptic when completing, light tick when reopening.
+  const handleToggle = useCallback(() => {
+    if (isDone) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    onToggleComplete?.();
+  }, [isDone, onToggleComplete]);
+
   return (
     <View className="flex-row items-center gap-3">
       {/* Completion checkbox */}
       <Pressable
-        onPress={onToggleComplete}
+        onPress={handleToggle}
         className="min-w-11 min-h-11 items-center justify-center"
         accessibilityRole="checkbox"
         accessibilityState={{ checked: isDone }}
@@ -69,18 +82,20 @@ export function TaskCard({
         hitSlop={8}
       >
         <View
-          className={`w-6 h-6 rounded-full items-center justify-center ${
+          className={`w-7 h-7 rounded-full items-center justify-center ${
             isDone ? "bg-primary-600" : "border-2 border-neutral-300"
           }`}
         >
-          {isDone && <Ionicons name="checkmark" size={15} color="#FFFFFF" />}
+          {isDone && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
         </View>
       </Pressable>
 
       {/* Card body */}
-      <Pressable
+      <PressableScale
         onPress={onPress}
-        className="flex-1 bg-white border border-neutral-200 rounded-lg p-4 min-h-14 active:opacity-90"
+        haptic="light"
+        style={shadows.sm}
+        className="flex-1 bg-white border border-neutral-200 rounded-lg p-4 min-h-14"
         accessibilityRole="button"
         accessibilityLabel={`Task: ${task.title}.${dueLabel ? ` ${dueLabel}.` : ""}${
           hasSubtasks ? ` ${subtaskCount} steps.` : ""
@@ -107,14 +122,8 @@ export function TaskCard({
         {/* Meta row */}
         {(dueLabel || listColor || hasSubtasks) && (
           <View className="flex-row items-center flex-wrap gap-x-3 gap-y-1 mt-1.5">
-            {dueLabel && (
-              <Text
-                className={`text-caption ${
-                  isOverdue && !isDone ? "text-danger-600" : "text-neutral-500"
-                }`}
-              >
-                {dueLabel}
-              </Text>
+            {dueLabel && !isOverdue && (
+              <Text className="text-caption text-neutral-500">{dueLabel}</Text>
             )}
             {listColor && (
               <View
@@ -136,7 +145,7 @@ export function TaskCard({
             <ProgressBar progress={progress} height={4} />
           </View>
         )}
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }

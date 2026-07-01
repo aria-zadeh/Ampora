@@ -1,10 +1,11 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Pressable, TextInput, Modal } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { Swipeable } from "react-native-gesture-handler";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 import { useTaskStore } from "@/store/taskStore";
 import { useListStore, selectAllLists, selectAllTags } from "@/store/listStore";
@@ -16,6 +17,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { FAB } from "@/components/ui/FAB";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Heading } from "@/components/ui/Heading";
+import { DURATIONS, staggerDelay } from "@/utils/motion";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { Task } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -87,7 +91,7 @@ const SECTION_TITLE: Record<SectionKey, string> = {
 // Flattened row model fed to the single FlashList.
 type Row =
   | { kind: "header"; key: string; section: SectionKey; count: number; collapsible?: boolean }
-  | { kind: "task"; key: string; task: Task };
+  | { kind: "task"; key: string; task: Task; index: number };
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -95,6 +99,14 @@ type Row =
 
 export default function TasksScreen() {
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
+
+  // Only stagger-animate rows on the first paint; scrolling a recycled
+  // FlashList cell should not re-fire the entrance (ADHD: no jarring motion).
+  const didMount = useRef(false);
+  useEffect(() => {
+    didMount.current = true;
+  }, []);
 
   // Atomic selects; derive below in useMemo.
   const tasksRecord = useTaskStore((s) => s.tasks);
@@ -220,7 +232,9 @@ export default function TasksScreen() {
     completed.sort((a, b) => (b.completedAt ?? b.updatedAt) - (a.completedAt ?? a.updatedAt));
 
     // Build flattened rows: header + its tasks, sections in fixed order.
+    // `index` on each task row drives the one-time stagger entrance.
     const out: Row[] = [];
+    let rowIndex = 0;
     const order: Exclude<SectionKey, "completed">[] = [
       "inbox",
       "overdue",
@@ -237,7 +251,7 @@ export default function TasksScreen() {
         section,
         count: items.length,
       });
-      for (const task of items) out.push({ kind: "task", key: task.id, task });
+      for (const task of items) out.push({ kind: "task", key: task.id, task, index: rowIndex++ });
     }
 
     // Completed section (collapsible, collapsed by default).
@@ -250,7 +264,7 @@ export default function TasksScreen() {
         collapsible: true,
       });
       if (!completedCollapsed) {
-        for (const task of completed) out.push({ kind: "task", key: task.id, task });
+        for (const task of completed) out.push({ kind: "task", key: task.id, task, index: rowIndex++ });
       }
     }
 
@@ -278,7 +292,7 @@ export default function TasksScreen() {
           <Pressable
             disabled={!collapsible}
             onPress={collapsible ? () => setCompletedCollapsed((c) => !c) : undefined}
-            className="flex-row items-center px-5 pt-5 pb-2 min-h-11"
+            className="flex-row items-center px-5 pt-7 pb-3 min-h-11"
             accessibilityRole={collapsible ? "button" : "header"}
             accessibilityLabel={`${SECTION_TITLE[item.section]}, ${item.count} ${
               item.count === 1 ? "task" : "tasks"
@@ -287,36 +301,44 @@ export default function TasksScreen() {
             {collapsible && (
               <Ionicons
                 name={collapsed ? "chevron-forward" : "chevron-down"}
-                size={16}
+                size={18}
                 color="#71717A"
-                style={{ marginRight: 4 }}
+                style={{ marginRight: 6 }}
               />
             )}
-            <Text className="text-label font-semibold text-neutral-900">
-              {SECTION_TITLE[item.section]}
-            </Text>
-            <Text className="ml-2 text-caption text-neutral-400">{item.count}</Text>
+            <Heading size="h4">{SECTION_TITLE[item.section]}</Heading>
+            <View className="ml-2.5 min-w-6 h-6 px-1.5 rounded-full bg-neutral-200 items-center justify-center">
+              <Text className="text-caption font-semibold text-neutral-600">{item.count}</Text>
+            </View>
           </Pressable>
         );
       }
 
+      // First-paint stagger only; recycled cells while scrolling don't re-animate.
+      const entering =
+        reduceMotion || didMount.current
+          ? undefined
+          : FadeInDown.delay(staggerDelay(item.index)).duration(DURATIONS.base);
+
       return (
-        <TaskRow
-          task={item.task}
-          listColor={item.task.listId ? listColorById[item.task.listId] : undefined}
-          onOpen={() => router.push(`/task/${item.task.id}`)}
-          onToggle={() =>
-            item.task.status === "done"
-              ? reopenTask(item.task.id)
-              : completeTask(item.task.id)
-          }
-          onDone={() => completeTask(item.task.id)}
-          onDelete={() => deleteTask(item.task.id)}
-          onSchedule={() => setScheduleFor(item.task)}
-        />
+        <Animated.View entering={entering}>
+          <TaskRow
+            task={item.task}
+            listColor={item.task.listId ? listColorById[item.task.listId] : undefined}
+            onOpen={() => router.push(`/task/${item.task.id}`)}
+            onToggle={() =>
+              item.task.status === "done"
+                ? reopenTask(item.task.id)
+                : completeTask(item.task.id)
+            }
+            onDone={() => completeTask(item.task.id)}
+            onDelete={() => deleteTask(item.task.id)}
+            onSchedule={() => setScheduleFor(item.task)}
+          />
+        </Animated.View>
       );
     },
-    [completedCollapsed, listColorById, completeTask, reopenTask, deleteTask]
+    [completedCollapsed, listColorById, completeTask, reopenTask, deleteTask, reduceMotion]
   );
 
   const keyExtractor = useCallback((item: Row) => item.key, []);
@@ -326,9 +348,9 @@ export default function TasksScreen() {
 
   return (
     <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
-      {/* Header */}
-      <View className="px-5 pt-4 pb-2">
-        <Text className="text-h1 font-bold text-neutral-900">Tasks</Text>
+      {/* Header — big, tight. */}
+      <View className="px-5 pt-5 pb-3">
+        <Heading size="h1">Tasks</Heading>
       </View>
 
       {/* Quick-add bar */}
@@ -367,7 +389,7 @@ export default function TasksScreen() {
 
         {/* Live preview strip */}
         {preview && (
-          <View className="flex-row items-center flex-wrap gap-2 mt-2 px-1">
+          <View className="flex-row items-center flex-wrap gap-2 mt-2.5 px-1">
             <Text
               className="text-caption text-neutral-500"
               numberOfLines={1}
@@ -455,8 +477,10 @@ export default function TasksScreen() {
       </View>
 
       {/* Sort control */}
-      <View className="px-5 mt-3 flex-row items-center gap-2">
-        <Text className="text-caption text-neutral-500">Sort</Text>
+      <View className="px-5 mt-4 flex-row items-center gap-3">
+        <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide">
+          Sort
+        </Text>
         <View className="flex-1">
           <SegmentedControl
             segments={SORT_SEGMENTS}
@@ -467,16 +491,16 @@ export default function TasksScreen() {
       </View>
 
       {/* List */}
-      <View className="flex-1 mt-2">
+      <View className="flex-1 mt-1">
         {isEmpty ? (
           <EmptyState
             title={hasAnyTasks ? "No matching tasks" : "No tasks yet"}
             subtitle={
               hasAnyTasks
-                ? "Try clearing filters or search."
-                : "Add your first task above, or tap the + button."
+                ? "Nothing fits those filters. Try clearing a chip or your search."
+                : "Add your first task above, or tap the + button to get started."
             }
-            icon={hasAnyTasks ? "search-outline" : "checkbox-outline"}
+            icon={hasAnyTasks ? "search-outline" : "sparkles-outline"}
             actionLabel={hasAnyTasks ? undefined : "New task"}
             onAction={hasAnyTasks ? undefined : () => router.push("/task/new")}
           />
@@ -635,21 +659,23 @@ function ScheduleModal({ task, onClose, onSave }: ScheduleModalProps) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose} accessibilityLabel="Dismiss">
         <Pressable
-          className="bg-white rounded-t-xl p-5 pb-8"
+          className="bg-white rounded-t-2xl p-5 pb-8"
           onPress={(e) => e.stopPropagation()}
         >
           <View className="items-center mb-4">
             <View className="w-10 h-1 rounded-full bg-neutral-200" />
           </View>
-          <Text className="text-h4 font-semibold text-neutral-900 mb-1">Schedule</Text>
+          <Heading size="h3">Schedule</Heading>
           {task && (
-            <Text className="text-caption text-neutral-500 mb-4" numberOfLines={1}>
+            <Text className="text-body text-neutral-500 mt-1 mb-5" numberOfLines={1}>
               {task.title}
             </Text>
           )}
 
-          <Text className="text-label font-medium text-neutral-900 mb-2">Duration</Text>
-          <View className="flex-row flex-wrap gap-2 mb-5">
+          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2.5">
+            Duration
+          </Text>
+          <View className="flex-row flex-wrap gap-2 mb-6">
             {DURATION_OPTIONS.map((d) => (
               <Chip
                 key={d}
@@ -660,8 +686,10 @@ function ScheduleModal({ task, onClose, onSave }: ScheduleModalProps) {
             ))}
           </View>
 
-          <Text className="text-label font-medium text-neutral-900 mb-2">Due</Text>
-          <View className="flex-row flex-wrap gap-2 mb-6">
+          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2.5">
+            Due
+          </Text>
+          <View className="flex-row flex-wrap gap-2 mb-7">
             {DUE_OPTIONS.map((opt) => (
               <Chip
                 key={opt.label}

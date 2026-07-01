@@ -1,4 +1,5 @@
 import "../global.css";
+import "@/nativewind-reanimated";
 import React, { useEffect, useState } from "react";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";

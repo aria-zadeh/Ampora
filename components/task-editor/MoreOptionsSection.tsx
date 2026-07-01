@@ -1,6 +1,12 @@
-import React, { useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import React, { useState, useCallback } from "react";
+import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { PressableScale } from "@/components/ui/PressableScale";
+import { shadows } from "@/utils/design-tokens";
+import { DURATIONS } from "@/utils/motion";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 
 interface MoreOptionsSectionProps {
   children: React.ReactNode;
@@ -10,34 +16,55 @@ interface MoreOptionsSectionProps {
 
 /**
  * Collapsible "More options" disclosure. Starts collapsed; toggling reveals the
- * advanced scheduling fields the parent passes as children.
+ * advanced scheduling fields the parent passes as children. Restyled as a clean
+ * card row with a rotating chevron and a calm fade-in on expand.
  */
 export function MoreOptionsSection({
   children,
   defaultExpanded = false,
 }: MoreOptionsSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const reduceMotion = useReduceMotion();
+
+  const toggle = useCallback(() => {
+    Haptics.selectionAsync().catch(() => {});
+    setExpanded((v) => !v);
+  }, []);
 
   return (
     <View>
-      <Pressable
-        onPress={() => setExpanded((v) => !v)}
-        className="flex-row items-center justify-between py-2"
+      <PressableScale
+        onPress={toggle}
+        haptic={false}
+        className="flex-row items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3.5"
+        style={shadows.xs}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel="More options"
       >
-        <Text className="text-body-lg font-semibold text-neutral-900">
-          More options
-        </Text>
+        <View className="flex-row items-center gap-3">
+          <View className="h-8 w-8 items-center justify-center rounded-full bg-neutral-100">
+            <Ionicons name="options-outline" size={16} color="#52525B" />
+          </View>
+          <Text className="text-body-lg font-semibold text-neutral-900">
+            More options
+          </Text>
+        </View>
         <Ionicons
           name={expanded ? "chevron-up" : "chevron-down"}
-          size={20}
-          color="#71717A"
+          size={18}
+          color="#A1A1AA"
         />
-      </Pressable>
+      </PressableScale>
 
-      {expanded ? <View className="mt-2 gap-5">{children}</View> : null}
+      {expanded ? (
+        <Animated.View
+          entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
+          className="mt-5 gap-5"
+        >
+          {children}
+        </Animated.View>
+      ) : null}
     </View>
   );
 }

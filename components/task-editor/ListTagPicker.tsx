@@ -3,6 +3,9 @@ import { View, Text, Pressable, TextInput, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
+import { Heading } from "@/components/ui/Heading";
+import { PressableScale } from "@/components/ui/PressableScale";
+import { shadows } from "@/utils/design-tokens";
 import { useShallow } from "zustand/react/shallow";
 import {
   useListStore,
@@ -122,17 +125,18 @@ export function ListTagPicker(props: ListTagPickerProps) {
               />
             ))}
 
-        <Pressable
+        <PressableScale
           onPress={openCreate}
-          className="flex-row items-center rounded-full border border-dashed border-neutral-300 px-3 py-1"
+          haptic="light"
+          className="flex-row items-center rounded-full border border-dashed border-neutral-300 bg-white px-3 py-1.5"
           accessibilityRole="button"
           accessibilityLabel={isSingle ? "New list" : "New tag"}
         >
-          <Ionicons name="add" size={14} color="#52525B" />
-          <Text className="ml-1 text-caption text-neutral-600">
+          <Ionicons name="add" size={14} color="#2563EB" />
+          <Text className="ml-1 text-caption font-medium text-primary-600">
             {isSingle ? "New list" : "New tag"}
           </Text>
-        </Pressable>
+        </PressableScale>
       </View>
 
       <Modal
@@ -146,15 +150,14 @@ export function ListTagPicker(props: ListTagPickerProps) {
           onPress={() => setCreating(false)}
         >
           <Pressable
-            className="w-full rounded-xl bg-white p-5"
+            className="w-full rounded-2xl bg-white p-6"
+            style={shadows.lg}
             onPress={(e) => e.stopPropagation()}
           >
-            <Text className="text-h4 font-semibold text-neutral-900">
-              {isSingle ? "New list" : "New tag"}
-            </Text>
+            <Heading size="h3">{isSingle ? "New list" : "New tag"}</Heading>
 
             <TextInput
-              className="mt-4 min-h-12 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
+              className="mt-5 min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
               placeholder={isSingle ? "List name" : "Tag name"}
               placeholderTextColor="#A1A1AA"
               value={draftName}
@@ -165,7 +168,7 @@ export function ListTagPicker(props: ListTagPickerProps) {
               accessibilityLabel={isSingle ? "List name" : "Tag name"}
             />
 
-            <Text className="mt-4 mb-2 text-label font-medium text-neutral-600">
+            <Text className="mt-5 mb-2 text-label font-medium text-neutral-600">
               Color
             </Text>
             <View className="flex-row flex-wrap gap-3">

@@ -95,28 +95,105 @@ export const typography = {
   tiny: { fontSize: 11, lineHeight: 14, fontWeight: "400" as const },
 } as const;
 
+/**
+ * 5-level elevation system (doc 02 §5). RN shadow props — apply via
+ * style={shadows.sm}, NOT className. `sm` is the default card elevation.
+ */
 export const shadows = {
-  sm: {
+  none: {
+    shadowColor: "#18181B",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  xs: {
     shadowColor: "#18181B",
     shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  sm: {
+    shadowColor: "#18181B",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
-    shadowRadius: 3,
+    shadowRadius: 8,
     elevation: 2,
   },
   md: {
     shadowColor: "#18181B",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowRadius: 16,
     elevation: 4,
   },
   lg: {
     shadowColor: "#18181B",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
-    shadowRadius: 16,
+    shadowRadius: 24,
     elevation: 8,
   },
+  xl: {
+    shadowColor: "#18181B",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.12,
+    shadowRadius: 32,
+    elevation: 12,
+  },
+} as const;
+
+/**
+ * Motion tokens. Durations in ms, springs for Reanimated withSpring,
+ * press feedback for the PressableScale primitive.
+ */
+export const motion = {
+  duration: {
+    instant: 100,
+    fast: 150,
+    base: 200,
+    slow: 300,
+    slower: 400,
+  },
+  spring: {
+    default: { damping: 18, mass: 1, stiffness: 220 },
+    gentle: { damping: 22, mass: 1, stiffness: 160 },
+  },
+  press: { scale: 0.97, opacity: 0.9, inMs: 100, outMs: 150 },
+} as const;
+
+/**
+ * Gradient color-array presets for expo-linear-gradient <LinearGradient colors={...} />.
+ * Keep these SUBTLE — faint washes only, never for text.
+ */
+export const gradients = {
+  heroWash: ["#EFF6FF", "rgba(244,244,245,0)"],
+  firstMove: ["#EFF6FF", "#FFFFFF"],
+  successTint: ["#F0FDF4", "#FFFFFF"],
+  fade: ["rgba(244,244,245,0)", "#F4F4F5"],
+} as const;
+
+/** Layout constants (px) for screen padding, content width, card rhythm. */
+export const layout = {
+  screenPadX: 20,
+  screenPadXLarge: 24,
+  maxContentWidth: 560,
+  cardPad: 16,
+  cardPadFeature: 20,
+  cardGap: 12,
+  sectionGap: 28,
+  rowMinHeight: 56,
+} as const;
+
+/** Icon sizing scale (px). */
+export const iconSizes = {
+  xs: 16,
+  sm: 18,
+  md: 20,
+  lg: 24,
+  xl: 32,
+  hero: 48,
 } as const;
 
 /** Minimum touch target size per WCAG / Apple HIG */

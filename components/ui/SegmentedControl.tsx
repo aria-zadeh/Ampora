@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
+import * as Haptics from "expo-haptics";
+import { shadows } from "@/utils/design-tokens";
 
 interface Segment {
   key: string;
@@ -17,34 +19,40 @@ export function SegmentedControl({
   value,
   onChange,
 }: SegmentedControlProps) {
+  const handleChange = useCallback(
+    (key: string) => {
+      if (key === value) return;
+      Haptics.selectionAsync().catch(() => {});
+      onChange(key);
+    },
+    [value, onChange],
+  );
+
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      className="bg-neutral-100 rounded-full"
+      className="bg-neutral-100 rounded-full self-start"
       contentContainerClassName="p-1"
     >
-      <View className="flex-row">
+      <View className="flex-row gap-1">
         {segments.map((segment) => {
           const active = segment.key === value;
           return (
             <Pressable
               key={segment.key}
-              onPress={() => onChange(segment.key)}
+              onPress={() => handleChange(segment.key)}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               accessibilityLabel={segment.label}
-              className={
-                active
-                  ? "bg-white rounded-full shadow-sm px-4 py-1.5"
-                  : "bg-transparent rounded-full px-4 py-1.5"
-              }
+              className="rounded-full px-4 py-1.5"
+              style={active ? [{ backgroundColor: "#FFFFFF" }, shadows.xs] : undefined}
             >
               <Text
                 className={
                   active
                     ? "text-label font-medium text-neutral-900"
-                    : "text-label font-medium text-neutral-500"
+                    : "text-label text-neutral-500"
                 }
               >
                 {segment.label}

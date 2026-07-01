@@ -29,6 +29,7 @@ export function Badge({ label, tone = "neutral" }: BadgeProps) {
   return (
     <View
       className={`self-start rounded-full px-2.5 py-1 ${config.bg}`}
+      accessibilityRole="text"
       accessibilityLabel={label}
     >
       <Text className={`text-caption font-medium ${config.text}`}>{label}</Text>

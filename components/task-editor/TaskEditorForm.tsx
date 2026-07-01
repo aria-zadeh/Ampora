@@ -8,9 +8,14 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
+import { Heading } from "@/components/ui/Heading";
 import { StarterActionCard } from "@/components/ui/StarterActionCard";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
+import { shadows } from "@/utils/design-tokens";
+import { DURATIONS } from "@/utils/motion";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { newId } from "@/core/id";
 import * as taskLogic from "@/core/task-logic";
 import { useTaskStore } from "@/store/taskStore";
@@ -89,9 +94,10 @@ const COLOR_SWATCHES = [
 ];
 
 // ---------------------------------------------------------------------------
-// Small field wrapper
+// Presentation primitives (form-local)
 // ---------------------------------------------------------------------------
 
+/** A labelled form field. Label is text-label neutral-600 with tight rhythm. */
 function Field({
   label,
   helper,
@@ -103,7 +109,7 @@ function Field({
 }) {
   return (
     <View>
-      <Text className="mb-1.5 text-label font-medium text-neutral-700">
+      <Text className="mb-1.5 text-label font-medium text-neutral-600">
         {label}
       </Text>
       {helper ? (
@@ -112,6 +118,48 @@ function Field({
       {children}
     </View>
   );
+}
+
+/**
+ * A grouped white section with header, soft shadow + border. Groups related
+ * fields so the form reads as calm blocks rather than one long stream.
+ */
+function Section({
+  title,
+  index = 0,
+  children,
+}: {
+  title?: string;
+  index?: number;
+  children: React.ReactNode;
+}) {
+  const reduceMotion = useReduceMotion();
+  return (
+    <Animated.View
+      entering={
+        reduceMotion
+          ? undefined
+          : FadeInDown.delay(index * 45).duration(DURATIONS.base)
+      }
+    >
+      {title ? (
+        <Text className="mb-2 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+          {title}
+        </Text>
+      ) : null}
+      <View
+        className="gap-5 rounded-2xl border border-neutral-200 bg-white p-5"
+        style={shadows.sm}
+      >
+        {children}
+      </View>
+    </Animated.View>
+  );
+}
+
+/** Hairline divider used to separate fields inside a Section. */
+function Divider() {
+  return <View className="h-px bg-neutral-100" />;
 }
 
 // ---------------------------------------------------------------------------
@@ -125,8 +173,12 @@ export function TaskEditorForm({
   onSubmit,
 }: TaskEditorFormProps) {
   const isEdit = mode === "edit";
+  const reduceMotion = useReduceMotion();
 
   const [draft, setDraft] = useState<Partial<Task>>(initialDraft);
+
+  // Track focus so inputs can lift their border to primary-500 while active.
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   // In edit mode subtasks live in the store (they persist without Save). Read
   // them live so toggles/adds reflect immediately. In create mode they live on
@@ -151,6 +203,10 @@ export function TaskEditorForm({
   );
 
   const patch = (p: Partial<Task>) => setDraft((d) => ({ ...d, ...p }));
+
+  /** Border class for an input, primary-500 while focused. */
+  const inputBorder = (name: string) =>
+    focusedField === name ? "border-primary-500" : "border-neutral-200";
 
   // --- Duration rollup ----------------------------------------------------
   const hasSubtasks = subtasks.length > 0;
@@ -276,180 +332,112 @@ export function TaskEditorForm({
     <View className="flex-1">
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-4 pb-8 gap-5"
+        contentContainerClassName="px-5 pb-10 pt-4 gap-6"
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {/* Title */}
-        <Field label="Title">
-          <TextInput
-            className="min-h-12 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
-            placeholder="What needs doing?"
-            placeholderTextColor="#A1A1AA"
-            value={draft.title ?? ""}
-            onChangeText={(title) => patch({ title })}
-            autoFocus={!isEdit}
-            returnKeyType="next"
-            accessibilityLabel="Task title"
-          />
-        </Field>
-
-        {/* Notes */}
-        <Field label="Notes">
-          <TextInput
-            className="min-h-24 rounded-md border border-neutral-200 bg-white px-3 py-3 text-body-lg text-neutral-900"
-            placeholder="Add details (optional)"
-            placeholderTextColor="#A1A1AA"
-            value={draft.notes ?? ""}
-            onChangeText={(notes) => patch({ notes })}
-            multiline
-            textAlignVertical="top"
-            accessibilityLabel="Notes"
-          />
-        </Field>
-
-        {/* List */}
-        <Field label="List">
-          <ListTagPicker
-            mode="single"
-            value={draft.listId}
-            onChange={(listId) => patch({ listId })}
-          />
-        </Field>
-
-        {/* Tags */}
-        <Field label="Tags">
-          <ListTagPicker
-            mode="multi"
-            value={draft.tags ?? []}
-            onChange={(tags) => patch({ tags })}
-          />
-        </Field>
-
-        {/* Priority */}
-        <Field label="Priority">
-          <PrioritySelector
-            value={draft.priority ?? 2}
-            onChange={(priority) => patch({ priority })}
-          />
-        </Field>
-
-        {/* Auto-schedule */}
-        <View className="flex-row items-center justify-between">
-          <View className="flex-1 pr-4">
-            <Text className="text-label font-medium text-neutral-700">
-              Auto-schedule
-            </Text>
-            <Text className="text-caption text-neutral-500">
-              Let Ampora find time for this task.
-            </Text>
-          </View>
-          <Switch
-            value={draft.autoSchedule ?? true}
-            onValueChange={(autoSchedule) => patch({ autoSchedule })}
-            trackColor={{ true: "#2563EB", false: "#D4D4D8" }}
-            accessibilityLabel="Auto-schedule"
-          />
-        </View>
-
-        {/* Duration */}
-        <Field
-          label="Duration"
-          helper={hasSubtasks ? undefined : "Estimated time in minutes"}
-        >
-          {hasSubtasks ? (
-            <View className="min-h-12 flex-row items-center justify-between rounded-md border border-neutral-200 bg-neutral-50 px-3">
-              <Text className="text-body-lg text-neutral-900">
-                {rollupDuration}m
-              </Text>
-              <Text className="text-caption text-neutral-500">from steps</Text>
-            </View>
-          ) : (
+        {/* --- The essentials ------------------------------------------- */}
+        <Section index={0}>
+          {/* Title */}
+          <Field label="Title">
             <TextInput
-              className="min-h-12 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
-              placeholder="e.g. 30"
+              className={`min-h-12 rounded-md border ${inputBorder(
+                "title"
+              )} bg-white px-4 text-body-lg text-neutral-900`}
+              placeholder="What needs doing?"
               placeholderTextColor="#A1A1AA"
-              value={
-                draft.durationMin != null && draft.durationMin > 0
-                  ? String(draft.durationMin)
-                  : ""
-              }
-              onChangeText={(text) => {
-                const parsed = parseInt(text, 10);
-                patch({ durationMin: Number.isFinite(parsed) ? parsed : 0 });
-              }}
-              keyboardType="number-pad"
-              accessibilityLabel="Duration in minutes"
+              value={draft.title ?? ""}
+              onChangeText={(title) => patch({ title })}
+              onFocus={() => setFocusedField("title")}
+              onBlur={() => setFocusedField(null)}
+              autoFocus={!isEdit}
+              returnKeyType="next"
+              accessibilityLabel="Task title"
             />
-          )}
-        </Field>
+          </Field>
 
-        {/* Due */}
-        <Field
-          label="Due (the real deadline)"
-          helper="When it must be done by, not when you will do it"
-        >
-          {showDuePicker || dueDate ? (
-            <View className="gap-2">
-              <DateTimePickerCrossPlatform
-                mode="date"
-                value={dueDate ?? new Date()}
-                onChange={(d) => patch({ due: d.getTime() })}
-                accessibilityLabel="Due date"
-              />
-              <Pressable
-                onPress={() => {
-                  patch({ due: undefined });
-                  setShowDuePicker(false);
-                }}
-                className="self-start"
-                accessibilityRole="button"
-                accessibilityLabel="Clear due date"
-              >
-                <Text className="text-label font-medium text-primary-600">
-                  Clear deadline
-                </Text>
-              </Pressable>
-            </View>
-          ) : (
-            <Pressable
-              onPress={() => setShowDuePicker(true)}
-              className="min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-3"
-              accessibilityRole="button"
-              accessibilityLabel="Set a due date"
-            >
-              <Ionicons name="calendar-outline" size={18} color="#71717A" />
-              <Text className="ml-2 text-body-lg text-neutral-400">
-                Set a deadline
-              </Text>
-            </Pressable>
-          )}
-        </Field>
+          <Divider />
 
-        {/* First move */}
-        <Field
-          label="First move"
-          helper="One tiny 2-5 minute starter to beat activation energy"
-        >
-          <TextInput
-            className="min-h-12 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
-            placeholder="e.g. Open the doc and write one line"
-            placeholderTextColor="#A1A1AA"
-            value={firstMoveText}
-            onChangeText={setFirstMoveText}
-            onBlur={() => commitFirstMove(firstMoveText)}
-            returnKeyType="done"
-            onSubmitEditing={() => commitFirstMove(firstMoveText)}
-            accessibilityLabel="First move"
-          />
+          {/* Notes */}
+          <Field label="Notes">
+            <TextInput
+              className={`min-h-24 rounded-md border ${inputBorder(
+                "notes"
+              )} bg-white px-4 py-3 text-body-lg text-neutral-900`}
+              placeholder="Add details (optional)"
+              placeholderTextColor="#A1A1AA"
+              value={draft.notes ?? ""}
+              onChangeText={(notes) => patch({ notes })}
+              onFocus={() => setFocusedField("notes")}
+              onBlur={() => setFocusedField(null)}
+              multiline
+              textAlignVertical="top"
+              accessibilityLabel="Notes"
+            />
+          </Field>
+        </Section>
+
+        {/* --- Organize ------------------------------------------------- */}
+        <Section title="Organize" index={1}>
+          {/* List */}
+          <Field label="List">
+            <ListTagPicker
+              mode="single"
+              value={draft.listId}
+              onChange={(listId) => patch({ listId })}
+            />
+          </Field>
+
+          <Divider />
+
+          {/* Tags */}
+          <Field label="Tags">
+            <ListTagPicker
+              mode="multi"
+              value={draft.tags ?? []}
+              onChange={(tags) => patch({ tags })}
+            />
+          </Field>
+
+          <Divider />
+
+          {/* Priority */}
+          <Field label="Priority">
+            <PrioritySelector
+              value={draft.priority ?? 2}
+              onChange={(priority) => patch({ priority })}
+            />
+          </Field>
+        </Section>
+
+        {/* --- First move (focal) --------------------------------------- */}
+        <Section title="First move" index={2}>
+          <Field helper="One tiny 2-5 minute starter to beat activation energy" label="What is the smallest first step?">
+            <TextInput
+              className={`min-h-12 rounded-md border ${inputBorder(
+                "firstMove"
+              )} bg-white px-4 text-body-lg text-neutral-900`}
+              placeholder="e.g. Open the doc and write one line"
+              placeholderTextColor="#A1A1AA"
+              value={firstMoveText}
+              onChangeText={setFirstMoveText}
+              onFocus={() => setFocusedField("firstMove")}
+              onBlur={() => {
+                setFocusedField(null);
+                commitFirstMove(firstMoveText);
+              }}
+              returnKeyType="done"
+              onSubmitEditing={() => commitFirstMove(firstMoveText)}
+              accessibilityLabel="First move"
+            />
+          </Field>
           {draft.firstMove ? (
-            <View className="mt-3">
-              <StarterActionCard action={draft.firstMove} />
-            </View>
+            <StarterActionCard action={draft.firstMove} />
           ) : null}
-        </Field>
+        </Section>
 
-        {/* Subtasks */}
-        <Field label="Steps">
+        {/* --- Steps ---------------------------------------------------- */}
+        <Section title="Steps" index={3}>
           <SubtaskChecklist
             subtasks={subtasks}
             onAdd={addSubtask}
@@ -458,9 +446,112 @@ export function TaskEditorForm({
             onEditTitle={editSubtaskTitle}
             onReorder={reorderSubtask}
           />
-        </Field>
+        </Section>
 
-        {/* More options */}
+        {/* --- Scheduling ----------------------------------------------- */}
+        <Section title="Scheduling" index={4}>
+          {/* Auto-schedule */}
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 pr-4">
+              <Text className="text-label font-medium text-neutral-800">
+                Auto-schedule
+              </Text>
+              <Text className="mt-0.5 text-caption text-neutral-500">
+                Let Ampora find time for this task.
+              </Text>
+            </View>
+            <Switch
+              value={draft.autoSchedule ?? true}
+              onValueChange={(autoSchedule) => patch({ autoSchedule })}
+              trackColor={{ true: "#2563EB", false: "#D4D4D8" }}
+              accessibilityLabel="Auto-schedule"
+            />
+          </View>
+
+          <Divider />
+
+          {/* Duration */}
+          <Field
+            label="Duration"
+            helper={hasSubtasks ? undefined : "Estimated time in minutes"}
+          >
+            {hasSubtasks ? (
+              <View className="min-h-12 flex-row items-center justify-between rounded-md border border-neutral-200 bg-neutral-50 px-4">
+                <Text className="text-body-lg text-neutral-900">
+                  {rollupDuration}m
+                </Text>
+                <Text className="text-caption text-neutral-500">from steps</Text>
+              </View>
+            ) : (
+              <TextInput
+                className={`min-h-12 rounded-md border ${inputBorder(
+                  "duration"
+                )} bg-white px-4 text-body-lg text-neutral-900`}
+                placeholder="e.g. 30"
+                placeholderTextColor="#A1A1AA"
+                value={
+                  draft.durationMin != null && draft.durationMin > 0
+                    ? String(draft.durationMin)
+                    : ""
+                }
+                onChangeText={(text) => {
+                  const parsed = parseInt(text, 10);
+                  patch({ durationMin: Number.isFinite(parsed) ? parsed : 0 });
+                }}
+                onFocus={() => setFocusedField("duration")}
+                onBlur={() => setFocusedField(null)}
+                keyboardType="number-pad"
+                accessibilityLabel="Duration in minutes"
+              />
+            )}
+          </Field>
+
+          <Divider />
+
+          {/* Due */}
+          <Field
+            label="Due (the real deadline)"
+            helper="When it must be done by, not when you will do it"
+          >
+            {showDuePicker || dueDate ? (
+              <View className="gap-2">
+                <DateTimePickerCrossPlatform
+                  mode="date"
+                  value={dueDate ?? new Date()}
+                  onChange={(d) => patch({ due: d.getTime() })}
+                  accessibilityLabel="Due date"
+                />
+                <Pressable
+                  onPress={() => {
+                    patch({ due: undefined });
+                    setShowDuePicker(false);
+                  }}
+                  className="self-start"
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear due date"
+                >
+                  <Text className="text-label font-medium text-primary-600">
+                    Clear deadline
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => setShowDuePicker(true)}
+                className="min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-4"
+                accessibilityRole="button"
+                accessibilityLabel="Set a due date"
+              >
+                <Ionicons name="calendar-outline" size={18} color="#71717A" />
+                <Text className="ml-2 text-body-lg text-neutral-400">
+                  Set a deadline
+                </Text>
+              </Pressable>
+            )}
+          </Field>
+        </Section>
+
+        {/* --- More options (disclosure) -------------------------------- */}
         <MoreOptionsSection>
           {/* Start after */}
           <Field
@@ -489,7 +580,7 @@ export function TaskEditorForm({
             ) : (
               <Pressable
                 onPress={() => patch({ startAfter: Date.now() })}
-                className="min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-3"
+                className="min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-4"
                 accessibilityRole="button"
                 accessibilityLabel="Set a start-after date"
               >
@@ -504,10 +595,10 @@ export function TaskEditorForm({
           {/* Split */}
           <View className="flex-row items-center justify-between">
             <View className="flex-1 pr-4">
-              <Text className="text-label font-medium text-neutral-700">
+              <Text className="text-label font-medium text-neutral-800">
                 Split into sessions
               </Text>
-              <Text className="text-caption text-neutral-500">
+              <Text className="mt-0.5 text-caption text-neutral-500">
                 Allow this task to be broken across multiple blocks.
               </Text>
             </View>
@@ -525,7 +616,7 @@ export function TaskEditorForm({
               <View className="flex-1">
                 <Field label="Min block (min)">
                   <TextInput
-                    className="min-h-12 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 30"
                     placeholderTextColor="#A1A1AA"
                     value={draft.minBlockMin != null ? String(draft.minBlockMin) : ""}
@@ -541,7 +632,7 @@ export function TaskEditorForm({
               <View className="flex-1">
                 <Field label="Max block (min)">
                   <TextInput
-                    className="min-h-12 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 90"
                     placeholderTextColor="#A1A1AA"
                     value={draft.maxBlockMin != null ? String(draft.maxBlockMin) : ""}
@@ -562,7 +653,7 @@ export function TaskEditorForm({
             <View className="flex-1">
               <Field label="Buffer before (min)">
                 <TextInput
-                  className="min-h-12 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
+                  className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
                   placeholder="0"
                   placeholderTextColor="#A1A1AA"
                   value={draft.bufferBeforeMin != null ? String(draft.bufferBeforeMin) : ""}
@@ -578,7 +669,7 @@ export function TaskEditorForm({
             <View className="flex-1">
               <Field label="Buffer after (min)">
                 <TextInput
-                  className="min-h-12 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
+                  className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
                   placeholder="0"
                   placeholderTextColor="#A1A1AA"
                   value={draft.bufferAfterMin != null ? String(draft.bufferAfterMin) : ""}
@@ -702,8 +793,11 @@ export function TaskEditorForm({
         </MoreOptionsSection>
       </ScrollView>
 
-      {/* Save — single primary action, disabled when title empty */}
-      <View className="border-t border-neutral-200 bg-white px-4 py-3">
+      {/* Sticky Save bar — single primary action, disabled when title empty */}
+      <View
+        className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3"
+        style={shadows.md}
+      >
         <Button
           title="Save task"
           variant="primaryBlue"
