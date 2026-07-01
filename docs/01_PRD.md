@@ -47,6 +47,8 @@
 
 **Plain-language summary:** Ampora is a calendar that plans your week around how you actually behave, hands you a two-minute first step so starting is easy, and lets you lock your own apps (Instagram, games) behind a task so blowing it off costs you right now. When you fall behind, one tap rebuilds your week with no guilt.
 
+**Build status (v1, 2026-07-01).** The rebuild is BUILT and shipping. It typechecks at zero `tsc` errors and web-exports cleanly. Shipped: task system + quick-add + lists/tags; the on-device deterministic scheduler; the full calendar (Day/3-Day/Week/Month/Agenda) with drag; AI breakdown (Claude via Supabase Edge Functions, with on-device fallbacks); focus session + Blindfold + verification; Ignition soft-lock + wellbeing (panic valve, caps, cooldowns, quiet-hour auto-release, never-lock categories); the Learning Engine (Focus DNA / Revealed Self / Energy) + Recovery; notifications; local-first cloud sync (schema applied); Projects (hub/detail/chat/progress/next-session); and full settings + a 2-week trial paywall. The design system (`02_Design_System.md`) is implemented as tokens + primitives. **Gated / deferred:** iOS OS-level app-locking is behind `FEATURE_FLAGS.IGNITION_NATIVE` (Apple Family Controls entitlement pending; the soft in-app lock ships today); live AI needs `ANTHROPIC_API_KEY` set as a Supabase secret + the edge functions deployed (otherwise local fallbacks run); subscription IAP is scaffolded (trial/entitlement logic only, StoreKit purchasing later); Android stakes, calendar-write sync, widgets, desktop hard-blocking, and MCP/public API remain P2–P3 per the Rollout Plan (§12).
+
 ---
 
 ## 2. Overview & Context

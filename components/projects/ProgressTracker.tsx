@@ -124,6 +124,7 @@ function DeliverableTracker({
                   onPress={() => remove(phase.id)}
                   hitSlop={10}
                   className="ml-2"
+                  accessibilityRole="button"
                   accessibilityLabel={`Remove phase ${phase.title}`}
                 >
                   <Ionicons name="close-circle" size={iconSizes.sm} color="#D4D4D8" />
@@ -216,6 +217,7 @@ function StudyTracker({
                     onPress={() => remove(topic.id)}
                     hitSlop={10}
                     className="ml-2"
+                    accessibilityRole="button"
                     accessibilityLabel={`Remove topic ${topic.title}`}
                   >
                     <Ionicons name="close-circle" size={iconSizes.sm} color="#D4D4D8" />

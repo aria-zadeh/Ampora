@@ -96,6 +96,7 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
                   onPress={() => onRemoveFile(file.id)}
                   hitSlop={10}
                   className="ml-2 mt-0.5"
+                  accessibilityRole="button"
                   accessibilityLabel={`Remove file ${file.name}`}
                 >
                   <Ionicons name="trash-outline" size={iconSizes.sm} color="#A1A1AA" />
@@ -167,7 +168,12 @@ function AddTextSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose} accessibilityLabel="Dismiss">
+      <Pressable
+        className="flex-1 bg-black/40 justify-end"
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss"
+      >
         <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
           <View className="items-center mb-4">
             <View className="w-10 h-1 rounded-full bg-neutral-200" />

@@ -336,7 +336,12 @@ function PlannedSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose} accessibilityLabel="Dismiss">
+      <Pressable
+        className="flex-1 bg-black/40 justify-end"
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss"
+      >
         <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
           <View className="items-center mb-4">
             <View className="w-10 h-1 rounded-full bg-neutral-200" />
@@ -432,7 +437,12 @@ function ConfirmDeleteSheet({
 }) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={onCancel} accessibilityLabel="Dismiss">
+      <Pressable
+        className="flex-1 bg-black/40 justify-end"
+        onPress={onCancel}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss"
+      >
         <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
           <View className="items-center mb-4">
             <View className="w-10 h-1 rounded-full bg-neutral-200" />

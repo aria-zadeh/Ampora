@@ -55,6 +55,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
       <Pressable
         className="flex-1 bg-black/40 justify-end"
         onPress={onClose}
+        accessibilityRole="button"
         accessibilityLabel="Dismiss new project"
       >
         <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
