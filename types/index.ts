@@ -452,4 +452,13 @@ export interface Settings {
   themePreference: 'light' | 'dark' | 'system'
   /** Whether the user has completed the onboarding flow (PRD §8.10). */
   onboardingComplete: boolean
+
+  // -- Calendar UI preferences (Phase 3, PRD FR-23/FR-24). Optional so pre-
+  //    existing persisted Settings load without them; the Calendar screen
+  //    falls back to its own defaults (3-Day view, 60 px/hr) when unset. --
+
+  /** Last-selected calendar view: 'day' | '3day' | 'week' | 'month' | 'agenda' (PRD FR-23). */
+  calendarView?: string
+  /** Last vertical time-grid zoom in px per hour, one of the FR-24 stops (40/60/80/120). */
+  calendarZoomPxPerHour?: number
 }

@@ -30,6 +30,12 @@ interface ScheduleState {
   recompute: () => void
   /** Toggle a block's pinned flag (pinned = immovable input to future recomputes). */
   setPinned: (blockId: string, pinned: boolean) => void
+  /**
+   * Move a block to a new start time (FR-28 drag-to-reschedule). Shifts the
+   * block by the same delta at both edges (preserves duration) and marks it
+   * `pinned` so future recomputes treat it as an immovable input (§9.5.10).
+   */
+  moveBlock: (blockId: string, newStart: number) => void
   /** Clear all computed schedule state. */
   clear: () => void
 }
@@ -87,6 +93,27 @@ export const useScheduleStore = create<ScheduleState>()(
             blocks: {
               ...state.blocks,
               [blockId]: { ...block, pinned, updatedAt: Date.now(), syncState: 'pending' },
+            },
+          }
+        })
+      },
+
+      moveBlock: (blockId, newStart) => {
+        set((state) => {
+          const block = state.blocks[blockId]
+          if (!block) return state
+          const duration = block.end - block.start
+          return {
+            blocks: {
+              ...state.blocks,
+              [blockId]: {
+                ...block,
+                start: newStart,
+                end: newStart + duration,
+                pinned: true,
+                updatedAt: Date.now(),
+                syncState: 'pending',
+              },
             },
           }
         })
