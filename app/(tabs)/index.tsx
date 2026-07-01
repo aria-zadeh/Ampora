@@ -1,17 +1,21 @@
 import React, { useMemo, useCallback } from "react";
-import { View, Text, ScrollView } from "react-native";
+import { View, Text, ScrollView, Pressable } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { useTaskStore } from "@/store/taskStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useScheduleStore, selectUpcomingBlocks } from "@/store/scheduleStore";
 import { StarterActionCard } from "@/components/ui/StarterActionCard";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FAB } from "@/components/ui/FAB";
 import { Heading } from "@/components/ui/Heading";
-import { gradients } from "@/utils/design-tokens";
+import { UpcomingList } from "@/components/schedule/UpcomingList";
+import { gradients, iconSizes } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { Task } from "@/types";
@@ -46,6 +50,19 @@ export default function HomeScreen() {
   const updateTask = useTaskStore((s) => s.updateTask);
 
   const displayName = useSettingsStore((s) => s.settings.displayName);
+
+  // Are there any upcoming scheduled blocks? Reactive scalar (a count) so this
+  // subscription never returns a new array — no useShallow needed here, and the
+  // heavier grouping work lives inside <UpcomingList> which owns its selector.
+  const hasUpcoming = useScheduleStore(
+    (s) => selectUpcomingBlocks(1)(s).length > 0
+  );
+
+  // "Rebuild schedule" ghost action — reruns the engine on demand (FR-21).
+  const rebuildSchedule = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    useScheduleStore.getState().recompute();
+  }, []);
 
   // Incomplete tasks, sorted for the "Coming up" section.
   const incompleteTasks = useMemo(
@@ -99,13 +116,39 @@ export default function HomeScreen() {
       >
         {/* Greeting header — big, tight, confident. */}
         <Animated.View entering={headerEntering} className="pt-6 pb-1">
-          <Text className="text-overline font-semibold text-primary-600 uppercase tracking-wide mb-2">
-            Today
-          </Text>
-          <Heading size="h1">
-            {greeting}
-            {displayName ? `,\n${displayName}` : ""}
-          </Heading>
+          <View className="flex-row items-start justify-between">
+            <View className="flex-1">
+              <Text className="text-overline font-semibold text-primary-600 uppercase tracking-wide mb-2">
+                Today
+              </Text>
+              <Heading size="h1">
+                {greeting}
+                {displayName ? `,\n${displayName}` : ""}
+              </Heading>
+            </View>
+
+            {/* Rebuild schedule — subtle ghost action; only shown once the
+                engine has produced a plan, so it never clutters the empty state. */}
+            {hasUpcoming && (
+              <Pressable
+                onPress={rebuildSchedule}
+                hitSlop={8}
+                className="flex-row items-center gap-1 mt-1 px-3 py-2 rounded-full active:opacity-60"
+                accessibilityRole="button"
+                accessibilityLabel="Rebuild schedule"
+                accessibilityHint="Recomputes your scheduled times"
+              >
+                <Ionicons
+                  name="sparkles-outline"
+                  size={iconSizes.xs}
+                  color="#2563EB"
+                />
+                <Text className="text-caption font-medium text-primary-600">
+                  Rebuild
+                </Text>
+              </Pressable>
+            )}
+          </View>
         </Animated.View>
 
         {/* First move — the ONE focal element; give it room. */}
@@ -118,6 +161,21 @@ export default function HomeScreen() {
               action={firstMoveTask.firstMove}
               onToggle={toggleFirstMove}
             />
+          </Animated.View>
+        )}
+
+        {/* Scheduled — the engine's output: when each task actually happens.
+            Additive; only rendered once there's a plan. */}
+        {hasUpcoming && (
+          <Animated.View
+            entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
+            className="mt-10"
+          >
+            <View className="flex-row items-baseline justify-between mb-4">
+              <Heading size="h3">Scheduled</Heading>
+              <Text className="text-caption text-neutral-400">Your plan</Text>
+            </View>
+            <UpcomingList limit={6} />
           </Animated.View>
         )}
 

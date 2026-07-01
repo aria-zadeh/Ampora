@@ -12,6 +12,7 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useScheduleStore } from "@/store/scheduleStore";
 import { getCurrentUser, onAuthStateChange } from "@/services/supabase";
 import type { User } from "@supabase/supabase-js";
 
@@ -96,6 +97,14 @@ export default function RootLayout() {
   useEffect(() => {
     setColorScheme(themePreference === "system" ? "system" : themePreference);
   }, [themePreference, setColorScheme]);
+
+  // Kick an initial schedule recompute once, on app open, after stores have
+  // hydrated (FR-21 "recompute on app open"). Subsequent recomputes are driven
+  // by the debounced task/settings subscriptions in scheduleStore.
+  useEffect(() => {
+    if (!ready) return;
+    useScheduleStore.getState().recompute();
+  }, [ready]);
 
   if (authLoading || !ready || !fontsLoaded) return null;
 
