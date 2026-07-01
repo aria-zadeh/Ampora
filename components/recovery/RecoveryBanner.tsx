@@ -22,6 +22,7 @@ import React, { useMemo, useState } from 'react'
 import { View, Text, Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import Animated, { FadeInDown } from 'react-native-reanimated'
+import { useShallow } from 'zustand/react/shallow'
 
 import { PressableScale } from '@/components/ui/PressableScale'
 import { RecoverySheet } from '@/components/recovery/RecoverySheet'
@@ -38,7 +39,7 @@ export function RecoveryBanner() {
   const show = useRecoveryStore(selectShowRecoveryBanner)
   const dismissBanner = useRecoveryStore((s) => s.dismissBanner)
 
-  const blocks = useScheduleStore(selectAllBlocks)
+  const blocks = useScheduleStore(useShallow(selectAllBlocks))
   const missedCount = useMemo(() => countMissedBlocks(blocks, Date.now()), [blocks])
 
   const [sheetOpen, setSheetOpen] = useState(false)

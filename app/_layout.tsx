@@ -1,9 +1,11 @@
 import "../global.css";
 import "@/nativewind-reanimated";
 import React, { useEffect, useState } from "react";
+import { View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "nativewind";
+import DotGridBackground from "@/components/ui/DotGridBackground";
 import {
   useFonts,
   Inter_400Regular,
@@ -17,6 +19,7 @@ import { useTaskStore, selectAllTasks } from "@/store/taskStore";
 import { useRecoveryStore } from "@/store/recoveryStore";
 import { scheduleTaskReminders } from "@/services/notifications";
 import { detectLapse } from "@/core/recovery";
+import { isActive } from "@/core/subscription";
 import { getCurrentUser, onAuthStateChange } from "@/services/supabase";
 import type { User } from "@supabase/supabase-js";
 
@@ -24,6 +27,7 @@ export default function RootLayout() {
   const { colorScheme, setColorScheme } = useColorScheme();
   const themePreference = useSettingsStore((s) => s.settings.themePreference);
   const onboardingComplete = useSettingsStore((s) => s.settings.onboardingComplete);
+  const subscription = useSettingsStore((s) => s.settings.subscription);
 
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -86,7 +90,13 @@ export default function RootLayout() {
     return () => clearInterval(check);
   }, [guestMode]);
 
-  // Routing gate: no session → auth; session but not onboarded → onboarding.
+  // Routing gate (in order): no session → auth; session but not onboarded →
+  // onboarding; onboarded but not entitled (no active plan / no live trial) →
+  // paywall. Once a trial is started or a plan chosen (or dev-bypassed), the
+  // subscription becomes entitled, this effect re-runs and stops redirecting,
+  // and the paywall proceeds into the tabs. Soft gate — local data is untouched.
+  // Guest mode is intentionally exempt (it manages its own routing and stays
+  // usable without the paywall).
   useEffect(() => {
     if (authLoading || !ready) return;
     if (guestMode) return; // guest mode handles its own routing
@@ -94,8 +104,10 @@ export default function RootLayout() {
       router.replace("/auth");
     } else if (!onboardingComplete) {
       router.replace("/onboarding/welcome");
+    } else if (!isActive(subscription)) {
+      router.replace("/paywall");
     }
-  }, [authLoading, ready, authUser, onboardingComplete, guestMode, router]);
+  }, [authLoading, ready, authUser, onboardingComplete, subscription, guestMode, router]);
 
   // Sync app color scheme with the user's theme preference.
   useEffect(() => {
@@ -104,9 +116,13 @@ export default function RootLayout() {
 
   // Kick an initial schedule recompute once, on app open, after stores have
   // hydrated (FR-21 "recompute on app open"). Subsequent recomputes are driven
-  // by the debounced task/settings subscriptions in scheduleStore.
+  // by the debounced task/settings subscriptions in scheduleStore. Also stamp
+  // the free-trial window on first run so a brand-new user starts inside the
+  // 14-day trial instead of landing on the paywall (idempotent — no-op once a
+  // trial/plan exists).
   useEffect(() => {
     if (!ready) return;
+    useSettingsStore.getState().ensureTrialStarted();
     useScheduleStore.getState().recompute();
   }, [ready]);
 
@@ -176,7 +192,9 @@ export default function RootLayout() {
 
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }}>
+      <View className="flex-1 bg-neutral-100">
+        <DotGridBackground />
+        <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="auth" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
@@ -208,7 +226,8 @@ export default function RootLayout() {
           name="paywall"
           options={{ presentation: "modal", animation: "slide_from_bottom" }}
         />
-      </Stack>
+        </Stack>
+      </View>
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
     </>
   );

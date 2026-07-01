@@ -2,19 +2,20 @@
  * AI client — Ampora Phase 4.
  *
  * Thin, defensive client over four Supabase Edge Functions (ai-breakdown,
- * ai-simplify, ai-refine, ai-extract-tasks). Every function has a LOCAL
- * FALLBACK so the whole feature set works with no ANTHROPIC_API_KEY set and
- * never throws to the UI. The edge functions themselves return 200 with
- * `{ error: "no_key" }` when the key is missing, so the "no key" path and the
- * "network failed" path funnel into the same graceful fallback here.
+ * ai-simplify, ai-refine, ai-extract-tasks). AI is Google Gemini
+ * (`gemini-2.5-flash`) behind those functions; the key lives server-side, never
+ * in the client. Every function has a LOCAL FALLBACK so the whole feature set
+ * works with no `GEMINI_API_KEY` set and never throws to the UI. The edge
+ * functions themselves return 200 with `{ error: "no_key" }` when the key is
+ * missing, so the "no key" path and the "network failed" path funnel into the
+ * same graceful fallback here.
  *
  * Grounding for the fallbacks: doc 07 (breakdown pipeline). First move is a
  * 2-to-5-minute concrete start, subtasks are deadline-aware (crunch = short
  * steps only, comfortable = a few starters plus larger blocks), max 8 steps.
  *
- * This file REPLACES the old Gemini-era services/ai.ts. It intentionally does
- * NOT import that file. It does not import react-native/expo directly beyond
- * the shared supabase client, so it stays portable and web-safe.
+ * It does not import react-native/expo directly beyond the shared supabase
+ * client, so it stays portable and web-safe.
  */
 
 import { supabase } from "@/services/supabase";

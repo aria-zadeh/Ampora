@@ -7,7 +7,14 @@
  */
 
 import React, { useCallback, useEffect, useState } from "react";
-import { View, Text, Pressable, TextInput, Modal } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  TextInput,
+  Modal,
+  type GestureResponderEvent,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Heading } from "@/components/ui/Heading";
 import { Button } from "@/components/ui/Button";
@@ -50,15 +57,42 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
     });
   }, [canCreate, trimmed, kind, description, onCreate]);
 
+  // Only dismiss when the press truly originates on the backdrop itself. On web,
+  // a Space/Enter keypress inside the focused TextInput bubbles up as a synthetic
+  // "click" on the backdrop Pressable and would otherwise close the sheet (so
+  // typing a space in the name field closed it). Guarding on target ===
+  // currentTarget makes those key events no-ops while a real tap on the dimmed
+  // area (where target IS the backdrop) still closes. On native the two are
+  // undefined and identical, so tap-outside continues to work.
+  const handleBackdropPress = useCallback(
+    (e: GestureResponderEvent) => {
+      const native = e?.nativeEvent as unknown as
+        | { target?: unknown; currentTarget?: unknown }
+        | undefined;
+      const target = native?.target ?? (e as unknown as { target?: unknown })?.target;
+      const currentTarget =
+        native?.currentTarget ?? (e as unknown as { currentTarget?: unknown })?.currentTarget;
+      if (target != null && currentTarget != null && target !== currentTarget) return;
+      onClose();
+    },
+    [onClose]
+  );
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable
         className="flex-1 bg-black/40 justify-end"
-        onPress={onClose}
+        onPress={handleBackdropPress}
         accessibilityRole="button"
         accessibilityLabel="Dismiss new project"
       >
-        <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+        <Pressable
+          className="bg-white rounded-t-2xl p-5 pb-8"
+          onPress={(e) => e.stopPropagation()}
+          // Swallow key events (web) so a space/enter in a child input never
+          // bubbles to the backdrop Pressable and dismisses the sheet.
+          onStartShouldSetResponder={() => true}
+        >
           <View className="items-center mb-4">
             <View className="w-10 h-1 rounded-full bg-neutral-200" />
           </View>

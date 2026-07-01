@@ -15,6 +15,7 @@ import {
 } from "@/store/scheduleStore";
 import { StarterActionCard } from "@/components/ui/StarterActionCard";
 import { TomorrowPlanCard } from "@/components/home/TomorrowPlanCard";
+import { ProjectsEntryCard } from "@/components/home/ProjectsEntryCard";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FAB } from "@/components/ui/FAB";
@@ -181,6 +182,17 @@ export default function HomeScreen() {
               </Pressable>
             )}
           </View>
+        </Animated.View>
+
+        {/* Projects — a prominent, always-present entry into the projects hub
+            (doc 10). Lifted out of the cramped Tasks-header pill into a premium
+            Home row so larger work is easy to find. Accent (#7C3AED) is reserved
+            for Projects, so it belongs here. */}
+        <Animated.View
+          entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
+          className="mt-6"
+        >
+          <ProjectsEntryCard />
         </Animated.View>
 
         {/* Energy chip — a subtle, additive "what can you handle now" cue that

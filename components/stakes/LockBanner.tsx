@@ -20,6 +20,7 @@ import React, { useMemo } from "react";
 import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useShallow } from "zustand/react/shallow";
 
 import { PressableScale } from "@/components/ui/PressableScale";
 import { shadows } from "@/utils/design-tokens";
@@ -57,7 +58,7 @@ export function lockUntilClause(session: StakeSession): string {
 
 export function LockBanner({ session, onPanic }: LockBannerProps) {
   const reduceMotion = useReduceMotion();
-  const eligibleApps = useStakesStore(selectEligibleApps);
+  const eligibleApps = useStakesStore(useShallow(selectEligibleApps));
 
   const isSoft = useMemo(() => getBlockingStrategy().kind === "soft", []);
   const until = lockUntilClause(session);

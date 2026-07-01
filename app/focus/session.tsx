@@ -24,7 +24,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Pressable, ScrollView } from "react-native";
+import { View, Text, Pressable, ScrollView, AppState, type AppStateStatus } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -135,6 +135,16 @@ export default function FocusSessionScreen() {
   const [remainingSec, setRemainingSec] = useState(workMin * 60);
   const [running, setRunning] = useState(true);
   const [audioOpen, setAudioOpen] = useState(false);
+  // Whether the user left Ampora during this session (backgrounded). Once true,
+  // the session is "interrupted": foreground focus time is what counts, and we
+  // surface a calm note so the timer being paused isn't a mystery. We do NOT
+  // auto-resume on return — the user resumes deliberately (calmer for ADHD; a
+  // silent resume could re-start attention without consent).
+  const [interrupted, setInterrupted] = useState(false);
+  const [leftDuringSession, setLeftDuringSession] = useState(false);
+  // Accrued wall-clock ms spent backgrounded (foreground focus time excludes this).
+  const backgroundedMsRef = useRef(0);
+  const backgroundedAtRef = useRef<number | null>(null);
   // Per-step "simpler version" from the AI stuck helper, keyed by step id.
   const [simplerText, setSimplerText] = useState<string | null>(null);
   const [simplifying, setSimplifying] = useState(false);
@@ -296,6 +306,42 @@ export default function FocusSessionScreen() {
     if (recentPanics > 0 && shouldOfferPause()) setDeEscalationOpen(true);
   }, [recentPanics, shouldOfferPause]);
 
+  // Keep the latest `running` readable from the (once-registered) AppState
+  // listener without re-subscribing on every tick.
+  const runningRef = useRef(running);
+  useEffect(() => {
+    runningRef.current = running;
+  }, [running]);
+
+  // -- Pause when the user leaves Ampora (FR-62 wellbeing / anti-cheat). When
+  //    the app goes to background or inactive we PAUSE the timer, which stops
+  //    focus-time accrual (tick only runs while `running`), so background time
+  //    is never credited toward the task's focus time — the intended focus time
+  //    must genuinely elapse in the foreground. We also flag the session as
+  //    interrupted. On returning we stay PAUSED (calmer UX): the user resumes
+  //    deliberately rather than the timer silently restarting. --
+  useEffect(() => {
+    const onChange = (next: AppStateStatus) => {
+      if (next === "background" || next === "inactive") {
+        if (backgroundedAtRef.current == null) backgroundedAtRef.current = Date.now();
+        // Auto-pause the running timer and remember we left mid-session.
+        if (runningRef.current) setRunning(false);
+        setInterrupted(true);
+        setLeftDuringSession(true);
+      } else if (next === "active") {
+        // Accrue the wall-clock time spent away (foreground focus excludes it).
+        if (backgroundedAtRef.current != null) {
+          backgroundedMsRef.current += Date.now() - backgroundedAtRef.current;
+          backgroundedAtRef.current = null;
+        }
+        // Intentionally do NOT auto-resume — leave the timer paused so the user
+        // chooses to continue (Resume). Calmer, and keeps focus time honest.
+      }
+    };
+    const sub = AppState.addEventListener("change", onChange);
+    return () => sub.remove();
+  }, []);
+
   // -- Ticking timer (1s). Advances the countdown and ticks the session store
   //    with focused seconds during the WORK phase only. --
   useEffect(() => {
@@ -324,12 +370,23 @@ export default function FocusSessionScreen() {
     (completed: boolean) => {
       if (!endedRef.current) {
         endedRef.current = true;
+        // Honesty record: if the user left mid-session, note how long they were
+        // away. Focus time (session.elapsedSec) already excludes it — the timer
+        // was paused in background — so a "completed" here reflects only
+        // foreground focus time, never time spent out of the app.
+        if (leftDuringSession && backgroundedMsRef.current > 0) {
+          console.log(
+            `[focus] session interrupted — ${Math.round(
+              backgroundedMsRef.current / 1000
+            )}s spent away (excluded from focus time)`
+          );
+        }
         endSession(completed);
       }
       audio.stop().catch(() => {});
       router.back();
     },
-    [audio, endSession]
+    [audio, endSession, leftDuringSession]
   );
 
   const handleDone = useCallback(() => {
@@ -408,7 +465,12 @@ export default function FocusSessionScreen() {
 
   const toggleRunning = useCallback(() => {
     Haptics.selectionAsync().catch(() => {});
-    setRunning((r) => !r);
+    setRunning((r) => {
+      // Resuming clears the transient "you left" note (the permanent
+      // `leftDuringSession` flag stays, so focus-time honesty is preserved).
+      if (!r) setInterrupted(false);
+      return !r;
+    });
   }, []);
 
   const pickAudio = useCallback(
@@ -437,8 +499,12 @@ export default function FocusSessionScreen() {
       {/* Header: task title + close */}
       <View className="flex-row items-center justify-between px-5 pt-2 pb-1">
         <View className="flex-1 pr-3">
-          <Text className="text-overline font-semibold uppercase tracking-wide text-success-700">
-            {isBreak ? "On a break" : "Focusing"}
+          <Text
+            className={`text-overline font-semibold uppercase tracking-wide ${
+              interrupted && !running ? "text-warning-700" : "text-success-700"
+            }`}
+          >
+            {interrupted && !running ? "Paused" : isBreak ? "On a break" : "Focusing"}
           </Text>
           <Text
             className="text-label font-medium text-neutral-600 mt-0.5"
@@ -575,6 +641,21 @@ export default function FocusSessionScreen() {
                 {running ? "Pause" : "Resume"}
               </Text>
             </Pressable>
+
+            {/* Paused-because-you-left note. The timer holds until you resume,
+                so time away never counts as focus time. */}
+            {interrupted && !running ? (
+              <Animated.View
+                entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
+                className="mt-3 flex-row items-center gap-2 rounded-full bg-warning-100 px-3.5 py-2"
+                accessibilityRole="alert"
+              >
+                <Ionicons name="pause-circle-outline" size={16} color="#C2410C" />
+                <Text className="text-caption font-medium text-warning-700">
+                  Paused while you were away. Resume when you&apos;re ready.
+                </Text>
+              </Animated.View>
+            ) : null}
           </Animated.View>
 
           {/* Primary: Done */}

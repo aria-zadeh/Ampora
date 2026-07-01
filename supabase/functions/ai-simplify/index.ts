@@ -10,14 +10,14 @@
  */
 
 import {
-  callAnthropic,
+  callGemini,
   extractJson,
   getApiKey,
   handlePreflight,
   jsonResponse,
   noKeyResponse,
   readBody,
-} from "../_shared/anthropic.ts";
+} from "../_shared/gemini.ts";
 
 const SYSTEM = `You make one task step feel impossible to avoid by shrinking it to the smallest concrete start.
 Rules:
@@ -39,7 +39,7 @@ Deno.serve(async (req: Request) => {
     if (!title) return jsonResponse({ error: "invalid_input" });
 
     const user = `STEP: ${title}`;
-    const text = await callAnthropic(apiKey, {
+    const text = await callGemini(apiKey, {
       system: SYSTEM,
       user,
       maxTokens: 256,

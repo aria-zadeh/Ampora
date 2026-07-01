@@ -31,6 +31,13 @@ export const FEATURE_FLAGS = {
 
   /** The "Beat the clock" stake mode. Pure in-app timer, safe to ship today. */
   BEAT_THE_CLOCK: true,
+
+  /**
+   * Dev-only paywall bypass. When true, the paywall renders a "Skip (dev)"
+   * button so premium screens can be reached without a real purchase during
+   * development. Gated on `__DEV__` so it is stripped from production builds.
+   */
+  DEV_BYPASS_PAYWALL: __DEV__,
 } as const
 
 export type FeatureFlags = typeof FEATURE_FLAGS

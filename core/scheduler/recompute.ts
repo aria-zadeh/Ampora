@@ -48,11 +48,23 @@ export function recompute(input: ScheduleInput): ScheduleResult {
     energyPeak: settings.energyPeak,
   })
 
+  // Sum minutes held by pinned prev blocks per task. These blocks are immovable
+  // inputs (subtracted from free time above and carried through untouched in the
+  // stability pass below); crediting their minutes here stops the placement loop
+  // from scheduling that same work a second time.
+  const pinnedMinutesByTask = new Map<string, number>()
+  for (const b of prevBlocks) {
+    if (!b.pinned) continue
+    const mins = (b.end - b.start) / (60 * 1000)
+    pinnedMinutesByTask.set(b.taskId, (pinnedMinutesByTask.get(b.taskId) ?? 0) + mins)
+  }
+
   const ctx: PlacementContext = {
     now,
     cutoff,
     defaultSchedulingHours: settings.schedulingHours,
     workload,
+    pinnedMinutesByTask,
   }
   const state = initState(free)
 

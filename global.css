@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Web-only: remove the browser's default focus outline (the "orange box") on
+   interactive elements. The intended blue focus ring is applied per-input via
+   className, so we only strip the native outline here. */
+input:focus,
+textarea:focus,
+[role="button"]:focus,
+button:focus,
+select:focus {
+  outline: none;
+}
+
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}

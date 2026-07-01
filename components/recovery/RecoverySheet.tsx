@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
+import { useShallow } from 'zustand/react/shallow'
 
 import { Button } from '@/components/ui/Button'
 import { Heading } from '@/components/ui/Heading'
@@ -50,8 +51,8 @@ const BUMP_PRIORITY_FLOOR = 4
 export function RecoverySheet({ visible, onClose }: RecoverySheetProps) {
   const reduceMotion = useReduceMotion()
 
-  const tasks = useTaskStore(selectAllTasks)
-  const blocks = useScheduleStore(selectAllBlocks)
+  const tasks = useTaskStore(useShallow(selectAllTasks))
+  const blocks = useScheduleStore(useShallow(selectAllBlocks))
 
   const deleteTask = useTaskStore((s) => s.deleteTask)
   const updateTask = useTaskStore((s) => s.updateTask)

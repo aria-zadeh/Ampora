@@ -1,17 +1,35 @@
 /**
  * FileList — the project's persistent knowledge base UI (doc `10` §4). Lists the
- * files that stay in the project and lets the user add a text/note by pasting
- * content (which becomes `extractedText` and grounds the chat + task generation).
- * PDF/image attach is a device-only step in a later increment, so those show a
- * clear "attach on device" placeholder rather than a dead button.
+ * files that stay in the project and lets the user add material three ways:
+ *  - Attach file — a REAL picker: on native, expo-document-picker (PDF / docs /
+ *    spreadsheets) plus an option to pick a photo/diagram via expo-image-picker;
+ *    on web the document picker's own <input type="file"> handles all of it.
+ *  - Paste text — notes / rubric / study guide pasted inline (becomes
+ *    `extractedText` and grounds the chat + task generation).
+ *
+ * We store the picked file's `uri` and set `type` from its mime. Text is only
+ * extracted when it's trivially available (a plain-text file we can read as a
+ * string); real OCR/PDF extraction is an honest "coming later". Every picker
+ * call is wrapped in try/catch so an unsupported platform (or a cancelled /
+ * denied pick) never crashes — it just no-ops or degrades.
  *
  * Each row shows the file name, a type badge, and a preview of the extracted
  * text so the user can see what the project actually understands.
  */
 
 import React, { useCallback, useState } from "react";
-import { View, Text, Pressable, TextInput, Modal } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  TextInput,
+  Modal,
+  Platform,
+  type GestureResponderEvent,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -27,17 +45,57 @@ interface FileListProps {
   onRemoveFile: (fileId: string) => void;
 }
 
-const TYPE_META: Record<ProjectFile["type"], { label: string; icon: keyof typeof import("@expo/vector-icons").Ionicons.glyphMap }> = {
+const TYPE_META: Record<
+  ProjectFile["type"],
+  { label: string; icon: keyof typeof import("@expo/vector-icons").Ionicons.glyphMap }
+> = {
   text: { label: "Text", icon: "document-text-outline" },
   note: { label: "Note", icon: "create-outline" },
   pdf: { label: "PDF", icon: "document-outline" },
   image: { label: "Image", icon: "image-outline" },
 };
 
-export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
-  const [sheetOpen, setSheetOpen] = useState(false);
+/** Map a mime type / filename to the project file's coarse `type`. */
+function fileTypeFromMime(mime: string | undefined, name: string): ProjectFile["type"] {
+  const m = (mime ?? "").toLowerCase();
+  const n = name.toLowerCase();
+  if (m.startsWith("image/") || /\.(png|jpe?g|gif|webp|heic|heif|bmp)$/.test(n)) return "image";
+  if (m === "application/pdf" || n.endsWith(".pdf")) return "pdf";
+  if (m.startsWith("text/") || /\.(txt|md|csv)$/.test(n)) return "text";
+  // Docs / slides / spreadsheets: no trivial text extraction, keep as a generic
+  // document — surfaced with the PDF-style "document" glyph.
+  return "pdf";
+}
 
-  const handleAdd = useCallback(
+/**
+ * Best-effort trivial text extraction: only for genuinely plain-text files that
+ * we can read as a string without any parser. Everything else returns undefined
+ * (OCR / PDF / docx extraction is a later increment — kept honest in the UI).
+ */
+async function extractTrivialText(
+  asset: { uri: string; mimeType?: string; name: string; file?: File }
+): Promise<string | undefined> {
+  const type = fileTypeFromMime(asset.mimeType, asset.name);
+  if (type !== "text") return undefined;
+  try {
+    // Web gives us a File handle directly; native gives a uri we can fetch.
+    if (Platform.OS === "web" && asset.file && typeof asset.file.text === "function") {
+      const t = await asset.file.text();
+      return t.trim() || undefined;
+    }
+    const res = await fetch(asset.uri);
+    const t = await res.text();
+    return t.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [attaching, setAttaching] = useState(false);
+
+  const handleAddText = useCallback(
     (name: string, text: string) => {
       const file: ProjectFile = {
         id: newId(),
@@ -47,10 +105,77 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
         addedAt: Date.now(),
       };
       onAddFile(file);
-      setSheetOpen(false);
+      setPasteOpen(false);
     },
     [onAddFile]
   );
+
+  /** Pick a document (PDF / doc / spreadsheet / — on web, anything). Guarded. */
+  const pickDocument = useCallback(async () => {
+    if (attaching) return;
+    setAttaching(true);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "text/*", "image/*", "*/*"],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const extractedText = await extractTrivialText({
+          uri: asset.uri,
+          mimeType: asset.mimeType,
+          name: asset.name,
+          file: asset.file,
+        });
+        onAddFile({
+          id: newId(),
+          name: asset.name || "Attachment",
+          type: fileTypeFromMime(asset.mimeType, asset.name || ""),
+          uri: asset.uri,
+          extractedText,
+          addedAt: Date.now(),
+        });
+      }
+    } catch {
+      // Unsupported / denied / cancelled — never crash, just stop.
+    } finally {
+      setAttaching(false);
+    }
+  }, [attaching, onAddFile]);
+
+  /** Pick a photo/diagram from the library (native-focused). Guarded. */
+  const pickImage = useCallback(async () => {
+    if (attaching) return;
+    setAttaching(true);
+    try {
+      // Permission is a no-op on web; guard it so a throw doesn't block the pick.
+      try {
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      } catch {
+        // ignore — launch still works on platforms that don't require it
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const name = asset.fileName || `Image ${new Date().toLocaleDateString()}`;
+        onAddFile({
+          id: newId(),
+          name,
+          type: "image",
+          uri: asset.uri,
+          addedAt: Date.now(),
+        });
+      }
+    } catch {
+      // Unsupported / denied / cancelled — never crash.
+    } finally {
+      setAttaching(false);
+    }
+  }, [attaching, onAddFile]);
 
   return (
     <View>
@@ -58,8 +183,8 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
         <Card variant="flat" className="items-center py-6">
           <Ionicons name="folder-open-outline" size={iconSizes.xl} color="#A1A1AA" />
           <Text className="text-body text-neutral-500 text-center mt-2 max-w-[260px]">
-            No files yet. Paste your notes, rubric, or study guide and the project will ground its
-            help in your real material.
+            No files yet. Attach a PDF, notes, or a photo — or paste text — and the project will
+            ground its help in your real material.
           </Text>
         </Card>
       ) : (
@@ -67,6 +192,7 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
           {files.map((file) => {
             const meta = TYPE_META[file.type];
             const preview = (file.extractedText ?? "").trim();
+            const hasFileBytes = !!file.uri;
             return (
               <Card key={file.id} className="flex-row items-start">
                 <View className="w-9 h-9 rounded-lg bg-neutral-100 items-center justify-center mt-0.5">
@@ -86,9 +212,13 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
                     <Text className="text-caption text-neutral-500 mt-1" numberOfLines={2}>
                       {preview}
                     </Text>
+                  ) : hasFileBytes ? (
+                    <Text className="text-caption text-neutral-400 mt-1 italic">
+                      Attached · text extraction coming later.
+                    </Text>
                   ) : (
                     <Text className="text-caption text-neutral-400 mt-1 italic">
-                      Attach on device to extract text.
+                      No text yet.
                     </Text>
                   )}
                 </View>
@@ -111,31 +241,46 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
       <View className="flex-row gap-3 mt-4">
         <View className="flex-1">
           <Button
-            title="Paste text"
+            title="Attach file"
             variant="secondary"
-            onPress={() => setSheetOpen(true)}
-            icon={<Ionicons name="clipboard-outline" size={iconSizes.sm} color="#18181B" />}
+            loading={attaching}
+            onPress={pickDocument}
+            icon={<Ionicons name="document-attach-outline" size={iconSizes.sm} color="#18181B" />}
           />
         </View>
         <View className="flex-1">
           <Button
-            title="Attach file"
+            title="Paste text"
             variant="ghost"
-            onPress={() => setSheetOpen(true)}
-            icon={<Ionicons name="attach-outline" size={iconSizes.sm} color="#2563EB" />}
+            onPress={() => setPasteOpen(true)}
+            icon={<Ionicons name="clipboard-outline" size={iconSizes.sm} color="#2563EB" />}
           />
         </View>
       </View>
+
+      {/* Photo/diagram is native-focused; on web the document picker already
+          accepts images, so we only surface the extra entry point off-web. */}
+      {Platform.OS !== "web" && (
+        <Pressable
+          onPress={pickImage}
+          disabled={attaching}
+          className="flex-row items-center justify-center mt-3 py-2"
+          accessibilityRole="button"
+          accessibilityLabel="Add a photo or diagram"
+        >
+          <Ionicons name="image-outline" size={iconSizes.sm} color="#2563EB" />
+          <Text className="text-label font-medium text-primary-600 ml-1.5">
+            Add a photo or diagram
+          </Text>
+        </Pressable>
+      )}
+
       <Text className="text-caption text-neutral-400 mt-2">
-        PDF and image attach (with OCR) arrives with the on-device file picker. For now, paste the
-        text you want the project to understand.
+        Attach PDFs, docs, or photos, or paste text directly. Plain-text files are read now; full
+        OCR and PDF text extraction arrive in a later update.
       </Text>
 
-      <AddTextSheet
-        visible={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onSave={handleAdd}
-      />
+      <AddTextSheet visible={pasteOpen} onClose={() => setPasteOpen(false)} onSave={handleAddText} />
     </View>
   );
 }
@@ -166,15 +311,35 @@ function AddTextSheet({
   const canSave = text.trim().length > 0;
   const finalName = name.trim() || "Pasted note";
 
+  // Same web-safe guard as NewProjectSheet: only dismiss on a real backdrop tap,
+  // never on a Space/Enter keypress that bubbles from a focused child input.
+  const handleBackdropPress = useCallback(
+    (e: GestureResponderEvent) => {
+      const native = e?.nativeEvent as unknown as
+        | { target?: unknown; currentTarget?: unknown }
+        | undefined;
+      const target = native?.target ?? (e as unknown as { target?: unknown })?.target;
+      const currentTarget =
+        native?.currentTarget ?? (e as unknown as { currentTarget?: unknown })?.currentTarget;
+      if (target != null && currentTarget != null && target !== currentTarget) return;
+      onClose();
+    },
+    [onClose]
+  );
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable
         className="flex-1 bg-black/40 justify-end"
-        onPress={onClose}
+        onPress={handleBackdropPress}
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
       >
-        <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+        <Pressable
+          className="bg-white rounded-t-2xl p-5 pb-8"
+          onPress={(e) => e.stopPropagation()}
+          onStartShouldSetResponder={() => true}
+        >
           <View className="items-center mb-4">
             <View className="w-10 h-1 rounded-full bg-neutral-200" />
           </View>

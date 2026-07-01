@@ -127,12 +127,13 @@ function NowLine({
  * 3-Day view (PRD FR-23, the phone default): a shared left time gutter and
  * three day columns side by side, each rendering that day's ScheduledBlocks
  * (and any CalEvents) with overlap columns (§9.8), deadline-slack coloring, and
- * the same 60fps long-press-drag-to-reschedule (FR-28) as {@link DayView} —
- * drag within a column reschedules and pins the block via `moveBlock`.
+ * the same interactions as {@link DayView}: 60fps long-press-drag-to-reschedule
+ * (FR-28, taps still open the task — a drag never does), top/bottom edge-drag to
+ * resize (5-min snap), and a "…" action sheet (postpone / lock / open / complete
+ * / delete). All of this comes free from the shared {@link DayBlocksLayer}.
  *
  * All three columns live in ONE vertical ScrollView so the days scroll
- * together, sharing a single gutter and one set of hour lines. Reuses
- * DayView's block internals via {@link DayBlocksLayer}.
+ * together, sharing a single gutter and one set of hour lines.
  */
 export function ThreeDayView({
   date,

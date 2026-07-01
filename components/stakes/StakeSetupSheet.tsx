@@ -42,6 +42,7 @@ import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Badge } from "@/components/ui/Badge";
+import { AppPicker } from "@/components/stakes/AppPicker";
 import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
@@ -112,6 +113,12 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
   // The default strength the store currently offers (lowered by de-escalation).
   // Read for the copy only — startStake will re-clamp at lock time.
   const defaultStrength = useStakesStore((s) => s.defaultStrength);
+  // The apps the user has chosen to put on the line (for the "Choose apps" copy).
+  const chosenApps = useStakesStore((s) => s.apps);
+  const chosenAppCount = chosenApps.filter((a) => a.eligible).length;
+
+  // The leisure-app picker ("choose what's blocked", Opal-style).
+  const [appPickerOpen, setAppPickerOpen] = useState(false);
 
   const strategyKind = useMemo(() => getBlockingStrategy().kind, []);
   const isSoft = strategyKind === "soft";
@@ -141,6 +148,9 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
   // Whether the user opted the soft in-app lock ON. Off by default so arming is
   // an explicit, deliberate choice (never surprise-lock someone).
   const [softLockOn, setSoftLockOn] = useState(true);
+  // A gentle inline validation note (e.g. "pick a step first"), shown instead of
+  // proceeding when the chosen completion condition isn't fully specified.
+  const [conditionNote, setConditionNote] = useState<string | null>(null);
 
   // Re-seed local state when the sheet (re)opens for a task.
   useEffect(() => {
@@ -152,8 +162,15 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
     );
     setTimerText(String(BEAT_THE_CLOCK_DEFAULT_MIN));
     setSoftLockOn(true);
+    setAppPickerOpen(false);
+    setConditionNote(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, task.id]);
+
+  // Clear the inline note as soon as the user changes what they picked.
+  useEffect(() => {
+    setConditionNote(null);
+  }, [condition, subtaskId]);
 
   // Lock-until-start implies the "first move" condition when one exists (that's
   // literally what "start" means). Keep the two coherent.
@@ -195,6 +212,23 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
   }, [timerText]);
 
   const handleConfirm = () => {
+    // Validate the completion condition BEFORE arming. If the user chose "a
+    // specific step" but no valid subtask is selected (e.g. the task's subtasks
+    // changed), show a gentle inline note instead of arming a lock whose unlock
+    // condition can never be met. The store re-checks this too (defense in depth).
+    if (condition === "subtask") {
+      const valid = !!subtaskId && task.subtasks.some((s) => s.id === subtaskId);
+      if (!valid) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+        setConditionNote(
+          hasSubtasks
+            ? "Pick which step unlocks your apps first."
+            : "This task has no steps yet — choose the whole task instead."
+        );
+        return;
+      }
+    }
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     const armed: ArmedStake = {
       taskId: task.id,
@@ -213,6 +247,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
   const modeBlurb = MODE_COPY[mode].blurb;
 
   return (
+    <>
     <Modal
       visible={visible}
       transparent
@@ -372,6 +407,20 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                         </View>
                       </Animated.View>
                     ) : null}
+
+                    {/* Gentle inline validation note — shown when the chosen
+                        condition isn't fully specified (e.g. no step picked). */}
+                    {conditionNote ? (
+                      <View
+                        className="mt-1 flex-row items-center gap-2 rounded-lg bg-warning-100 px-3 py-2.5"
+                        accessibilityRole="alert"
+                      >
+                        <Ionicons name="information-circle-outline" size={16} color="#C2410C" />
+                        <Text className="flex-1 text-caption font-medium text-warning-700">
+                          {conditionNote}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   {/* --- Choose apps (friendly soft-lock placeholder) --- */}
@@ -424,18 +473,59 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                               />
                             </View>
                           </Pressable>
+
+                          {/* Choose apps — opens the leisure-app picker. Even on the
+                              soft path, naming what's on the line makes the commitment
+                              concrete (and pre-selects for the native picker later). */}
+                          <Pressable
+                            onPress={() => {
+                              setAppPickerOpen(true);
+                              Haptics.selectionAsync().catch(() => {});
+                            }}
+                            className="mt-3 flex-row items-center gap-3 rounded-lg border border-neutral-200 bg-white px-3.5 py-3 active:opacity-70"
+                            accessibilityRole="button"
+                            accessibilityLabel="Choose which apps are on the line"
+                            accessibilityHint={
+                              chosenAppCount > 0
+                                ? `${chosenAppCount} apps chosen. Tap to change.`
+                                : "Tap to choose apps."
+                            }
+                          >
+                            <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
+                              <Ionicons name="apps-outline" size={18} color="#52525B" />
+                            </View>
+                            <View className="flex-1">
+                              <Text className="text-label font-medium text-neutral-900">Choose apps</Text>
+                              <Text className="mt-0.5 text-caption text-neutral-500">
+                                {chosenAppCount > 0
+                                  ? `${chosenAppCount} app${chosenAppCount === 1 ? "" : "s"} on the line`
+                                  : "Name what pulls you away"}
+                              </Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={18} color="#A1A1AA" />
+                          </Pressable>
                         </>
                       ) : (
                         // Native path (only reachable once the entitlement + module
-                        // land and IGNITION_NATIVE is on). Kept minimal on purpose —
-                        // the real app picker is the native strategy's business.
-                        <View className="flex-row items-center gap-3">
+                        // land and IGNITION_NATIVE is on). Opens the picker too; on a
+                        // real device the native strategy hands off to Screen Time.
+                        <Pressable
+                          onPress={() => {
+                            setAppPickerOpen(true);
+                            Haptics.selectionAsync().catch(() => {});
+                          }}
+                          className="flex-row items-center gap-3 active:opacity-70"
+                          accessibilityRole="button"
+                          accessibilityLabel="Choose which apps to lock"
+                        >
                           <Ionicons name="apps-outline" size={20} color="#2563EB" />
                           <Text className="flex-1 text-caption text-neutral-600">
-                            Choose which apps to lock on your phone.
+                            {chosenAppCount > 0
+                              ? `${chosenAppCount} app${chosenAppCount === 1 ? "" : "s"} chosen. Tap to change.`
+                              : "Choose which apps to lock on your phone."}
                           </Text>
                           <Ionicons name="chevron-forward" size={18} color="#A1A1AA" />
-                        </View>
+                        </Pressable>
                       )}
                     </View>
 
@@ -474,6 +564,11 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
         </View>
       </Pressable>
     </Modal>
+
+      {/* Leisure-app picker — "choose what's on the line". Rendered as a sibling
+          modal so it layers above this sheet when opened. */}
+      <AppPicker visible={appPickerOpen} onClose={() => setAppPickerOpen(false)} />
+    </>
   );
 }
 

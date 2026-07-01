@@ -26,7 +26,8 @@ import { newId } from '@/core/id'
 import { FEATURE_FLAGS } from '@/constants/featureFlags'
 import { mmkv, mmkvStateStorage } from '@/store/mmkv'
 import { useSettingsStore } from '@/store/settingsStore'
-import type { LockEvent, Settings, StakeApp, StakeSession } from '@/types'
+import { useTaskStore } from '@/store/taskStore'
+import type { LockEvent, Settings, StakeApp, StakeSession, TimeWindow } from '@/types'
 
 // ---------------------------------------------------------------------------
 // Device identity (per-device stakes, FR-41b — a lock on one device never
@@ -121,6 +122,10 @@ export type StartStakeRefusal =
   | 'paused'
   | 'mode_disabled'
   | 'already_active'
+  /** A "subtask" completion condition pointed at a subtask that no longer exists on the task. */
+  | 'condition_invalid'
+  /** A defensive catch-all: something unexpected went wrong arming the stake (never crashes the UI). */
+  | 'error'
 
 /** Result of attempting to start a stake. */
 export type StartStakeResult =
@@ -208,14 +213,81 @@ interface StakesState {
   isPaused: (atMs?: number) => boolean
 }
 
-/** Reads the live Settings snapshot (caps, quiet hours, never-lock, strength bounds). */
-function currentSettings(): Settings {
-  return useSettingsStore.getState().settings
+// ---------------------------------------------------------------------------
+// Defensive settings read. A persisted `ampora-settings` blob written before
+// these fields existed (zustand-persist REPLACES state, it does not deep-merge
+// defaults) can be missing `stakeStrengthBounds` / `quietHours` / caps. Reading
+// them raw then throws (e.g. `bounds.min` on undefined) at the exact moment a
+// stake arms — which is the "arming a stake throws" bug. `safeSettings()` reads
+// the live snapshot and backfills any missing/invalid wellbeing field with the
+// same sane defaults the settings store ships, so `startStake` can never crash
+// on a malformed settings object. Enforcement stays identical for a valid blob.
+// ---------------------------------------------------------------------------
+
+/** The wellbeing defaults, mirrored from `settingsStore` so a stale blob is safe. */
+const SAFE_DEFAULTS = {
+  dailyLockCapMin: 180,
+  quietHours: { start: 23 * 60, end: 8 * 60 } as TimeWindow,
+  neverLockCategories: ['phone', 'messages', 'maps', 'accessibility', 'os_settings', 'ampora'],
+  stakeStrengthBounds: { min: 0, max: 1 },
+} as const
+
+/** A valid finite number, else `fallback`. */
+function num(n: unknown, fallback: number): number {
+  return typeof n === 'number' && Number.isFinite(n) ? n : fallback
 }
 
-/** Clamp `n` into `[min, max]`. */
+/** A `{ start, end }` window with both bounds finite, else `fallback`. */
+function safeWindow(w: unknown, fallback: TimeWindow): TimeWindow {
+  if (w && typeof w === 'object') {
+    const c = w as Partial<TimeWindow>
+    if (typeof c.start === 'number' && Number.isFinite(c.start) && typeof c.end === 'number' && Number.isFinite(c.end)) {
+      return { start: c.start, end: c.end }
+    }
+  }
+  return fallback
+}
+
+/**
+ * Reads the live Settings snapshot with every wellbeing field guarded. Any
+ * field the persisted blob is missing or has malformed is backfilled with the
+ * shipped default, so caps/quiet-hours/never-lock/strength-bounds are always
+ * well-formed for the enforcement gate below. Never throws.
+ */
+function safeSettings(): Settings {
+  const raw = (useSettingsStore.getState().settings ?? {}) as Partial<Settings>
+  const bounds = raw.stakeStrengthBounds
+  const safeBounds =
+    bounds && typeof bounds === 'object'
+      ? { min: num(bounds.min, SAFE_DEFAULTS.stakeStrengthBounds.min), max: num(bounds.max, SAFE_DEFAULTS.stakeStrengthBounds.max) }
+      : { ...SAFE_DEFAULTS.stakeStrengthBounds }
+  // Guard an inverted range (min > max) so `clamp` still behaves.
+  if (safeBounds.min > safeBounds.max) safeBounds.min = safeBounds.max
+  return {
+    ...(raw as Settings),
+    dailyLockCapMin: num(raw.dailyLockCapMin, SAFE_DEFAULTS.dailyLockCapMin),
+    quietHours: safeWindow(raw.quietHours, SAFE_DEFAULTS.quietHours),
+    neverLockCategories: Array.isArray(raw.neverLockCategories)
+      ? raw.neverLockCategories
+      : [...SAFE_DEFAULTS.neverLockCategories],
+    stakeStrengthBounds: safeBounds,
+  }
+}
+
+/** Back-compat alias — every call site now goes through the guarded reader. */
+function currentSettings(): Settings {
+  return safeSettings()
+}
+
+/** Clamp `n` into `[min, max]`. Guards a NaN input and an inverted range. */
 function clamp(n: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, n))
+  const lo = Number.isFinite(min) ? min : 0
+  const hi = Number.isFinite(max) ? max : 1
+  // Tolerate an inverted [min, max] by normalizing the bounds first.
+  const low = Math.min(lo, hi)
+  const high = Math.max(lo, hi)
+  const v = Number.isFinite(n) ? n : low
+  return Math.min(high, Math.max(low, v))
 }
 
 export const useStakesStore = create<StakesState>()(
@@ -272,78 +344,102 @@ export const useStakesStore = create<StakesState>()(
         removeApp: (appId) => set((state) => ({ apps: state.apps.filter((a) => a.id !== appId) })),
 
         startStake: (taskId, mode, completionCondition, opts = {}) => {
-          const now = Date.now()
-          ensureToday(now)
-          const settings = currentSettings()
-          const state = get()
+          // Whole body is wrapped so NO unhandled error can reach the UI while
+          // arming a stake (the "starting a stake throws" bug). Any unexpected
+          // failure degrades to a graceful `{ ok: false, reason: 'error' }`,
+          // which the focus session already treats as "run unlocked".
+          try {
+            const now = Date.now()
+            ensureToday(now)
+            const settings = currentSettings() // guarded read — never throws on a stale blob
+            const state = get()
 
-          // --- Wellbeing gate (enforce BEFORE locking, §9.10) ---
+            // --- Wellbeing gate (enforce BEFORE locking, §9.10) ---
 
-          if (state.activeSession) return { ok: false, reason: 'already_active' }
+            if (state.activeSession) return { ok: false, reason: 'already_active' }
 
-          if (mode === 'beat_the_clock' && !FEATURE_FLAGS.BEAT_THE_CLOCK) {
-            return { ok: false, reason: 'mode_disabled' }
+            if (mode === 'beat_the_clock' && !FEATURE_FLAGS.BEAT_THE_CLOCK) {
+              return { ok: false, reason: 'mode_disabled' }
+            }
+
+            // Validate a "subtask" condition: the referenced subtask must still
+            // exist on the task, else refuse gracefully (never throw). A missing
+            // ref would otherwise arm a lock whose unlock condition can never be
+            // met — worse than not arming at all.
+            if (completionCondition === 'subtask') {
+              const task = useTaskStore.getState().tasks[taskId]
+              const refId = opts.conditionRefId
+              const exists = !!task && !!refId && task.subtasks.some((s) => s.id === refId)
+              if (!exists) return { ok: false, reason: 'condition_invalid' }
+            }
+
+            // Paused for today (or a timed pause still in effect).
+            if (state.stakesPausedUntil != null && now < state.stakesPausedUntil) {
+              return { ok: false, reason: 'paused' }
+            }
+
+            // Quiet hours: do not start; log the release-style event for the record.
+            if (isQuietHours(settings, now)) {
+              const sid = newId()
+              logEvent(sid, 'quiet_hours_release', now)
+              return { ok: false, reason: 'quiet_hours' }
+            }
+
+            // Daily cap: refuse if no budget left; otherwise clamp the bounded
+            // timers to what remains so a session can never exceed the cap.
+            const remaining = Math.max(0, settings.dailyLockCapMin - state.todayLockMin)
+            if (remaining <= 0) {
+              const sid = newId()
+              logEvent(sid, 'cap_reached', now)
+              return { ok: false, reason: 'cap_reached' }
+            }
+
+            const bounds = settings.stakeStrengthBounds
+            const strength = clamp(opts.strength ?? state.defaultStrength, bounds.min, bounds.max)
+
+            const timerMinutes =
+              opts.timerMinutes != null && Number.isFinite(opts.timerMinutes)
+                ? Math.max(0, Math.round(opts.timerMinutes))
+                : undefined
+            // Cooldown is a real lock window, so clamp it to the remaining cap.
+            const cooldownMinutes =
+              opts.cooldownMinutes != null && Number.isFinite(opts.cooldownMinutes)
+                ? clamp(Math.round(opts.cooldownMinutes), 0, remaining)
+                : undefined
+
+            const session: StakeSession = {
+              id: newId(),
+              taskId,
+              deviceId: getDeviceId(),
+              mode,
+              completionCondition,
+              conditionRefId: opts.conditionRefId,
+              timerMinutes,
+              cooldownMinutes,
+              strength,
+              startedAt: now,
+            }
+
+            set((prev) => ({
+              activeSession: session,
+              sessions: { ...prev.sessions, [session.id]: session },
+            }))
+            logEvent(session.id, 'shield_on', now)
+
+            // Apply enforcement, fail-safe. If it rejects, unlock rather than trap.
+            void Promise.resolve(getBlockingStrategy().applyShield(session)).catch((err) => {
+              console.warn('applyShield failed (releasing to keep user unlocked):', err)
+              const at = Date.now()
+              endActive('expired', at)
+            })
+
+            return { ok: true, session }
+          } catch (err) {
+            // Fail-safe: never let arming throw into the UI. Nothing is locked
+            // on this path (the set() above only runs on the success return).
+            console.warn('startStake failed (running unlocked):', err)
+            return { ok: false, reason: 'error' }
           }
-
-          // Paused for today (or a timed pause still in effect).
-          if (state.stakesPausedUntil != null && now < state.stakesPausedUntil) {
-            return { ok: false, reason: 'paused' }
-          }
-
-          // Quiet hours: do not start; log the release-style event for the record.
-          if (isQuietHours(settings, now)) {
-            const sid = newId()
-            logEvent(sid, 'quiet_hours_release', now)
-            return { ok: false, reason: 'quiet_hours' }
-          }
-
-          // Daily cap: refuse if no budget left; otherwise clamp the bounded
-          // timers to what remains so a session can never exceed the cap.
-          const remaining = Math.max(0, settings.dailyLockCapMin - state.todayLockMin)
-          if (remaining <= 0) {
-            const sid = newId()
-            logEvent(sid, 'cap_reached', now)
-            return { ok: false, reason: 'cap_reached' }
-          }
-
-          const bounds = settings.stakeStrengthBounds
-          const strength = clamp(opts.strength ?? state.defaultStrength, bounds.min, bounds.max)
-
-          const timerMinutes =
-            opts.timerMinutes != null ? Math.max(0, Math.round(opts.timerMinutes)) : undefined
-          // Cooldown is a real lock window, so clamp it to the remaining cap.
-          const cooldownMinutes =
-            opts.cooldownMinutes != null
-              ? clamp(Math.round(opts.cooldownMinutes), 0, remaining)
-              : undefined
-
-          const session: StakeSession = {
-            id: newId(),
-            taskId,
-            deviceId: getDeviceId(),
-            mode,
-            completionCondition,
-            conditionRefId: opts.conditionRefId,
-            timerMinutes,
-            cooldownMinutes,
-            strength,
-            startedAt: now,
-          }
-
-          set((prev) => ({
-            activeSession: session,
-            sessions: { ...prev.sessions, [session.id]: session },
-          }))
-          logEvent(session.id, 'shield_on', now)
-
-          // Apply enforcement, fail-safe. If it rejects, unlock rather than trap.
-          void Promise.resolve(getBlockingStrategy().applyShield(session)).catch((err) => {
-            console.warn('applyShield failed (releasing to keep user unlocked):', err)
-            const at = Date.now()
-            endActive('expired', at)
-          })
-
-          return { ok: true, session }
         },
 
         panicValve: (sessionId) => {

@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/Button'
 import { PressableScale } from '@/components/ui/PressableScale'
 import { useSettingsStore } from '@/store/settingsStore'
 import { startTrial, trialDaysLeft, isActive } from '@/core/subscription'
+import { FEATURE_FLAGS } from '@/constants/featureFlags'
 import { shadows } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
@@ -162,16 +163,25 @@ export default function PaywallScreen() {
 
   const [selectedPlan, setSelectedPlan] = useState<PlanKey>('annual')
 
+  // Dismiss (back if we can, else fall into the app). Used by the X / "Maybe
+  // later" when the user is just viewing this screen (e.g. opened from Profile).
   const close = () => {
     if (router.canGoBack()) router.back()
     else router.replace('/(tabs)')
+  }
+
+  // Proceed INTO the app. Used after the entitlement changes (trial started,
+  // plan chosen, or dev bypass) — the paywall is a routing gate this build, so
+  // it always lands in the tabs rather than trying to pop back to the gate.
+  const proceed = () => {
+    router.replace('/(tabs)')
   }
 
   // Begin the free trial (pre-trial state). Persists via updateSettings.
   const handleStartTrial = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
     updateSettings({ subscription: startTrial() })
-    close()
+    proceed()
   }
 
   // Choose a plan to continue. No real IAP yet — scaffold the entitlement so the
@@ -181,7 +191,18 @@ export default function PaywallScreen() {
     updateSettings({
       subscription: { ...subscription, status: 'active', plan: selectedPlan },
     })
-    close()
+    proceed()
+  }
+
+  // Dev-only bypass: mark the subscription active and jump straight into the
+  // app. Gated behind FEATURE_FLAGS.DEV_BYPASS_PAYWALL (which is __DEV__-gated),
+  // so this control and its branch are stripped from production builds.
+  const handleDevBypass = () => {
+    Haptics.selectionAsync().catch(() => {})
+    updateSettings({
+      subscription: { ...subscription, status: 'active', plan: subscription.plan },
+    })
+    proceed()
   }
 
   // -------------------------------------------------------------------------
@@ -371,6 +392,25 @@ export default function PaywallScreen() {
             ? 'Billing runs through the App Store. In-app purchase is being finalized — for now this sets up your plan locally.'
             : 'In-app purchase is being finalized. For now this sets up your plan locally so you can explore everything.'}
         </Text>
+
+        {/* Dev-only bypass — stripped from production (FEATURE_FLAGS is __DEV__-gated). */}
+        {FEATURE_FLAGS.DEV_BYPASS_PAYWALL ? (
+          <View className="mt-6 border-t border-dashed border-neutral-200 pt-5">
+            <PressableScale
+              onPress={handleDevBypass}
+              haptic="selection"
+              className="flex-row items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white py-3"
+              accessibilityRole="button"
+              accessibilityLabel="Skip payment and enter the app (developer only)"
+              accessibilityHint="Marks your subscription active locally without a purchase"
+            >
+              <Ionicons name="construct-outline" size={16} color="#71717A" />
+              <Text className="text-label font-medium text-neutral-600">
+                Skip / bypass payment (dev)
+              </Text>
+            </PressableScale>
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   )

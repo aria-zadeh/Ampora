@@ -9,17 +9,17 @@
  * The scoped, project-aware assistant. Answers from the project's state and
  * files (names + extracted context supplied by the client / retrieval layer),
  * grounded in where the user is. Returns 200 { error: "no_key" } when
- * ANTHROPIC_API_KEY is unset so the app falls back locally.
+ * GEMINI_API_KEY is unset so the app falls back locally.
  */
 
 import {
-  callAnthropic,
+  callGemini,
   getApiKey,
   handlePreflight,
   jsonResponse,
   noKeyResponse,
   readBody,
-} from "../_shared/anthropic.ts";
+} from "../_shared/gemini.ts";
 
 const SYSTEM = `You are the assistant for ONE study/work project inside Ampora, a task app for students who procrastinate and people with ADHD.
 You are scoped to this project only. You have its name, type, progress, memory (decisions/style/weak spots), and file names.
@@ -71,7 +71,13 @@ ${JSON.stringify({
 
 USER MESSAGE: ${message || "What should I do next?"}`;
 
-    const text = await callAnthropic(apiKey, { system: SYSTEM, user, maxTokens: 700, temperature: 0.5 });
+    const text = await callGemini(apiKey, {
+      system: SYSTEM,
+      user,
+      maxTokens: 700,
+      temperature: 0.5,
+      json: false,
+    });
     const trimmed = text.trim();
     if (!trimmed) return jsonResponse({ error: "invalid_ai_output" });
 

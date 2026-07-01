@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Heading } from "@/components/ui/Heading";
 import { Button } from "@/components/ui/Button";
-import { PressableScale } from "@/components/ui/PressableScale";
+import { AppPicker } from "@/components/stakes/AppPicker";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useStakesStore } from "@/store/stakesStore";
 import { shadows } from "@/utils/design-tokens";
@@ -28,6 +28,27 @@ const CATEGORY_LABELS: Record<string, string> = {
   os_settings: "System settings",
   ampora: "Ampora",
 };
+
+/**
+ * The 6 safety categories that are ALWAYS reachable and can never be removed
+ * (§9.10, doc 06 §4 — enforced client + server). User-added always-reachable
+ * apps live alongside these but, unlike them, may be removed by the user.
+ * Compared case-insensitively so a stray-cased persisted value still counts.
+ */
+const PROTECTED_CATEGORIES = [
+  "phone",
+  "messages",
+  "maps",
+  "accessibility",
+  "os_settings",
+  "ampora",
+] as const;
+
+/** Whether a never-lock entry is one of the 6 immovable safety categories. */
+function isProtectedCategory(key: string): boolean {
+  const needle = key.trim().toLowerCase();
+  return PROTECTED_CATEGORIES.some((p) => p === needle);
+}
 
 /** "3h 0m" / "45m" style label for a minutes value. */
 function formatMinutes(min: number): string {
@@ -184,8 +205,16 @@ export function StakesSettings() {
   const isPaused = useStakesStore((s) => s.isPaused());
   const pauseStakesForToday = useStakesStore((s) => s.pauseStakesForToday);
   const resumeStakes = useStakesStore((s) => s.resumeStakes);
+  // Apps chosen to be put on the line (for the "Choose apps" section copy).
+  const stakeApps = useStakesStore((s) => s.apps);
+  const stakeAppCount = stakeApps.filter((a) => a.eligible).length;
+  const [appPickerOpen, setAppPickerOpen] = useState(false);
 
   const [protectedInfoOpen, setProtectedInfoOpen] = useState(false);
+  // "+ Add always-reachable app" input sheet state.
+  const [addOpen, setAddOpen] = useState(false);
+  const [addText, setAddText] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
 
   const quietHoursLabel = useMemo(
     () => `${formatWindow(quietHours.start)} – ${formatWindow(quietHours.end)}`,
@@ -193,6 +222,54 @@ export function StakesSettings() {
   );
 
   const setCap = (next: number) => updateSettings({ dailyLockCapMin: next });
+
+  // Split the never-lock list into the 6 protected safety categories (top,
+  // immovable) and any user-added always-reachable apps (removable).
+  const { protectedKeys, userKeys } = useMemo(() => {
+    const p: string[] = [];
+    const u: string[] = [];
+    for (const key of neverLockCategories) {
+      if (isProtectedCategory(key)) p.push(key);
+      else u.push(key);
+    }
+    return { protectedKeys: p, userKeys: u };
+  }, [neverLockCategories]);
+
+  /** Append a user-named always-reachable app. Guards blanks + duplicates. */
+  const addUserApp = () => {
+    const name = addText.trim();
+    if (!name) {
+      setAddError("Type an app or category name.");
+      return;
+    }
+    // Reject a duplicate (case-insensitive) of anything already on the list —
+    // including the protected categories, so a user can't shadow "Phone".
+    const dupe = neverLockCategories.some(
+      (c) => c.trim().toLowerCase() === name.toLowerCase()
+    );
+    if (dupe) {
+      setAddError("That's already always reachable.");
+      return;
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    updateSettings({ neverLockCategories: [...neverLockCategories, name] });
+    setAddText("");
+    setAddError(null);
+    setAddOpen(false);
+  };
+
+  /**
+   * Remove a user-added always-reachable app. Hard-guarded: the 6 protected
+   * safety categories can NEVER be removed here (defense in depth beyond the UI
+   * only rendering the control for user rows).
+   */
+  const removeUserApp = (key: string) => {
+    if (isProtectedCategory(key)) return; // never remove a safety category
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    updateSettings({
+      neverLockCategories: neverLockCategories.filter((c) => c !== key),
+    });
+  };
 
   const togglePause = () => {
     if (isPaused) {
@@ -271,6 +348,47 @@ export function StakesSettings() {
         />
       </View>
 
+      {/* Apps on the line -------------------------------------------------- */}
+      <Text className="mb-2 ml-1 mt-6 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+        Apps on the line
+      </Text>
+      <View
+        className="rounded-2xl border border-neutral-200 bg-white px-4"
+        style={shadows.sm}
+      >
+        <Pressable
+          onPress={() => {
+            setAppPickerOpen(true);
+            Haptics.selectionAsync().catch(() => {});
+          }}
+          className="flex-row items-center py-3.5 active:opacity-70"
+          accessibilityRole="button"
+          accessibilityLabel="Choose which apps go on the line"
+          accessibilityHint={
+            stakeAppCount > 0
+              ? `${stakeAppCount} apps chosen. Tap to change.`
+              : "Tap to choose apps."
+          }
+        >
+          <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
+            <Ionicons name="apps-outline" size={18} color="#2563EB" />
+          </View>
+          <View className="ml-3 flex-1 pr-3">
+            <Text className="text-body-lg text-neutral-900">Choose apps to lock</Text>
+            <Text className="mt-0.5 text-caption text-neutral-500">
+              {stakeAppCount > 0
+                ? `${stakeAppCount} app${stakeAppCount === 1 ? "" : "s"} ready to put on the line`
+                : "The leisure apps a stake can lock"}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#A1A1AA" />
+        </Pressable>
+      </View>
+      <Text className="ml-1 mt-2 text-caption text-neutral-400">
+        On iPhone you&apos;ll pick these with Apple&apos;s Screen Time picker once app
+        locking is enabled.
+      </Text>
+
       {/* Never-lock (protected) apps --------------------------------------- */}
       <View className="mb-2 ml-1 mt-6 flex-row items-center justify-between">
         <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500">
@@ -289,7 +407,8 @@ export function StakesSettings() {
         className="rounded-2xl border border-neutral-200 bg-white px-4"
         style={shadows.sm}
       >
-        {neverLockCategories.map((key, i) => (
+        {/* The 6 safety categories — always shown first, always Protected. */}
+        {protectedKeys.map((key) => (
           <Row
             key={key}
             icon="lock-open-outline"
@@ -304,13 +423,56 @@ export function StakesSettings() {
                 <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
               </View>
             }
-            isLast={i === neverLockCategories.length - 1}
           />
         ))}
+
+        {/* User-added always-reachable apps — removable (protected ones aren't). */}
+        {userKeys.map((key) => (
+          <Row
+            key={key}
+            icon="lock-open-outline"
+            iconTint="#52525B"
+            iconBg="bg-neutral-100"
+            label={categoryLabel(key)}
+            sublabel="Added by you"
+            trailing={
+              <Pressable
+                onPress={() => removeUserApp(key)}
+                hitSlop={8}
+                className="h-9 w-9 items-center justify-center rounded-full active:opacity-60"
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${categoryLabel(key)} from always reachable`}
+              >
+                <Ionicons name="close-circle" size={20} color="#A1A1AA" />
+              </Pressable>
+            }
+          />
+        ))}
+
+        {/* + Add always-reachable app (always the last row). */}
+        <Pressable
+          onPress={() => {
+            setAddText("");
+            setAddError(null);
+            setAddOpen(true);
+            Haptics.selectionAsync().catch(() => {});
+          }}
+          className="flex-row items-center py-3.5 active:opacity-70"
+          accessibilityRole="button"
+          accessibilityLabel="Add an always-reachable app"
+        >
+          <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
+            <Ionicons name="add" size={20} color="#2563EB" />
+          </View>
+          <Text className="ml-3 flex-1 text-body-lg font-medium text-primary-600">
+            Add always-reachable app
+          </Text>
+        </Pressable>
       </View>
       <Text className="ml-1 mt-2 text-caption text-neutral-400">
-        These stay open no matter what. They can't be locked and can't be
-        removed.
+        The 6 safety apps stay open no matter what — they can't be locked or
+        removed. Add your own always-reachable apps too, and remove those any
+        time.
       </Text>
 
       {/* Pause for today ---------------------------------------------------- */}
@@ -391,6 +553,71 @@ export function StakesSettings() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Add always-reachable app sheet ------------------------------------- */}
+      <Modal
+        visible={addOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAddOpen(false)}
+      >
+        <Pressable
+          className="flex-1 items-center justify-center bg-black/40 px-8"
+          onPress={() => setAddOpen(false)}
+        >
+          <Pressable
+            className="w-full max-w-[360px] rounded-2xl bg-white p-6"
+            style={shadows.lg}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Heading size="h3">Add always-reachable app</Heading>
+            <Text className="mt-2 text-body text-neutral-600">
+              Name an app or category that should never be locked. It joins your
+              always-reachable list — you can remove it any time.
+            </Text>
+            <TextInput
+              value={addText}
+              onChangeText={(t) => {
+                setAddText(t);
+                if (addError) setAddError(null);
+              }}
+              onSubmitEditing={addUserApp}
+              placeholder="e.g. Banking, Health, Duolingo"
+              placeholderTextColor="#A1A1AA"
+              returnKeyType="done"
+              autoFocus
+              maxLength={40}
+              className="mt-4 h-12 rounded-lg border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
+              accessibilityLabel="App or category name"
+            />
+            {addError ? (
+              <Text className="mt-2 text-caption font-medium text-warning-700">
+                {addError}
+              </Text>
+            ) : null}
+            <View className="mt-6 gap-2">
+              <Button
+                title="Add"
+                variant="primaryBlue"
+                size="lg"
+                onPress={addUserApp}
+                accessibilityLabel="Add this app to always reachable"
+              />
+              <Pressable
+                onPress={() => setAddOpen(false)}
+                className="items-center py-2.5"
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+              >
+                <Text className="text-label font-medium text-neutral-500">Cancel</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Leisure-app picker — "choose what's on the line". */}
+      <AppPicker visible={appPickerOpen} onClose={() => setAppPickerOpen(false)} />
     </View>
   );
 }

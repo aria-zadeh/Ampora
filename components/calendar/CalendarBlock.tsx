@@ -45,6 +45,14 @@ interface CalendarBlockProps {
   /** "now" for slack computation; defaults to Date.now(). Pass explicitly for determinism/tests. */
   now?: number
   onPress?: () => void
+  /**
+   * Render mode. When `true`, the block fills its parent (the parent owns
+   * top/height/left/width, e.g. a draggable/resizable wrapper) and this
+   * component drops its own absolute positioning + PressableScale. When `false`
+   * (default), it positions itself absolutely and wraps in a PressableScale so
+   * a tap fires `onPress` (the original, self-contained behavior).
+   */
+  fill?: boolean
   testID?: string
 }
 
@@ -79,6 +87,7 @@ export function CalendarBlock({
   measuredWidth,
   now,
   onPress,
+  fill = false,
   testID,
 }: CalendarBlockProps) {
   const isEvent = !!event && !block
@@ -112,25 +121,7 @@ export function CalendarBlock({
     ? `Event: ${title}, ${timeRange}`
     : `${title}, ${timeRange}${steps > 0 ? `, ${steps} steps` : ''}, ${style.label}${done ? ', done' : ''}`
 
-  return (
-    <PressableScale
-      onPress={onPress}
-      haptic="light"
-      style={[
-        {
-          position: 'absolute',
-          top,
-          height,
-          left,
-          width,
-          paddingHorizontal: 3,
-        },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={a11yLabel}
-      accessibilityHint="Opens details"
-      testID={testID}
-    >
+  const surface = (
       <View
         className="flex-1 rounded-lg overflow-hidden flex-row"
         style={[
@@ -202,6 +193,44 @@ export function CalendarBlock({
           </View>
         )}
       </View>
+  )
+
+  // Fill mode: the parent (a draggable/resizable wrapper) owns position + the
+  // tap/long-press gesture, so we just fill it. The wrapper carries the a11y
+  // role; we mirror the label here for screen readers walking the subtree.
+  if (fill) {
+    return (
+      <View
+        style={{ flex: 1, paddingHorizontal: 3 }}
+        accessibilityLabel={a11yLabel}
+        testID={testID}
+      >
+        {surface}
+      </View>
+    )
+  }
+
+  // Default self-contained mode: absolutely positioned + tappable.
+  return (
+    <PressableScale
+      onPress={onPress}
+      haptic="light"
+      style={[
+        {
+          position: 'absolute',
+          top,
+          height,
+          left,
+          width,
+          paddingHorizontal: 3,
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={a11yLabel}
+      accessibilityHint="Opens details"
+      testID={testID}
+    >
+      {surface}
     </PressableScale>
   )
 }

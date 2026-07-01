@@ -3,19 +3,23 @@
  * generation).
  *
  * Two capabilities, each backed by a Supabase Edge Function with a LOCAL
- * FALLBACK so both work with no ANTHROPIC_API_KEY and never throw to the UI:
- *  - `projectChat(project, userMessage)` → assistant reply text.
+ * FALLBACK so both work with no `GEMINI_API_KEY` and never throw to the UI:
+ *  - `projectChat(project, userMessage)` → assistant reply text. This is the
+ *    agentic study-plan planner chat (doc `10` §5): its job is to organize the
+ *    plan and — in future — use tools to change tasks/schedule/memory, not to
+ *    quiz the user.
  *  - `generateNextTask(project, sessionMin)` → the next schedulable session as a
  *    { title, firstMove, subtasks } shape (doc `10` §7: a normal Ampora Task
  *    whose First move is computed for the CURRENT position, not the whole
  *    project).
  *
- * Same defensive contract as `services/ai.ts`: the edge functions return 200 +
- * `{ error: "no_key" }` when the key is missing, so the "no key" and "network
- * failed" paths funnel into the same graceful fallback. Fallbacks are grounded
- * in the project's own name / kind / progress / files so they read as helpful,
- * not generic. This file mirrors — and intentionally does NOT import —
- * `services/ai.ts`, to keep that file untouched.
+ * AI is Google Gemini (`gemini-2.5-flash`) behind the edge functions; the key
+ * lives server-side. Same defensive contract as `services/ai.ts`: the edge
+ * functions return 200 + `{ error: "no_key" }` when the key is missing, so the
+ * "no key" and "network failed" paths funnel into the same graceful fallback.
+ * Fallbacks are grounded in the project's own name / kind / progress / files so
+ * they read as helpful, not generic. This file mirrors — and intentionally does
+ * NOT import — `services/ai.ts`, to keep that file untouched.
  *
  * Portable/web-safe: imports only the shared supabase client and types.
  */

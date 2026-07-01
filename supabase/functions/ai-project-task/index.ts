@@ -10,19 +10,19 @@
  * computed for the CURRENT position (doc `10` §7: a paper at 40% proposes
  * drafting section 2; SciOly proposes the weakest uncovered topic). The First
  * move is for THIS session only (small and impossible to fail — doc 07 Part 1D).
- * Returns 200 { error: "no_key" } when ANTHROPIC_API_KEY is unset so the app
+ * Returns 200 { error: "no_key" } when GEMINI_API_KEY is unset so the app
  * falls back locally.
  */
 
 import {
-  callAnthropic,
+  callGemini,
   extractJson,
   getApiKey,
   handlePreflight,
   jsonResponse,
   noKeyResponse,
   readBody,
-} from "../_shared/anthropic.ts";
+} from "../_shared/gemini.ts";
 
 const SYSTEM = `You generate the NEXT work session for one project inside Ampora, as an ordered checklist the student can start now.
 You are given the project's type, progress, next focus, memory, and file names, plus a time budget in minutes for this session.
@@ -74,7 +74,7 @@ ${JSON.stringify({
 
 SESSION BUDGET (minutes): ${sessionMin}`;
 
-    const text = await callAnthropic(apiKey, { system: SYSTEM, user, maxTokens: 1024 });
+    const text = await callGemini(apiKey, { system: SYSTEM, user, maxTokens: 1024 });
     const raw = extractJson<{
       title?: string;
       firstMove?: { text?: string; estimatedMin?: number };

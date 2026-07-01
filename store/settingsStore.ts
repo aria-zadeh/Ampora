@@ -12,6 +12,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { mmkvStateStorage } from '@/store/mmkv'
+import { startTrial } from '@/core/subscription'
 import type { Settings } from '@/types'
 
 const defaultSettings: Settings = {
@@ -60,6 +61,15 @@ const defaultSettings: Settings = {
 interface SettingsState {
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void
+  /**
+   * Stamp a fresh 14-day trial window the first time the app runs. The default
+   * subscription is `{ status: 'trial' }` with no `trialEndsAt`, which the
+   * entitlement check reads as *expired* (so a brand-new user would hit the
+   * paywall immediately). Calling this once at bootstrap gives new users the
+   * real free trial. Idempotent: it only acts when status is still 'trial' and
+   * no end date exists, so it never resets or extends an ongoing/lapsed plan.
+   */
+  ensureTrialStarted: () => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -69,6 +79,16 @@ export const useSettingsStore = create<SettingsState>()(
 
       updateSettings: (patch) => {
         set((state) => ({ settings: { ...state.settings, ...patch } }))
+      },
+
+      ensureTrialStarted: () => {
+        set((state) => {
+          const sub = state.settings.subscription
+          if (sub.status === 'trial' && sub.trialEndsAt == null) {
+            return { settings: { ...state.settings, subscription: startTrial() } }
+          }
+          return state
+        })
       },
     }),
     {

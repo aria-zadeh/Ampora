@@ -42,10 +42,8 @@ export function MoreOptionsSection({
         accessibilityState={{ expanded }}
         accessibilityLabel="More options"
       >
-        <View className="flex-row items-center gap-3">
-          <View className="h-8 w-8 items-center justify-center rounded-full bg-neutral-100">
-            <Ionicons name="options-outline" size={16} color="#52525B" />
-          </View>
+        <View className="flex-row items-center gap-2">
+          <Ionicons name="options-outline" size={18} color="#52525B" />
           <Text className="text-body-lg font-semibold text-neutral-900">
             More options
           </Text>

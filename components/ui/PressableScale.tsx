@@ -13,9 +13,21 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
+import { cssInterop } from "nativewind";
 import { EASINGS } from "@/utils/motion";
 import { motion } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+
+/**
+ * A single animated Pressable that BOTH carries the layout/visual `className`
+ * (via cssInterop) AND the scale transform. Using one element avoids the
+ * two-box trap: putting `className` on an outer Animated.View drops `flex-1`
+ * sizing onto the wrong node (segmented options collapse), while putting it on
+ * an inner Pressable stacks icon+text vertically. One node = the consumer's
+ * className works exactly like a normal Pressable, plus the press animation.
+ */
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+cssInterop(AnimatedPressable, { className: "style" });
 
 /** Haptic feedback fired on press. Pass `false` to disable. */
 type HapticStyle = "light" | "medium" | "success" | "selection" | false;
@@ -121,20 +133,20 @@ export function PressableScale({
   );
 
   return (
-    <Animated.View style={[animatedStyle, style]} className={className}>
-      <Pressable
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={handlePress}
-        disabled={disabled}
-        accessibilityRole={accessibilityRole}
-        accessibilityLabel={accessibilityLabel}
-        accessibilityHint={accessibilityHint}
-        accessibilityState={{ disabled, ...accessibilityState }}
-        testID={testID}
-      >
-        {children}
-      </Pressable>
-    </Animated.View>
+    <AnimatedPressable
+      className={className}
+      style={[style, animatedStyle]}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
+      disabled={disabled}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled, ...accessibilityState }}
+      testID={testID}
+    >
+      {children}
+    </AnimatedPressable>
   );
 }

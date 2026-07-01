@@ -74,6 +74,15 @@ export interface PlacementContext {
   cutoff: number
   defaultSchedulingHours: SchedulingHours
   workload: WorkloadMode
+  /**
+   * Minutes already covered by pinned prev blocks, keyed by taskId. A pinned
+   * block (from drag-move, postpone, or an explicit lock) is an immovable input
+   * that is carried through recompute verbatim; its minutes must be credited
+   * against the owning task's remaining work so the task is not scheduled a
+   * second time (which would render it twice on the calendar). Optional so pure
+   * engine tests can omit it (treated as 0).
+   */
+  pinnedMinutesByTask?: Map<string, number>
 }
 
 export interface PlacementState {
@@ -280,7 +289,10 @@ function commit(state: PlacementState, task: Task, start: number, end: number, n
  * (they simply take whatever is left — §9.5.11).
  */
 export function placeTask(task: Task, ctx: PlacementContext, state: PlacementState): void {
-  const remaining = remainingMinutes(task)
+  // Credit minutes already held by pinned prev blocks for this task so a
+  // moved/postponed/locked block is not duplicated by a fresh placement.
+  const pinnedMin = ctx.pinnedMinutesByTask?.get(task.id) ?? 0
+  const remaining = remainingMinutes(task) - pinnedMin
   if (remaining <= 0) return
 
   const mode: WorkloadMode = isNearOrOverDue(task, ctx.now) ? 'frontload' : ctx.workload

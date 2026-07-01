@@ -10,14 +10,14 @@
  */
 
 import {
-  callAnthropic,
+  callGemini,
   extractJson,
   getApiKey,
   handlePreflight,
   jsonResponse,
   noKeyResponse,
   readBody,
-} from "../_shared/anthropic.ts";
+} from "../_shared/gemini.ts";
 
 const SYSTEM = `You extract discrete, actionable tasks from free-form text (a syllabus, an email, a brain dump).
 Rules:
@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
 TEXT:
 ${text}`;
 
-    const out = await callAnthropic(apiKey, { system: SYSTEM, user, maxTokens: 1500 });
+    const out = await callGemini(apiKey, { system: SYSTEM, user, maxTokens: 1500 });
     const raw = extractJson<{ tasks?: unknown[] } | unknown[]>(out);
     const list: unknown[] = Array.isArray(raw)
       ? raw
