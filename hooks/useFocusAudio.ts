@@ -1,26 +1,44 @@
 /**
- * useFocusAudio — manages ambient audio during a focus session.
+ * useFocusAudio — ambient audio for a focus session (PRD FR-62).
  *
- * Lifecycle:
- *  - select(type): stop current → load new → play (looping)
- *  - pause(): pause without unloading (used on break)
- *  - resume(): resume paused sound
- *  - setVolume(0–1): live volume update
- *  - cleanup: sound is unloaded on unmount via useEffect return
+ * Small API by design:
+ *   const { current, play, stop, setVolume } = useFocusAudio();
+ *   play("rain");   // stop current, load + loop the new one
+ *   setVolume(0.5); // live volume, 0..1
+ *   stop();         // stop + unload
  *
- * Graceful degradation: if uri is null or Audio fails, we silently no-op.
+ * Uses `expo-av` (SDK54; `expo-audio` is not installed in this project). All
+ * playback is best-effort: if the platform can't play audio (web without a
+ * user gesture, a load failure, a null uri), every method silently no-ops and
+ * the session continues without sound. Nothing here can crash the focus screen.
+ *
+ * `current` is React state so the picker UI can highlight the active choice;
+ * the actual Sound object lives in a ref (not state) to avoid re-renders.
  */
-import { useEffect, useRef, useCallback } from "react";
-import { Audio } from "expo-av";
-import type { FocusAudio } from "@/types";
-import { getAudioOption } from "@/utils/audioConfig";
 
-export function useFocusAudio() {
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
+import { Audio } from "expo-av";
+import type { AVPlaybackStatusToSet } from "expo-av";
+import { getAudioOption, type FocusAudio } from "@/utils/audioConfig";
+
+export interface FocusAudioApi {
+  /** The currently selected kind ("none" when nothing is playing). */
+  current: FocusAudio;
+  /** Switch ambient audio. "none" stops playback. */
+  play: (kind: FocusAudio) => Promise<void>;
+  /** Stop and unload the current sound. */
+  stop: () => Promise<void>;
+  /** Set volume 0..1 for the current and future sounds. */
+  setVolume: (v: number) => Promise<void>;
+}
+
+export function useFocusAudio(): FocusAudioApi {
   const soundRef = useRef<Audio.Sound | null>(null);
   const volumeRef = useRef<number>(0.7);
-  const isPlayingRef = useRef<boolean>(false);
+  const [current, setCurrent] = useState<FocusAudio>("none");
 
-  // Configure audio session on mount
+  // Configure the audio session once (best-effort; never fatal).
   useEffect(() => {
     Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
@@ -28,76 +46,27 @@ export function useFocusAudio() {
       staysActiveInBackground: false,
       shouldDuckAndroid: true,
     }).catch(() => {
-      // Non-fatal — continue without audio mode config
+      // Non-fatal — continue without audio-mode config.
     });
 
     return () => {
-      // Cleanup on unmount
+      // Unload on unmount.
       soundRef.current?.unloadAsync().catch(() => {});
       soundRef.current = null;
     };
   }, []);
 
-  const _unloadCurrent = useCallback(async () => {
-    if (soundRef.current) {
+  const unloadCurrent = useCallback(async () => {
+    const s = soundRef.current;
+    soundRef.current = null;
+    if (s) {
       try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
+        await s.stopAsync();
       } catch {
         // ignore
       }
-      soundRef.current = null;
-      isPlayingRef.current = false;
-    }
-  }, []);
-
-  const select = useCallback(
-    async (type: FocusAudio) => {
-      await _unloadCurrent();
-
-      if (type === "none") return;
-
-      const option = getAudioOption(type);
-      if (!option?.uri) {
-        // URI not yet set — infrastructure is wired, no audio plays
-        return;
-      }
-
       try {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: option.uri },
-          {
-            shouldPlay: true,
-            isLooping: true,
-            volume: volumeRef.current,
-          }
-        );
-        soundRef.current = sound;
-        isPlayingRef.current = true;
-      } catch {
-        // Audio load failure — silently skip, no crash/error shown to user
-        soundRef.current = null;
-      }
-    },
-    [_unloadCurrent]
-  );
-
-  const pause = useCallback(async () => {
-    if (soundRef.current && isPlayingRef.current) {
-      try {
-        await soundRef.current.pauseAsync();
-        isPlayingRef.current = false;
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
-
-  const resume = useCallback(async () => {
-    if (soundRef.current && !isPlayingRef.current) {
-      try {
-        await soundRef.current.playAsync();
-        isPlayingRef.current = true;
+        await s.unloadAsync();
       } catch {
         // ignore
       }
@@ -105,19 +74,60 @@ export function useFocusAudio() {
   }, []);
 
   const stop = useCallback(async () => {
-    await _unloadCurrent();
-  }, [_unloadCurrent]);
+    await unloadCurrent();
+    setCurrent("none");
+  }, [unloadCurrent]);
 
-  const setVolume = useCallback(async (volume: number) => {
-    volumeRef.current = volume;
+  const play = useCallback(
+    async (kind: FocusAudio) => {
+      await unloadCurrent();
+
+      if (kind === "none") {
+        setCurrent("none");
+        return;
+      }
+
+      const option = getAudioOption(kind);
+      if (!option?.uri) {
+        // Unknown kind or intentionally-silent option — treat as selected but silent.
+        setCurrent(kind);
+        return;
+      }
+
+      // Web audio needs a user gesture and often fails to autoplay; keep it
+      // fully guarded so a rejected promise never bubbles to the UI.
+      const initialStatus: AVPlaybackStatusToSet = {
+        shouldPlay: true,
+        isLooping: true,
+        volume: volumeRef.current,
+      };
+
+      try {
+        const { sound } = await Audio.Sound.createAsync({ uri: option.uri }, initialStatus);
+        soundRef.current = sound;
+        setCurrent(kind);
+      } catch {
+        // Load/playback failure — remain silent, but still reflect the choice
+        // on native so the picker doesn't look broken. On web, fall back to
+        // "none" so we don't imply audio that will never come.
+        soundRef.current = null;
+        setCurrent(Platform.OS === "web" ? "none" : kind);
+      }
+    },
+    [unloadCurrent]
+  );
+
+  const setVolume = useCallback(async (v: number) => {
+    const clamped = Math.max(0, Math.min(1, v));
+    volumeRef.current = clamped;
     if (soundRef.current) {
       try {
-        await soundRef.current.setVolumeAsync(volume);
+        await soundRef.current.setVolumeAsync(clamped);
       } catch {
         // ignore
       }
     }
   }, []);
 
-  return { select, pause, resume, stop, setVolume };
+  return { current, play, stop, setVolume };
 }

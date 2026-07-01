@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { View, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { TaskEditorForm } from "@/components/task-editor/TaskEditorForm";
+import { VerificationSheet } from "@/components/verification/VerificationSheet";
 import { shadows } from "@/utils/design-tokens";
 import type { Task } from "@/types";
 
@@ -23,6 +24,15 @@ export default function TaskEditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const task = useTaskStore((s) => s.tasks[id]);
   const updateTask = useTaskStore((s) => s.updateTask);
+
+  // Verification (Mark done) sheet — completes the task with a chosen method.
+  const [verifyOpen, setVerifyOpen] = useState(false);
+
+  const isDone = task?.status === "done";
+
+  const startFocus = () => {
+    router.push({ pathname: "/focus/session", params: { taskId: id } });
+  };
 
   // Seed the draft once from the stored task. We intentionally do NOT re-seed
   // on every store change: scalar edits are held locally until Save. (Subtasks
@@ -101,12 +111,62 @@ export default function TaskEditScreen() {
         <View className="min-w-11" />
       </View>
 
+      {/* Action bar — Start focus + Mark done. Small, premium, sits above the
+          editor. When the task is already done it shows a calm completed state. */}
+      <View
+        className="flex-row items-center gap-3 border-b border-neutral-200 bg-white px-5 py-3"
+        style={shadows.xs}
+      >
+        {isDone ? (
+          <View className="flex-1 flex-row items-center justify-center gap-2 rounded-md bg-success-100 py-3">
+            <Ionicons name="checkmark-circle" size={18} color="#15803D" />
+            <Text className="text-label font-semibold text-success-700">Completed</Text>
+          </View>
+        ) : (
+          <>
+            <PressableScale
+              onPress={startFocus}
+              haptic="medium"
+              className="flex-1 flex-row items-center justify-center gap-2 rounded-md bg-success-700 py-3"
+              style={shadows.xs}
+              accessibilityRole="button"
+              accessibilityLabel="Start focus session"
+            >
+              <Ionicons name="play" size={16} color="#FFFFFF" />
+              <Text className="text-label font-semibold text-white">Start focus</Text>
+            </PressableScale>
+
+            <PressableScale
+              onPress={() => setVerifyOpen(true)}
+              haptic="light"
+              className="flex-1 flex-row items-center justify-center gap-2 rounded-md border border-neutral-200 bg-white py-3"
+              style={shadows.xs}
+              accessibilityRole="button"
+              accessibilityLabel="Mark task done"
+            >
+              <Ionicons name="checkmark-done" size={16} color="#2563EB" />
+              <Text className="text-label font-semibold text-primary-600">Mark done</Text>
+            </PressableScale>
+          </>
+        )}
+      </View>
+
       <TaskEditorForm
         mode="edit"
         taskId={id}
         initialDraft={initialDraft}
         onSubmit={handleSubmit}
         onCancel={() => router.back()}
+      />
+
+      <VerificationSheet
+        visible={verifyOpen}
+        task={task}
+        onClose={() => setVerifyOpen(false)}
+        onCompleted={() => {
+          setVerifyOpen(false);
+          router.back();
+        }}
       />
     </SafeAreaView>
   );

@@ -8,16 +8,25 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { StarterActionCard } from "@/components/ui/StarterActionCard";
+import { SkeletonLoader } from "@/components/ui/SkeletonLoader";
+import { PressableScale } from "@/components/ui/PressableScale";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
 import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { newId } from "@/core/id";
 import * as taskLogic from "@/core/task-logic";
+import {
+  breakdownTask,
+  refineBreakdown,
+  simplifySubtask,
+  type BreakdownResult,
+} from "@/services/ai";
 import { useTaskStore } from "@/store/taskStore";
 import { useListStore, selectListById } from "@/store/listStore";
 import type { EnergyLevel, Subtask, Task } from "@/types";
@@ -313,6 +322,133 @@ export function TaskEditorForm({
     patch({ subtasks: next.subtasks });
   };
 
+  // --- AI breakdown / simplify / refine -----------------------------------
+  // These build on the SAME subtask helpers above so the manual flow is never
+  // bypassed. Everything degrades gracefully with no API key: services/ai
+  // always resolves (local fallback), and we surface a warm "offline
+  // suggestion" note when `isFallback` is set. Nothing here can crash the form.
+  const [breakingDown, setBreakingDown] = useState(false);
+  const [refining, setRefining] = useState(false);
+  const [showRefine, setShowRefine] = useState(false);
+  const [refineText, setRefineText] = useState("");
+  const [simplifyingId, setSimplifyingId] = useState<string | null>(null);
+  const [aiNote, setAiNote] = useState<string | null>(null);
+  // The last AI breakdown, kept so "Refine" can iterate on it (doc 07 §1.7).
+  const [lastBreakdown, setLastBreakdown] = useState<BreakdownResult | null>(null);
+
+  /** Replace the current first-move + subtasks with an AI breakdown result. */
+  const applyBreakdown = (result: BreakdownResult) => {
+    const now = Date.now();
+    const firstMove = {
+      id: draft.firstMove?.id ?? newId(),
+      text: result.firstMove,
+      done: false,
+    };
+    const nextSubtasks: Subtask[] = result.subtasks.map((s) => ({
+      id: newId(),
+      title: s.title,
+      estimatedMin: s.estimatedMin,
+    }));
+
+    if (isEdit && taskId) {
+      // Persist directly (edit-mode subtasks live in the store), and mirror the
+      // first move onto the local draft so the StarterActionCard preview and
+      // the eventual Save both reflect it.
+      storeUpdateTask(taskId, {
+        firstMove,
+        subtasks: nextSubtasks,
+        durationMin: taskLogic.sumEstimatedMin(nextSubtasks),
+        progressMin: 0,
+      });
+      patch({ firstMove });
+    } else {
+      const view = taskLogic.withSyncedRollups({
+        ...asTaskView(draft),
+        subtasks: nextSubtasks,
+        updatedAt: now,
+      });
+      patch({
+        firstMove,
+        subtasks: view.subtasks,
+        durationMin: view.durationMin,
+        progressMin: view.progressMin,
+      });
+    }
+    setFirstMoveText(result.firstMove);
+    setLastBreakdown(result);
+    setAiNote(result.isFallback ? result.note ?? "Showing general steps — tap Refine to shape them." : null);
+  };
+
+  const handleBreakDown = async () => {
+    if (breakingDown) return;
+    const title = (draft.title ?? "").trim();
+    if (!title) return;
+    setBreakingDown(true);
+    setAiNote(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    try {
+      const result = await breakdownTask({
+        title,
+        notes: draft.notes,
+        durationMin: draft.durationMin,
+        due: draft.due,
+        energyRequired: draft.energyRequired,
+      });
+      applyBreakdown(result);
+    } catch {
+      // breakdownTask never throws, but stay defensive.
+      setAiNote("Couldn't build steps right now — add them manually below.");
+    } finally {
+      setBreakingDown(false);
+    }
+  };
+
+  const handleRefine = async () => {
+    const instruction = refineText.trim();
+    if (!instruction || refining) return;
+    // Refine needs a prior breakdown; synthesize one from the current draft if
+    // the user hand-built steps and never ran "Break it down".
+    const prev: BreakdownResult =
+      lastBreakdown ?? {
+        firstMove: draft.firstMove?.text ?? firstMoveText.trim(),
+        subtasks: subtasks.map((s) => ({ title: s.title, estimatedMin: s.estimatedMin })),
+        isFallback: false,
+      };
+    setRefining(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    try {
+      const result = await refineBreakdown(prev, instruction);
+      applyBreakdown(result);
+      setRefineText("");
+      setShowRefine(false);
+    } catch {
+      setAiNote("Couldn't refine right now — your steps are unchanged.");
+    } finally {
+      setRefining(false);
+    }
+  };
+
+  const handleSimplifySubtask = async (subtaskId: string) => {
+    if (simplifyingId) return;
+    const current = subtasks.find((s) => s.id === subtaskId);
+    if (!current) return;
+    setSimplifyingId(subtaskId);
+    Haptics.selectionAsync().catch(() => {});
+    try {
+      const { simplified } = await simplifySubtask(current.title);
+      if (simplified && simplified !== current.title) {
+        editSubtaskTitle(subtaskId, simplified);
+      }
+    } catch {
+      // simplifySubtask never throws; leave the title as-is on any failure.
+    } finally {
+      setSimplifyingId(null);
+    }
+  };
+
+  const canBreakDown = (draft.title ?? "").trim().length > 0;
+  const hasBreakdownContent = subtasks.length > 0 || !!draft.firstMove;
+
   // --- Due date -----------------------------------------------------------
   const dueDate = draft.due ? new Date(draft.due) : undefined;
   const [showDuePicker, setShowDuePicker] = useState(false);
@@ -412,6 +548,61 @@ export function TaskEditorForm({
 
         {/* --- First move (focal) --------------------------------------- */}
         <Section title="First move" index={2}>
+          {/* AI: Break it down — fills First move + Steps in one tap. Degrades
+              gracefully with no key (local fallback), never blocks the manual
+              flow below. */}
+          <View className="gap-3">
+            <PressableScale
+              onPress={handleBreakDown}
+              haptic={canBreakDown ? "light" : false}
+              disabled={!canBreakDown || breakingDown}
+              className={`min-h-12 flex-row items-center justify-center gap-2 rounded-md ${
+                canBreakDown && !breakingDown
+                  ? "bg-primary-600"
+                  : "bg-primary-600/50"
+              }`}
+              style={shadows.xs}
+              accessibilityRole="button"
+              accessibilityLabel="Break it down with AI"
+              accessibilityState={{ disabled: !canBreakDown || breakingDown, busy: breakingDown }}
+            >
+              <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+              <Text className="text-label font-semibold text-white">
+                {breakingDown
+                  ? "Breaking it down…"
+                  : hasBreakdownContent
+                    ? "Re-generate steps"
+                    : "Break it down"}
+              </Text>
+            </PressableScale>
+
+            {!canBreakDown ? (
+              <Text className="text-caption text-neutral-500">
+                Add a title first, then let AI suggest a first move and steps.
+              </Text>
+            ) : null}
+
+            {breakingDown ? (
+              <View className="gap-2" accessibilityLabel="Generating steps">
+                <SkeletonLoader height={44} radius={12} />
+                <SkeletonLoader height={44} radius={12} />
+                <SkeletonLoader height={44} radius={12} width="80%" />
+              </View>
+            ) : null}
+
+            {aiNote ? (
+              <Animated.View
+                entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
+                className="flex-row items-start gap-2 rounded-lg border border-warning-100 bg-warning-100/50 p-3"
+              >
+                <Ionicons name="cloud-offline-outline" size={16} color="#C2410C" />
+                <Text className="flex-1 text-caption text-warning-700">{aiNote}</Text>
+              </Animated.View>
+            ) : null}
+          </View>
+
+          <Divider />
+
           <Field helper="One tiny 2-5 minute starter to beat activation energy" label="What is the smallest first step?">
             <TextInput
               className={`min-h-12 rounded-md border ${inputBorder(
@@ -446,6 +637,114 @@ export function TaskEditorForm({
             onEditTitle={editSubtaskTitle}
             onReorder={reorderSubtask}
           />
+
+          {/* AI: Make easier — per-subtask simplify. Rendered here (not inside
+              SubtaskChecklist, which this workstream doesn't own) as a compact
+              list of "Make easier" affordances. Graceful: simplifySubtask has a
+              local fallback and never throws. */}
+          {subtasks.length > 0 ? (
+            <View className="gap-2">
+              <Text className="text-caption font-medium text-neutral-500">
+                Too big? Make a step easier
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {subtasks
+                  .filter((s) => !taskLogic.isSubtaskDone(s))
+                  .map((s) => {
+                    const loading = simplifyingId === s.id;
+                    return (
+                      <PressableScale
+                        key={s.id}
+                        onPress={() => handleSimplifySubtask(s.id)}
+                        haptic={loading ? false : "selection"}
+                        disabled={loading || simplifyingId != null}
+                        className={`max-w-full flex-row items-center gap-1.5 rounded-full border px-3 py-2 ${
+                          loading
+                            ? "border-primary-200 bg-primary-50"
+                            : "border-neutral-200 bg-white"
+                        }`}
+                        style={shadows.xs}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Make easier: ${s.title}`}
+                        accessibilityState={{ busy: loading, disabled: simplifyingId != null }}
+                      >
+                        <Ionicons
+                          name={loading ? "hourglass-outline" : "cut-outline"}
+                          size={13}
+                          color="#2563EB"
+                        />
+                        <Text
+                          className="max-w-[180px] text-caption font-medium text-neutral-700"
+                          numberOfLines={1}
+                        >
+                          {loading ? "Simplifying…" : s.title}
+                        </Text>
+                      </PressableScale>
+                    );
+                  })}
+              </View>
+            </View>
+          ) : null}
+
+          {/* AI: Refine — reshape the breakdown from a natural instruction. */}
+          {hasBreakdownContent ? (
+            <View className="gap-2">
+              {showRefine ? (
+                <Animated.View
+                  entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
+                  className="gap-2"
+                >
+                  <TextInput
+                    className="min-h-12 rounded-md border border-primary-500 bg-white px-4 text-body-lg text-neutral-900"
+                    placeholder='e.g. "break it down by function" or "step 2 is too big"'
+                    placeholderTextColor="#A1A1AA"
+                    value={refineText}
+                    onChangeText={setRefineText}
+                    returnKeyType="done"
+                    onSubmitEditing={handleRefine}
+                    autoFocus
+                    accessibilityLabel="Refine instruction"
+                  />
+                  <View className="flex-row gap-2">
+                    <View className="flex-1">
+                      <Button
+                        title={refining ? "Refining…" : "Refine steps"}
+                        variant="primaryBlue"
+                        size="md"
+                        onPress={handleRefine}
+                        loading={refining}
+                        disabled={refineText.trim().length === 0 || refining}
+                      />
+                    </View>
+                    <Button
+                      title="Cancel"
+                      variant="secondary"
+                      size="md"
+                      onPress={() => {
+                        setShowRefine(false);
+                        setRefineText("");
+                      }}
+                      disabled={refining}
+                    />
+                  </View>
+                </Animated.View>
+              ) : (
+                <PressableScale
+                  onPress={() => setShowRefine(true)}
+                  haptic="light"
+                  className="flex-row items-center justify-center gap-2 rounded-md border border-neutral-200 bg-white py-3"
+                  style={shadows.xs}
+                  accessibilityRole="button"
+                  accessibilityLabel="Refine the steps with an instruction"
+                >
+                  <Ionicons name="color-wand-outline" size={16} color="#2563EB" />
+                  <Text className="text-label font-medium text-primary-600">
+                    Refine with an instruction
+                  </Text>
+                </PressableScale>
+              )}
+            </View>
+          ) : null}
         </Section>
 
         {/* --- Scheduling ----------------------------------------------- */}

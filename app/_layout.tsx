@@ -124,6 +124,10 @@ export default function RootLayout() {
           options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }}
         />
         <Stack.Screen
+          name="blindfold"
+          options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }}
+        />
+        <Stack.Screen
           name="settings/busy-times"
           options={{ animation: "slide_from_right" }}
         />
