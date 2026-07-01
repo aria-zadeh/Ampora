@@ -90,7 +90,7 @@ export const useInsightsStore = create<InsightsState>()(
       },
     }),
     {
-      name: "dandelion-insights",
+      name: "ampora-insights",
       storage: createJSONStorage(() => AsyncStorage),
     }
   )

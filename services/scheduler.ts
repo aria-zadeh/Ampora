@@ -1,5 +1,5 @@
 /**
- * Smart Scheduling Algorithm — Focal
+ * Smart Scheduling Algorithm — Ampora
  *
  * Auto-places task blocks around busy times, one-off events, and quiet hours.
  * Learns from past SchedulingSignal outcomes to prefer time slots where the

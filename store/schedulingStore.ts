@@ -29,9 +29,9 @@ async function syncSignalToSupabase(signal: SchedulingSignal): Promise<void> {
       actual_duration_minutes: signal.actualDurationMinutes,
       recorded_at: signal.recordedAt,
     });
-    if (error) console.warn("[Focal] syncSignalToSupabase error:", error.message);
+    if (error) console.warn("[Ampora] syncSignalToSupabase error:", error.message);
   } catch (err) {
-    console.warn("[Focal] syncSignalToSupabase exception:", err);
+    console.warn("[Ampora] syncSignalToSupabase exception:", err);
   }
 }
 
@@ -45,7 +45,7 @@ export async function fetchRecentSignals(userId: string, days = 30): Promise<Sch
     .order("recorded_at", { ascending: false });
 
   if (error) {
-    console.warn("[Focal] fetchRecentSignals error:", error.message);
+    console.warn("[Ampora] fetchRecentSignals error:", error.message);
     return [];
   }
 
@@ -105,7 +105,7 @@ export const useSchedulingStore = create<SchedulingState>()(
       },
     }),
     {
-      name: "dandelion-scheduling",
+      name: "ampora-scheduling",
       storage: createJSONStorage(() => AsyncStorage),
     },
   ),

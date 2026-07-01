@@ -34,20 +34,20 @@ export function ProgressBar({
     width: `${animatedWidth.value * 100}%`,
   }));
 
-  const bgColor = color || "bg-primary";
-  const trackColor = "bg-surface-elevated dark:bg-surface-dark-elevated";
+  const bgColor = color || "bg-primary-600";
+  const trackColor = "bg-neutral-200";
 
   return (
     <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}>
       {(label || showPercentage) && (
         <View className="flex-row justify-between mb-1">
           {label && (
-            <Text className="text-small text-content-secondary dark:text-content-dark-secondary">
+            <Text className="text-caption text-neutral-500">
               {label}
             </Text>
           )}
           {showPercentage && (
-            <Text className="text-small font-medium text-content dark:text-content-dark-primary">
+            <Text className="text-caption font-medium text-neutral-900">
               {Math.round(progress * 100)}%
             </Text>
           )}

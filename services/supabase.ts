@@ -1,5 +1,5 @@
 /**
- * Supabase client — Focal
+ * Supabase client — Ampora
  * Uses expo-secure-store for secure auth session persistence on native.
  * Falls back to localStorage on web.
  */
@@ -17,7 +17,7 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
-    "[Focal] Supabase env vars missing. Set EXPO_PUBLIC_SUPABASE_URL and " +
+    "[Ampora] Supabase env vars missing. Set EXPO_PUBLIC_SUPABASE_URL and " +
       "EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file. Auth will not work."
   );
 }
@@ -95,14 +95,22 @@ const storageAdapter = Platform.OS === "web" ? new LocalStorageAdapter() : new S
 // Client
 // ---------------------------------------------------------------------------
 
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: storageAdapter,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: Platform.OS === 'web',
-  },
-});
+// Falls back to a placeholder URL/key when env vars are missing so the app
+// can still boot (guest mode, local-only testing) instead of crashing at
+// import time. Auth/sync calls will fail gracefully in that case, matching
+// the existing try/catch handling around every call site.
+export const supabase: SupabaseClient = createClient(
+  supabaseUrl || "https://placeholder.supabase.co",
+  supabaseAnonKey || "placeholder-anon-key",
+  {
+    auth: {
+      storage: storageAdapter,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: Platform.OS === 'web',
+    },
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Auth helpers
@@ -409,9 +417,9 @@ export async function upsertTask(task: SupabaseTask, userId: string): Promise<vo
     // Remove client-side subtasks field before sending to DB
     const { subtasks: _subtasks, ...rowWithoutSubtasks } = row;
     const { error } = await supabase.from("tasks").upsert(rowWithoutSubtasks);
-    if (error) console.warn("[Focal] upsertTask error:", error.message);
+    if (error) console.warn("[Ampora] upsertTask error:", error.message);
   } catch (err) {
-    console.warn("[Focal] upsertTask exception:", err);
+    console.warn("[Ampora] upsertTask exception:", err);
   }
 }
 
@@ -419,9 +427,9 @@ export async function upsertTask(task: SupabaseTask, userId: string): Promise<vo
 export async function deleteTask(taskId: string): Promise<void> {
   try {
     const { error } = await supabase.from("tasks").delete().eq("id", taskId);
-    if (error) console.warn("[Focal] deleteTask error:", error.message);
+    if (error) console.warn("[Ampora] deleteTask error:", error.message);
   } catch (err) {
-    console.warn("[Focal] deleteTask exception:", err);
+    console.warn("[Ampora] deleteTask exception:", err);
   }
 }
 
@@ -430,9 +438,9 @@ export async function upsertSubtask(subtask: SupabaseSubtask, userId: string): P
   try {
     const row = { ...subtask, user_id: userId };
     const { error } = await supabase.from("subtasks").upsert(row);
-    if (error) console.warn("[Focal] upsertSubtask error:", error.message);
+    if (error) console.warn("[Ampora] upsertSubtask error:", error.message);
   } catch (err) {
-    console.warn("[Focal] upsertSubtask exception:", err);
+    console.warn("[Ampora] upsertSubtask exception:", err);
   }
 }
 
@@ -440,9 +448,9 @@ export async function upsertSubtask(subtask: SupabaseSubtask, userId: string): P
 export async function deleteSubtask(subtaskId: string): Promise<void> {
   try {
     const { error } = await supabase.from("subtasks").delete().eq("id", subtaskId);
-    if (error) console.warn("[Focal] deleteSubtask error:", error.message);
+    if (error) console.warn("[Ampora] deleteSubtask error:", error.message);
   } catch (err) {
-    console.warn("[Focal] deleteSubtask exception:", err);
+    console.warn("[Ampora] deleteSubtask exception:", err);
   }
 }
 
@@ -467,9 +475,9 @@ export async function upsertSettings(settings: Partial<UserSettings>, userId: st
   try {
     const row = settingsToSupabase(settings, userId);
     const { error } = await supabase.from("user_settings").upsert(row);
-    if (error) console.warn("[Focal] upsertSettings error:", error.message);
+    if (error) console.warn("[Ampora] upsertSettings error:", error.message);
   } catch (err) {
-    console.warn("[Focal] upsertSettings exception:", err);
+    console.warn("[Ampora] upsertSettings exception:", err);
   }
 }
 
@@ -488,8 +496,8 @@ export async function upsertFocusSession(session: FocusSession, userId: string):
       completed_subtask_ids: session.completedSubtasks,
     };
     const { error } = await supabase.from("focus_sessions").upsert(row);
-    if (error) console.warn("[Focal] upsertFocusSession error:", error.message);
+    if (error) console.warn("[Ampora] upsertFocusSession error:", error.message);
   } catch (err) {
-    console.warn("[Focal] upsertFocusSession exception:", err);
+    console.warn("[Ampora] upsertFocusSession exception:", err);
   }
 }

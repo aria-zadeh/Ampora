@@ -14,7 +14,7 @@ interface EmptyStateProps {
 export function EmptyState({
   title,
   subtitle,
-  icon = "leaf-outline",
+  icon = "sparkles-outline",
   actionLabel,
   onAction,
 }: EmptyStateProps) {
@@ -23,17 +23,15 @@ export function EmptyState({
       className="items-center justify-center py-12 px-8"
       accessibilityLabel={`${title}. ${subtitle}`}
     >
-      <View className="w-16 h-16 rounded-full bg-accent-light dark:bg-accent/15 items-center justify-center mb-4">
-        <Ionicons name={icon} size={32} className="text-accent dark:text-accent" />
-      </View>
-      <Text className="text-heading font-semibold text-content dark:text-content-dark-primary text-center mb-2">
+      <Ionicons name={icon} size={48} color="#D4D4D8" style={{ marginBottom: 16 }} />
+      <Text className="text-h4 font-semibold text-neutral-900 text-center mb-2">
         {title}
       </Text>
-      <Text className="text-body text-content-secondary dark:text-content-dark-secondary text-center mb-6 leading-6">
+      <Text className="text-caption text-neutral-500 text-center mb-6">
         {subtitle}
       </Text>
       {actionLabel && onAction && (
-        <Button title={actionLabel} onPress={onAction} variant="primary" />
+        <Button title={actionLabel} onPress={onAction} variant="primaryBlue" />
       )}
     </View>
   );

@@ -1,153 +1,142 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { FadeInDown, FadeOutRight } from "react-native-reanimated";
 import { ProgressBar } from "./ProgressBar";
 import { Badge } from "./Badge";
-import { getUrgencyLevel } from "@/types";
-import type { Difficulty } from "@/types";
+import type { Task } from "@/types";
 
-interface TaskCardProps {
-  title: string;
-  dueDate: string;
-  difficulty: Difficulty;
-  subtaskCount: number;
-  completedSubtasks: number;
-  subject?: string | null;
-  isComplete?: boolean;
+export interface TaskCardProps {
+  task: Task;
+  /** Optional hex color of the task's list, shown as a small dot in the meta row. */
+  listColor?: string;
+  onPress?: () => void;
   onToggleComplete?: () => void;
-  onReschedule?: () => void;
-  onPress: () => void;
 }
 
-const urgencyDisplay = {
-  none: { icon: "time-outline" as const, textClass: "text-content-secondary dark:text-content-dark-secondary", label: "" },
-  soon: { icon: "alert-circle-outline" as const, textClass: "text-warning dark:text-warning", label: "Due soon" },
-  urgent: { icon: "warning-outline" as const, textClass: "text-danger dark:text-danger", label: "Due today" },
-};
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function formatDueDate(dueDate: string): string {
-  const due = new Date(dueDate);
-  const now = new Date();
-  const diffMs = due.getTime() - now.getTime();
-  const diffHours = diffMs / (1000 * 60 * 60);
+/** Start-of-day epoch ms for a given epoch ms. */
+function startOfDay(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
 
-  if (diffHours < 0) {
-    const overdue = Math.abs(diffHours);
-    if (overdue < 24) return `${Math.round(overdue)}h overdue`;
-    return `${Math.round(overdue / 24)}d overdue`;
-  }
-  if (diffHours < 1) return `${Math.round(diffHours * 60)}m left`;
-  if (diffHours < 24) return `${Math.round(diffHours)}h left`;
-  if (diffHours < 48) return "Tomorrow";
-  if (diffHours < 168) {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    return days[due.getDay()];
-  }
-  return due.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+/**
+ * Relative due label from an epoch-ms due date, e.g. "Overdue", "Due today",
+ * "Due Fri", "Due Mar 3". Returns null when there is no due date.
+ */
+function formatDue(due: number | undefined): string | null {
+  if (due == null) return null;
+  const today = startOfDay(Date.now());
+  const dueDay = startOfDay(due);
+  const diffDays = Math.round((dueDay - today) / DAY_MS);
+
+  if (diffDays < 0) return "Overdue";
+  if (diffDays === 0) return "Due today";
+  if (diffDays === 1) return "Due tomorrow";
+  if (diffDays < 7) return `Due ${WEEKDAYS[new Date(due).getDay()]}`;
+  return `Due ${new Date(due).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
 
 export function TaskCard({
-  title,
-  dueDate,
-  difficulty,
-  subtaskCount,
-  completedSubtasks,
-  subject,
-  isComplete = false,
-  onToggleComplete,
-  onReschedule,
+  task,
+  listColor,
   onPress,
+  onToggleComplete,
 }: TaskCardProps) {
-  const urgency = getUrgencyLevel(dueDate);
-  const urgencyStyle = urgencyDisplay[urgency];
-  const progress = subtaskCount > 0 ? completedSubtasks / subtaskCount : 0;
-  const isOverdue = new Date(dueDate).getTime() < Date.now();
+  const isDone = task.status === "done";
+  const subtaskCount = task.subtasks.length;
+  const hasSubtasks = subtaskCount > 0;
+
+  const dueLabel = useMemo(() => formatDue(task.due), [task.due]);
+  const isOverdue = dueLabel === "Overdue";
+  const progress = useMemo(
+    () => (hasSubtasks ? task.progressMin / Math.max(task.durationMin, 1) : 0),
+    [hasSubtasks, task.progressMin, task.durationMin]
+  );
 
   return (
-    <Animated.View
-      entering={FadeInDown.duration(250).springify()}
-      exiting={FadeOutRight.duration(200)}
-      className="flex-row items-center gap-3"
-      style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-    >
-      {/* Completion checkbox — 44pt touch target */}
+    <View className="flex-row items-center gap-3">
+      {/* Completion checkbox */}
       <Pressable
         onPress={onToggleComplete}
-        className="min-w-[44px] min-h-[44px] items-center justify-center"
+        className="min-w-11 min-h-11 items-center justify-center"
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: isComplete }}
-        accessibilityLabel={isComplete ? "Mark task as incomplete" : "Mark task as complete"}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityState={{ checked: isDone }}
+        accessibilityLabel={isDone ? "Mark task incomplete" : "Mark task complete"}
+        hitSlop={8}
       >
-        <Ionicons
-          name={isComplete ? "checkmark-circle" : "ellipse-outline"}
-          size={26}
-          className={
-            isComplete
-              ? "text-success dark:text-success"
-              : "text-content-muted dark:text-content-dark-muted"
-          }
-        />
+        <View
+          className={`w-6 h-6 rounded-full items-center justify-center ${
+            isDone ? "bg-primary-600" : "border-2 border-neutral-300"
+          }`}
+        >
+          {isDone && <Ionicons name="checkmark" size={15} color="#FFFFFF" />}
+        </View>
       </Pressable>
 
       {/* Card body */}
       <Pressable
         onPress={onPress}
-        className={`flex-1 bg-surface-card dark:bg-surface-dark-card border border-border dark:border-border-dark rounded-lg p-4 active:opacity-90 active:scale-[0.98] ${isComplete ? "opacity-50" : ""}`}
+        className="flex-1 bg-white border border-neutral-200 rounded-lg p-4 min-h-14 active:opacity-90"
         accessibilityRole="button"
-        accessibilityLabel={`Task: ${title}. ${formatDueDate(dueDate)}. ${completedSubtasks} of ${subtaskCount} subtasks done.${isComplete ? " Completed." : ""}`}
+        accessibilityLabel={`Task: ${task.title}.${dueLabel ? ` ${dueLabel}.` : ""}${
+          hasSubtasks ? ` ${subtaskCount} steps.` : ""
+        }${isDone ? " Completed." : ""}`}
         accessibilityHint="Opens task details"
       >
-      {/* Top row: title + due date */}
-      <View className="flex-row items-start justify-between mb-2">
-        <View className="flex-1 mr-3">
+        {/* Title + optional overdue badge */}
+        <View className="flex-row items-start justify-between">
           <Text
-            className={`text-body font-semibold ${isComplete ? "line-through text-content-muted dark:text-content-dark-muted" : "text-content dark:text-content-dark-primary"}`}
+            className={`flex-1 text-body font-medium ${
+              isDone ? "line-through text-neutral-400" : "text-neutral-900"
+            }`}
             numberOfLines={2}
           >
-            {title}
+            {task.title}
           </Text>
-          {subject && (
-            <Text className="text-small text-content-muted dark:text-content-dark-muted mt-0.5">
-              {subject}
-            </Text>
+          {isOverdue && !isDone && (
+            <View className="ml-2">
+              <Badge label="Overdue" tone="danger" />
+            </View>
           )}
         </View>
-        <View className="flex-row items-center">
-          <Ionicons name={urgencyStyle.icon} size={16} className={urgencyStyle.textClass} />
-          <Text className={`ml-1 text-small font-medium ${urgencyStyle.textClass} ${isOverdue ? "text-danger dark:text-danger" : ""}`}>
-            {formatDueDate(dueDate)}
-          </Text>
-          {onReschedule && (
-            <Pressable
-              onPress={(e) => { e.stopPropagation(); onReschedule(); }}
-              className="bg-primary/15 rounded-full px-3 py-1 ml-2"
-              accessibilityRole="button"
-              accessibilityLabel="Reschedule task"
-            >
-              <Text className="text-small font-semibold text-primary">Reschedule</Text>
-            </Pressable>
-          )}
-        </View>
-      </View>
 
-      {/* Badges row */}
-      <View className="flex-row gap-2 mb-3">
-        <Badge variant="difficulty" level={difficulty} />
-        {subtaskCount > 0 && (
-          <Badge variant="time" minutes={subtaskCount * 10} />
+        {/* Meta row */}
+        {(dueLabel || listColor || hasSubtasks) && (
+          <View className="flex-row items-center flex-wrap gap-x-3 gap-y-1 mt-1.5">
+            {dueLabel && (
+              <Text
+                className={`text-caption ${
+                  isOverdue && !isDone ? "text-danger-600" : "text-neutral-500"
+                }`}
+              >
+                {dueLabel}
+              </Text>
+            )}
+            {listColor && (
+              <View
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: listColor }}
+              />
+            )}
+            {hasSubtasks && (
+              <Text className="text-caption text-neutral-500">
+                {subtaskCount} {subtaskCount === 1 ? "step" : "steps"}
+              </Text>
+            )}
+          </View>
         )}
-      </View>
 
-      {/* Progress */}
-      {subtaskCount > 0 && (
-        <ProgressBar
-          progress={progress}
-          label={`${completedSubtasks}/${subtaskCount} steps`}
-        />
-      )}
+        {/* Progress bar (only when subtasks exist) */}
+        {hasSubtasks && (
+          <View className="mt-3">
+            <ProgressBar progress={progress} height={4} />
+          </View>
+        )}
       </Pressable>
-    </Animated.View>
+    </View>
   );
 }

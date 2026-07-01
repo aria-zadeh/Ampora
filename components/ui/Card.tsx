@@ -27,12 +27,9 @@ interface StaticCardProps extends CardBaseProps, Omit<ViewProps, "children" | "c
 type CardProps = TappableCardProps | StaticCardProps;
 
 const variantClasses: Record<CardVariant, string> = {
-  default:
-    "bg-surface-card dark:bg-surface-dark-card border border-border dark:border-border-dark rounded-lg p-4",
-  elevated:
-    "bg-surface-card dark:bg-surface-dark-card rounded-lg p-4 shadow-md",
-  flat:
-    "bg-surface-elevated dark:bg-surface-dark-elevated rounded-lg p-4",
+  default: "bg-white border border-neutral-200 rounded-lg shadow-sm p-4",
+  elevated: "bg-white border border-neutral-200 rounded-lg shadow-md p-4",
+  flat: "bg-neutral-50 rounded-lg p-4",
 };
 
 function TappableCard({ variant = "default", children, onPress, className = "", ...props }: TappableCardProps) {

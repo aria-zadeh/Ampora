@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Focal",
-    "slug": "Focal",
+    "name": "Ampora",
+    "slug": "Ampora",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "focal",
+    "scheme": "ampora",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

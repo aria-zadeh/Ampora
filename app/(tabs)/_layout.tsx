@@ -1,23 +1,17 @@
 import { Tabs } from "expo-router";
 import React from "react";
-import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useColorScheme } from "nativewind";
 
 export default function TabLayout() {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === "dark";
-
   return (
-    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: isDark ? "hsl(35, 85%, 60%)" : "hsl(35, 85%, 45%)",
-        tabBarInactiveTintColor: isDark ? "hsl(30, 8%, 45%)" : "hsl(30, 8%, 55%)",
+        tabBarActiveTintColor: "#2563EB",
+        tabBarInactiveTintColor: "#A1A1AA",
         tabBarStyle: {
-          backgroundColor: isDark ? "hsl(25, 15%, 10%)" : "hsl(40, 33%, 98%)",
-          borderTopColor: isDark ? "hsl(25, 10%, 20%)" : "hsl(30, 15%, 90%)",
+          backgroundColor: "#FFFFFF",
+          borderTopColor: "#E4E4E7",
           paddingBottom: 4,
           height: 85,
         },
@@ -78,24 +72,5 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-    <View
-      style={{
-        alignItems: "center",
-        paddingVertical: 4,
-        backgroundColor: isDark ? "hsl(25, 15%, 10%)" : "hsl(40, 33%, 98%)",
-        borderTopWidth: 0,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 10,
-          color: isDark ? "rgba(200,185,165,0.35)" : "rgba(100,80,50,0.35)",
-          textAlign: "center",
-        }}
-      >
-        Created for MIT CRE[AT]E Task 2025-2026 • Team 495
-      </Text>
-    </View>
-    </View>
   );
 }

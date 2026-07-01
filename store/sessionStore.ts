@@ -105,7 +105,7 @@ export const useSessionStore = create<SessionState>()(
       },
     }),
     {
-      name: "dandelion-sessions",
+      name: "ampora-sessions",
       storage: createJSONStorage(() => AsyncStorage),
     }
   )

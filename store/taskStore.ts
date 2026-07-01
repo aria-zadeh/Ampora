@@ -1,290 +1,185 @@
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { Task, Subtask, TaskStatus, CalendarEvent, BusyBlock, SchedulingSignal } from "@/types";
-import { generateId } from "@/types";
-import {
-  getCurrentUser,
-  upsertTask,
-  upsertSubtask,
-  deleteTask as deleteTaskFromDB,
-  deleteSubtask as deleteSubtaskFromDB,
-  taskToSupabase,
-  subtaskToSupabase,
-} from "@/services/supabase";
-import { findBestSlot, type ScheduleInput } from "@/services/scheduler";
-import { useSettingsStore } from "@/store/settingsStore";
-import { useSchedulingStore } from "@/store/schedulingStore";
+/**
+ * Task store — Milestone 1 data-model foundation.
+ *
+ * Ground-up rebuild replacing the v1 store (which used ISO date strings,
+ * AsyncStorage, and synced directly to Supabase from the store). This store
+ * is local-first (MMKV) only; cloud sync is a later milestone and is
+ * intentionally NOT wired up here.
+ *
+ * State holds tasks keyed by id (`Record<string, Task>`) rather than an
+ * array, so single-task reads/writes are O(1) and updates don't require
+ * scanning. Components should use the exported selector helpers rather than
+ * deriving inside render (Zustand selector discipline, PRD §9.1).
+ *
+ * No scheduling engine and no Ignition/locking logic lives here — only CRUD
+ * plus the doc 07 Part 3 subtask/completion semantics, delegated to
+ * `core/task-logic.ts`.
+ */
 
-// ---------------------------------------------------------------------------
-// Fire-and-forget sync helpers — errors are logged inside the service, never
-// surfaced to the user. We only sync when a user session exists.
-// ---------------------------------------------------------------------------
-
-async function syncTask(task: Task): Promise<void> {
-  const user = await getCurrentUser().catch(() => null);
-  if (!user) return;
-  upsertTask(taskToSupabase(task, user.id), user.id).catch(() => {});
-}
-
-async function syncSubtasks(subtasks: Subtask[]): Promise<void> {
-  if (subtasks.length === 0) return;
-  const user = await getCurrentUser().catch(() => null);
-  if (!user) return;
-  for (const subtask of subtasks) {
-    upsertSubtask(subtaskToSupabase(subtask, user.id), user.id).catch(() => {});
-  }
-}
-
-async function removeTask(taskId: string): Promise<void> {
-  const user = await getCurrentUser().catch(() => null);
-  if (!user) return;
-  deleteTaskFromDB(taskId).catch(() => {});
-}
-
-async function removeSubtask(subtaskId: string): Promise<void> {
-  const user = await getCurrentUser().catch(() => null);
-  if (!user) return;
-  deleteSubtaskFromDB(subtaskId).catch(() => {});
-}
+import { create } from 'zustand'
+import { createJSONStorage, persist } from 'zustand/middleware'
+import { newId } from '@/core/id'
+import * as taskLogic from '@/core/task-logic'
+import { mmkvStateStorage } from '@/store/mmkv'
+import type { Subtask, Task } from '@/types'
 
 interface TaskState {
-  tasks: Task[];
-  /** ISO timestamp of the last successful Supabase sync, or null if never synced. */
-  lastSyncedAt: string | null;
-  addTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "subtasks" | "status" | "scheduleStatus" | "durationMinutes" | "proposedTime"> & { durationMinutes?: number | null; proposedTime?: string }) => string;
-  updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
-  setTaskStatus: (id: string, status: TaskStatus) => void;
-  addSubtasks: (taskId: string, subtasks: Omit<Subtask, "id" | "parentTaskId">[]) => void;
-  toggleSubtask: (taskId: string, subtaskId: string) => void;
-  updateSubtask: (taskId: string, subtaskId: string, updates: Partial<Subtask>) => void;
-  setLastSyncedAt: (timestamp: string) => void;
-  proposeSchedule: (
-    taskId: string,
-    input: Omit<ScheduleInput, "task" | "allTasks">
-  ) => void;
-  getTaskById: (id: string) => Task | undefined;
-  getUrgentTasks: () => Task[];
-  getTasksByGroup: () => { overdue: Task[]; today: Task[]; thisWeek: Task[]; later: Task[] };
+  tasks: Record<string, Task>
+
+  createTask: (
+    partial: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'syncState'>> &
+      Pick<Task, 'title'>
+  ) => Task
+  updateTask: (id: string, patch: Partial<Omit<Task, 'id' | 'createdAt'>>) => void
+  deleteTask: (id: string) => void
+
+  addSubtask: (id: string, subtask: Omit<Subtask, 'id'> & { id?: string }) => void
+  removeSubtask: (id: string, subtaskId: string) => void
+  reorderSubtasks: (id: string, fromIndex: number, toIndex: number) => void
+  setSubtaskCompleted: (id: string, subtaskId: string, completed: boolean) => void
+  completeTask: (id: string) => void
+  reopenTask: (id: string) => void
+}
+
+/** Applies a `core/task-logic` transform (which needs the current Task + now) to the stored task, if it exists. */
+function applyToTask(
+  tasks: Record<string, Task>,
+  id: string,
+  transform: (task: Task, now: number) => Task
+): Record<string, Task> {
+  const task = tasks[id]
+  if (!task) return tasks
+  const now = Date.now()
+  return { ...tasks, [id]: transform(task, now) }
 }
 
 export const useTaskStore = create<TaskState>()(
   persist(
-    (set, get) => ({
-      tasks: [],
-      lastSyncedAt: null,
+    (set) => ({
+      tasks: {},
 
-      addTask: (taskData) => {
-        const id = generateId();
-        const now = new Date().toISOString();
+      createTask: (partial) => {
+        const now = Date.now()
         const task: Task = {
-          ...taskData,
-          id,
+          // Defaults for everything not required by the caller.
+          notes: undefined,
+          durationMin: 0,
+          progressMin: 0,
+          due: undefined,
+          autoSchedule: true,
+          listId: undefined,
+          projectId: undefined,
+          tags: [],
           subtasks: [],
-          status: "not_started",
-          scheduleStatus: "unscheduled",
-          durationMinutes: taskData.durationMinutes ?? null,
-          proposedTime: taskData.proposedTime ?? undefined,
+          firstMove: undefined,
+          recurrence: undefined,
+          priority: undefined,
+          sourceRefs: undefined,
+          splittable: false,
+          status: 'todo',
+          completedAt: undefined,
+          scheduleSubtasksSeparately: false,
+          ...partial,
+          id: newId(),
           createdAt: now,
           updatedAt: now,
-        };
-        set((state) => ({ tasks: [...state.tasks, task] }));
-        syncTask(task).catch(() => {});
-        // Auto-schedule: if no explicit startTime, propose a time slot
-        if (!taskData.startTime) {
-          try {
-            const settingsState = useSettingsStore.getState();
-            const schedulingState = useSchedulingStore.getState();
-            // Use setTimeout to let the state settle before scheduling
-            setTimeout(() => {
-              get().proposeSchedule(id, {
-                calendarEvents: settingsState.calendarEvents,
-                busyBlocks: settingsState.busyBlocks,
-                quietHoursStart: settingsState.quietHoursStart,
-                quietHoursEnd: settingsState.quietHoursEnd,
-                energyPeakStart: settingsState.energyPeakStart,
-                energyPeakEnd: settingsState.energyPeakEnd,
-                signals: schedulingState.signals,
-              });
-            }, 0);
-          } catch {
-            // Scheduling is best-effort — never block task creation
-          }
+          syncState: 'pending',
         }
-        return id;
+        set((state) => ({ tasks: { ...state.tasks, [task.id]: task } }))
+        return task
       },
 
-      updateTask: (id, updates) => {
-        set((state) => ({
-          tasks: state.tasks.map((t) =>
-            t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
-          ),
-        }));
-        const updated = get().tasks.find((t) => t.id === id);
-        if (updated) syncTask(updated).catch(() => {});
+      updateTask: (id, patch) => {
+        set((state) => {
+          const existing = state.tasks[id]
+          if (!existing) return state
+          return {
+            tasks: {
+              ...state.tasks,
+              [id]: { ...existing, ...patch, updatedAt: Date.now(), syncState: 'pending' },
+            },
+          }
+        })
       },
 
       deleteTask: (id) => {
-        set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) }));
-        removeTask(id).catch(() => {});
+        set((state) => {
+          if (!(id in state.tasks)) return state
+          const next = { ...state.tasks }
+          delete next[id]
+          return { tasks: next }
+        })
       },
 
-      setTaskStatus: (id, status) => {
+      addSubtask: (id, subtaskInput) => {
+        const subtask: Subtask = { ...subtaskInput, id: subtaskInput.id ?? newId() }
         set((state) => ({
-          tasks: state.tasks.map((t) =>
-            t.id === id ? { ...t, status, updatedAt: new Date().toISOString() } : t
+          tasks: applyToTask(state.tasks, id, (task, now) => taskLogic.addSubtask(task, subtask, now)),
+        }))
+      },
+
+      removeSubtask: (id, subtaskId) => {
+        set((state) => ({
+          tasks: applyToTask(state.tasks, id, (task, now) => taskLogic.removeSubtask(task, subtaskId, now)),
+        }))
+      },
+
+      reorderSubtasks: (id, fromIndex, toIndex) => {
+        set((state) => ({
+          tasks: applyToTask(state.tasks, id, (task, now) =>
+            taskLogic.reorderSubtasks(task, fromIndex, toIndex, now)
           ),
-        }));
-        const updated = get().tasks.find((t) => t.id === id);
-        if (updated) syncTask(updated).catch(() => {});
+        }))
       },
 
-      addSubtasks: (taskId, subtaskData) => {
+      setSubtaskCompleted: (id, subtaskId, completed) => {
         set((state) => ({
-          tasks: state.tasks.map((t) => {
-            if (t.id !== taskId) return t;
-            const newSubtasks: Subtask[] = subtaskData.map((s, i) => ({
-              ...s,
-              id: generateId(),
-              parentTaskId: taskId,
-              order: t.subtasks.length + i,
-            }));
-            return {
-              ...t,
-              subtasks: [...t.subtasks, ...newSubtasks],
-              updatedAt: new Date().toISOString(),
-            };
-          }),
-        }));
-        const updatedTask = get().tasks.find((t) => t.id === taskId);
-        if (updatedTask) {
-          // Sync only the newly added subtasks (last N entries)
-          const newSubtasks = updatedTask.subtasks.slice(-subtaskData.length);
-          syncSubtasks(newSubtasks).catch(() => {});
-        }
+          tasks: applyToTask(state.tasks, id, (task, now) =>
+            taskLogic.setSubtaskCompleted(task, subtaskId, completed, now)
+          ),
+        }))
       },
 
-      toggleSubtask: (taskId, subtaskId) => {
+      completeTask: (id) => {
         set((state) => ({
-          tasks: state.tasks.map((t) => {
-            if (t.id !== taskId) return t;
-            const subtasks = t.subtasks.map((s) =>
-              s.id === subtaskId ? { ...s, isComplete: !s.isComplete } : s
-            );
-            const allDone = subtasks.every((s) => s.isComplete);
-            const anyStarted = subtasks.some((s) => s.isComplete);
-            return {
-              ...t,
-              subtasks,
-              status: allDone ? "complete" : anyStarted ? "in_progress" : "not_started",
-              updatedAt: new Date().toISOString(),
-            };
-          }),
-        }));
-        const updatedTask = get().tasks.find((t) => t.id === taskId);
-        if (updatedTask) {
-          const changedSubtask = updatedTask.subtasks.find((s) => s.id === subtaskId);
-          if (changedSubtask) syncSubtasks([changedSubtask]).catch(() => {});
-          // Sync parent task too since status may have changed
-          syncTask(updatedTask).catch(() => {});
-        }
+          tasks: applyToTask(state.tasks, id, (task, now) => taskLogic.completeTask(task, now)),
+        }))
       },
 
-      updateSubtask: (taskId, subtaskId, updates) => {
+      reopenTask: (id) => {
         set((state) => ({
-          tasks: state.tasks.map((t) => {
-            if (t.id !== taskId) return t;
-            return {
-              ...t,
-              subtasks: t.subtasks.map((s) =>
-                s.id === subtaskId ? { ...s, ...updates } : s
-              ),
-              updatedAt: new Date().toISOString(),
-            };
-          }),
-        }));
-        const updatedTask = get().tasks.find((t) => t.id === taskId);
-        if (updatedTask) {
-          const changedSubtask = updatedTask.subtasks.find((s) => s.id === subtaskId);
-          if (changedSubtask) syncSubtasks([changedSubtask]).catch(() => {});
-        }
-      },
-
-      setLastSyncedAt: (timestamp) => {
-        set({ lastSyncedAt: timestamp });
-      },
-
-      proposeSchedule: (taskId, input) => {
-        const task = get().tasks.find((t) => t.id === taskId);
-        if (!task) return;
-        const allTasks = get().tasks;
-        const slot = findBestSlot({ ...input, task, allTasks });
-        if (slot) {
-          set((state) => ({
-            tasks: state.tasks.map((t) =>
-              t.id === taskId
-                ? {
-                    ...t,
-                    proposedTime: slot.startTime.toISOString(),
-                    scheduleStatus: "proposed" as const,
-                    updatedAt: new Date().toISOString(),
-                  }
-                : t
-            ),
-          }));
-          const updated = get().tasks.find((t) => t.id === taskId);
-          if (updated) syncTask(updated).catch(() => {});
-        }
-      },
-
-      getTaskById: (id) => get().tasks.find((t) => t.id === id),
-
-      getUrgentTasks: () => {
-        const now = Date.now();
-        const in24h = now + 24 * 60 * 60 * 1000;
-        return get()
-          .tasks.filter(
-            (t) => t.status !== "complete" && new Date(t.dueDate).getTime() <= in24h
-          )
-          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-      },
-
-      getTasksByGroup: () => {
-        const now = new Date();
-        const todayEnd = new Date(now);
-        todayEnd.setHours(23, 59, 59, 999);
-        const weekEnd = new Date(now);
-        weekEnd.setDate(weekEnd.getDate() + 7);
-
-        const incomplete = get().tasks.filter((t) => t.status !== "complete");
-        const overdue: Task[] = [];
-        const today: Task[] = [];
-        const thisWeek: Task[] = [];
-        const later: Task[] = [];
-
-        for (const task of incomplete) {
-          const due = new Date(task.dueDate);
-          if (due < now) overdue.push(task);
-          else if (due <= todayEnd) today.push(task);
-          else if (due <= weekEnd) thisWeek.push(task);
-          else later.push(task);
-        }
-
-        const byDate = (a: Task, b: Task) =>
-          new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-
-        return {
-          overdue: overdue.sort(byDate),
-          today: today.sort(byDate),
-          thisWeek: thisWeek.sort(byDate),
-          later: later.sort(byDate),
-        };
+          tasks: applyToTask(state.tasks, id, (task, now) => taskLogic.reopenTask(task, now)),
+        }))
       },
     }),
     {
-      name: "dandelion-tasks",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: 'ampora-tasks',
+      storage: createJSONStorage(() => mmkvStateStorage),
     }
   )
-);
+)
+
+// ---------------------------------------------------------------------------
+// Selector helpers — keep derivation out of components (Zustand selector
+// discipline, PRD §9.1: "raw select then derive via useMemo").
+// ---------------------------------------------------------------------------
+
+export function selectAllTasks(state: TaskState): Task[] {
+  return Object.values(state.tasks)
+}
+
+export function selectTaskById(id: string) {
+  return (state: TaskState): Task | undefined => state.tasks[id]
+}
+
+export function selectTasksByList(listId: string) {
+  return (state: TaskState): Task[] => Object.values(state.tasks).filter((t) => t.listId === listId)
+}
+
+export function selectTasksByTag(tag: string) {
+  return (state: TaskState): Task[] => Object.values(state.tasks).filter((t) => t.tags.includes(tag))
+}
+
+export function selectIncompleteTasks(state: TaskState): Task[] {
+  return Object.values(state.tasks).filter((t) => t.status !== 'done')
+}

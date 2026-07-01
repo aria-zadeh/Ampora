@@ -1,103 +1,60 @@
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { UserSettings, FocusAudio, BusyBlock, CalendarEvent } from "@/types";
-import { generateId } from "@/types";
+/**
+ * Settings store — Milestone 1 data-model foundation.
+ *
+ * Ground-up rebuild replacing the v1 store (different shape, AsyncStorage).
+ * Holds the single `Settings` object (PRD §9.4, §9.10, §8.11) with sensible
+ * defaults. Local-first via MMKV; the Ignition/wellbeing fields are typed
+ * and defaulted here per the confirmed schema, but their enforcement
+ * (caps, quiet-hours release, never-lock list) is later-milestone logic —
+ * not implemented in this store.
+ */
 
-interface SettingsState extends UserSettings {
-  updateSetting: <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => void;
-  completeOnboarding: () => void;
-  setEnergyPeak: (start: number, end: number) => void;
-  toggleBusyBlock: (block: BusyBlock) => void;
-  setAvailabilityNotes: (notes: string) => void;
-  addCalendarEvent: (event: Omit<CalendarEvent, "id" | "createdAt">) => string;
-  updateCalendarEvent: (id: string, updates: Partial<CalendarEvent>) => void;
-  deleteCalendarEvent: (id: string) => void;
+import { create } from 'zustand'
+import { createJSONStorage, persist } from 'zustand/middleware'
+import { mmkvStateStorage } from '@/store/mmkv'
+import type { Settings } from '@/types'
+
+const defaultSettings: Settings = {
+  // Ignition / wellbeing (PRD §9.10) — defaults only, enforcement is later.
+  dailyLockCapMin: 180,
+  quietHours: { start: 23 * 60, end: 8 * 60 }, // 23:00 - 08:00
+  neverLockCategories: ['phone', 'messages', 'maps', 'accessibility', 'os_settings', 'ampora'],
+  stakeStrengthBounds: { min: 0, max: 1 },
+  subscription: { status: 'trial' },
+
+  // Milestone-1 app preferences
+  schedulingHours: {
+    // Sensible default: Mon-Fri 3:00 PM - 9:00 PM (matches the PRD §7.3
+    // "Study hours" example), none on weekends until the user sets their own.
+    perDay: [1, 2, 3, 4, 5].map((day) => ({
+      day,
+      windows: [{ start: 15 * 60, end: 21 * 60 }],
+    })),
+  },
+  maxNotificationsPerHour: 1,
+  energyPeak: { start: 15 * 60, end: 17 * 60 }, // 3pm - 5pm default (PRD §3.1 Garrett profile: most energetic midday)
+  displayName: undefined,
+  themePreference: 'system',
+  onboardingComplete: false,
+}
+
+interface SettingsState {
+  settings: Settings
+  updateSettings: (patch: Partial<Settings>) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      // Defaults
-      displayName: null,
-      maxNotificationsPerHour: 1,
-      focusAudio: "none" as FocusAudio,
-      pomodoroEnabled: true,
-      pomodoroWorkMinutes: 25,
-      pomodoroBreakMinutes: 5,
-      quietHoursStart: 23,
-      quietHoursEnd: 8,
-      onboardingComplete: false,
-      energyPeakStart: 15, // 3pm default (Garrett's midday energy)
-      energyPeakEnd: 17,   // 5pm
-      busyBlocks: [],
-      availabilityNotes: "",
-      calendarEvents: [],
-      autoAcceptProposedSchedule: false,
-      themePreference: "system" as "light" | "dark" | "system",
-      webPushSubscription: null,
+      settings: defaultSettings,
 
-      updateSetting: (key, value) => {
-        set({ [key]: value } as Partial<SettingsState>);
-      },
-
-      completeOnboarding: () => {
-        set({ onboardingComplete: true });
-      },
-
-      setEnergyPeak: (start, end) => {
-        set({ energyPeakStart: start, energyPeakEnd: end });
-      },
-
-      toggleBusyBlock: (block) => {
-        set((state) => {
-          const exists = state.busyBlocks.some(
-            (b) => b.day === block.day && b.period === block.period
-          );
-          return {
-            busyBlocks: exists
-              ? state.busyBlocks.filter(
-                  (b) => !(b.day === block.day && b.period === block.period)
-                )
-              : [...state.busyBlocks, block],
-          };
-        });
-      },
-
-      setAvailabilityNotes: (notes) => {
-        set({ availabilityNotes: notes });
-      },
-
-      addCalendarEvent: (eventData) => {
-        const id = generateId();
-        const event: CalendarEvent = {
-          ...eventData,
-          id,
-          createdAt: new Date().toISOString(),
-        };
-        set((state) => ({
-          calendarEvents: [...state.calendarEvents, event],
-        }));
-        return id;
-      },
-
-      updateCalendarEvent: (id, updates) => {
-        set((state) => ({
-          calendarEvents: state.calendarEvents.map((e) =>
-            e.id === id ? { ...e, ...updates } : e
-          ),
-        }));
-      },
-
-      deleteCalendarEvent: (id) => {
-        set((state) => ({
-          calendarEvents: state.calendarEvents.filter((e) => e.id !== id),
-        }));
+      updateSettings: (patch) => {
+        set((state) => ({ settings: { ...state.settings, ...patch } }))
       },
     }),
     {
-      name: "dandelion-settings",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: 'ampora-settings',
+      storage: createJSONStorage(() => mmkvStateStorage),
     }
   )
-);
+)

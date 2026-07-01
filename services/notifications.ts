@@ -1,5 +1,5 @@
 /**
- * Focal notification service — PRD §4.3
+ * Ampora notification service — PRD §4.3
  *
  * Scheduling philosophy:
  *  - Warm, encouraging copy (not nagging)
@@ -525,7 +525,7 @@ export async function scheduleTaskReminders(
 // Cancel all
 // ---------------------------------------------------------------------------
 
-/** Cancel all scheduled Focal notifications. */
+/** Cancel all scheduled Ampora notifications. */
 export async function cancelAllReminders(): Promise<void> {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();

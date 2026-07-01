@@ -30,7 +30,7 @@ export function FAB({ onPress, icon = "add" }: FABProps) {
       onPressOut={() => {
         scale.value = withSpring(1, { damping: 8, stiffness: 180 });
       }}
-      className="absolute bottom-6 right-5 w-[60px] h-[60px] rounded-full bg-primary items-center justify-center shadow-lg"
+      className="absolute bottom-6 right-5 w-14 h-14 rounded-full bg-primary-600 items-center justify-center shadow-md"
       accessibilityRole="button"
       accessibilityLabel="Add new task"
       accessibilityHint="Opens the new task form"
@@ -39,23 +39,23 @@ export function FAB({ onPress, icon = "add" }: FABProps) {
           position: "absolute" as const,
           bottom: 24,
           right: 20,
-          width: 60,
-          height: 60,
-          borderRadius: 30,
-          backgroundColor: "hsl(35, 85%, 55%)",
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: "#2563EB",
           alignItems: "center" as const,
           justifyContent: "center" as const,
           zIndex: 50,
-          shadowColor: "hsl(35, 85%, 35%)",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.25,
-          shadowRadius: 12,
-          elevation: 8,
+          shadowColor: "#18181B",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.18,
+          shadowRadius: 8,
+          elevation: 6,
         },
         animatedStyle,
       ]}
     >
-      <Ionicons name={icon} size={28} color="hsl(30, 10%, 10%)" />
+      <Ionicons name={icon} size={28} color="#FFFFFF" />
     </AnimatedPressable>
   );
 }

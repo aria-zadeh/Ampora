@@ -1,6 +1,5 @@
 /**
  * Auth screen — magic link sign-in
- * PRD §8.2
  */
 
 import React, { useState } from "react";
@@ -25,7 +24,7 @@ export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [screenState, setScreenState] = useState<ScreenState>("idle");
   const router = useRouter();
-  const onboardingComplete = useSettingsStore((s) => s.onboardingComplete);
+  const onboardingComplete = useSettingsStore((s) => s.settings.onboardingComplete);
 
   const isValidEmail = email.includes("@") && email.includes(".");
 
@@ -45,71 +44,71 @@ export default function AuthScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-surface dark:bg-surface-dark"
+      className="flex-1 bg-neutral-100"
     >
       <ScrollView
         contentContainerClassName="flex-grow justify-center"
         keyboardShouldPersistTaps="handled"
       >
         <View className="px-8 py-12">
-          {/* ── Brand block ── */}
+          {/* Brand block */}
           <View className="items-center mb-12">
             <Ionicons
               name="aperture-outline"
               size={64}
-              color="hsl(35, 85%, 55%)"
-              accessibilityLabel="Focal app icon"
+              color="#2563EB"
+              accessibilityLabel="Ampora app icon"
             />
             <Text
-              className="text-display font-bold text-content dark:text-content-dark-primary mt-4"
+              className="text-display font-bold text-neutral-900 mt-4"
               accessibilityRole="header"
             >
-              Focal
+              Ampora
             </Text>
-            <Text className="text-body text-content-secondary dark:text-content-dark-secondary mt-2 text-center">
+            <Text className="text-body text-neutral-500 mt-2 text-center">
               Built for brains that work differently
             </Text>
           </View>
 
-          {/* ── Success state ── */}
+          {/* Success state */}
           {screenState === "success" ? (
             <View
-              className="bg-accent-light dark:bg-accent-dark rounded-xl p-6 items-center gap-3"
+              className="bg-white border border-neutral-200 rounded-xl p-6 items-center gap-3"
               accessibilityLiveRegion="polite"
             >
               <Ionicons
                 name="mail-outline"
                 size={40}
-                color="hsl(33, 74%, 62%)"
+                color="#2563EB"
                 accessibilityLabel="Mail icon"
               />
-              <Text className="text-body font-semibold text-content dark:text-content-dark-primary text-center">
-                Check your email — link is on its way 📬
+              <Text className="text-body-lg font-semibold text-neutral-900 text-center">
+                Check your email — link is on its way
               </Text>
-              <Text className="text-caption text-content-secondary dark:text-content-dark-secondary text-center">
+              <Text className="text-caption text-neutral-500 text-center">
                 Tap the link in your inbox to sign in.
               </Text>
             </View>
           ) : (
-            /* ── Form state ── */
+            /* Form state */
             <View className="gap-4">
               {/* Email input */}
               <View>
                 <Text
-                  className="text-caption font-semibold text-content-secondary dark:text-content-dark-secondary mb-2 uppercase tracking-wide"
+                  className="text-caption font-semibold text-neutral-500 mb-2 uppercase tracking-wide"
                   accessibilityLabel="Email address label"
                 >
                   Email address
                 </Text>
                 <TextInput
-                  className="min-h-[56px] bg-surface-elevated dark:bg-surface-dark-elevated border border-border dark:border-border-dark rounded-lg px-4 text-body text-content dark:text-content-dark-primary"
+                  className="min-h-12 bg-white border border-neutral-200 rounded-md px-4 text-body-lg text-neutral-900"
                   value={email}
                   onChangeText={(t) => {
                     setEmail(t);
                     if (screenState === "error") setScreenState("idle");
                   }}
                   placeholder="you@example.com"
-                  placeholderTextColor="hsl(30, 6%, 60%)"
+                  placeholderTextColor="#A1A1AA"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -122,10 +121,10 @@ export default function AuthScreen() {
                 />
               </View>
 
-              {/* Error message — warm, not alarming */}
+              {/* Error message */}
               {screenState === "error" && (
                 <Text
-                  className="text-caption text-warning dark:text-warning text-center"
+                  className="text-caption text-danger-600 text-center"
                   accessibilityLiveRegion="polite"
                   accessibilityRole="alert"
                 >
@@ -136,7 +135,7 @@ export default function AuthScreen() {
               {/* Submit button */}
               <Button
                 title="Send me a sign-in link"
-                variant="primary"
+                variant="primaryBlue"
                 loading={screenState === "loading"}
                 disabled={!isValidEmail || screenState === "loading"}
                 onPress={handleSend}
@@ -146,30 +145,28 @@ export default function AuthScreen() {
             </View>
           )}
 
-          {/* Developer testing mode */}
-          {(
-            <View className="mt-10 items-center">
-              <Pressable
-                onPress={() => {
-                  // Set a global flag so _layout.tsx treats us as "authenticated"
-                  // without a real Supabase session
-                  (globalThis as Record<string, unknown>).__FOCAL_GUEST_MODE__ = true;
-                  if (onboardingComplete) {
-                    router.replace("/(tabs)");
-                  } else {
-                    router.replace("/onboarding/welcome");
-                  }
-                }}
-                className="border border-border dark:border-border-dark rounded-lg px-5 py-3 min-h-[44px] items-center justify-center"
-                accessibilityLabel="Enter guest mode"
-                accessibilityRole="button"
-              >
-                <Text className="text-caption font-medium text-content-muted dark:text-content-dark-muted">
-                  Guest Mode
-                </Text>
-              </Pressable>
-            </View>
-          )}
+          {/* Guest mode */}
+          <View className="mt-10 items-center">
+            <Pressable
+              onPress={() => {
+                // Set a global flag so _layout.tsx treats us as "authenticated"
+                // without a real Supabase session.
+                (globalThis as Record<string, unknown>).__AMPORA_GUEST_MODE__ = true;
+                if (onboardingComplete) {
+                  router.replace("/(tabs)");
+                } else {
+                  router.replace("/onboarding/welcome");
+                }
+              }}
+              className="border border-neutral-200 rounded-md px-5 py-3 min-h-[44px] items-center justify-center"
+              accessibilityLabel="Enter guest mode"
+              accessibilityRole="button"
+            >
+              <Text className="text-caption font-medium text-neutral-500">
+                Guest Mode
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -19,7 +19,7 @@ export default function WelcomeScreen() {
           <Ionicons name="aperture-outline" size={48} className="text-primary dark:text-primary" />
         </View>
         <Text className="text-title font-bold text-content dark:text-content-dark-primary text-center mb-3">
-          Hey, welcome to Focal
+          Hey, welcome to Ampora
         </Text>
         <Text className="text-body text-content-secondary dark:text-content-dark-secondary text-center leading-6 max-w-[300px]">
           Built for brains that work differently.{"\n\n"}

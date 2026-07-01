@@ -1,14 +1,14 @@
-/* Focal service worker — handles web push notifications */
+/* Ampora service worker — handles web push notifications */
 
 self.addEventListener("push", (event) => {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || "Focal";
+  const title = data.title || "Ampora";
   const options = {
     body: data.body || "",
     icon: "/favicon.ico",
     badge: "/favicon.ico",
     data: data.data || {},
-    tag: data.tag || "focal-notification",
+    tag: data.tag || "ampora-notification",
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });

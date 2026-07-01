@@ -1,8 +1,8 @@
-# Focal
+# Ampora
 
 ADHD task and time management app for high school students. Built for the MIT CREATe Challenge (Team 495).
 
-**Live:** https://dandelion-cyan.vercel.app
+**Live:** _TODO: add Ampora deployment URL_
 
 ---
 
@@ -57,8 +57,8 @@ ADHD task and time management app for high school students. Built for the MIT CR
 Requires Node 18+, Expo CLI, and a Supabase project.
 
 ```bash
-git clone https://github.com/aria-zadeh/Dandelion.git
-cd Dandelion
+git clone https://github.com/aria-zadeh/ampora.git
+cd ampora
 npm install
 ```
 
