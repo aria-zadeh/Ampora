@@ -348,9 +348,20 @@ export default function TasksScreen() {
 
   return (
     <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
-      {/* Header — big, tight. */}
-      <View className="px-5 pt-5 pb-3">
+      {/* Header — big, tight. Projects live one tap away (doc 10). */}
+      <View className="px-5 pt-5 pb-3 flex-row items-center justify-between">
         <Heading size="h1">Tasks</Heading>
+        <Pressable
+          onPress={() => router.push("/projects")}
+          hitSlop={8}
+          className="flex-row items-center rounded-full bg-accent-100 border border-accent-600 px-3 py-2"
+          accessibilityRole="button"
+          accessibilityLabel="Projects"
+          accessibilityHint="Opens your projects, which plan and track larger work"
+        >
+          <Ionicons name="rocket-outline" size={16} color="#7C3AED" />
+          <Text className="text-caption font-semibold text-accent-700 ml-1.5">Projects</Text>
+        </Pressable>
       </View>
 
       {/* Quick-add bar */}

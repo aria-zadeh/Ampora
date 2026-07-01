@@ -43,6 +43,18 @@ const defaultSettings: Settings = {
   // when a restored blob predates the fields.
   calendarView: '3day',
   calendarZoomPxPerHour: 60,
+
+  // Scheduling defaults (Phase 7, PRD §8.11 / FR-9, FR-11, FR-14). Sensible
+  // engine defaults a new auto-scheduled task inherits; per-task fields still
+  // override. Optional on the type so older persisted Settings load without
+  // them and the engine falls back to these same values.
+  defaultBufferBeforeMin: 0,
+  defaultBufferAfterMin: 0,
+  defaultSplittable: true,
+  defaultMinBlockMin: 30,
+  defaultMaxBlockMin: 120,
+  workloadDistribution: 'balanced',
+  autoScheduleCutoffWeeks: 4,
 }
 
 interface SettingsState {

@@ -403,9 +403,105 @@ export interface Proof {
   at: number
 }
 
-// Project, ProjectFile, Phase, Topic, and ChatMessage are defined in doc `10`
-// Section 12 and are out of scope for this file; `Task.projectId` above
-// links a generated task back to its project once that entity exists.
+// ---------------------------------------------------------------------------
+// Projects (Phase 7 — doc `10` Projects, PRD FR-82..86). A Project is the
+// knowledge + chat + progress layer; it GENERATES the daily Tasks the
+// scheduler places and Ignition locks against (`Task.projectId` back-refs the
+// project). Additive to the model above — nothing here changes existing types.
+//
+// These shapes follow doc `10` §12 (kind naming, phases for deliverables,
+// topic coverage+mastery for study) with `progress` modeled as a discriminated
+// union keyed on `kind`, so a project's progress representation is always
+// exactly the one its type implies. `Project` extends `BaseEntity` (it is an
+// independently-synced top-level entity); its embedded value objects
+// (ProjectFile, ChatMessage, Phase/Topic entries) do not.
+// ---------------------------------------------------------------------------
+
+/** What kind of project this is — determines progress shape and next-task logic (doc `10` §3). */
+export type ProjectKind = 'deliverable' | 'study' | 'general'
+
+/**
+ * One file in a project's persistent knowledge base (doc `10` §4). Uploaded
+ * PDFs, slide decks, notes, images/screenshots that stay in the project and are
+ * understood collectively. `extractedText` holds the OCR/extraction result once
+ * ingested; retrieval/embeddings are a later increment (doc `10` §13).
+ * Embedded value object — no `BaseEntity` sync fields (syncs with the Project).
+ */
+export interface ProjectFile {
+  id: string
+  name: string
+  type: 'text' | 'pdf' | 'image' | 'note'
+  /** Stored file location (e.g. Supabase storage / local uri), when the file has bytes. */
+  uri?: string
+  /** OCR/extraction result used as grounding context and for retrieval. */
+  extractedText?: string
+  /** Epoch ms this file was added. */
+  addedAt: number
+}
+
+/** A deliverable project's phase (doc `10` §12): linear-ish, each with a percent-complete 0..100. */
+export interface ProjectPhase {
+  id: string
+  title: string
+  /** Percent complete for this phase, 0..100. */
+  pct: number
+}
+
+/** A study project's topic (doc `10` §12): coverage/mastery map entry. `mastery` is 0..1. */
+export interface ProjectTopic {
+  id: string
+  title: string
+  /** Mastery level, 0..1, updated from self-report and quiz performance (doc `10` §6). */
+  mastery: number
+}
+
+/**
+ * Progress representation, discriminated on `kind` so it always matches the
+ * project's type (doc `10` §6):
+ * - deliverable → ordered phases, each with its own percent.
+ * - study → a topic coverage/mastery map.
+ * - general → a single overall percent.
+ */
+export type ProjectProgress =
+  | { kind: 'deliverable'; phases: ProjectPhase[] }
+  | { kind: 'study'; topics: ProjectTopic[] }
+  | { kind: 'general'; pct: number }
+
+/**
+ * One turn in a project's scoped chat (doc `10` §5). The chat is the primary
+ * controller and universal repair mechanism for the project. Embedded value
+ * object, ordered by array position in `Project.chat`.
+ */
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  text: string
+  /** Epoch ms the message was sent. */
+  at: number
+}
+
+/**
+ * A Project: an ongoing AI workspace for one academic endeavor (doc `10`).
+ * Holds a file knowledge base, a scoped chat, progress, project memory, and the
+ * ids of the Tasks it has generated (which are the schedulable/lockable units).
+ */
+export interface Project extends BaseEntity {
+  name: string
+  kind: ProjectKind
+  description?: string
+  /** Optional display color token/hex; projects use the "special/premium" accent by default (doc `02`). */
+  color?: string
+  /** Persistent knowledge base (doc `10` §4). */
+  files: ProjectFile[]
+  /** Progress, shaped by `kind` (doc `10` §6). */
+  progress: ProjectProgress
+  /** Scoped conversational history (doc `10` §5). */
+  chat: ChatMessage[]
+  /** Project memory: decisions, style, weak spots — local-first, never shared-model training (doc `10` §8). */
+  memory: string[]
+  /** Ids of Tasks this project generated (each `Task.projectId` back-refs here — doc `10` §7). */
+  taskIds: string[]
+}
 
 // ---------------------------------------------------------------------------
 // Settings (PRD §9.4, §9.10, §8.11)
@@ -461,4 +557,36 @@ export interface Settings {
   calendarView?: string
   /** Last vertical time-grid zoom in px per hour, one of the FR-24 stops (40/60/80/120). */
   calendarZoomPxPerHour?: number
+
+  // -- Scheduling defaults (Phase 7, PRD §8.11 / FR-9, FR-11, FR-14). All
+  //    optional so pre-existing persisted Settings load without them; the
+  //    engine and the SchedulingSettings screen fall back to these documented
+  //    defaults when unset. These are the app-wide DEFAULTS a new auto-scheduled
+  //    task inherits; a task can still override each via its own fields
+  //    (`Task.bufferBeforeMin`, `Task.minBlockMin`, etc.). --
+
+  /** Default minutes of empty buffer kept before a scheduled block (PRD §9.5.4). Default 0. */
+  defaultBufferBeforeMin?: number
+  /** Default minutes of empty buffer kept after a scheduled block (PRD §9.5.4). Default 0. */
+  defaultBufferAfterMin?: number
+  /** Default: may new auto-scheduled tasks be split into multiple sessions (PRD FR-11). Default true. */
+  defaultSplittable?: boolean
+  /** Default minimum session size in minutes when splitting (PRD FR-11, §9.5.4). Default 30. */
+  defaultMinBlockMin?: number
+  /** Default maximum session size in minutes when splitting (PRD FR-11, §9.5.4). Default 120. */
+  defaultMaxBlockMin?: number
+  /**
+   * How the engine spreads a task's sessions across the days before its Due
+   * (PRD FR-14, §9.5.3): 'balanced' = even daily load; 'frontload' = as soon as
+   * possible. Default 'balanced'. A task near/past Due auto-switches to
+   * front-load regardless (FR-14).
+   */
+  workloadDistribution?: 'balanced' | 'frontload'
+  /**
+   * Auto-schedule horizon in weeks (PRD §8.11 "Auto-schedule cutoff weeks"):
+   * tasks whose Due is beyond this many weeks out are not placed on the
+   * calendar yet (they still exist, just aren't scheduled until they come into
+   * range). Default 4.
+   */
+  autoScheduleCutoffWeeks?: number
 }

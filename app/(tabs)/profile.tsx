@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, ScrollView, Pressable, Modal, TextInput } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,6 +13,7 @@ import { PressableScale } from "@/components/ui/PressableScale";
 import { StakesSettings } from "@/components/settings/StakesSettings";
 import { CalendarSyncSettings } from "@/components/settings/CalendarSyncSettings";
 import { getCurrentUser, signOut } from "@/services/supabase";
+import { trialDaysLeft, isActive } from "@/core/subscription";
 import { shadows, gradients } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
@@ -113,7 +114,27 @@ export default function ProfileScreen() {
 
   const displayName = useSettingsStore((s) => s.settings.displayName);
   const themePreference = useSettingsStore((s) => s.settings.themePreference);
+  const subscription = useSettingsStore((s) => s.settings.subscription);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
+
+  // Subscription status → a subtle chip in the header (soft gate; core usage is
+  // never blocked in this build). Derived, not stored, so it stays accurate.
+  const subscriptionChip = useMemo(() => {
+    if (subscription.status === "active") {
+      return { label: "Ampora Plus", tone: "active" as const };
+    }
+    if (subscription.status === "trial") {
+      const days = trialDaysLeft(subscription);
+      if (isActive(subscription) && days > 0) {
+        return {
+          label: `Trial · ${days} ${days === 1 ? "day" : "days"} left`,
+          tone: "trial" as const,
+        };
+      }
+      return { label: "Trial ended", tone: "lapsed" as const };
+    }
+    return { label: "Choose a plan", tone: "lapsed" as const };
+  }, [subscription]);
 
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameDraft, setNameDraft] = useState(displayName ?? "");
@@ -176,6 +197,68 @@ export default function ProfileScreen() {
           {userEmail ? (
             <Text className="mt-1.5 text-body text-neutral-500">{userEmail}</Text>
           ) : null}
+
+          {/* Subscription chip → paywall. Soft gate only (FR-88): a subtle
+              status pill, never a block. */}
+          <PressableScale
+            onPress={() => router.push("/paywall")}
+            haptic="light"
+            className="mt-3 self-start"
+            accessibilityRole="button"
+            accessibilityLabel={`${subscriptionChip.label}. Open subscription options`}
+            accessibilityHint="Opens plans and your free trial"
+          >
+            <View
+              className={`flex-row items-center rounded-full px-3 py-1.5 ${
+                subscriptionChip.tone === "active"
+                  ? "bg-accent-100"
+                  : subscriptionChip.tone === "trial"
+                    ? "bg-primary-50"
+                    : "bg-warning-100"
+              }`}
+            >
+              <Ionicons
+                name={
+                  subscriptionChip.tone === "active"
+                    ? "sparkles"
+                    : subscriptionChip.tone === "trial"
+                      ? "time-outline"
+                      : "alert-circle-outline"
+                }
+                size={14}
+                color={
+                  subscriptionChip.tone === "active"
+                    ? "#6D28D9"
+                    : subscriptionChip.tone === "trial"
+                      ? "#2563EB"
+                      : "#C2410C"
+                }
+              />
+              <Text
+                className={`ml-1.5 text-caption font-semibold ${
+                  subscriptionChip.tone === "active"
+                    ? "text-accent-700"
+                    : subscriptionChip.tone === "trial"
+                      ? "text-primary-700"
+                      : "text-warning-700"
+                }`}
+              >
+                {subscriptionChip.label}
+              </Text>
+              <Ionicons
+                name="chevron-forward"
+                size={13}
+                color={
+                  subscriptionChip.tone === "active"
+                    ? "#6D28D9"
+                    : subscriptionChip.tone === "trial"
+                      ? "#2563EB"
+                      : "#C2410C"
+                }
+                style={{ marginLeft: 2 }}
+              />
+            </View>
+          </PressableScale>
         </Animated.View>
 
         {/* Appearance */}
@@ -240,8 +323,15 @@ export default function ProfileScreen() {
             icon="calendar-outline"
             label="Busy times"
             onPress={() => router.push("/settings/busy-times")}
-            isLast
             accessibilityLabel="Busy times"
+          />
+          <SettingsRow
+            icon="options-outline"
+            label="More settings"
+            value="Scheduling, alerts, data"
+            onPress={() => router.push("/settings/all")}
+            isLast
+            accessibilityLabel="More settings: scheduling defaults, notifications, and your data"
           />
         </SettingsGroup>
 

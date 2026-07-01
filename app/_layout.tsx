@@ -185,6 +185,8 @@ export default function RootLayout() {
           options={{ presentation: "modal", animation: "slide_from_bottom" }}
         />
         <Stack.Screen name="task/[id]" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="projects/index" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="projects/[id]" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="insights" options={{ animation: "slide_from_right" }} />
         <Stack.Screen
           name="focus/session"
@@ -197,6 +199,14 @@ export default function RootLayout() {
         <Stack.Screen
           name="settings/busy-times"
           options={{ animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="settings/all"
+          options={{ animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="paywall"
+          options={{ presentation: "modal", animation: "slide_from_bottom" }}
         />
       </Stack>
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
