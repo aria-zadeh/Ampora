@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { FAB } from "@/components/ui/FAB";
 import { Heading } from "@/components/ui/Heading";
 import { UpcomingList } from "@/components/schedule/UpcomingList";
+import { EnergyChip } from "@/components/home/EnergyChip";
 import { gradients, iconSizes } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
@@ -181,6 +182,18 @@ export default function HomeScreen() {
             )}
           </View>
         </Animated.View>
+
+        {/* Energy chip — a subtle, additive "what can you handle now" cue that
+            re-sorts today's plan (FR-53). Only shown once there's something to
+            re-sort; hidden otherwise so it never clutters the empty state. */}
+        {incompleteTasks.length > 1 && (
+          <Animated.View
+            entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.base)}
+            className="mt-4"
+          >
+            <EnergyChip />
+          </Animated.View>
+        )}
 
         {/* First move — the ONE focal element; give it room. */}
         {firstMoveTask?.firstMove && (

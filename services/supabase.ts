@@ -171,260 +171,375 @@ export function onAuthStateChange(
   return () => data.subscription.unsubscribe();
 }
 
+// ===========================================================================
+// CLOUD SYNC (Phase 6, PRD FR-87 + §9.12) — rebuilt on the NEW data model.
+//
+// Local-first: the app writes Zustand -> MMKV immediately, then fires these
+// helpers in the background (see store/syncStore.ts). Every function here
+// NO-OPS GRACEFULLY when there is no signed-in user (guest mode) and never
+// throws — errors are logged, never surfaced.
+//
+// Reconciliation is LAST-WRITE-WINS on `updated_at` (epoch ms), with local
+// winning ties (§9.12). The row mappers below translate between the camelCase
+// app model (types/index.ts) and snake_case DB columns.
+//
 // ---------------------------------------------------------------------------
-// Supabase schema types (snake_case — mirrors DB column names)
+// EXPECTED SQL SCHEMA (apply as a separate migration — the DB tables do not
+// exist yet). All timestamps are epoch-ms BIGINT to match the app model.
+//
+//   -- tasks -----------------------------------------------------------------
+//   create table public.tasks (
+//     id           text primary key,
+//     user_id      uuid not null references auth.users(id) on delete cascade,
+//     title        text not null,
+//     notes        text,
+//     duration_min integer not null default 0,
+//     progress_min integer not null default 0,
+//     due          bigint,
+//     auto_schedule boolean not null default true,
+//     list_id      text,
+//     project_id   text,
+//     tags         jsonb  not null default '[]'::jsonb,
+//     first_move   jsonb,          -- { id, text, done }
+//     recurrence   jsonb,
+//     priority     integer,
+//     source_refs  jsonb,
+//     splittable   boolean,
+//     status       text   not null default 'todo',   -- 'todo'|'doing'|'done'
+//     completed_at bigint,
+//     schedule_subtasks_separately boolean,
+//     start_after  bigint,
+//     depends_on   jsonb,
+//     min_block_min integer,
+//     max_block_min integer,
+//     buffer_before_min integer,
+//     buffer_after_min  integer,
+//     color        text,
+//     energy_required text,        -- 'low'|'normal'|'high'
+//     scheduling_hours jsonb,
+//     created_at   bigint not null,
+//     updated_at   bigint not null
+//   );
+//   alter table public.tasks enable row level security;
+//   create policy "tasks_owner" on public.tasks
+//     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+//   create index tasks_user_updated_idx on public.tasks (user_id, updated_at desc);
+//
+//   -- subtasks (child rows of a task; ordered by `position`) -----------------
+//   create table public.subtasks (
+//     id             text primary key,
+//     parent_task_id text not null references public.tasks(id) on delete cascade,
+//     user_id        uuid not null references auth.users(id) on delete cascade,
+//     title          text not null,
+//     estimated_min  integer not null default 0,
+//     completed_at   bigint,
+//     position       integer not null default 0
+//   );
+//   alter table public.subtasks enable row level security;
+//   create policy "subtasks_owner" on public.subtasks
+//     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+//   create index subtasks_parent_idx on public.subtasks (parent_task_id, position);
+//
+//   -- settings (one row per user; user_id is the PK) -------------------------
+//   create table public.settings (
+//     user_id                 uuid primary key references auth.users(id) on delete cascade,
+//     daily_lock_cap_min      integer not null default 180,
+//     quiet_hours             jsonb   not null,   -- { start, end } minutes-from-midnight
+//     never_lock_categories   jsonb   not null default '[]'::jsonb,
+//     stake_strength_bounds   jsonb   not null,   -- { min, max }
+//     subscription            jsonb   not null,   -- { status, plan?, trialEndsAt? }
+//     scheduling_hours        jsonb   not null,   -- SchedulingHours
+//     max_notifications_per_hour integer not null default 1,
+//     energy_peak             jsonb   not null,   -- { start, end }
+//     display_name            text,
+//     theme_preference        text    not null default 'system',
+//     onboarding_complete     boolean not null default false,
+//     calendar_view           text,
+//     calendar_zoom_px_per_hour integer,
+//     updated_at              bigint  not null
+//   );
+//   alter table public.settings enable row level security;
+//   create policy "settings_owner" on public.settings
+//     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+// ===========================================================================
+
+import type {
+  Task,
+  Subtask,
+  Settings,
+  StarterAction,
+  RecurrenceRule,
+  SourceRef,
+  SchedulingHours,
+  TimeWindow,
+  EnergyLevel,
+  TaskStatus,
+} from "@/types";
+
+// ---------------------------------------------------------------------------
+// Row shapes (snake_case, mirror the DB columns above)
 // ---------------------------------------------------------------------------
 
-export interface SupabaseTask {
+export interface TaskRow {
   id: string;
   user_id: string;
   title: string;
-  subject: string | null;
-  description: string | null;
-  due_date: string;
-  start_time: string | null;
-  proposed_time: string | null;
-  duration_minutes: number | null;
-  is_abstract: boolean;
-  difficulty: "low" | "medium" | "high";
-  source: "manual" | "ai_extracted";
-  external_id: string | null;
-  starter_action: string;
-  status: "not_started" | "in_progress" | "complete";
-  schedule_status: string | null;
-  created_at: string;
-  updated_at: string;
-  // Populated client-side after fetching subtasks
-  subtasks?: SupabaseSubtask[];
+  notes: string | null;
+  duration_min: number;
+  progress_min: number;
+  due: number | null;
+  auto_schedule: boolean;
+  list_id: string | null;
+  project_id: string | null;
+  tags: string[];
+  first_move: StarterAction | null;
+  recurrence: RecurrenceRule | null;
+  priority: number | null;
+  source_refs: SourceRef[] | null;
+  splittable: boolean | null;
+  status: TaskStatus;
+  completed_at: number | null;
+  schedule_subtasks_separately: boolean | null;
+  start_after: number | null;
+  depends_on: string[] | null;
+  min_block_min: number | null;
+  max_block_min: number | null;
+  buffer_before_min: number | null;
+  buffer_after_min: number | null;
+  color: string | null;
+  energy_required: EnergyLevel | null;
+  scheduling_hours: SchedulingHours | null;
+  created_at: number;
+  updated_at: number;
 }
 
-export interface SupabaseSubtask {
+export interface SubtaskRow {
   id: string;
   parent_task_id: string;
   user_id: string;
   title: string;
-  estimated_minutes: number;
-  is_complete: boolean;
-  order: number;
+  estimated_min: number;
+  completed_at: number | null;
+  position: number;
 }
 
-export interface SupabaseFocusSession {
-  id: string;
+export interface SettingsRow {
   user_id: string;
-  task_id: string;
-  subtask_id: string | null;
-  start_time: string;
-  end_time: string | null;
-  duration_minutes: number | null;
-  breaks_taken: number;
-  completed_subtask_ids: string[];
-}
-
-export interface SupabaseUserSettings {
-  user_id: string;
+  daily_lock_cap_min: number;
+  quiet_hours: TimeWindow;
+  never_lock_categories: string[];
+  stake_strength_bounds: { min: number; max: number };
+  subscription: Settings["subscription"];
+  scheduling_hours: SchedulingHours;
+  max_notifications_per_hour: number;
+  energy_peak: TimeWindow;
   display_name: string | null;
-  energy_peak_start: number;
-  energy_peak_end: number;
-  pomodoro_enabled: boolean;
-  pomodoro_work_minutes: number;
-  pomodoro_break_minutes: number;
-  quiet_hours_start: number;
-  quiet_hours_end: number;
-  focus_audio: "white_noise" | "brown_noise" | "rain" | "cafe" | "none";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSONB column, shape validated at runtime
-  busy_blocks: any;
-  availability_notes: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSONB column
-  calendar_events: any;
-  auto_accept_proposed_schedule: boolean;
+  theme_preference: Settings["themePreference"];
   onboarding_complete: boolean;
-  web_push_subscription: string | null;
+  calendar_view: string | null;
+  calendar_zoom_px_per_hour: number | null;
+  updated_at: number;
 }
 
 // ---------------------------------------------------------------------------
-// Converter helpers
+// Row mappers — Task
 // ---------------------------------------------------------------------------
 
-import type { Task, Subtask, FocusSession, UserSettings, ScheduleStatus } from "@/types";
-
-/** Convert app camelCase Task → Supabase snake_case row (subtasks excluded). */
-export function taskToSupabase(task: Task, userId: string): SupabaseTask {
+/** App Task -> DB row (subtasks are stored in their own table, excluded here). */
+export function taskToRow(task: Task, userId: string): TaskRow {
   return {
     id: task.id,
     user_id: userId,
     title: task.title,
-    subject: task.subject,
-    description: task.description,
-    due_date: task.dueDate,
-    start_time: task.startTime ?? null,
-    proposed_time: task.proposedTime ?? null,
-    duration_minutes: task.durationMinutes,
-    is_abstract: task.isAbstract,
-    difficulty: task.difficulty,
-    source: task.source,
-    external_id: task.externalId,
-    starter_action: task.starterAction,
+    notes: task.notes ?? null,
+    duration_min: task.durationMin,
+    progress_min: task.progressMin,
+    due: task.due ?? null,
+    auto_schedule: task.autoSchedule,
+    list_id: task.listId ?? null,
+    project_id: task.projectId ?? null,
+    tags: task.tags,
+    first_move: task.firstMove ?? null,
+    recurrence: task.recurrence ?? null,
+    priority: task.priority ?? null,
+    source_refs: task.sourceRefs ?? null,
+    splittable: task.splittable ?? null,
     status: task.status,
-    schedule_status: task.scheduleStatus,
+    completed_at: task.completedAt ?? null,
+    schedule_subtasks_separately: task.scheduleSubtasksSeparately ?? null,
+    start_after: task.startAfter ?? null,
+    depends_on: task.dependsOn ?? null,
+    min_block_min: task.minBlockMin ?? null,
+    max_block_min: task.maxBlockMin ?? null,
+    buffer_before_min: task.bufferBeforeMin ?? null,
+    buffer_after_min: task.bufferAfterMin ?? null,
+    color: task.color ?? null,
+    energy_required: task.energyRequired ?? null,
+    scheduling_hours: task.schedulingHours ?? null,
     created_at: task.createdAt,
     updated_at: task.updatedAt,
   };
 }
 
-/** Convert Supabase task row → app Task (subtasks provided separately). */
-export function taskFromSupabase(row: SupabaseTask): Task {
+/** DB row (+ its already-fetched subtask rows) -> app Task. `syncState` is 'synced' (came from cloud). */
+export function taskFromRow(row: TaskRow, subtaskRows: SubtaskRow[] = []): Task {
+  const subtasks = subtaskRows
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .map(subtaskFromRow);
   return {
     id: row.id,
     title: row.title,
-    subject: row.subject,
-    description: row.description,
-    dueDate: row.due_date,
-    startTime: row.start_time ?? undefined,
-    proposedTime: row.proposed_time ?? undefined,
-    durationMinutes: row.duration_minutes ?? null,
-    isAbstract: row.is_abstract,
-    difficulty: row.difficulty,
-    source: row.source as Task["source"],
-    externalId: row.external_id,
-    starterAction: row.starter_action,
+    notes: row.notes ?? undefined,
+    durationMin: row.duration_min,
+    progressMin: row.progress_min,
+    due: row.due ?? undefined,
+    autoSchedule: row.auto_schedule,
+    listId: row.list_id ?? undefined,
+    projectId: row.project_id ?? undefined,
+    tags: row.tags ?? [],
+    subtasks,
+    firstMove: row.first_move ?? undefined,
+    recurrence: row.recurrence ?? undefined,
+    priority: row.priority ?? undefined,
+    sourceRefs: row.source_refs ?? undefined,
+    splittable: row.splittable ?? undefined,
     status: row.status,
-    scheduleStatus: (row.schedule_status as ScheduleStatus) ?? "unscheduled",
+    completedAt: row.completed_at ?? undefined,
+    scheduleSubtasksSeparately: row.schedule_subtasks_separately ?? undefined,
+    startAfter: row.start_after ?? undefined,
+    dependsOn: row.depends_on ?? undefined,
+    minBlockMin: row.min_block_min ?? undefined,
+    maxBlockMin: row.max_block_min ?? undefined,
+    bufferBeforeMin: row.buffer_before_min ?? undefined,
+    bufferAfterMin: row.buffer_after_min ?? undefined,
+    color: row.color ?? undefined,
+    energyRequired: row.energy_required ?? undefined,
+    schedulingHours: row.scheduling_hours ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    subtasks: (row.subtasks ?? []).map(subtaskFromSupabase),
+    syncState: "synced",
   };
 }
 
-/** Convert app camelCase Subtask → Supabase snake_case row. */
-export function subtaskToSupabase(subtask: Subtask, userId: string): SupabaseSubtask {
+/** App Subtask -> DB row (needs its parent + owner + ordinal position). */
+export function subtaskToRow(
+  subtask: Subtask,
+  parentTaskId: string,
+  userId: string,
+  position: number
+): SubtaskRow {
   return {
     id: subtask.id,
-    parent_task_id: subtask.parentTaskId,
+    parent_task_id: parentTaskId,
     user_id: userId,
     title: subtask.title,
-    estimated_minutes: subtask.estimatedMinutes,
-    is_complete: subtask.isComplete,
-    order: subtask.order,
+    estimated_min: subtask.estimatedMin,
+    completed_at: subtask.completedAt ?? null,
+    position,
   };
 }
 
-/** Convert Supabase subtask row → app Subtask. */
-export function subtaskFromSupabase(row: SupabaseSubtask): Subtask {
+/** DB subtask row -> app Subtask (position is carried by array order upstream). */
+export function subtaskFromRow(row: SubtaskRow): Subtask {
   return {
     id: row.id,
-    parentTaskId: row.parent_task_id,
     title: row.title,
-    estimatedMinutes: row.estimated_minutes,
-    isComplete: row.is_complete,
-    order: row.order,
+    estimatedMin: row.estimated_min,
+    completedAt: row.completed_at ?? undefined,
   };
 }
 
-/** Convert app UserSettings + userId → Supabase user_settings row. */
-export function settingsToSupabase(settings: Partial<UserSettings>, userId: string): Partial<SupabaseUserSettings> & { user_id: string } {
-  const row: Partial<SupabaseUserSettings> & { user_id: string } = { user_id: userId };
-  if (settings.displayName !== undefined) row.display_name = settings.displayName;
-  if (settings.energyPeakStart !== undefined) row.energy_peak_start = settings.energyPeakStart;
-  if (settings.energyPeakEnd !== undefined) row.energy_peak_end = settings.energyPeakEnd;
-  if (settings.pomodoroEnabled !== undefined) row.pomodoro_enabled = settings.pomodoroEnabled;
-  if (settings.pomodoroWorkMinutes !== undefined) row.pomodoro_work_minutes = settings.pomodoroWorkMinutes;
-  if (settings.pomodoroBreakMinutes !== undefined) row.pomodoro_break_minutes = settings.pomodoroBreakMinutes;
-  if (settings.quietHoursStart !== undefined) row.quiet_hours_start = settings.quietHoursStart;
-  if (settings.quietHoursEnd !== undefined) row.quiet_hours_end = settings.quietHoursEnd;
-  if (settings.focusAudio !== undefined) row.focus_audio = settings.focusAudio;
-  if (settings.busyBlocks !== undefined) row.busy_blocks = settings.busyBlocks;
-  if (settings.availabilityNotes !== undefined) row.availability_notes = settings.availabilityNotes;
-  if (settings.calendarEvents !== undefined) row.calendar_events = settings.calendarEvents;
-  if (settings.autoAcceptProposedSchedule !== undefined) row.auto_accept_proposed_schedule = settings.autoAcceptProposedSchedule;
-  if (settings.onboardingComplete !== undefined) row.onboarding_complete = settings.onboardingComplete;
-  if (settings.webPushSubscription !== undefined) row.web_push_subscription = settings.webPushSubscription ?? null;
-  return row;
-}
-
-/** Convert Supabase user_settings row → partial UserSettings. */
-export function settingsFromSupabase(row: SupabaseUserSettings): Partial<UserSettings> {
+/** App Settings -> DB row (one per user). */
+export function settingsToRow(settings: Settings, userId: string): SettingsRow {
   return {
-    displayName: row.display_name ?? null,
-    energyPeakStart: row.energy_peak_start,
-    energyPeakEnd: row.energy_peak_end,
-    pomodoroEnabled: row.pomodoro_enabled,
-    pomodoroWorkMinutes: row.pomodoro_work_minutes,
-    pomodoroBreakMinutes: row.pomodoro_break_minutes,
-    quietHoursStart: row.quiet_hours_start,
-    quietHoursEnd: row.quiet_hours_end,
-    focusAudio: row.focus_audio,
-    busyBlocks: row.busy_blocks ?? [],
-    availabilityNotes: row.availability_notes ?? "",
-    calendarEvents: row.calendar_events ?? [],
-    autoAcceptProposedSchedule: row.auto_accept_proposed_schedule ?? false,
+    user_id: userId,
+    daily_lock_cap_min: settings.dailyLockCapMin,
+    quiet_hours: settings.quietHours,
+    never_lock_categories: settings.neverLockCategories,
+    stake_strength_bounds: settings.stakeStrengthBounds,
+    subscription: settings.subscription,
+    scheduling_hours: settings.schedulingHours,
+    max_notifications_per_hour: settings.maxNotificationsPerHour,
+    energy_peak: settings.energyPeak,
+    display_name: settings.displayName ?? null,
+    theme_preference: settings.themePreference,
+    onboarding_complete: settings.onboardingComplete,
+    calendar_view: settings.calendarView ?? null,
+    calendar_zoom_px_per_hour: settings.calendarZoomPxPerHour ?? null,
+    // Settings has no createdAt/updatedAt in the model; stamp updated_at now so
+    // last-write-wins has a comparable value on the row.
+    updated_at: Date.now(),
+  };
+}
+
+/** DB settings row -> app Settings. */
+export function settingsFromRow(row: SettingsRow): Settings {
+  return {
+    dailyLockCapMin: row.daily_lock_cap_min,
+    quietHours: row.quiet_hours,
+    neverLockCategories: row.never_lock_categories ?? [],
+    stakeStrengthBounds: row.stake_strength_bounds,
+    subscription: row.subscription,
+    schedulingHours: row.scheduling_hours,
+    maxNotificationsPerHour: row.max_notifications_per_hour,
+    energyPeak: row.energy_peak,
+    displayName: row.display_name ?? undefined,
+    themePreference: row.theme_preference,
     onboardingComplete: row.onboarding_complete,
-    webPushSubscription: row.web_push_subscription ?? null,
+    calendarView: row.calendar_view ?? undefined,
+    calendarZoomPxPerHour: row.calendar_zoom_px_per_hour ?? undefined,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Sync functions — local-first pattern
-// Writes go to Zustand immediately (optimistic), then fire-and-forget to Supabase.
-// Reads are background-only; caller merges based on updated_at.
+// Sync functions — all no-op gracefully for guests, never throw.
 // ---------------------------------------------------------------------------
+
+/** Resolve the signed-in user id, or null (guest). Swallows errors. */
+async function currentUserId(): Promise<string | null> {
+  try {
+    const user = await getCurrentUser();
+    return user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
- * Fetch all tasks (with nested subtasks) for the given user from Supabase.
- * Supabase wins on updated_at conflicts — merge logic lives in the caller.
+ * Upsert one task (and replace its subtask rows) to the cloud. Fire-and-forget:
+ * logs errors, never throws. No-ops for guests.
  */
-export async function syncTasksFromSupabase(userId: string): Promise<{ tasks: Task[] }> {
-  // Fetch tasks
-  const { data: taskRows, error: taskError } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("user_id", userId);
-
-  if (taskError) throw taskError;
-  if (!taskRows || taskRows.length === 0) return { tasks: [] };
-
-  const taskIds = taskRows.map((t: SupabaseTask) => t.id);
-
-  // Fetch subtasks for all task IDs in one query
-  const { data: subtaskRows, error: subtaskError } = await supabase
-    .from("subtasks")
-    .select("*")
-    .in("parent_task_id", taskIds);
-
-  if (subtaskError) throw subtaskError;
-
-  // Nest subtasks onto their parent tasks
-  const subtasksByTaskId: Record<string, SupabaseSubtask[]> = {};
-  for (const sub of (subtaskRows ?? []) as SupabaseSubtask[]) {
-    if (!subtasksByTaskId[sub.parent_task_id]) subtasksByTaskId[sub.parent_task_id] = [];
-    subtasksByTaskId[sub.parent_task_id].push(sub);
-  }
-
-  const tasks: Task[] = (taskRows as SupabaseTask[]).map((row) => {
-    const withSubtasks: SupabaseTask = {
-      ...row,
-      subtasks: subtasksByTaskId[row.id] ?? [],
-    };
-    return taskFromSupabase(withSubtasks);
-  });
-
-  return { tasks };
-}
-
-/** Upsert a single task row. Fire-and-forget — logs errors, does not throw. */
-export async function upsertTask(task: SupabaseTask, userId: string): Promise<void> {
+export async function upsertTask(task: Task): Promise<void> {
+  const userId = await currentUserId();
+  if (!userId) return;
   try {
-    const row = { ...task, user_id: userId };
-    // Remove client-side subtasks field before sending to DB
-    const { subtasks: _subtasks, ...rowWithoutSubtasks } = row;
-    const { error } = await supabase.from("tasks").upsert(rowWithoutSubtasks);
-    if (error) console.warn("[Ampora] upsertTask error:", error.message);
+    const { error: taskErr } = await supabase.from("tasks").upsert(taskToRow(task, userId));
+    if (taskErr) {
+      console.warn("[Ampora] upsertTask error:", taskErr.message);
+      return;
+    }
+    // Replace the task's subtasks: delete any that no longer exist, upsert the
+    // rest with their current ordinal position.
+    const rows = task.subtasks.map((s, i) => subtaskToRow(s, task.id, userId, i));
+    if (rows.length > 0) {
+      const { error: subErr } = await supabase.from("subtasks").upsert(rows);
+      if (subErr) console.warn("[Ampora] upsertTask subtasks error:", subErr.message);
+    }
+    const keepIds = task.subtasks.map((s) => s.id);
+    let del = supabase.from("subtasks").delete().eq("parent_task_id", task.id);
+    if (keepIds.length > 0) del = del.not("id", "in", `(${keepIds.join(",")})`);
+    const { error: delErr } = await del;
+    if (delErr) console.warn("[Ampora] upsertTask subtask cleanup error:", delErr.message);
   } catch (err) {
     console.warn("[Ampora] upsertTask exception:", err);
   }
 }
 
-/** Delete a task row by ID. Fire-and-forget. */
+/** Delete a task (subtasks cascade via FK). Fire-and-forget. No-ops for guests. */
 export async function deleteTask(taskId: string): Promise<void> {
+  const userId = await currentUserId();
+  if (!userId) return;
   try {
     const { error } = await supabase.from("tasks").delete().eq("id", taskId);
     if (error) console.warn("[Ampora] deleteTask error:", error.message);
@@ -433,71 +548,77 @@ export async function deleteTask(taskId: string): Promise<void> {
   }
 }
 
-/** Upsert a single subtask row. Fire-and-forget. */
-export async function upsertSubtask(subtask: SupabaseSubtask, userId: string): Promise<void> {
-  try {
-    const row = { ...subtask, user_id: userId };
-    const { error } = await supabase.from("subtasks").upsert(row);
-    if (error) console.warn("[Ampora] upsertSubtask error:", error.message);
-  } catch (err) {
-    console.warn("[Ampora] upsertSubtask exception:", err);
-  }
-}
-
-/** Delete a subtask row by ID. Fire-and-forget. */
-export async function deleteSubtask(subtaskId: string): Promise<void> {
-  try {
-    const { error } = await supabase.from("subtasks").delete().eq("id", subtaskId);
-    if (error) console.warn("[Ampora] deleteSubtask error:", error.message);
-  } catch (err) {
-    console.warn("[Ampora] deleteSubtask exception:", err);
-  }
-}
-
 /**
- * Fetch user settings for the given user from Supabase.
- * Returns null if no row found.
+ * Pull all of the signed-in user's tasks (with nested subtasks) from the cloud.
+ * Returns [] for guests or on error. Caller reconciles last-write-wins.
  */
-export async function syncSettingsFromSupabase(userId: string): Promise<Partial<UserSettings> | null> {
-  const { data, error } = await supabase
-    .from("user_settings")
-    .select("*")
-    .eq("user_id", userId)
-    .maybeSingle();
+export async function pullTasks(): Promise<Task[]> {
+  const userId = await currentUserId();
+  if (!userId) return [];
+  try {
+    const { data: taskRows, error: taskErr } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("user_id", userId);
+    if (taskErr) {
+      console.warn("[Ampora] pullTasks error:", taskErr.message);
+      return [];
+    }
+    if (!taskRows || taskRows.length === 0) return [];
 
-  if (error) throw error;
-  if (!data) return null;
-  return settingsFromSupabase(data as SupabaseUserSettings);
+    const ids = (taskRows as TaskRow[]).map((t) => t.id);
+    const { data: subRows, error: subErr } = await supabase
+      .from("subtasks")
+      .select("*")
+      .in("parent_task_id", ids);
+    if (subErr) console.warn("[Ampora] pullTasks subtasks error:", subErr.message);
+
+    const byParent: Record<string, SubtaskRow[]> = {};
+    for (const s of (subRows ?? []) as SubtaskRow[]) {
+      (byParent[s.parent_task_id] ??= []).push(s);
+    }
+    return (taskRows as TaskRow[]).map((row) => taskFromRow(row, byParent[row.id] ?? []));
+  } catch (err) {
+    console.warn("[Ampora] pullTasks exception:", err);
+    return [];
+  }
 }
 
-/** Upsert user settings. Fire-and-forget. */
-export async function upsertSettings(settings: Partial<UserSettings>, userId: string): Promise<void> {
+/** Upsert the user's Settings row. Fire-and-forget. No-ops for guests. */
+export async function upsertSettings(settings: Settings): Promise<void> {
+  const userId = await currentUserId();
+  if (!userId) return;
   try {
-    const row = settingsToSupabase(settings, userId);
-    const { error } = await supabase.from("user_settings").upsert(row);
+    const { error } = await supabase.from("settings").upsert(settingsToRow(settings, userId));
     if (error) console.warn("[Ampora] upsertSettings error:", error.message);
   } catch (err) {
     console.warn("[Ampora] upsertSettings exception:", err);
   }
 }
 
-/** Upsert a focus session row. Fire-and-forget. */
-export async function upsertFocusSession(session: FocusSession, userId: string): Promise<void> {
+/**
+ * Pull the user's Settings row, or null if none / guest / error. Returns the
+ * app-shaped Settings plus the row's `updated_at` so the caller can run
+ * last-write-wins against the local copy.
+ */
+export async function pullSettings(): Promise<{ settings: Settings; updatedAt: number } | null> {
+  const userId = await currentUserId();
+  if (!userId) return null;
   try {
-    const row: SupabaseFocusSession = {
-      id: session.id,
-      user_id: userId,
-      task_id: session.taskId,
-      subtask_id: session.subtaskId,
-      start_time: session.startTime,
-      end_time: session.endTime,
-      duration_minutes: session.durationMinutes,
-      breaks_taken: session.breaksTaken,
-      completed_subtask_ids: session.completedSubtasks,
-    };
-    const { error } = await supabase.from("focus_sessions").upsert(row);
-    if (error) console.warn("[Ampora] upsertFocusSession error:", error.message);
+    const { data, error } = await supabase
+      .from("settings")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      console.warn("[Ampora] pullSettings error:", error.message);
+      return null;
+    }
+    if (!data) return null;
+    const row = data as SettingsRow;
+    return { settings: settingsFromRow(row), updatedAt: row.updated_at };
   } catch (err) {
-    console.warn("[Ampora] upsertFocusSession exception:", err);
+    console.warn("[Ampora] pullSettings exception:", err);
+    return null;
   }
 }

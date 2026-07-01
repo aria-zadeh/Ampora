@@ -12,7 +12,11 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 import { useSettingsStore } from "@/store/settingsStore";
-import { useScheduleStore } from "@/store/scheduleStore";
+import { useScheduleStore, selectAllBlocks } from "@/store/scheduleStore";
+import { useTaskStore, selectAllTasks } from "@/store/taskStore";
+import { useRecoveryStore } from "@/store/recoveryStore";
+import { scheduleTaskReminders } from "@/services/notifications";
+import { detectLapse } from "@/core/recovery";
 import { getCurrentUser, onAuthStateChange } from "@/services/supabase";
 import type { User } from "@supabase/supabase-js";
 
@@ -106,6 +110,68 @@ export default function RootLayout() {
     useScheduleStore.getState().recompute();
   }, [ready]);
 
+  // Reschedule notification reminders whenever tasks or the notification-
+  // relevant settings change (FR-63, §8.9). Debounced 500ms so a burst of
+  // edits (e.g. adding subtasks) only reschedules once. `scheduleTaskReminders`
+  // cancels the prior batch and rebuilds a rate-limited, quiet-hours-respecting
+  // set from current state, degrading to a no-op without permission / on
+  // unsupported platforms. Runs an initial pass on app open too.
+  useEffect(() => {
+    if (!ready) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const reschedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        const tasks = selectAllTasks(useTaskStore.getState());
+        const settings = useSettingsStore.getState().settings;
+        // Fire-and-forget; the service never throws and never surfaces errors.
+        void scheduleTaskReminders(tasks, settings);
+      }, 500);
+    };
+
+    // Initial pass on open.
+    reschedule();
+
+    const unsubTasks = useTaskStore.subscribe((state, prev) => {
+      if (state.tasks !== prev.tasks) reschedule();
+    });
+    const unsubSettings = useSettingsStore.subscribe((state, prev) => {
+      const a = state.settings;
+      const b = prev.settings;
+      if (
+        a.quietHours !== b.quietHours ||
+        a.energyPeak !== b.energyPeak ||
+        a.maxNotificationsPerHour !== b.maxNotificationsPerHour
+      ) {
+        reschedule();
+      }
+    });
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubTasks();
+      unsubSettings();
+    };
+  }, [ready]);
+
+  // One-time Recovery check on app open (FR-60): after the initial recompute
+  // settles, look for a lapse (2+ days of missed scheduled blocks). If found,
+  // flip the recovery flag so the RecoveryBanner surfaces on Home / Calendar.
+  // Non-persisted + session-scoped, so a dismissal here holds until the next
+  // cold open, which re-derives it. Runs once per app open.
+  useEffect(() => {
+    if (!ready) return;
+    const id = setTimeout(() => {
+      const blocks = selectAllBlocks(useScheduleStore.getState());
+      if (detectLapse(blocks, Date.now())) {
+        useRecoveryStore.getState().markLapseDetected();
+      }
+    }, 600); // after the debounced recompute has a chance to land
+    return () => clearTimeout(id);
+  }, [ready]);
+
   if (authLoading || !ready || !fontsLoaded) return null;
 
   return (
@@ -119,6 +185,7 @@ export default function RootLayout() {
           options={{ presentation: "modal", animation: "slide_from_bottom" }}
         />
         <Stack.Screen name="task/[id]" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="insights" options={{ animation: "slide_from_right" }} />
         <Stack.Screen
           name="focus/session"
           options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }}

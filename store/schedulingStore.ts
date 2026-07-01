@@ -1,112 +1,60 @@
 /**
- * Scheduling signal store — tracks whether the user completed tasks at their
- * scheduled times. These signals feed the scheduling algorithm to learn which
- * time slots work best for this user.
+ * Scheduling-signals store — Ampora Phase 6 (rebuilt on the NEW model).
+ *
+ * The v1 store tracked bespoke `SchedulingSignal`s (whether a task was done at
+ * its scheduled time) and synced them to a `scheduling_signals` table. In the
+ * new model that role is owned by `useBehavioralStore` (the append-only
+ * `BehavioralSignal` log the Learning Engine consumes) and cloud sync is owned
+ * by `store/syncStore.ts`.
+ *
+ * This module is retained as a thin, typecheck-clean compatibility surface that
+ * references NO removed `@/types` names (`SchedulingSignal`, `generateId`, …).
+ * It re-exports the behavioral log's recording API under the old-ish names and
+ * exposes a small recent-signals reader, so any lingering call site keeps
+ * working while the real logic lives in behavioralStore + the Learning Engine.
  */
 
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { SchedulingSignal } from "@/types";
-import { generateId } from "@/types";
-import { getCurrentUser, supabase } from "@/services/supabase";
+import { useBehavioralStore } from '@/store/behavioralStore'
+import type { BehavioralSignal } from '@/types'
 
-// ---------------------------------------------------------------------------
-// Supabase sync — fire-and-forget
-// ---------------------------------------------------------------------------
+const DAY_MS = 24 * 60 * 60 * 1000
 
-async function syncSignalToSupabase(signal: SchedulingSignal): Promise<void> {
-  const user = await getCurrentUser().catch(() => null);
-  if (!user) return;
-  try {
-    const { error } = await supabase.from("scheduling_signals").upsert({
-      id: signal.id,
-      user_id: user.id,
-      task_id: signal.taskId,
-      day_of_week: signal.dayOfWeek,
-      hour_of_day: signal.hourOfDay,
-      outcome: signal.outcome,
-      actual_duration_minutes: signal.actualDurationMinutes,
-      recorded_at: signal.recordedAt,
-    });
-    if (error) console.warn("[Ampora] syncSignalToSupabase error:", error.message);
-  } catch (err) {
-    console.warn("[Ampora] syncSignalToSupabase exception:", err);
-  }
+/**
+ * Record a scheduling outcome as a `BehavioralSignal`. `outcome` maps onto the
+ * signal's `completed` flag (completed vs. skipped/partial). Time-of-day fields
+ * are filled in by the behavioral store. Returns the new signal id.
+ */
+export function recordSchedulingOutcome(input: {
+  taskId?: string
+  taskType?: string
+  plannedStart?: number
+  actualStart?: number
+  outcome: 'completed' | 'skipped' | 'partial'
+}): string {
+  return useBehavioralStore.getState().logSignal({
+    taskType: input.taskType,
+    plannedStart: input.plannedStart,
+    actualStart: input.actualStart,
+    completed: input.outcome === 'completed',
+  })
 }
 
-export async function fetchRecentSignals(userId: string, days = 30): Promise<SchedulingSignal[]> {
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
-    .from("scheduling_signals")
-    .select("*")
-    .eq("user_id", userId)
-    .gte("recorded_at", since)
-    .order("recorded_at", { ascending: false });
-
-  if (error) {
-    console.warn("[Ampora] fetchRecentSignals error:", error.message);
-    return [];
-  }
-
-  return (data ?? []).map((row: Record<string, unknown>) => ({
-    id: row.id as string,
-    taskId: row.task_id as string,
-    dayOfWeek: row.day_of_week as 0 | 1 | 2 | 3 | 4 | 5 | 6,
-    hourOfDay: row.hour_of_day as number,
-    outcome: row.outcome as "completed" | "skipped" | "partial",
-    actualDurationMinutes: (row.actual_duration_minutes as number) ?? null,
-    recordedAt: row.recorded_at as string,
-  }));
+/** Signals recorded in the last `days` days (newest first). */
+export function recentSchedulingSignals(days = 30): BehavioralSignal[] {
+  const cutoff = Date.now() - days * DAY_MS
+  const signals = useBehavioralStore.getState().signals
+  return signals
+    .filter((s) => {
+      const at = s.actualStart ?? s.plannedStart
+      return at != null && at >= cutoff
+    })
+    .slice()
+    .reverse()
 }
 
-// ---------------------------------------------------------------------------
-// Store
-// ---------------------------------------------------------------------------
-
-interface SchedulingState {
-  signals: SchedulingSignal[];
-  addSignal: (signal: Omit<SchedulingSignal, "id" | "recordedAt">) => void;
-  getRecentSignals: (days?: number) => SchedulingSignal[];
-  mergeRemoteSignals: (remote: SchedulingSignal[]) => void;
-}
-
-export const useSchedulingStore = create<SchedulingState>()(
-  persist(
-    (set, get) => ({
-      signals: [],
-
-      addSignal: (data) => {
-        const signal: SchedulingSignal = {
-          ...data,
-          id: generateId(),
-          recordedAt: new Date().toISOString(),
-        };
-        set((state) => ({
-          signals: [...state.signals, signal],
-        }));
-        syncSignalToSupabase(signal).catch(() => {});
-      },
-
-      getRecentSignals: (days = 30) => {
-        const since = Date.now() - days * 24 * 60 * 60 * 1000;
-        return get().signals.filter(
-          (s) => new Date(s.recordedAt).getTime() >= since,
-        );
-      },
-
-      mergeRemoteSignals: (remote) => {
-        set((state) => {
-          const existingIds = new Set(state.signals.map((s) => s.id));
-          const newSignals = remote.filter((s) => !existingIds.has(s.id));
-          if (newSignals.length === 0) return state;
-          return { signals: [...state.signals, ...newSignals] };
-        });
-      },
-    }),
-    {
-      name: "ampora-scheduling",
-      storage: createJSONStorage(() => AsyncStorage),
-    },
-  ),
-);
+/**
+ * Back-compat hook alias: the old code imported `useSchedulingStore`. The
+ * behavioral store is the real store now, so alias to it. Existing selectors on
+ * the behavioral store (e.g. `selectAllSignals`) work unchanged.
+ */
+export { useBehavioralStore as useSchedulingStore } from '@/store/behavioralStore'

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { StakesSettings } from "@/components/settings/StakesSettings";
+import { CalendarSyncSettings } from "@/components/settings/CalendarSyncSettings";
 import { getCurrentUser, signOut } from "@/services/supabase";
 import { shadows, gradients } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
@@ -244,6 +245,18 @@ export default function ProfileScreen() {
           />
         </SettingsGroup>
 
+        {/* Insights — Focus DNA / Learning Engine surface (FR-51..53). */}
+        <SettingsGroup title="Insights" index={4}>
+          <SettingsRow
+            icon="pulse-outline"
+            label="Focus DNA"
+            value="See your patterns"
+            onPress={() => router.push("/insights")}
+            isLast
+            accessibilityLabel="Focus DNA insights"
+          />
+        </SettingsGroup>
+
         {/* Focus stakes + wellbeing (§8.11). Embedded — StakesSettings renders
             its own grouped cards, so it sits under a section header rather than
             inside a SettingsGroup shell. */}
@@ -251,7 +264,7 @@ export default function ProfileScreen() {
           entering={
             reduceMotion
               ? undefined
-              : FadeInDown.delay(4 * 45).duration(DURATIONS.base)
+              : FadeInDown.delay(5 * 45).duration(DURATIONS.base)
           }
           className="mt-6"
         >
@@ -261,9 +274,26 @@ export default function ProfileScreen() {
           <StakesSettings />
         </Animated.View>
 
+        {/* Calendar sync (§8.6, FR-1). Embedded — CalendarSyncSettings renders
+            its own grouped card, so it sits under a section header rather than
+            inside a SettingsGroup shell. */}
+        <Animated.View
+          entering={
+            reduceMotion
+              ? undefined
+              : FadeInDown.delay(6 * 45).duration(DURATIONS.base)
+          }
+          className="mt-6"
+        >
+          <Text className="mb-3 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+            Calendar sync
+          </Text>
+          <CalendarSyncSettings />
+        </Animated.View>
+
         {/* Account */}
         {userEmail && (
-          <SettingsGroup title="Account" index={4}>
+          <SettingsGroup title="Account" index={6}>
             <View className="flex-row items-center border-b border-neutral-100 py-3.5">
               <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
                 <Ionicons name="mail-outline" size={18} color="#52525B" />

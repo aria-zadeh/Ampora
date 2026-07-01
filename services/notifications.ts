@@ -1,66 +1,80 @@
 /**
- * Ampora notification service — PRD §4.3
+ * Ampora notification service — Phase 6 (PRD FR-63, §8.9), rebuilt on the NEW
+ * data model (`Task` with epoch-ms `due` + `subtasks[].completedAt` + status
+ * 'todo'|'doing'|'done'; `Settings` with `quietHours` as a minutes-from-
+ * midnight `TimeWindow`, `maxNotificationsPerHour`, `energyPeak`).
  *
- * Scheduling philosophy:
- *  - Warm, encouraging copy (not nagging)
- *  - Rate-limited per task and globally
- *  - Respects quiet hours and busy blocks
- *  - Graceful degradation when permissions denied
+ * Design principles (binding):
+ *  - Warm, encouraging, NEVER-shaming copy (§8.9). We nudge, we don't nag.
+ *  - Rate limited. Baseline max 1 reminder/hour (settings.maxNotificationsPerHour).
+ *    Urgency raises the ceiling: due < 12h -> up to 1/30min; due < 2h -> up to
+ *    1/20min. At most 3 START reminders per day per task.
+ *  - Quiet hours respected (settings.quietHours, wraps midnight, auto-release).
+ *  - Four kinds: Start Reminder, Deadline Approaching, Motivation Nudge,
+ *    Completion Celebrate.
+ *  - Graceful degradation: no permission / unsupported platform -> no-op, never
+ *    throws, never surfaces errors to the user.
+ *  - Web: uses the Notifications API where available (immediate, for reminders
+ *    that are due right now); no-ops when unavailable.
  */
 
-import * as Notifications from "expo-notifications";
-import { Platform } from "react-native";
-import type { Task, UserSettings, DayKey, PeriodKey, BusyBlock } from "@/types";
+import * as Notifications from 'expo-notifications'
+import { Platform } from 'react-native'
+import type { Settings, Task, TimeWindow } from '@/types'
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const HOURS = 60 * 60 * 1000; // ms per hour
-const SEVEN_DAYS_MS = 7 * 24 * HOURS;
+const MS_PER_MIN = 60 * 1000
+const MS_PER_HOUR = 60 * MS_PER_MIN
+const MS_PER_DAY = 24 * MS_PER_HOUR
 
-/** Period time ranges (hour, 24h) */
-const PERIOD_RANGES: Record<PeriodKey, [number, number]> = {
-  morning: [8, 12],
-  afternoon: [12, 17],
-  evening: [17, 21],
-};
+/** Only tasks due within this horizon get scheduled reminders. */
+const HORIZON_MS = 7 * MS_PER_DAY
 
-/** Map JS Date.getDay() (0=Sun) to DayKey */
-const JS_DAY_TO_KEY: DayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+/** Absolute cap on start reminders per task per day (§8.9 anti-nag rule). */
+const MAX_START_REMINDERS_PER_TASK_PER_DAY = 3
+
+/** Minimum spacing between any two scheduled notifications, by urgency (minutes). */
+const SPACING_BASELINE_MIN = 60
+const SPACING_DUE_SOON_MIN = 30 // due < 12h
+const SPACING_DUE_IMMINENT_MIN = 20 // due < 2h
 
 // ---------------------------------------------------------------------------
-// Web Notifications (iOS Safari 16.4+, Chrome, etc.)
+// Copy (§8.9) — warm, specific, never shaming.
 // ---------------------------------------------------------------------------
 
-/** Track which notification IDs have been shown this session to avoid duplicates */
-const shownWebNotifications = new Set<string>();
+interface Copy {
+  title: string
+  body: string
+}
 
-/**
- * Request web notification permission. Must be called from a user gesture.
- * Returns true if granted.
- */
-export async function requestWebNotificationPermission(): Promise<boolean> {
-  try {
-    if (typeof window === "undefined" || !("Notification" in window)) return false;
-    if (Notification.permission === "granted") return true;
-    const result = await Notification.requestPermission();
-    return result === "granted";
-  } catch {
-    return false;
+function startReminderCopy(task: Task, firstStep: string): Copy {
+  return {
+    title: 'Ready for a first move?',
+    body: `"${task.title}" — try just this: ${firstStep}. Two minutes, that's it.`,
   }
 }
 
-/** Show a web notification immediately. */
-function showWebNotification(title: string, body: string, tag: string): void {
-  try {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (Notification.permission !== "granted") return;
-    if (shownWebNotifications.has(tag)) return;
-    shownWebNotifications.add(tag);
-    new Notification(title, { body, icon: "/favicon.ico", tag });
-  } catch {
-    // Silent — web notifications may be blocked
+function deadlineCopy(task: Task, whenLabel: string): Copy {
+  return {
+    title: 'Heads up — due ' + whenLabel,
+    body: `"${task.title}" is coming up. A small start now makes the rest easy. You've got this.`,
+  }
+}
+
+function motivationCopy(task: Task, firstStep: string): Copy {
+  return {
+    title: 'Still here when you are',
+    body: `No rush — "${task.title}" is waiting. Want to try: ${firstStep}?`,
+  }
+}
+
+function completionCopy(task: Task): Copy {
+  return {
+    title: 'Nice — that one is done',
+    body: `You finished "${task.title}". That's a real win. Take the credit.`,
   }
 }
 
@@ -69,467 +83,372 @@ function showWebNotification(title: string, body: string, tag: string): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Request push notification permissions once.
- * Returns true if granted. Never crashes on denial.
+ * Request notification permission once. Returns true if granted. Never throws.
+ * On web, requests the browser Notifications API permission (must be called
+ * from a user gesture). KEPT — onboarding imports this.
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
-  if (Platform.OS === "web") {
-    return requestWebNotificationPermission();
+  if (Platform.OS === 'web') {
+    return requestWebPermission()
   }
   try {
-    const { status: existing } = await Notifications.getPermissionsAsync();
-    if (existing === "granted") return true;
-
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== "granted") {
-      console.log("[Notifications] Permission not granted — notifications disabled.");
-      return false;
-    }
-    return true;
+    const { status: existing } = await Notifications.getPermissionsAsync()
+    if (existing === 'granted') return true
+    const { status } = await Notifications.requestPermissionsAsync()
+    return status === 'granted'
   } catch (err) {
-    console.warn("[Notifications] Permission request failed silently:", err);
-    return false;
+    console.warn('[Notifications] permission request failed:', err)
+    return false
+  }
+}
+
+async function requestWebPermission(): Promise<boolean> {
+  try {
+    if (typeof window === 'undefined' || !('Notification' in window)) return false
+    if (Notification.permission === 'granted') return true
+    if (Notification.permission === 'denied') return false
+    const result = await Notification.requestPermission()
+    return result === 'granted'
+  } catch {
+    return false
   }
 }
 
 // ---------------------------------------------------------------------------
-// Busy-block helpers
+// Quiet-hours helpers (TimeWindow = minutes-from-midnight, may wrap midnight)
 // ---------------------------------------------------------------------------
 
-function dateToDayKey(date: Date): DayKey {
-  return JS_DAY_TO_KEY[date.getDay()];
-}
-
-function dateToPeriodKey(date: Date): PeriodKey | null {
-  const h = date.getHours();
-  for (const [period, [start, end]] of Object.entries(PERIOD_RANGES) as [
-    PeriodKey,
-    [number, number]
-  ][]) {
-    if (h >= start && h < end) return period;
+/** True if epoch-ms `t` falls inside the quiet-hours window (auto-release outside it). */
+export function isQuietTime(t: number, quiet: TimeWindow): boolean {
+  const d = new Date(t)
+  const min = d.getHours() * 60 + d.getMinutes()
+  if (quiet.start === quiet.end) return false // empty window
+  if (quiet.start < quiet.end) {
+    // Same-day window, e.g. 13:00-14:00.
+    return min >= quiet.start && min < quiet.end
   }
-  return null; // outside defined periods (e.g. late night)
+  // Wraps midnight, e.g. 23:00-08:00.
+  return min >= quiet.start || min < quiet.end
 }
-
-function isBusyTime(date: Date, busyBlocks: BusyBlock[]): boolean {
-  const day = dateToDayKey(date);
-  const period = dateToPeriodKey(date);
-  if (!period) return false; // outside defined periods — not busy
-  return busyBlocks.some((b) => b.day === day && b.period === period);
-}
-
-// ---------------------------------------------------------------------------
-// Quiet hours helpers
-// ---------------------------------------------------------------------------
 
 /**
- * Returns true if the given date falls within quiet hours.
- * Quiet hours wrap midnight (e.g. 23:00 → 08:00).
+ * Push a candidate time out of quiet hours to the next moment quiet hours end.
+ * Returns the adjusted epoch ms. If not in quiet hours, returns `t` unchanged.
  */
-function isQuietTime(
-  date: Date,
-  quietHoursStart: number,
-  quietHoursEnd: number
-): boolean {
-  const h = date.getHours();
-  if (quietHoursStart < quietHoursEnd) {
-    // Normal range (e.g. 22:00 → 06:00 won't happen here, but handle it)
-    return h >= quietHoursStart || h < quietHoursEnd;
-  }
-  // Wraps midnight: start > end (e.g. 23 → 8)
-  return h >= quietHoursStart || h < quietHoursEnd;
+function shiftOutOfQuietHours(t: number, quiet: TimeWindow): number {
+  if (!isQuietTime(t, quiet)) return t
+  const d = new Date(t)
+  const endHour = Math.floor(quiet.end / 60)
+  const endMin = quiet.end % 60
+  // If we're past today's quiet-end already (because the window wraps), the end
+  // is tomorrow only when start<end and we're before end; simplest correct move
+  // is: set to quiet.end today, and if that's still <= t, add a day.
+  d.setHours(endHour, endMin, 0, 0)
+  let adjusted = d.getTime()
+  if (adjusted <= t) adjusted += MS_PER_DAY
+  return adjusted
 }
 
 // ---------------------------------------------------------------------------
-// Time candidate helpers
+// Rate limiting
 // ---------------------------------------------------------------------------
 
-/**
- * Given a preferred hour (24h), find the next Date at that hour that is:
- * - In the future
- * - Not in quiet hours
- * - Not in a busy block
- *
- * If the preferred slot is unavailable, nudge forward by 1 hour up to 12 times.
- * Returns null if no suitable slot found.
- */
-function findAvailableSlot(
-  preferredDate: Date,
-  settings: UserSettings,
-  maxAttempts = 12
-): Date | null {
-  let candidate = new Date(preferredDate);
-  const now = Date.now();
+/** Required spacing (ms) at a given fire time based on how soon the task is due. */
+function requiredSpacingMs(fireAt: number, dueMs: number | undefined, settings: Settings): number {
+  const baseMin = Math.max(1, Math.round(60 / Math.max(1, settings.maxNotificationsPerHour)))
+  if (dueMs == null) return Math.max(baseMin, SPACING_BASELINE_MIN) * MS_PER_MIN
+  const hoursToDue = (dueMs - fireAt) / MS_PER_HOUR
+  if (hoursToDue < 2) return SPACING_DUE_IMMINENT_MIN * MS_PER_MIN
+  if (hoursToDue < 12) return SPACING_DUE_SOON_MIN * MS_PER_MIN
+  return Math.max(baseMin, SPACING_BASELINE_MIN) * MS_PER_MIN
+}
 
-  for (let i = 0; i < maxAttempts; i++) {
-    if (
-      candidate.getTime() > now &&
-      !isQuietTime(candidate, settings.quietHoursStart, settings.quietHoursEnd) &&
-      !isBusyTime(candidate, settings.busyBlocks)
-    ) {
-      return candidate;
+/**
+ * Greedy rate limiter over a batch of candidate specs (sorted by fire time):
+ * accepts a spec only if it is far enough after the last ACCEPTED one for its
+ * urgency, and if it does not exceed the per-task-per-day start-reminder cap.
+ */
+function applyRateLimits(specs: NotificationSpec[], settings: Settings): NotificationSpec[] {
+  const sorted = [...specs].sort((a, b) => a.fireAt - b.fireAt)
+  const accepted: NotificationSpec[] = []
+  let lastAcceptedAt = -Infinity
+  const startCountByTaskDay = new Map<string, number>()
+
+  for (const spec of sorted) {
+    const spacing = requiredSpacingMs(spec.fireAt, spec.dueMs, settings)
+    if (spec.fireAt - lastAcceptedAt < spacing) continue
+
+    if (spec.kind === 'start') {
+      const dayKey = `${spec.taskId}:${startOfDay(spec.fireAt)}`
+      const count = startCountByTaskDay.get(dayKey) ?? 0
+      if (count >= MAX_START_REMINDERS_PER_TASK_PER_DAY) continue
+      startCountByTaskDay.set(dayKey, count + 1)
     }
-    // Nudge forward by 1 hour
-    candidate = new Date(candidate.getTime() + HOURS);
+
+    accepted.push(spec)
+    lastAcceptedAt = spec.fireAt
   }
-  return null;
+  return accepted
 }
 
 // ---------------------------------------------------------------------------
-// Notification builders
+// Task helpers (new model)
 // ---------------------------------------------------------------------------
+
+function isDone(task: Task): boolean {
+  return task.status === 'done'
+}
+
+/** First incomplete subtask title, else the firstMove text, else a gentle default. */
+function firstStepHint(task: Task): string {
+  const nextSub = task.subtasks.find((s) => s.completedAt == null)
+  if (nextSub) return nextSub.title
+  if (task.firstMove?.text) return task.firstMove.text
+  return 'open it and read the first line'
+}
+
+/** "today" / "tomorrow" / "soon" label for a due instant relative to now. */
+function dueLabel(dueMs: number, now: number): string {
+  const days = Math.floor((startOfDay(dueMs) - startOfDay(now)) / MS_PER_DAY)
+  if (days <= 0) return 'today'
+  if (days === 1) return 'tomorrow'
+  return 'soon'
+}
+
+function startOfDay(t: number): number {
+  const d = new Date(t)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+// ---------------------------------------------------------------------------
+// Spec building
+// ---------------------------------------------------------------------------
+
+type NotificationKind = 'start' | 'deadline' | 'motivation'
 
 interface NotificationSpec {
-  identifier: string;
-  content: Notifications.NotificationContentInput;
-  trigger: Notifications.NotificationTriggerInput;
+  identifier: string
+  taskId: string
+  kind: NotificationKind
+  /** Epoch ms the notification should fire. */
+  fireAt: number
+  /** The task's due instant (epoch ms), for urgency-based rate limiting. */
+  dueMs?: number
+  content: Notifications.NotificationContentInput
 }
 
-/**
- * Build a "Start Reminder" notification for a task.
- * Scheduled at 3pm (or energyPeakStart) on the day before the due date,
- * provided the due date is >12 hours away.
- */
-function buildStartReminder(task: Task, settings: UserSettings): NotificationSpec | null {
-  const dueMs = new Date(task.dueDate).getTime();
-  const hoursUntilDue = (dueMs - Date.now()) / HOURS;
+/** Build candidate specs for a single task (pre-rate-limit, pre-quiet-shift). */
+function buildSpecsForTask(task: Task, settings: Settings, now: number): NotificationSpec[] {
+  if (isDone(task) || task.due == null) return []
+  const dueMs = task.due
+  if (dueMs < now || dueMs > now + HORIZON_MS) return []
 
-  if (hoursUntilDue <= 12) return null; // too close — deadline notification handles this
+  const specs: NotificationSpec[] = []
+  const hoursToDue = (dueMs - now) / MS_PER_HOUR
+  const firstStep = firstStepHint(task)
 
-  // Target: energyPeakStart hour (default 15 / 3pm) on today or tomorrow
-  const preferredHour = settings.energyPeakStart ?? 15;
-  const now = new Date();
-  const preferred = new Date(now);
-  preferred.setHours(preferredHour, 0, 0, 0);
-
-  // If that slot is in the past today, move to tomorrow
-  if (preferred.getTime() <= now.getTime()) {
-    preferred.setDate(preferred.getDate() + 1);
+  // Start reminder: at the user's energy-peak start, on the next day that peak
+  // occurs, when the deadline is comfortably far out (> 12h).
+  if (hoursToDue > 12) {
+    const startAt = nextEnergyPeak(settings.energyPeak, now)
+    if (startAt < dueMs) {
+      const copy = startReminderCopy(task, firstStep)
+      specs.push({
+        identifier: `start-${task.id}`,
+        taskId: task.id,
+        kind: 'start',
+        fireAt: startAt,
+        dueMs,
+        content: notifContent(task, 'start_reminder', copy),
+      })
+    }
   }
 
-  // Don't schedule a start reminder that fires after the deadline
-  if (preferred.getTime() >= dueMs) return null;
+  // Deadline approaching: 12h before the deadline (if that's still in the future).
+  const deadlineFireAt = dueMs - 12 * MS_PER_HOUR
+  if (deadlineFireAt > now) {
+    const copy = deadlineCopy(task, dueLabel(dueMs, deadlineFireAt))
+    specs.push({
+      identifier: `deadline-${task.id}`,
+      taskId: task.id,
+      kind: 'deadline',
+      fireAt: deadlineFireAt,
+      dueMs,
+      content: notifContent(task, 'deadline_approaching', copy),
+    })
+  }
 
-  const slot = findAvailableSlot(preferred, settings);
-  if (!slot) return null;
+  // Motivation nudge: if the task hasn't been touched in 24h, gently nudge at
+  // the next energy peak (only for not-yet-started work).
+  if (task.status === 'todo' && now - task.updatedAt > 24 * MS_PER_HOUR) {
+    const nudgeAt = nextEnergyPeak(settings.energyPeak, now)
+    if (nudgeAt < dueMs) {
+      const copy = motivationCopy(task, firstStep)
+      specs.push({
+        identifier: `motivation-${task.id}`,
+        taskId: task.id,
+        kind: 'motivation',
+        fireAt: nudgeAt,
+        dueMs,
+        content: notifContent(task, 'motivation_nudge', copy),
+      })
+    }
+  }
 
-  const relativeDue = hoursUntilDue < 24 ? "today" : "tomorrow";
-
-  return {
-    identifier: `start-reminder-${task.id}`,
-    content: {
-      title: "Hey — time to get started",
-      body: `${task.title} is due ${relativeDue}. Want to do the first step? It only takes 5 min.`,
-      data: { taskId: task.id, type: "start_reminder" },
-      sound: true,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: slot,
-    },
-  };
+  return specs
 }
 
-/**
- * Build a "Deadline Approaching" notification.
- * Fires 12 hours before the due date, using the first subtask title when available.
- */
-function buildDeadlineReminder(task: Task, settings: UserSettings): NotificationSpec | null {
-  const dueMs = new Date(task.dueDate).getTime();
-  const triggerMs = dueMs - 12 * HOURS;
-
-  if (triggerMs <= Date.now()) return null; // already past the 12h window
-
-  const triggerDate = new Date(triggerMs);
-  const slot = findAvailableSlot(triggerDate, settings);
-  if (!slot) return null;
-
-  const firstIncompleteSubtask = task.subtasks.find((s) => !s.isComplete);
-  const stepHint = firstIncompleteSubtask?.title ?? "the first step";
-
+function notifContent(
+  task: Task,
+  type: string,
+  copy: Copy,
+): Notifications.NotificationContentInput {
   return {
-    identifier: `deadline-reminder-${task.id}`,
-    content: {
-      title: "Heads up — due soon",
-      body: `${task.title} is due tomorrow. You've got this — start with ${stepHint}.`,
-      data: { taskId: task.id, type: "deadline_reminder" },
-      sound: true,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: slot,
-    },
-  };
+    title: copy.title,
+    body: copy.body,
+    data: { taskId: task.id, type },
+    sound: true,
+  }
 }
 
-/**
- * Build a "Best Time to Start" notification for a task with a proposed schedule.
- * Fires 15 minutes before the proposed time, if the proposed time is in the future.
- */
-function buildBestTimeReminder(task: Task, settings: UserSettings): NotificationSpec | null {
-  // Only for tasks with a proposed (not yet confirmed) schedule
-  if (task.scheduleStatus !== "proposed" || !task.proposedTime) return null;
-
-  const proposedMs = new Date(task.proposedTime).getTime();
-  const triggerMs = proposedMs - 15 * 60 * 1000; // 15 minutes before
-
-  if (triggerMs <= Date.now()) return null; // already past
-
-  const triggerDate = new Date(triggerMs);
-
-  // Respect quiet hours — skip if notification would fire during quiet time
-  if (isQuietTime(triggerDate, settings.quietHoursStart, settings.quietHoursEnd)) {
-    return null;
-  }
-
-  // Respect busy blocks
-  if (isBusyTime(triggerDate, settings.busyBlocks)) {
-    return null;
-  }
-
-  return {
-    identifier: `best-time-${task.id}`,
-    content: {
-      title: "Good time to start!",
-      body: `You usually follow through at this time \u2014 start ${task.title} now?`,
-      data: { taskId: task.id, type: "best_time_reminder" },
-      sound: true,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: triggerDate,
-    },
-  };
-}
-
-/**
- * Build a "Motivation Nudge" for tasks with no interaction in 24+ hours.
- * PRD section 4.3.2: "Haven't touched [task] in a day. Here's a small step to get going."
- */
-function buildMotivationNudge(task: Task, settings: UserSettings): NotificationSpec | null {
-  if (task.status === "complete") return null;
-
-  const lastInteraction = new Date(task.updatedAt).getTime();
-  const hoursSinceInteraction = (Date.now() - lastInteraction) / HOURS;
-
-  if (hoursSinceInteraction < 24) return null; // Interacted recently
-
-  // Don't nudge for tasks due in the past
-  if (new Date(task.dueDate).getTime() < Date.now()) return null;
-
-  // Find a good time to deliver
-  const now = new Date();
-  const preferredHour = settings.energyPeakStart ?? 15;
-  const preferred = new Date(now);
-  preferred.setHours(preferredHour, 0, 0, 0);
-  if (preferred.getTime() <= now.getTime()) {
-    preferred.setDate(preferred.getDate() + 1);
-  }
-
-  const slot = findAvailableSlot(preferred, settings);
-  if (!slot) return null;
-
-  const step = task.starterAction || "the first step";
-
-  return {
-    identifier: `motivation-nudge-${task.id}`,
-    content: {
-      title: "Hey, you've got this",
-      body: `Haven't touched "${task.title}" in a day. Start with: ${step}`,
-      data: { taskId: task.id, type: "motivation_nudge" },
-      sound: true,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: slot,
-    },
-  };
+/** Next occurrence of the energy-peak start (epoch ms), today if still ahead, else tomorrow. */
+function nextEnergyPeak(peak: TimeWindow, now: number): number {
+  const d = new Date(now)
+  d.setHours(Math.floor(peak.start / 60), peak.start % 60, 0, 0)
+  let t = d.getTime()
+  if (t <= now) t += MS_PER_DAY
+  return t
 }
 
 // ---------------------------------------------------------------------------
-// Web notification polling
+// Web fallback
 // ---------------------------------------------------------------------------
 
+const shownWebTags = new Set<string>()
+
+function showWebNotification(title: string, body: string, tag: string): void {
+  try {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    if (Notification.permission !== 'granted') return
+    if (shownWebTags.has(tag)) return
+    shownWebTags.add(tag)
+    new Notification(title, { body, tag })
+  } catch {
+    // Web notifications may be blocked — silent.
+  }
+}
+
 /**
- * Check and fire web notifications for reminders that should trigger NOW.
- * Called on an interval (60s) when the app is open on web.
- * Uses a 2-minute window: fires if the trigger time is within [-1min, +1min] of now.
+ * Web has no OS-level scheduling; fire any reminder whose time is within a
+ * short window of NOW. Call on an interval (e.g. every 60s) while the app is
+ * open on web. Respects quiet hours. No-op if unsupported / not permitted.
  */
-export function checkAndFireWebReminders(tasks: Task[], settings: UserSettings): void {
-  if (typeof window === "undefined" || !("Notification" in window)) return;
-  if (Notification.permission !== "granted") return;
+export function checkAndFireWebReminders(tasks: Task[], settings: Settings): void {
+  if (typeof window === 'undefined' || !('Notification' in window)) return
+  if (Notification.permission !== 'granted') return
 
-  const now = Date.now();
-  const WINDOW_MS = 2 * 60 * 1000; // 2 minute window
-
+  const now = Date.now()
+  const WINDOW_MS = 90 * 1000
   for (const task of tasks) {
-    if (task.status === "complete") continue;
-
-    const dueMs = new Date(task.dueDate).getTime();
-    if (dueMs < now) continue;
-
-    // Start reminder — check if energyPeakStart hour is within window
-    const hoursUntilDue = (dueMs - now) / HOURS;
-    if (hoursUntilDue > 12 && hoursUntilDue <= 48) {
-      const preferredHour = settings.energyPeakStart ?? 15;
-      const todaySlot = new Date();
-      todaySlot.setHours(preferredHour, 0, 0, 0);
-      if (Math.abs(todaySlot.getTime() - now) < WINDOW_MS) {
-        if (!isQuietTime(todaySlot, settings.quietHoursStart, settings.quietHoursEnd) &&
-            !isBusyTime(todaySlot, settings.busyBlocks)) {
-          const relativeDue = hoursUntilDue < 24 ? "today" : "tomorrow";
-          showWebNotification(
-            "Hey — time to get started",
-            `${task.title} is due ${relativeDue}. Want to do the first step?`,
-            `start-${task.id}`
-          );
-        }
-      }
-    }
-
-    // Deadline reminder — 12h before due
-    const deadlineTriggerMs = dueMs - 12 * HOURS;
-    if (Math.abs(deadlineTriggerMs - now) < WINDOW_MS) {
-      const triggerDate = new Date(deadlineTriggerMs);
-      if (!isQuietTime(triggerDate, settings.quietHoursStart, settings.quietHoursEnd) &&
-          !isBusyTime(triggerDate, settings.busyBlocks)) {
-        const firstStep = task.subtasks.find((s) => !s.isComplete)?.title ?? "the first step";
-        showWebNotification(
-          "Heads up — due soon",
-          `${task.title} is due tomorrow. Start with ${firstStep}.`,
-          `deadline-${task.id}`
-        );
-      }
-    }
-
-    // Best time reminder — 15min before proposedTime
-    if (task.scheduleStatus === "proposed" && task.proposedTime) {
-      const proposedMs = new Date(task.proposedTime).getTime();
-      const bestTimeTriggerMs = proposedMs - 15 * 60 * 1000;
-      if (Math.abs(bestTimeTriggerMs - now) < WINDOW_MS) {
-        const triggerDate = new Date(bestTimeTriggerMs);
-        if (!isQuietTime(triggerDate, settings.quietHoursStart, settings.quietHoursEnd) &&
-            !isBusyTime(triggerDate, settings.busyBlocks)) {
-          showWebNotification(
-            "Good time to start!",
-            `You usually follow through at this time — start ${task.title} now?`,
-            `best-time-${task.id}`
-          );
-        }
-      }
-    }
-
-    // Motivation nudge — 24h since last interaction
-    const lastInteraction = new Date(task.updatedAt).getTime();
-    if (Date.now() - lastInteraction > 24 * HOURS && dueMs > now) {
-      // Only show once per day — use date-based tag
-      const today = new Date().toISOString().slice(0, 10);
-      const step = task.starterAction || "the first step";
-      const nudgeNow = new Date();
-      if (!isQuietTime(nudgeNow, settings.quietHoursStart, settings.quietHoursEnd) &&
-          !isBusyTime(nudgeNow, settings.busyBlocks)) {
-        showWebNotification(
-          "Hey, you've got this",
-          `Haven't touched "${task.title}" in a day. Start with: ${step}`,
-          `nudge-${task.id}-${today}`
-        );
-      }
+    const specs = buildSpecsForTask(task, settings, now)
+    for (const spec of specs) {
+      if (Math.abs(spec.fireAt - now) > WINDOW_MS) continue
+      if (isQuietTime(spec.fireAt, settings.quietHours)) continue
+      const title = String(spec.content.title ?? 'Ampora')
+      const body = String(spec.content.body ?? '')
+      showWebNotification(title, body, `${spec.identifier}-${startOfDay(now)}`)
     }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Main scheduling function
+// Main scheduling entry point
 // ---------------------------------------------------------------------------
 
 /**
- * Cancel all existing scheduled notifications, then schedule fresh ones based
- * on current tasks and settings.
+ * Cancel existing scheduled reminders and schedule a fresh, rate-limited,
+ * quiet-hours-respecting batch from the current tasks + settings. Warm copy,
+ * never shaming. Never throws; logs and returns on any error.
  *
- * Rate limiting enforced:
- *  - Max 1 start reminder + 1 deadline reminder per task (per scheduling run)
- *  - Only tasks due within the next 7 days are considered
- *  - Incomplete tasks only
- *  - Quiet hours and busy blocks respected
+ * On web, delegates to the immediate `checkAndFireWebReminders` (OS scheduling
+ * is unavailable in the browser).
  */
-export async function scheduleTaskReminders(
-  tasks: Task[],
-  settings: UserSettings
-): Promise<void> {
-  // On web, expo-notifications is a no-op. Use web notifications instead.
-  if (Platform.OS === "web") {
-    checkAndFireWebReminders(tasks, settings);
-    return;
+export async function scheduleTaskReminders(tasks: Task[], settings: Settings): Promise<void> {
+  if (Platform.OS === 'web') {
+    checkAndFireWebReminders(tasks, settings)
+    return
   }
 
   try {
-    // Always clear previous schedule so we start fresh
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    await Notifications.cancelAllScheduledNotificationsAsync()
 
-    const now = Date.now();
-    const windowEnd = now + SEVEN_DAYS_MS;
-
-    const specs: NotificationSpec[] = [];
-
+    const now = Date.now()
+    let candidates: NotificationSpec[] = []
     for (const task of tasks) {
-      if (task.status === "complete") continue;
-
-      const dueMs = new Date(task.dueDate).getTime();
-      if (dueMs < now || dueMs > windowEnd) continue; // outside window
-
-      const hoursUntilDue = (dueMs - now) / HOURS;
-
-      if (hoursUntilDue > 12) {
-        // Far enough out — schedule a start reminder
-        const startSpec = buildStartReminder(task, settings);
-        if (startSpec) specs.push(startSpec);
-      }
-
-      // Always attempt a deadline reminder (fires 12h before, if in future)
-      const deadlineSpec = buildDeadlineReminder(task, settings);
-      if (deadlineSpec) specs.push(deadlineSpec);
-
-      // Best-time reminder for tasks with proposed schedule
-      const bestTimeSpec = buildBestTimeReminder(task, settings);
-      if (bestTimeSpec) specs.push(bestTimeSpec);
-
-      // Motivation nudge for neglected tasks
-      const nudgeSpec = buildMotivationNudge(task, settings);
-      if (nudgeSpec) specs.push(nudgeSpec);
+      candidates = candidates.concat(buildSpecsForTask(task, settings, now))
     }
 
-    // Schedule all notifications
-    const scheduled = await Promise.allSettled(
-      specs.map((spec) =>
+    // Shift any candidate out of quiet hours, drop ones that would land past the
+    // task's deadline after shifting, then rate-limit the survivors.
+    const shifted = candidates
+      .map((spec) => ({ ...spec, fireAt: shiftOutOfQuietHours(spec.fireAt, settings.quietHours) }))
+      .filter((spec) => spec.fireAt > now && (spec.dueMs == null || spec.fireAt < spec.dueMs))
+
+    const finalSpecs = applyRateLimits(shifted, settings)
+
+    await Promise.allSettled(
+      finalSpecs.map((spec) =>
         Notifications.scheduleNotificationAsync({
           identifier: spec.identifier,
           content: spec.content,
-          trigger: spec.trigger,
-        })
-      )
-    );
-
-    const succeeded = scheduled.filter((r) => r.status === "fulfilled").length;
-    const failed = scheduled.filter((r) => r.status === "rejected").length;
-    console.log(
-      `[Notifications] Scheduled ${succeeded} notification(s)` +
-        (failed ? `, ${failed} failed.` : ".")
-    );
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: new Date(spec.fireAt),
+          },
+        }),
+      ),
+    )
   } catch (err) {
-    // Never surface notification errors to the user
-    console.warn("[Notifications] scheduleTaskReminders failed silently:", err);
+    console.warn('[Notifications] scheduleTaskReminders failed silently:', err)
   }
 }
 
-// ---------------------------------------------------------------------------
-// Cancel all
-// ---------------------------------------------------------------------------
-
-/** Cancel all scheduled Ampora notifications. */
-export async function cancelAllReminders(): Promise<void> {
+/**
+ * Fire a "Completion Celebrate" notification immediately for a just-finished
+ * task (§8.9). The single celebratory beat — warm, brief. Native only fires an
+ * immediate local notification; web uses the Notifications API. Never throws.
+ */
+export async function celebrateCompletion(task: Task): Promise<void> {
+  const copy = completionCopy(task)
+  if (Platform.OS === 'web') {
+    showWebNotification(copy.title, copy.body, `complete-${task.id}`)
+    return
+  }
   try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    await Notifications.scheduleNotificationAsync({
+      identifier: `complete-${task.id}`,
+      content: { title: copy.title, body: copy.body, data: { taskId: task.id, type: 'completion_celebrate' }, sound: true },
+      trigger: null, // fire now
+    })
   } catch (err) {
-    console.warn("[Notifications] cancelAllReminders failed silently:", err);
+    console.warn('[Notifications] celebrateCompletion failed silently:', err)
   }
 }
+
+// ---------------------------------------------------------------------------
+// Cancellation
+// ---------------------------------------------------------------------------
+
+/** Cancel all scheduled Ampora notifications. Never throws. */
+export async function cancelAll(): Promise<void> {
+  if (Platform.OS === 'web') return
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync()
+  } catch (err) {
+    console.warn('[Notifications] cancelAll failed silently:', err)
+  }
+}
+
+/** Back-compat alias for the previous export name. */
+export const cancelAllReminders = cancelAll
