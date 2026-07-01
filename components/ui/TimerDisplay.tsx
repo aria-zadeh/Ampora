@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text } from "react-native";
+import { tabularNums } from "@/utils/design-tokens";
 
 interface TimerDisplayProps {
   seconds: number;
@@ -31,7 +32,7 @@ export function TimerDisplay({ seconds, running, label }: TimerDisplayProps) {
             ? "text-content dark:text-content-dark-primary"
             : "text-content-muted dark:text-content-dark-muted"
         }`}
-        style={{ fontSize: 56, lineHeight: 64, fontVariant: ["tabular-nums"] }}
+        style={{ fontSize: 56, lineHeight: 64, ...tabularNums }}
       >
         {formatTime(seconds)}
       </Text>

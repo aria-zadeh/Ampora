@@ -6,20 +6,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Ampora design system — neutral + blue, light-first (doc 02).
+        // Ampora design system — warm neutral (Stone) + blue, light-first (doc 02, v3 "Calm Premium").
         neutral: {
           0: "#FFFFFF",
-          50: "#FAFAFA",
-          100: "#F4F4F5",
-          200: "#E4E4E7",
-          300: "#D4D4D8",
-          400: "#A1A1AA",
-          500: "#71717A",
-          600: "#52525B",
-          700: "#3F3F46",
-          800: "#27272A",
-          900: "#18181B",
-          950: "#09090B",
+          50: "#FAF9F7",
+          100: "#F7F6F3",
+          200: "#E8E6E0",
+          300: "#D7D3CC",
+          400: "#A8A29A",
+          500: "#6F6862",
+          600: "#57534E",
+          700: "#44403C",
+          800: "#292524",
+          900: "#1C1917",
+          950: "#0C0A09",
         },
         primary: {
           50: "#EFF6FF",

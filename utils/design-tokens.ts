@@ -3,6 +3,7 @@
  * Neutral + blue system, light-first (doc 02).
  * All colors defined here — never hardcode values in components.
  */
+import type { TextStyle } from "react-native";
 
 export const colors = {
   light: {
@@ -11,13 +12,13 @@ export const colors = {
     primaryDark: "#1D4ED8",
     primaryForeground: "#FFFFFF",
 
-    background: "#F4F4F5",
+    background: "#F7F6F3",
     card: "#FFFFFF",
-    elevated: "#FAFAFA",
+    elevated: "#FAF9F7",
 
-    text: "#18181B",
-    textSecondary: "#52525B",
-    textMuted: "#71717A",
+    text: "#1C1917",
+    textSecondary: "#57534E",
+    textMuted: "#6F6862",
 
     success: "#22C55E",
     successLight: "#DCFCE7",
@@ -26,7 +27,7 @@ export const colors = {
     danger: "#EF4444",
     dangerLight: "#FEE2E2",
 
-    border: "#E4E4E7",
+    border: "#E8E6E0",
     accent: "#8B5CF6",
     accentLight: "#EDE9FE",
   },
@@ -36,13 +37,13 @@ export const colors = {
     primaryDark: "#2563EB",
     primaryForeground: "#FFFFFF",
 
-    background: "#09090B",
-    card: "#18181B",
-    elevated: "#27272A",
+    background: "#0C0A09",
+    card: "#1C1917",
+    elevated: "#292524",
 
-    text: "#FAFAFA",
-    textSecondary: "#A1A1AA",
-    textMuted: "#71717A",
+    text: "#FAF9F7",
+    textSecondary: "#A8A29A",
+    textMuted: "#78716C",
 
     success: "#22C55E",
     successLight: "#14361F",
@@ -51,7 +52,7 @@ export const colors = {
     danger: "#EF4444",
     dangerLight: "#3A1616",
 
-    border: "#27272A",
+    border: "#292524",
     accent: "#8B5CF6",
     accentLight: "#241C3A",
   },
@@ -101,42 +102,42 @@ export const typography = {
  */
 export const shadows = {
   none: {
-    shadowColor: "#18181B",
+    shadowColor: "#292524",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0,
     shadowRadius: 0,
     elevation: 0,
   },
   xs: {
-    shadowColor: "#18181B",
+    shadowColor: "#292524",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
   },
   sm: {
-    shadowColor: "#18181B",
+    shadowColor: "#292524",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
   },
   md: {
-    shadowColor: "#18181B",
+    shadowColor: "#292524",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 16,
     elevation: 4,
   },
   lg: {
-    shadowColor: "#18181B",
+    shadowColor: "#292524",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 24,
     elevation: 8,
   },
   xl: {
-    shadowColor: "#18181B",
+    shadowColor: "#292524",
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.12,
     shadowRadius: 32,
@@ -155,10 +156,14 @@ export const motion = {
     base: 200,
     slow: 300,
     slower: 400,
+    /** Fast drag-follow — block position tracking a finger, not a settle animation. */
+    drag: 120,
   },
   spring: {
     default: { damping: 18, mass: 1, stiffness: 220 },
     gentle: { damping: 22, mass: 1, stiffness: 160 },
+    /** Snappier spring for drag pickup/drop and control toggles (calendar block drag). */
+    tactile: { damping: 26, mass: 0.8, stiffness: 340 },
   },
   press: { scale: 0.97, opacity: 0.9, inMs: 100, outMs: 150 },
 } as const;
@@ -168,10 +173,10 @@ export const motion = {
  * Keep these SUBTLE — faint washes only, never for text.
  */
 export const gradients = {
-  heroWash: ["#EFF6FF", "rgba(244,244,245,0)"],
+  heroWash: ["#EFF6FF", "rgba(247,246,243,0)"],
   firstMove: ["#EFF6FF", "#FFFFFF"],
   successTint: ["#F0FDF4", "#FFFFFF"],
-  fade: ["rgba(244,244,245,0)", "#F4F4F5"],
+  fade: ["rgba(247,246,243,0)", "#F7F6F3"],
 } as const;
 
 /** Layout constants (px) for screen padding, content width, card rhythm. */
@@ -185,6 +190,30 @@ export const layout = {
   sectionGap: 28,
   rowMinHeight: 56,
 } as const;
+
+/**
+ * Muted-pastel semantic tints for lists, tags, and category chips (doc 02 v3 "Calm Premium").
+ * `bg` = pale tint for chips/badges, `text` = readable label color on that bg (>=4.5:1,
+ * audited), `bar` = a slightly stronger tone for the TaskCard left tint-bar (decorative,
+ * not required to hit AA on its own — it never carries text).
+ */
+export const listColors = {
+  red: { bg: "#FDEBEC", text: "#9F2F2D", bar: "#E4726F" },
+  blue: { bg: "#E1F3FE", text: "#1F6C9F", bar: "#6BB6E4" },
+  green: { bg: "#EDF3EC", text: "#346538", bar: "#74A878" },
+  yellow: { bg: "#FBF3DB", text: "#956400", bar: "#D9B65B" },
+  purple: { bg: "#EDE9FE", text: "#6D28D9", bar: "#A992F0" },
+  orange: { bg: "#FFEDD5", text: "#C2410C", bar: "#F0A46B" },
+  teal: { bg: "#D9F2EE", text: "#0F6E60", bar: "#5FC4B4" },
+  pink: { bg: "#FCE7F1", text: "#A32B68", bar: "#EC8BB8" },
+  indigo: { bg: "#E6E9FD", text: "#3730A3", bar: "#8B93E8" },
+  slate: { bg: "#ECEAE6", text: "#52525B", bar: "#A8A29A" },
+} as const;
+
+export type ListColorName = keyof typeof listColors;
+
+/** Tabular (monospaced-width) numerals so digit columns don't jitter — timers, counters. */
+export const tabularNums: Pick<TextStyle, "fontVariant"> = { fontVariant: ["tabular-nums"] };
 
 /** Icon sizing scale (px). */
 export const iconSizes = {

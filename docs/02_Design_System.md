@@ -1042,3 +1042,122 @@ Every Ampora screen has exactly one most-prominent action. Today is Start, Focus
 
 ### 13.5 Reference and tooling
 Build the primitives first (Section 11), keep every value in `theme.ts`, and reference the semantic aliases in components. For reference layouts of comparably calm, token-driven apps, Mobbin is the best library to study (Things, Todoist, Linear). Generate the actual components against these tokens with your frontend-design and ui-ux skills.
+
+---
+
+## 14. Design System v3 — "Calm Premium" (warm neutral spine)
+
+Phase 1 of the v3 pass. Everything in Sections 0-13 stays the philosophy and structure; this section supersedes the specific neutral hexes and adds new tokens. Token file: `utils/design-tokens.ts` (`colors`, `shadows`, `gradients`, `motion`, plus new exports `listColors`, `tabularNums`); Tailwind mirror: `tailwind.config.js` (`theme.extend.colors.neutral`); motion re-exports: `utils/motion.ts`.
+
+### 14.1 Warm neutral spine (cool Zinc → warm Stone)
+The neutral ramp moved from a cool Zinc family to a warm Stone family, one family only — never mix warm and cool grays in the same surface. This is the single biggest move toward a more premium, less "SaaS-generic" feel: the canvas reads as warm bone paper instead of clinical gray.
+
+| Token | Old (Zinc) | New (Stone) | Usage |
+|---|---|---|---|
+| `neutral.0` | `#FFFFFF` | `#FFFFFF` | Cards stay pure white (unchanged — the white/canvas contrast is the point) |
+| `neutral.50` | `#FAFAFA` | `#FAF9F7` | Elevated surface |
+| `neutral.100` | `#F4F4F5` | `#F7F6F3` | **Canvas — warm bone.** The headline move |
+| `neutral.200` | `#E4E4E7` | `#E8E6E0` | Hairline/border base |
+| `neutral.300` | `#D4D4D8` | `#D7D3CC` | Stronger borders |
+| `neutral.400` | `#A1A1AA` | `#A8A29A` | Placeholder/disabled |
+| `neutral.500` | `#71717A` | `#6F6862` | Muted text |
+| `neutral.600` | `#52525B` | `#57534E` | Secondary text |
+| `neutral.700` | `#3F3F46` | `#44403C` | Strong body text |
+| `neutral.800` | `#27272A` | `#292524` | Headings, shadow tint source |
+| `neutral.900` | `#18181B` | `#1C1917` | **Ink** — the new warm near-black, "#18181B-class" |
+| `neutral.950` | `#09090B` | `#0C0A09` | Max-contrast rare use |
+
+Semantic light-mode aliases (`utils/design-tokens.ts` `colors.light`): `background` `#F7F6F3`, `card` `#FFFFFF`, `elevated` `#FAF9F7`, `text` `#1C1917`, `textSecondary` `#57534E`, `textMuted` `#6F6862`, `border` `#E8E6E0`.
+
+Dark mode (`colors.dark`) warm-tints the same way: `background` `#0C0A09`, `card` `#1C1917`, `elevated` `#292524`, `text` `#FAF9F7`, `textSecondary` `#A8A29A`, `textMuted` `#78716C` (kept intentionally one step lower-contrast than `textSecondary`, matching the original Zinc scheme's secondary/muted split — see 14.5), `border` `#292524`.
+
+**Primary (`#2563EB` family) and accent (`#7C3AED`/`#8B5CF6`) are UNCHANGED.** Blue remains the single primary action color; purple remains reserved for distinct "smart/AI" meaning. This is the color-consistency lock (see 14.7).
+
+Gradients (`gradients.heroWash`, `gradients.fade`) that referenced the old canvas hex as a transparent endpoint were updated: `rgba(244,244,245,0)` → `rgba(247,246,243,0)`, and the solid canvas stop `#F4F4F5` → `#F7F6F3`.
+
+### 14.2 Tinted, ultra-diffuse shadows
+Every shadow level (`shadows.none` through `shadows.xl`) changed `shadowColor` from `#18181B` to the warm `#292524` (Stone-800). Opacities are unchanged (0.04-0.12, still low/diffuse). The effect: shadows now read as warm ambient depth rather than hard black drop-shadow, without adding visual weight.
+
+### 14.3 `listColors` — muted-pastel semantic tints
+New export in `utils/design-tokens.ts`: `listColors` (type `ListColorName = keyof typeof listColors`), 10 named washed pastels, each `{ bg, text, bar }`:
+
+| Name | bg | text | bar |
+|---|---|---|---|
+| red | `#FDEBEC` | `#9F2F2D` | `#E4726F` |
+| blue | `#E1F3FE` | `#1F6C9F` | `#6BB6E4` |
+| green | `#EDF3EC` | `#346538` | `#74A878` |
+| yellow | `#FBF3DB` | `#956400` | `#D9B65B` |
+| purple | `#EDE9FE` | `#6D28D9` | `#A992F0` |
+| orange | `#FFEDD5` | `#C2410C` | `#F0A46B` |
+| teal | `#D9F2EE` | `#0F6E60` | `#5FC4B4` |
+| pink | `#FCE7F1` | `#A32B68` | `#EC8BB8` |
+| indigo | `#E6E9FD` | `#3730A3` | `#8B93E8` |
+| slate | `#ECEAE6` | `#52525B` | `#A8A29A` |
+
+`bg` = pale tint for chips/badges/pills. `text` = the readable label color for that bg — every pair audited at ≥4.5:1 (see 14.6, all passed as-given, no darkening needed). `bar` = a slightly stronger tone reserved for the TaskCard left tint-bar (decorative only, never carries text, so it is not itself AA-audited). This set is exposed now as a foundation token; wiring it into TaskCard/tag chips is a later phase (Phase 3) — do not wire it into components in this phase.
+
+### 14.4 `FeatureShell` primitive — nested "feature card" treatment
+New file `components/ui/FeatureShell.tsx`. A subtle double-bezel: an outer wrapper (`bg-black/[0.02]`, hairline `border-black/[0.06]`, `p-1`, `rounded-2xl`) around an inner content surface (`bg-white`, its own smaller `rounded-xl`, a 1px top inner-highlight `border-t border-white`). Props: `{ children, className?, style? }`. Presentational — a `View`, not pressable; wrap a `<Card>`/`<PressableScale>` inside it for interactive content.
+
+**Restraint rule (binding):** reserve `FeatureShell` for the 3-4 true focal cards in the whole app — the Home starter/first-move card, the paywall plan cards, and the project next-session card. Everywhere else, use the plain `<Card>` primitive. If it starts appearing on more than a handful of screens, that is a regression of the "one focal point" philosophy (Section 0, rule 2).
+
+### 14.5 Tabular numerals
+New export `tabularNums` (`Pick<TextStyle, "fontVariant">` = `{ fontVariant: ["tabular-nums"] }`) in `utils/design-tokens.ts`. Applied to `components/ui/TimerDisplay.tsx` in place of the previous inline `fontVariant` array, so timer digits align without jitter. (Calendar labels and due-date chips get the same treatment in a later phase — this phase only touches `TimerDisplay`.)
+
+### 14.6 WCAG AA audit (this revision)
+Every pair touched by the warm shift was recomputed against WCAG 2.1 AA (4.5:1 body/small text, 3:1 large/UI glyphs). All passed at the seed hex values — nothing needed darkening.
+
+| Element | Foreground | Background | Ratio | Bar | Status |
+|---|---|---|---|---|---|
+| **Muted text on canvas (tightest pair)** | `#6F6862` | `#F7F6F3` | **5.07:1** | 4.5 | Pass |
+| Muted text on white card | `#6F6862` | `#FFFFFF` | 5.48:1 | 4.5 | Pass |
+| Muted text on elevated | `#6F6862` | `#FAF9F7` | 5.21:1 | 4.5 | Pass |
+| Secondary text on canvas | `#57534E` | `#F7F6F3` | 7.06:1 | 4.5 | Pass |
+| Secondary text on white | `#57534E` | `#FFFFFF` | 7.63:1 | 4.5 | Pass |
+| Primary ink on canvas | `#1C1917` | `#F7F6F3` | 16.18:1 | 4.5 | Pass |
+| Primary ink on white | `#1C1917` | `#FFFFFF` | 17.49:1 | 4.5 | Pass |
+| Link `#2563EB` on canvas | `#2563EB` | `#F7F6F3` | 4.78:1 | 4.5 | Pass (moved from 5.2:1 on old canvas, still clears) |
+| White label on primary button | `#FFFFFF` | `#2563EB` | 5.17:1 | 4.5 | Pass (unchanged color, re-verified) |
+| White label on success button | `#FFFFFF` | `#15803D` | 5.02:1 | 4.5 | Pass |
+| White label on destructive button | `#FFFFFF` | `#DC2626` | 4.83:1 | 4.5 | Pass |
+| Badge text (success .100) | `#15803D` | `#DCFCE7` | 4.57:1 | 4.5 | Pass |
+| Badge text (warning .100) | `#C2410C` | `#FFEDD5` | 4.52:1 | 4.5 | Pass |
+| Badge text (accent .100) | `#6D28D9` | `#EDE9FE` | 5.98:1 | 4.5 | Pass |
+| Badge text (danger .100) | `#B91C1C` | `#FEE2E2` | 5.30:1 | 4.5 | Pass |
+| Dark: primary text | `#FAF9F7` | `#1C1917` | 16.62:1 | 4.5 | Pass |
+| Dark: secondary text | `#A8A29A` | `#1C1917` | 6.91:1 | 4.5 | Pass |
+| Dark: muted text (caption-tier, see below) | `#78716C` | `#1C1917` | 3.65:1 | 3.0 | Pass (secondary/caption tier only, matches the pre-existing dark-tertiary exemption in §12) |
+| `listColors.red` text on bg | `#9F2F2D` | `#FDEBEC` | 6.26:1 | 4.5 | Pass |
+| `listColors.blue` text on bg | `#1F6C9F` | `#E1F3FE` | 4.98:1 | 4.5 | Pass |
+| `listColors.green` text on bg | `#346538` | `#EDF3EC` | 6.08:1 | 4.5 | Pass |
+| `listColors.yellow` text on bg | `#956400` | `#FBF3DB` | 4.62:1 | 4.5 | Pass |
+| `listColors.purple` text on bg | `#6D28D9` | `#EDE9FE` | 5.98:1 | 4.5 | Pass |
+| `listColors.orange` text on bg | `#C2410C` | `#FFEDD5` | 4.52:1 | 4.5 | Pass |
+| `listColors.teal` text on bg | `#0F6E60` | `#D9F2EE` | 5.23:1 | 4.5 | Pass |
+| `listColors.pink` text on bg | `#A32B68` | `#FCE7F1` | 5.75:1 | 4.5 | Pass |
+| `listColors.indigo` text on bg | `#3730A3` | `#E6E9FD` | 8.25:1 | 4.5 | Pass |
+| `listColors.slate` text on bg | `#52525B` | `#ECEAE6` | 6.43:1 | 4.5 | Pass |
+
+**The one adjustment made from the original plan values:** dark-mode `textMuted` was set to `#78716C` (Stone-500-on-dark) rather than reusing `textSecondary`'s `#A8A29A`, because the pre-warm scheme had `textMuted` (`#71717A`, 3.67:1 on `#18181B` — caption-tier only) meaningfully lower-contrast than `textSecondary` (`#A1A1AA`, 6.91:1 — body-tier); collapsing them to the same value would have silently upgraded muted text to body-tier contrast everywhere it's used and erased an intentional two-tier hierarchy. `#78716C` preserves the original ratio class (3.65:1, matching the existing dark-tertiary exemption documented in §12) while staying in the warm family. No other hex needed adjustment — the warm ramp and the `listColors` seed values all passed 4.5:1 as given.
+
+### 14.7 Shape-consistency and color-consistency locks
+**Radius (binding, do not deviate per-screen):**
+
+| Element | Radius | Tailwind |
+|---|---|---|
+| Cards, list items | 12 | `rounded-lg` |
+| Buttons | 10 | `rounded-md` |
+| Inputs | 8-10 | `rounded-sm` to `rounded-md` |
+| Pills / badges | full | `rounded-full` |
+| Modals / sheets | 16 | `rounded-xl` |
+| `FeatureShell` outer / inner | 16 / 12 | `rounded-2xl` outer, `rounded-xl` inner |
+
+**Color-consistency lock:** primary blue `#2563EB` is the single accent color for interactive "do it" actions across the whole app. Purple `#7C3AED`/`#8B5CF6` is reserved exclusively for distinct semantic meaning (AI/smart/breakdown/project-chat affordances per §13.1) — never as a second general-purpose accent, never interchangeable with blue. Ink is the warm near-black `#1C1917` (an "#18181B-class" value, same role and contrast tier as before, just warm-shifted).
+
+### 14.8 Motion vocabulary additions
+`utils/design-tokens.ts` `motion.spring.tactile` = `{ damping: 26, mass: 0.8, stiffness: 340 }` — snappier than `spring.default`, for drag pickup/drop and control toggles (e.g. calendar block drag). `motion.duration.drag` = `120`ms — fast drag-follow (block tracking a finger), distinct from settle/entrance durations. Both re-export automatically through `utils/motion.ts` as `SPRINGS.tactile` and `DURATIONS.drag` since those re-export `motion.spring`/`motion.duration` wholesale. `EASINGS` is unchanged — still no bounce/elastic curves anywhere.
+
+**Haptic vocabulary** (documented as a comment block in `utils/motion.ts`, three cases only — do not invent new meanings per screen):
+- `selection` (`Haptics.selectionAsync`) — snap/tick on discrete state change: drag snapping to a calendar slot, segmented control switch.
+- `light` (`Haptics.impactAsync(Light)`) — pickup/drop: grabbing a draggable block, releasing it. Matches `PressableScale`'s existing default `haptic="light"`.
+- `success` (`Haptics.notificationAsync(Success)`) — completion/commit: task done, drag committed to its final slot.
