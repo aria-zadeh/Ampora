@@ -10,6 +10,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
+import { StakesSettings } from "@/components/settings/StakesSettings";
 import { getCurrentUser, signOut } from "@/services/supabase";
 import { shadows, gradients } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
@@ -242,6 +243,23 @@ export default function ProfileScreen() {
             accessibilityLabel="Busy times"
           />
         </SettingsGroup>
+
+        {/* Focus stakes + wellbeing (§8.11). Embedded — StakesSettings renders
+            its own grouped cards, so it sits under a section header rather than
+            inside a SettingsGroup shell. */}
+        <Animated.View
+          entering={
+            reduceMotion
+              ? undefined
+              : FadeInDown.delay(4 * 45).duration(DURATIONS.base)
+          }
+          className="mt-6"
+        >
+          <Text className="mb-3 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+            Focus stakes
+          </Text>
+          <StakesSettings />
+        </Animated.View>
 
         {/* Account */}
         {userEmail && (

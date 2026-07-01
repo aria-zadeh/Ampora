@@ -9,6 +9,7 @@ import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { TaskEditorForm } from "@/components/task-editor/TaskEditorForm";
 import { VerificationSheet } from "@/components/verification/VerificationSheet";
+import { StakeSetupSheet, type ArmedStake } from "@/components/stakes/StakeSetupSheet";
 import { shadows } from "@/utils/design-tokens";
 import type { Task } from "@/types";
 
@@ -27,11 +28,31 @@ export default function TaskEditScreen() {
 
   // Verification (Mark done) sheet — completes the task with a chosen method.
   const [verifyOpen, setVerifyOpen] = useState(false);
+  // Stake ("put something on the line") setup sheet.
+  const [stakeOpen, setStakeOpen] = useState(false);
 
   const isDone = task?.status === "done";
 
   const startFocus = () => {
     router.push({ pathname: "/focus/session", params: { taskId: id } });
+  };
+
+  /**
+   * Arm a stake, then jump straight into the focus session carrying the stake
+   * config. The session calls stakesStore.startStake(...) on mount, so every
+   * wellbeing cap is enforced at the moment the lock would apply — never here.
+   */
+  const handleArmStake = (armed: ArmedStake) => {
+    router.push({
+      pathname: "/focus/session",
+      params: {
+        taskId: id,
+        stakeMode: armed.mode,
+        stakeCondition: armed.completionCondition,
+        ...(armed.conditionRefId ? { stakeRefId: armed.conditionRefId } : {}),
+        ...(armed.timerMinutes != null ? { stakeTimer: String(armed.timerMinutes) } : {}),
+      },
+    });
   };
 
   // Seed the draft once from the stored task. We intentionally do NOT re-seed
@@ -111,41 +132,63 @@ export default function TaskEditScreen() {
         <View className="min-w-11" />
       </View>
 
-      {/* Action bar — Start focus + Mark done. Small, premium, sits above the
-          editor. When the task is already done it shows a calm completed state. */}
+      {/* Action bar — Start focus + Mark done, then a "Put something on the
+          line" stake entry. Small, premium, sits above the editor. When the
+          task is already done it shows a calm completed state. */}
       <View
-        className="flex-row items-center gap-3 border-b border-neutral-200 bg-white px-5 py-3"
+        className="gap-2.5 border-b border-neutral-200 bg-white px-5 py-3"
         style={shadows.xs}
       >
         {isDone ? (
-          <View className="flex-1 flex-row items-center justify-center gap-2 rounded-md bg-success-100 py-3">
+          <View className="flex-row items-center justify-center gap-2 rounded-md bg-success-100 py-3">
             <Ionicons name="checkmark-circle" size={18} color="#15803D" />
             <Text className="text-label font-semibold text-success-700">Completed</Text>
           </View>
         ) : (
           <>
-            <PressableScale
-              onPress={startFocus}
-              haptic="medium"
-              className="flex-1 flex-row items-center justify-center gap-2 rounded-md bg-success-700 py-3"
-              style={shadows.xs}
-              accessibilityRole="button"
-              accessibilityLabel="Start focus session"
-            >
-              <Ionicons name="play" size={16} color="#FFFFFF" />
-              <Text className="text-label font-semibold text-white">Start focus</Text>
-            </PressableScale>
+            <View className="flex-row items-center gap-3">
+              <PressableScale
+                onPress={startFocus}
+                haptic="medium"
+                className="flex-1 flex-row items-center justify-center gap-2 rounded-md bg-success-700 py-3"
+                style={shadows.xs}
+                accessibilityRole="button"
+                accessibilityLabel="Start focus session"
+              >
+                <Ionicons name="play" size={16} color="#FFFFFF" />
+                <Text className="text-label font-semibold text-white">Start focus</Text>
+              </PressableScale>
 
+              <PressableScale
+                onPress={() => setVerifyOpen(true)}
+                haptic="light"
+                className="flex-1 flex-row items-center justify-center gap-2 rounded-md border border-neutral-200 bg-white py-3"
+                style={shadows.xs}
+                accessibilityRole="button"
+                accessibilityLabel="Mark task done"
+              >
+                <Ionicons name="checkmark-done" size={16} color="#2563EB" />
+                <Text className="text-label font-semibold text-primary-600">Mark done</Text>
+              </PressableScale>
+            </View>
+
+            {/* "Put something on the line" — opens the stake setup sheet. */}
             <PressableScale
-              onPress={() => setVerifyOpen(true)}
+              onPress={() => setStakeOpen(true)}
               haptic="light"
-              className="flex-1 flex-row items-center justify-center gap-2 rounded-md border border-neutral-200 bg-white py-3"
-              style={shadows.xs}
+              className="flex-row items-center gap-2.5 rounded-md border border-primary-200 bg-primary-50 px-3.5 py-3"
               accessibilityRole="button"
-              accessibilityLabel="Mark task done"
+              accessibilityLabel="Put something on the line for this task"
+              accessibilityHint="Attach a focus lock that lifts when you make progress"
             >
-              <Ionicons name="checkmark-done" size={16} color="#2563EB" />
-              <Text className="text-label font-semibold text-primary-600">Mark done</Text>
+              <View className="h-7 w-7 items-center justify-center rounded-full bg-primary-100">
+                <Ionicons name="lock-closed-outline" size={15} color="#2563EB" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-label font-semibold text-primary-700">Put something on the line</Text>
+                <Text className="text-caption text-primary-600/80">Lock your apps until you make progress</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#2563EB" />
             </PressableScale>
           </>
         )}
@@ -167,6 +210,13 @@ export default function TaskEditScreen() {
           setVerifyOpen(false);
           router.back();
         }}
+      />
+
+      <StakeSetupSheet
+        visible={stakeOpen}
+        task={task}
+        onClose={() => setStakeOpen(false)}
+        onArm={handleArmStake}
       />
     </SafeAreaView>
   );

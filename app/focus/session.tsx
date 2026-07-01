@@ -35,6 +35,7 @@ import { useTaskStore } from "@/store/taskStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { useBehavioralStore } from "@/store/behavioralStore";
+import { useStakesStore } from "@/store/stakesStore";
 import { nextStep, computeDurationMin } from "@/core/task-logic";
 import { simplifySubtask } from "@/services/ai";
 import { useFocusAudio } from "@/hooks/useFocusAudio";
@@ -42,10 +43,15 @@ import { AUDIO_PICKER_OPTIONS, type FocusAudio } from "@/utils/audioConfig";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
+import { PulseScale } from "@/components/ui/PulseScale";
+import { LockBanner } from "@/components/stakes/LockBanner";
+import { PanicValveSheet } from "@/components/stakes/PanicValveSheet";
+import { DeEscalationSheet } from "@/components/stakes/DeEscalationSheet";
 import { iconSizes } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { NextStep } from "@/core/task-logic";
+import type { StakeSession } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Pomodoro config
@@ -79,7 +85,15 @@ function stepKindLabel(step: NextStep): string {
 
 export default function FocusSessionScreen() {
   const reduceMotion = useReduceMotion();
-  const params = useLocalSearchParams<{ taskId?: string }>();
+  const params = useLocalSearchParams<{
+    taskId?: string;
+    // Stake ("put something on the line") config, armed by StakeSetupSheet and
+    // passed through so the SOFT lock arms exactly when the session starts.
+    stakeMode?: string;
+    stakeCondition?: string;
+    stakeRefId?: string;
+    stakeTimer?: string;
+  }>();
   const taskId = params.taskId ?? "";
 
   // -- Task (reactive) --
@@ -96,6 +110,14 @@ export default function FocusSessionScreen() {
 
   // -- Behavioral log --
   const logSignal = useBehavioralStore((s) => s.logSignal);
+
+  // -- Stakes (soft lock) --
+  const startStake = useStakesStore((s) => s.startStake);
+  const completeStake = useStakesStore((s) => s.completeStake);
+  const stakeTick = useStakesStore((s) => s.tick);
+  const activeStake = useStakesStore((s) => s.activeSession);
+  const shouldOfferPause = useStakesStore((s) => s.shouldOfferPause);
+  const recentPanics = useStakesStore((s) => s.recentPanics);
 
   // -- Ambient audio --
   const audio = useFocusAudio();
@@ -119,6 +141,22 @@ export default function FocusSessionScreen() {
 
   const endedRef = useRef(false);
   const startedRef = useRef(false);
+
+  // -- Stake lifecycle (soft lock) --
+  // Whether this session was launched with an armed stake.
+  const hasArmedStake = !!params.stakeMode && !!params.stakeCondition;
+  // The stake session id owned by THIS focus screen (so we only ever complete /
+  // release our own, never a stray active session from elsewhere).
+  const [ownStakeId, setOwnStakeId] = useState<string | null>(null);
+  const stakeStartedRef = useRef(false);
+  const stakeResolvedRef = useRef(false); // completed OR released — resolved once.
+  const [panicOpen, setPanicOpen] = useState(false);
+  const [deEscalationOpen, setDeEscalationOpen] = useState(false);
+  const [stakeCelebrate, setStakeCelebrate] = useState(false);
+  // The live stake session this screen is driving (null once resolved/absent).
+  const ownStake: StakeSession | null =
+    ownStakeId && activeStake?.id === ownStakeId ? activeStake : null;
+  const stakeLocked = ownStake != null;
 
   const step = useMemo<NextStep>(
     () => (task ? nextStep(task) : { kind: "none" }),
@@ -172,6 +210,91 @@ export default function FocusSessionScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
+
+  // -- Stake lifecycle: arm the SOFT lock on mount (if a stake was armed), and
+  //    always release it on unmount if it never resolved. startStake enforces
+  //    every wellbeing cap (quiet hours, daily cap, pause, mode flag) itself; a
+  //    refusal simply means the session runs unlocked — never a hard error. --
+  useEffect(() => {
+    if (!taskId || !task || !hasArmedStake || stakeStartedRef.current) return;
+    stakeStartedRef.current = true;
+
+    const mode = params.stakeMode as StakeSession["mode"];
+    const completionCondition = params.stakeCondition as StakeSession["completionCondition"];
+    const timerMinutes = params.stakeTimer ? parseInt(params.stakeTimer, 10) : undefined;
+
+    const result = startStake(taskId, mode, completionCondition, {
+      conditionRefId: params.stakeRefId,
+      timerMinutes: Number.isFinite(timerMinutes as number) ? (timerMinutes as number) : undefined,
+    });
+    if (result.ok) {
+      setOwnStakeId(result.session.id);
+    } else {
+      // Refused by a wellbeing cap — nothing locks; the focus session is
+      // unaffected. (Optional friendly copy could surface result.reason.)
+      stakeResolvedRef.current = true;
+    }
+
+    return () => {
+      // If we still own an unresolved lock when leaving, release it so the user
+      // is never left locked after the screen is gone (fail-safe, NFR-7).
+      if (!stakeResolvedRef.current) {
+        stakeResolvedRef.current = true;
+        const id = ownStakeIdRef.current;
+        if (id) completeStake(id);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId]);
+
+  // Keep a ref of the owned stake id so the unmount cleanup above (which closes
+  // over the initial render) can release the correct session.
+  const ownStakeIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    ownStakeIdRef.current = ownStakeId;
+  }, [ownStakeId]);
+
+  // -- Stake accrual tick (1/min) while our lock is active. Drives todayLockMin
+  //    and the store's auto-expiry (daily cap / quiet-hours release). --
+  useEffect(() => {
+    if (!stakeLocked) return;
+    const id = setInterval(() => stakeTick(), 60_000);
+    return () => clearInterval(id);
+  }, [stakeLocked, stakeTick]);
+
+  // -- Completion-condition detection: when the step the stake is waiting on is
+  //    reached, complete the stake (removes the shield) and celebrate. --
+  useEffect(() => {
+    if (!ownStake || !task || stakeResolvedRef.current) return;
+    let met = false;
+    switch (ownStake.completionCondition) {
+      case "first_move":
+        // First move done (or the task has no first move to begin with).
+        met = task.firstMove ? task.firstMove.done === true : true;
+        break;
+      case "subtask": {
+        const ref = ownStake.conditionRefId;
+        const target = ref ? task.subtasks.find((s) => s.id === ref) : undefined;
+        met = target ? target.completedAt != null : task.subtasks.every((s) => s.completedAt != null);
+        break;
+      }
+      case "task":
+      default:
+        met = task.status === "done";
+        break;
+    }
+    if (met) {
+      stakeResolvedRef.current = true;
+      completeStake(ownStake.id);
+      setStakeCelebrate(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
+  }, [ownStake, task, completeStake]);
+
+  // -- De-escalation: offer to pause stakes after repeated panic-valve use. --
+  useEffect(() => {
+    if (recentPanics > 0 && shouldOfferPause()) setDeEscalationOpen(true);
+  }, [recentPanics, shouldOfferPause]);
 
   // -- Ticking timer (1s). Advances the countdown and ticks the session store
   //    with focused seconds during the WORK phase only. --
@@ -376,24 +499,49 @@ export default function FocusSessionScreen() {
             />
           </Animated.View>
 
-          {/* The ONE current step, large */}
-          <Animated.View entering={enterStep} className="mt-8">
-            <View className="rounded-2xl bg-white border border-neutral-200 p-6">
-              <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
-                {noSteps ? "You're done" : stepKindLabel(step)}
-              </Text>
-              <Heading size="h1" className="mt-2">
-                {noSteps
-                  ? "Every step is complete. Nicely done."
-                  : displayStep}
-              </Heading>
-              {simplerText && !noSteps && (
-                <Text className="text-caption text-primary-600 mt-3">
-                  Simplified — smaller and easier to just start.
-                </Text>
-              )}
+          {/* Lock banner — shown while our soft lock is active. Carries the
+              always-available panic valve. */}
+          {ownStake && (
+            <View className="mt-5">
+              <LockBanner session={ownStake} onPanic={() => setPanicOpen(true)} />
             </View>
-          </Animated.View>
+          )}
+
+          {/* Just-unlocked confirmation — the calm reward for meeting the
+              condition (celebration handled by the PulseScale on the step card). */}
+          {stakeCelebrate && !ownStake && (
+            <Animated.View
+              entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.base)}
+              className="mt-5 flex-row items-center gap-2.5 rounded-2xl border border-success-100 bg-success-50 p-4"
+            >
+              <Ionicons name="lock-open-outline" size={18} color="#15803D" />
+              <Text className="flex-1 text-body font-medium text-success-700">
+                Nice — you did the thing. Your apps are yours again.
+              </Text>
+            </Animated.View>
+          )}
+
+          {/* The ONE current step, large. Pulses once when the stake condition
+              is met (celebration), respecting reduce-motion. */}
+          <PulseScale trigger={stakeCelebrate} style={{ marginTop: 32 }}>
+            <Animated.View entering={enterStep}>
+              <View className="rounded-2xl bg-white border border-neutral-200 p-6">
+                <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+                  {noSteps ? "You're done" : stepKindLabel(step)}
+                </Text>
+                <Heading size="h1" className="mt-2">
+                  {noSteps
+                    ? "Every step is complete. Nicely done."
+                    : displayStep}
+                </Heading>
+                {simplerText && !noSteps && (
+                  <Text className="text-caption text-primary-600 mt-3">
+                    Simplified — smaller and easier to just start.
+                  </Text>
+                )}
+              </View>
+            </Animated.View>
+          </PulseScale>
 
           {/* Timer */}
           <Animated.View entering={enter} className="items-center mt-10">
@@ -537,6 +685,33 @@ export default function FocusSessionScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* Panic valve — 60s breather, then the store releases the lock. Only
+          mountable while we own an active stake. */}
+      {ownStake && (
+        <PanicValveSheet
+          visible={panicOpen}
+          session={ownStake}
+          onClose={() => setPanicOpen(false)}
+          onReleased={() => {
+            // The store ended our session (panic_valve); mark it resolved so the
+            // unmount cleanup doesn't try to complete an already-ended stake.
+            stakeResolvedRef.current = true;
+            setPanicOpen(false);
+          }}
+        />
+      )}
+
+      {/* De-escalation — offered after repeated panic-valve use. Never pressures;
+          pausing here ends any lock and stops new ones until tomorrow. */}
+      <DeEscalationSheet
+        visible={deEscalationOpen}
+        onClose={() => setDeEscalationOpen(false)}
+        onPaused={() => {
+          stakeResolvedRef.current = true;
+          setDeEscalationOpen(false);
+        }}
+      />
     </SafeAreaView>
   );
 }

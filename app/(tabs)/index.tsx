@@ -8,8 +8,13 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { useTaskStore } from "@/store/taskStore";
 import { useSettingsStore } from "@/store/settingsStore";
-import { useScheduleStore, selectUpcomingBlocks } from "@/store/scheduleStore";
+import {
+  useScheduleStore,
+  selectUpcomingBlocks,
+  selectBlocksByDay,
+} from "@/store/scheduleStore";
 import { StarterActionCard } from "@/components/ui/StarterActionCard";
+import { TomorrowPlanCard } from "@/components/home/TomorrowPlanCard";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FAB } from "@/components/ui/FAB";
@@ -26,6 +31,20 @@ function getGreeting(): string {
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Local start-of-day epoch ms for `ms`. */
+function startOfDay(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** Is it evening (5pm+)? The "Ready for tomorrow" card leans in after this. */
+function isEvening(): boolean {
+  return new Date().getHours() >= 17;
 }
 
 /**
@@ -57,6 +76,18 @@ export default function HomeScreen() {
   const hasUpcoming = useScheduleStore(
     (s) => selectUpcomingBlocks(1)(s).length > 0
   );
+
+  // Does tomorrow already have any placed blocks? Reactive scalar (a count) so
+  // this subscription never returns a fresh array — the card owns the heavier
+  // resolution. Recomputed against a per-render "tomorrow" window.
+  const tomorrowStart = useMemo(() => startOfDay(Date.now()) + DAY_MS, []);
+  const tomorrowHasPlan = useScheduleStore(
+    (s) => selectBlocksByDay(tomorrowStart)(s).length > 0
+  );
+
+  // Surface the "Ready for tomorrow" card in the evening, or any time tomorrow
+  // already has a plan worth previewing.
+  const showTomorrowPlan = isEvening() || tomorrowHasPlan;
 
   // "Rebuild schedule" ghost action — reruns the engine on demand (FR-21).
   const rebuildSchedule = useCallback(() => {
@@ -176,6 +207,17 @@ export default function HomeScreen() {
               <Text className="text-caption text-neutral-400">Your plan</Text>
             </View>
             <UpcomingList limit={6} />
+          </Animated.View>
+        )}
+
+        {/* Ready for tomorrow (FR-90) — additive; leans in during the evening
+            or whenever tomorrow already has a plan to preview. */}
+        {showTomorrowPlan && (
+          <Animated.View
+            entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
+            className="mt-10"
+          >
+            <TomorrowPlanCard />
           </Animated.View>
         )}
 
