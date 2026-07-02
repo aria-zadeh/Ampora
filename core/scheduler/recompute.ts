@@ -10,11 +10,13 @@
  *      run is PRESERVED verbatim (same id/createdAt — no churn, no animation).
  *      Pinned prev blocks are carried through untouched as immovable inputs.
  *      Only genuinely new/changed blocks get fresh ids.
+ *   5. MISSED: mark any elapsed block whose owning task is still open as
+ *      `status: 'missed'`, feeding the shared Recovery detection.
  *
  * Returns { blocks, unschedulable }. Pure; deterministic given `now`.
  */
 
-import type { ScheduledBlock } from '@/types'
+import type { ScheduledBlock, Task } from '@/types'
 import {
   DEFAULT_CUTOFF_DAYS,
   MS_PER_DAY,
@@ -24,6 +26,7 @@ import {
 import { buildFreeIntervals } from './freeTime'
 import { orderTasks, orderUndatedBackfill } from './ordering'
 import { initState, placeTask, type PlacementContext } from './placement'
+import { isMissedBlock } from '@/core/recovery'
 
 /** Stable key for matching a placed block to a prior one (task + exact time). */
 function blockKey(taskId: string, start: number, end: number): string {
@@ -65,6 +68,7 @@ export function recompute(input: ScheduleInput): ScheduleResult {
     defaultSchedulingHours: settings.schedulingHours,
     workload,
     pinnedMinutesByTask,
+    listMap: input.listMap,
   }
   const state = initState(free)
 
@@ -117,5 +121,29 @@ export function recompute(input: ScheduleInput): ScheduleResult {
 
   reconciled.sort((a, b) => a.start - b.start || (a.taskId < b.taskId ? -1 : 1))
 
-  return { blocks: reconciled, unschedulable: state.unschedulable }
+  // --- 5. Missed auto-marking (PRD FR-16 / §8.6 "Needs attention"). ---
+  // After stability, a reconciled block that has fully elapsed and whose owning
+  // task is still open (not done, not actively being worked) is a missed
+  // session. Marking `status: 'missed'` here is what FEEDS the pure Recovery
+  // detection (`isMissedBlock`/`countMissedBlocks`/`detectLapse` in
+  // `core/recovery.ts`) — a `missed` block satisfies that same predicate, so
+  // the lapse banner and the Home "Needs attention" surface both read from one
+  // source of truth. We reuse `isMissedBlock` for the block half of the test
+  // and additionally require the parent task itself to be open, so a past
+  // `planned` block whose task the user has since completed is NOT flagged.
+  const taskById = new Map<string, Task>()
+  for (const t of tasks) taskById.set(t.id, t)
+
+  const marked = reconciled.map((block) => {
+    if (block.status === 'missed') return block // already marked; leave it be
+    if (!isMissedBlock(block, now)) return block // not elapsed / already done/in-progress
+    const task = taskById.get(block.taskId)
+    // Parent task open (neither done nor actively doing) => this session lapsed.
+    if (task && task.status !== 'done' && task.status !== 'doing') {
+      return { ...block, status: 'missed' as const }
+    }
+    return block
+  })
+
+  return { blocks: marked, unschedulable: state.unschedulable }
 }

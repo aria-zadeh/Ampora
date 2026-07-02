@@ -17,9 +17,11 @@ import Animated, {
 import { useShallow } from "zustand/react/shallow";
 import { useTaskStore } from "@/store/taskStore";
 import { useListStore, selectAllLists, selectAllTags } from "@/store/listStore";
+import { useScheduleStore, selectMissedTaskIds } from "@/store/scheduleStore";
 import { parseQuickAdd } from "@/core/quick-add";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { TaskActionSheet } from "@/components/ui/TaskActionSheet";
+import { ListEditorModal } from "@/components/settings/ListEditorModal";
 import { Input } from "@/components/ui/Input";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Chip } from "@/components/ui/Chip";
@@ -152,9 +154,22 @@ export default function TasksScreen() {
   const [listFilter, setListFilter] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>(0);
+  const [missedFilter, setMissedFilter] = useState(false);
   const [completedCollapsed, setCompletedCollapsed] = useState(true);
   const [scheduleFor, setScheduleFor] = useState<Task | null>(null);
   const [menuFor, setMenuFor] = useState<Task | null>(null);
+  const [editListId, setEditListId] = useState<string | null>(null);
+
+  // Task ids that currently have a missed block (FR-16 "Missed" filter). Fresh
+  // array from the store -> useShallow (Zustand v5) to avoid a React #185 loop.
+  const missedTaskIds = useScheduleStore(useShallow(selectMissedTaskIds));
+  const missedTaskIdSet = useMemo(() => new Set(missedTaskIds), [missedTaskIds]);
+  // If the Missed filter is on and nothing is missed anymore (e.g. the user
+  // rescheduled or let the last one go), turn it off so the chip can't strand
+  // them on an empty list.
+  useEffect(() => {
+    if (missedFilter && missedTaskIds.length === 0) setMissedFilter(false);
+  }, [missedFilter, missedTaskIds.length]);
 
   const listColorById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -205,6 +220,7 @@ export default function TasksScreen() {
       if (listFilter && t.listId !== listFilter) return false;
       if (tagFilter && !t.tags.includes(tagFilter)) return false;
       if (priorityFilter !== 0 && t.priority !== priorityFilter) return false;
+      if (missedFilter && !missedTaskIdSet.has(t.id)) return false;
       if (statusFilter === "todo" && t.status === "done") return false;
       if (statusFilter === "done" && t.status !== "done") return false;
       return true;
@@ -313,6 +329,8 @@ export default function TasksScreen() {
     listFilter,
     tagFilter,
     priorityFilter,
+    missedFilter,
+    missedTaskIdSet,
     completedCollapsed,
   ]);
 
@@ -534,6 +552,16 @@ export default function TasksScreen() {
             selected={statusFilter === "done"}
             onPress={() => setStatusFilter((s) => (s === "done" ? "all" : "done"))}
           />
+          {/* Missed (FR-16) — only surfaced when something is actually missed,
+              so it never clutters the row otherwise. */}
+          {missedTaskIds.length > 0 && (
+            <Chip
+              label="Missed"
+              color="#EA580C"
+              selected={missedFilter}
+              onPress={() => setMissedFilter((m) => !m)}
+            />
+          )}
           {/* Priority */}
           {([4, 3, 2, 1] as const).map((p) => (
             <Chip
@@ -564,6 +592,29 @@ export default function TasksScreen() {
             />
           ))}
         </View>
+
+        {/* Edit-list affordance — appears only when a list filter is active, so
+            the active list's name/color/scheduling-hours are one tap away
+            (FR-6 / FR-13). */}
+        {listFilter && (
+          <View className="px-5 mt-2">
+            <Pressable
+              onPress={() => setEditListId(listFilter)}
+              hitSlop={8}
+              className="flex-row items-center gap-1.5 self-start rounded-full px-2 py-2 active:opacity-60"
+              accessibilityRole="button"
+              accessibilityLabel={`Edit list ${
+                lists.find((l) => l.id === listFilter)?.name ?? ""
+              }`}
+              accessibilityHint="Edit this list's name, color, and scheduling hours"
+            >
+              <Ionicons name="create-outline" size={15} color="#2563EB" />
+              <Text className="text-caption font-medium text-primary-600">
+                Edit list
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       {/* Sort control */}
@@ -638,6 +689,9 @@ export default function TasksScreen() {
         onDelete={() => menuFor && deleteTask(menuFor.id)}
         onPutOnTheLine={() => menuFor && router.push(`/task/${menuFor.id}`)}
       />
+
+      {/* List editor (name / color / scheduling-hours override) */}
+      <ListEditorModal listId={editListId} onClose={() => setEditListId(null)} />
     </View>
   );
 }

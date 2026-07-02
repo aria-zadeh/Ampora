@@ -16,6 +16,7 @@ import {
 import { StarterActionCard } from "@/components/ui/StarterActionCard";
 import { TomorrowPlanCard } from "@/components/home/TomorrowPlanCard";
 import { ProjectsEntryCard } from "@/components/home/ProjectsEntryCard";
+import { NeedsAttention } from "@/components/home/NeedsAttention";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FAB } from "@/components/ui/FAB";
@@ -219,6 +220,12 @@ export default function HomeScreen() {
             />
           </Animated.View>
         )}
+
+        {/* Needs attention (FR-16 / §8.6) — the calm missed-work surface.
+            Sits BEFORE Scheduled so lapsed sessions are the first thing to
+            reconcile. Renders nothing (incl. its own spacing) when nothing is
+            missed, so the empty state stays clean. */}
+        <NeedsAttention />
 
         {/* Scheduled — the engine's output: when each task actually happens.
             Additive; only rendered once there's a plan. */}

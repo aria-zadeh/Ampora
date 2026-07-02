@@ -18,7 +18,7 @@
  * Pure; mutates only its own working copies.
  */
 
-import type { EnergyLevel, ScheduledBlock, SchedulingHours, Task } from '@/types'
+import type { EnergyLevel, List, ScheduledBlock, SchedulingHours, Task } from '@/types'
 import { newId } from '@/core/id'
 import {
   MS_PER_DAY,
@@ -83,6 +83,13 @@ export interface PlacementContext {
    * engine tests can omit it (treated as 0).
    */
   pinnedMinutesByTask?: Map<string, number>
+  /**
+   * Lists keyed by id, so a task with no `schedulingHours` of its own can
+   * inherit its list's override before falling back to the app default
+   * (`task.schedulingHours ?? list.schedulingHours ?? defaultSchedulingHours`,
+   * PRD FR-13). Optional — when absent, list resolution is skipped.
+   */
+  listMap?: Record<string, List>
 }
 
 export interface PlacementState {
@@ -115,7 +122,11 @@ function taskHoursSpans(
   lo: number,
   hi: number
 ): Span[] {
-  const hours = task.schedulingHours ?? ctx.defaultSchedulingHours
+  // Resolution order (PRD FR-13): a task's own override wins, else its list's
+  // override, else the app-wide default. The list is resolved via `task.listId`.
+  const listHours =
+    task.listId != null ? ctx.listMap?.[task.listId]?.schedulingHours : undefined
+  const hours = task.schedulingHours ?? listHours ?? ctx.defaultSchedulingHours
   const spans: Span[] = []
   for (let dayStart = startOfDay(lo); dayStart < hi; dayStart += MS_PER_DAY) {
     const weekday = new Date(dayStart).getDay()

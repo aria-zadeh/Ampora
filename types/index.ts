@@ -274,6 +274,13 @@ export interface List extends BaseEntity {
   name: string
   /** Color token/hex from the design system's supporting hues (doc `02`). */
   color: string
+  /**
+   * Optional per-list override of which scheduling-hours windows tasks in this
+   * list may occupy (PRD FR-13). Resolution order is
+   * `Task.schedulingHours ?? List.schedulingHours ?? Settings.schedulingHours`,
+   * so a task's own override still wins, then its list's, then the app default.
+   */
+  schedulingHours?: SchedulingHours
 }
 
 /**

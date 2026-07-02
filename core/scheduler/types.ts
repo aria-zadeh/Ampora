@@ -16,6 +16,7 @@
 import type {
   CalEvent,
   EnergyLevel,
+  List,
   ScheduledBlock,
   SchedulingHours,
   Settings,
@@ -79,6 +80,13 @@ export interface ScheduleInput {
   cutoffDays?: number
   /** Workload distribution mode. Defaults to 'balanced' (PRD FR-14). */
   workload?: WorkloadMode
+  /**
+   * Lists keyed by id, used to resolve a task's effective scheduling hours when
+   * the task itself has none: `task.schedulingHours ?? list.schedulingHours ??
+   * settings.schedulingHours` (PRD FR-13, per-list override). Optional so pure
+   * engine tests can omit it (list resolution simply falls through to settings).
+   */
+  listMap?: Record<string, List>
 }
 
 /** The engine's public output (PRD §9.5.10 stability + FR-20 unschedulable list). */
@@ -92,6 +100,7 @@ export interface ScheduleResult {
 export type {
   CalEvent,
   EnergyLevel,
+  List,
   ScheduledBlock,
   SchedulingHours,
   Settings,

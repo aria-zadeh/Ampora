@@ -18,8 +18,10 @@ import type { ScheduledBlock } from '@/types'
 import { recompute as engineRecompute, type Unschedulable } from '@/core/scheduler'
 import { mmkvStateStorage } from '@/store/mmkv'
 import { useTaskStore } from '@/store/taskStore'
+import { useListStore } from '@/store/listStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { startOfDay } from '@/core/scheduler/time'
+import type { List } from '@/types'
 
 interface ScheduleState {
   blocks: Record<string, ScheduledBlock>
@@ -36,6 +38,20 @@ interface ScheduleState {
    * `pinned` so future recomputes treat it as an immovable input (§9.5.10).
    */
   moveBlock: (blockId: string, newStart: number) => void
+  /**
+   * "Reschedule" a missed block (Home "Needs attention", FR-16/FR-60): drop the
+   * elapsed block and let the engine re-place the task's remaining work in the
+   * next available window. Removing the block frees its (already-past) time; the
+   * task itself still carries the remaining minutes, so the immediately-following
+   * recompute re-slots it forward. Calm, no shame — this is a one-tap "try again".
+   */
+  rescheduleBlock: (blockId: string) => void
+  /**
+   * "Let it go" (Home "Needs attention"): silently drop a missed block with no
+   * side effects and no recompute. The task is untouched — the user is simply
+   * clearing the reminder for this lapsed session (zero-shame tone, FR-60).
+   */
+  dropBlock: (blockId: string) => void
   /** Clear all computed schedule state. */
   clear: () => void
 }
@@ -62,6 +78,10 @@ export const useScheduleStore = create<ScheduleState>()(
           const settings = useSettingsStore.getState().settings
           const prevBlocks = Object.values(get().blocks)
 
+          // List map so per-task scheduling-hours resolution can fall back to a
+          // task's list-level override (task -> list -> settings default).
+          const listMap: Record<string, List> = useListStore.getState().lists
+
           const result = engineRecompute({
             tasks,
             prevBlocks,
@@ -70,6 +90,10 @@ export const useScheduleStore = create<ScheduleState>()(
             calEvents: [],
             settings,
             now: Date.now(),
+            // Honour the user's workload preference (FR-14). Without this the
+            // Balanced/Front-load toggle in Settings would never reach the engine.
+            workload: settings.workloadDistribution ?? 'balanced',
+            listMap,
           })
 
           const blocks: Record<string, ScheduledBlock> = {}
@@ -119,6 +143,29 @@ export const useScheduleStore = create<ScheduleState>()(
         })
       },
 
+      rescheduleBlock: (blockId) => {
+        // Drop the missed block, then recompute so the engine re-places the
+        // task's remaining work forward. Guarded by the recompute re-entrancy
+        // flag; the removal itself is a plain set on our own store.
+        const existing = get().blocks[blockId]
+        if (!existing) return
+        set((state) => {
+          const next = { ...state.blocks }
+          delete next[blockId]
+          return { blocks: next }
+        })
+        get().recompute()
+      },
+
+      dropBlock: (blockId) => {
+        set((state) => {
+          if (!(blockId in state.blocks)) return state
+          const next = { ...state.blocks }
+          delete next[blockId]
+          return { blocks: next }
+        })
+      },
+
       clear: () => set({ blocks: {}, unschedulable: [], lastComputedAt: null }),
     }),
     {
@@ -165,6 +212,32 @@ export function selectBlocksByDay(dayStartMs: number) {
 
 export function selectUnschedulable(state: ScheduleState): Unschedulable[] {
   return state.unschedulable
+}
+
+/**
+ * Missed scheduled blocks (status 'missed'), earliest-first — the "Needs
+ * attention" surface (FR-16/FR-60). Returns a NEW array, so callers MUST wrap
+ * with `useShallow` (Zustand v5) to avoid a React #185 render loop. Reads the
+ * persisted `status` set by the engine's missed-marking pass; it does not
+ * re-derive "missed" against a live clock, so it stays a pure store read.
+ */
+export function selectMissedBlocks(state: ScheduleState): ScheduledBlock[] {
+  return Object.values(state.blocks)
+    .filter((b) => b.status === 'missed')
+    .sort((a, b) => a.start - b.start)
+}
+
+/**
+ * Distinct task ids that currently have at least one missed block — powers the
+ * Tasks screen's "Missed" filter (FR-16). Returns a NEW array; callers MUST
+ * wrap with `useShallow` (Zustand v5) to avoid a React #185 loop.
+ */
+export function selectMissedTaskIds(state: ScheduleState): string[] {
+  const ids = new Set<string>()
+  for (const b of Object.values(state.blocks)) {
+    if (b.status === 'missed') ids.add(b.taskId)
+  }
+  return Array.from(ids)
 }
 
 // ---------------------------------------------------------------------------

@@ -31,6 +31,7 @@ import { useTaskStore } from "@/store/taskStore";
 import { useListStore, selectListById } from "@/store/listStore";
 import type { EnergyLevel, Subtask, Task } from "@/types";
 
+import { Stepper, formatMinutes } from "@/components/settings/SettingsPrimitives";
 import { PrioritySelector } from "./PrioritySelector";
 import { ListTagPicker } from "./ListTagPicker";
 import { SubtaskChecklist } from "./SubtaskChecklist";
@@ -947,39 +948,48 @@ export function TaskEditorForm({
             </View>
           ) : null}
 
-          {/* Buffers */}
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <Field label="Buffer before (min)">
-                <TextInput
-                  className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
-                  placeholder="0"
-                  placeholderTextColor="#A1A1AA"
-                  value={draft.bufferBeforeMin != null ? String(draft.bufferBeforeMin) : ""}
-                  onChangeText={(text) => {
-                    const parsed = parseInt(text, 10);
-                    patch({ bufferBeforeMin: Number.isFinite(parsed) ? parsed : undefined });
-                  }}
-                  keyboardType="number-pad"
-                  accessibilityLabel="Buffer before in minutes"
-                />
-              </Field>
+          {/* Buffers — quiet time held around each block (PRD §9.5.4). Stepper
+              rows (0-60 in 5-min steps) so the value is always valid and easy
+              to nudge, matching the Scheduling settings pattern. */}
+          <View className="gap-3">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-3">
+                <Text className="text-label font-medium text-neutral-800">
+                  Buffer before
+                </Text>
+                <Text className="mt-0.5 text-caption text-neutral-500">
+                  Quiet time held before each block
+                </Text>
+              </View>
+              <Stepper
+                value={draft.bufferBeforeMin ?? 0}
+                min={0}
+                max={60}
+                step={5}
+                onChange={(v) => patch({ bufferBeforeMin: v === 0 ? undefined : v })}
+                format={formatMinutes}
+                a11yLabel="buffer before"
+              />
             </View>
-            <View className="flex-1">
-              <Field label="Buffer after (min)">
-                <TextInput
-                  className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
-                  placeholder="0"
-                  placeholderTextColor="#A1A1AA"
-                  value={draft.bufferAfterMin != null ? String(draft.bufferAfterMin) : ""}
-                  onChangeText={(text) => {
-                    const parsed = parseInt(text, 10);
-                    patch({ bufferAfterMin: Number.isFinite(parsed) ? parsed : undefined });
-                  }}
-                  keyboardType="number-pad"
-                  accessibilityLabel="Buffer after in minutes"
-                />
-              </Field>
+            <Divider />
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-3">
+                <Text className="text-label font-medium text-neutral-800">
+                  Buffer after
+                </Text>
+                <Text className="mt-0.5 text-caption text-neutral-500">
+                  Quiet time held after each block
+                </Text>
+              </View>
+              <Stepper
+                value={draft.bufferAfterMin ?? 0}
+                min={0}
+                max={60}
+                step={5}
+                onChange={(v) => patch({ bufferAfterMin: v === 0 ? undefined : v })}
+                format={formatMinutes}
+                a11yLabel="buffer after"
+              />
             </View>
           </View>
 
