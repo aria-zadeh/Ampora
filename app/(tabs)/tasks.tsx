@@ -350,6 +350,16 @@ export default function TasksScreen() {
     [rows],
   );
 
+  // Stable ref mirror of `manualIds` (Phase 7 perf fix). `manualIds` gets a
+  // fresh array identity on every rows recompute (any create/complete/edit/
+  // filter change) — reading it via a ref instead of a prop means the
+  // draggable row and `renderItem` don't need to depend on that
+  // ever-changing identity to always see the current order.
+  const manualIdsRef = useRef<string[]>(manualIds);
+  useEffect(() => {
+    manualIdsRef.current = manualIds;
+  }, [manualIds]);
+
   // -------------------------------------------------------------------------
   // Long-press context menu (item 3) — wired to the existing store methods.
   // -------------------------------------------------------------------------
@@ -367,6 +377,56 @@ export default function TasksScreen() {
     if (!menuFor) return;
     updateTask(menuFor.id, { due: tomorrowDue(Date.now()) });
   }, [menuFor, updateTask]);
+
+  // -------------------------------------------------------------------------
+  // Stable, task/id-keyed row callbacks (Phase 7 perf fix). Defined once with
+  // stable deps (setState functions and store actions are already stable
+  // identities) so every row's `TaskRow`/`DraggableTaskCard`/`TaskCard`
+  // receives the SAME function reference on every render — required for
+  // `React.memo` on those components to actually skip re-rendering rows
+  // whose own task hasn't changed. Each takes the task/id as an argument
+  // instead of `renderItem` building a fresh closure per row per render.
+  // -------------------------------------------------------------------------
+  const handleOpenTask = useCallback((id: string) => {
+    router.push(`/task/${id}`);
+  }, []);
+
+  const handleLongPressTask = useCallback((task: Task) => {
+    setMenuFor(task);
+  }, []);
+
+  const handleToggleTask = useCallback(
+    (task: Task) => {
+      if (task.status === "done") reopenTask(task.id);
+      else completeTask(task.id);
+    },
+    [reopenTask, completeTask],
+  );
+
+  const handleDoneTask = useCallback(
+    (id: string) => {
+      completeTask(id);
+    },
+    [completeTask],
+  );
+
+  const handleDeleteTask = useCallback(
+    (id: string) => {
+      deleteTask(id);
+    },
+    [deleteTask],
+  );
+
+  const handleScheduleTask = useCallback((task: Task) => {
+    setScheduleFor(task);
+  }, []);
+
+  const handleScheduleTomorrowTask = useCallback(
+    (id: string) => {
+      updateTask(id, { due: tomorrowDue(Date.now()) });
+    },
+    [updateTask],
+  );
 
   // -------------------------------------------------------------------------
   // Row renderers.
@@ -411,19 +471,15 @@ export default function TasksScreen() {
             task={item.task}
             listColor={item.task.listId ? listColorById[item.task.listId] : undefined}
             manualSort={sort === "manual"}
-            manualIds={manualIds}
+            manualIdsRef={manualIdsRef}
             onReorder={reorderTasks}
-            onOpen={() => router.push(`/task/${item.task.id}`)}
-            onLongPress={() => setMenuFor(item.task)}
-            onToggle={() =>
-              item.task.status === "done"
-                ? reopenTask(item.task.id)
-                : completeTask(item.task.id)
-            }
-            onDone={() => completeTask(item.task.id)}
-            onDelete={() => deleteTask(item.task.id)}
-            onSchedule={() => setScheduleFor(item.task)}
-            onScheduleTomorrow={() => updateTask(item.task.id, { due: tomorrowDue(Date.now()) })}
+            onOpen={handleOpenTask}
+            onLongPress={handleLongPressTask}
+            onToggle={handleToggleTask}
+            onDone={handleDoneTask}
+            onDelete={handleDeleteTask}
+            onSchedule={handleScheduleTask}
+            onScheduleTomorrow={handleScheduleTomorrowTask}
           />
         </Animated.View>
       );
@@ -432,12 +488,14 @@ export default function TasksScreen() {
       completedCollapsed,
       listColorById,
       sort,
-      manualIds,
       reorderTasks,
-      completeTask,
-      reopenTask,
-      deleteTask,
-      updateTask,
+      handleOpenTask,
+      handleLongPressTask,
+      handleToggleTask,
+      handleDoneTask,
+      handleDeleteTask,
+      handleScheduleTask,
+      handleScheduleTomorrowTask,
       reduceMotion,
     ],
   );
@@ -731,23 +789,29 @@ interface TaskRowProps {
   task: Task;
   listColor?: string;
   manualSort: boolean;
-  /** Current ordered task ids across the whole (flattened) list — read by the drag handle. */
-  manualIds: string[];
+  /**
+   * Current ordered task ids across the whole (flattened) list — read by the
+   * drag handle via `.current` (Phase 7 perf fix). A ref instead of a plain
+   * array prop so its identity is stable across renders (the array itself
+   * still changes contents on every rows recompute; only the ref wrapper is
+   * stable), which keeps `React.memo` on this row effective.
+   */
+  manualIdsRef: React.RefObject<string[]>;
   onReorder: (orderedIds: string[]) => void;
-  onOpen: () => void;
-  onLongPress: () => void;
-  onToggle: () => void;
-  onDone: () => void;
-  onDelete: () => void;
-  onSchedule: () => void;
-  onScheduleTomorrow: () => void;
+  onOpen: (id: string) => void;
+  onLongPress: (task: Task) => void;
+  onToggle: (task: Task) => void;
+  onDone: (id: string) => void;
+  onDelete: (id: string) => void;
+  onSchedule: (task: Task) => void;
+  onScheduleTomorrow: (id: string) => void;
 }
 
-function TaskRow({
+function TaskRowImpl({
   task,
   listColor,
   manualSort,
-  manualIds,
+  manualIdsRef,
   onReorder,
   onOpen,
   onLongPress,
@@ -772,8 +836,8 @@ function TaskRow({
   const handleCompleteSwipe = useCallback(() => {
     close();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    onDone();
-  }, [close, onDone]);
+    onDone(task.id);
+  }, [close, onDone, task.id]);
 
   // Right-swipe = Complete (item 1). A single green action that fills the
   // whole revealed width, so completing reads as one clear commitment.
@@ -860,7 +924,7 @@ function TaskRow({
               onPress={() => {
                 close();
                 Haptics.selectionAsync().catch(() => {});
-                onScheduleTomorrow();
+                onScheduleTomorrow(task.id);
               }}
               className="w-full h-full items-center justify-center"
               accessibilityRole="button"
@@ -878,7 +942,7 @@ function TaskRow({
               onPress={() => {
                 close();
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-                onDelete();
+                onDelete(task.id);
               }}
               className="w-full h-full items-center justify-center"
               accessibilityRole="button"
@@ -891,7 +955,7 @@ function TaskRow({
         </View>
       );
     },
-    [close, onDelete, onScheduleTomorrow],
+    [close, onDelete, onScheduleTomorrow, task.id],
   );
 
   // Reset the armed tracker whenever the row closes, so the NEXT open swipe
@@ -899,6 +963,15 @@ function TaskRow({
   const handleClose = useCallback(() => {
     leftArmed.current = false;
   }, []);
+
+  // `TaskCard`/`DraggableTaskCard` want zero-arg handlers (`onPress`,
+  // `onToggleComplete`); these adapt the stable task/id-keyed callbacks from
+  // the parent to that shape, staying stable themselves (keyed only on
+  // `task.id`/`task` + the already-stable parent callbacks) so the memoized
+  // card below still skips re-rendering on unrelated list changes.
+  const handleOpen = useCallback(() => onOpen(task.id), [onOpen, task.id]);
+  const handleLongPress = useCallback(() => onLongPress(task), [onLongPress, task]);
+  const handleToggle = useCallback(() => onToggle(task), [onToggle, task]);
 
   return (
     <View className="px-5 py-1">
@@ -917,25 +990,27 @@ function TaskRow({
           <DraggableTaskCard
             task={task}
             listColor={listColor}
-            manualIds={manualIds}
+            manualIdsRef={manualIdsRef}
             onReorder={onReorder}
-            onOpen={onOpen}
-            onLongPress={onLongPress}
-            onToggle={onToggle}
+            onOpen={handleOpen}
+            onLongPress={handleLongPress}
+            onToggle={handleToggle}
           />
         ) : (
           <TaskCard
             task={task}
             listColor={listColor}
-            onPress={onOpen}
-            onLongPress={onLongPress}
-            onToggleComplete={onToggle}
+            onPress={handleOpen}
+            onLongPress={handleLongPress}
+            onToggleComplete={handleToggle}
           />
         )}
       </Swipeable>
     </View>
   );
 }
+
+const TaskRow = React.memo(TaskRowImpl);
 
 // ---------------------------------------------------------------------------
 // Manual-reorder drag handle (item 6). A dedicated `≡` handle (not the whole
@@ -948,17 +1023,18 @@ const ROW_HEIGHT_ESTIMATE = 72; // TaskCard min-h-14 (56) + row py-1*2 + meta ro
 interface DraggableTaskCardProps {
   task: Task;
   listColor?: string;
-  manualIds: string[];
+  /** Stable ref mirror of the current manual-sort order; see `TaskRowProps`. */
+  manualIdsRef: React.RefObject<string[]>;
   onReorder: (orderedIds: string[]) => void;
   onOpen: () => void;
   onLongPress: () => void;
   onToggle: () => void;
 }
 
-function DraggableTaskCard({
+function DraggableTaskCardImpl({
   task,
   listColor,
-  manualIds,
+  manualIdsRef,
   onReorder,
   onOpen,
   onLongPress,
@@ -970,7 +1046,7 @@ function DraggableTaskCard({
 
   // Snapshots the order at gesture start and the last "slot" the drag settled
   // in, so `onChange` only mutates+haptics on an actual slot CROSSING.
-  const orderRef = useRef<string[]>(manualIds);
+  const orderRef = useRef<string[]>(manualIdsRef.current);
   const lastSlotRef = useRef(0);
 
   const [lifted, setLifted] = useState(false);
@@ -984,10 +1060,10 @@ function DraggableTaskCard({
   }, []);
 
   const armLift = useCallback(() => {
-    orderRef.current = manualIds;
+    orderRef.current = manualIdsRef.current;
     lastSlotRef.current = 0;
     setLifted(true);
-  }, [manualIds]);
+  }, [manualIdsRef]);
 
   const disarmLift = useCallback(() => {
     setLifted(false);
@@ -1013,8 +1089,46 @@ function DraggableTaskCard({
   );
 
   const commitDrop = useCallback(() => {
-    if (orderRef.current !== manualIds) onReorder(orderRef.current);
-  }, [manualIds, onReorder]);
+    if (orderRef.current !== manualIdsRef.current) onReorder(orderRef.current);
+  }, [manualIdsRef, onReorder]);
+
+  // Screen-reader reorder (P2 a11y fix). Reordering is otherwise drag-only,
+  // which a VoiceOver/TalkBack user physically cannot perform — this wires
+  // the handle's `accessibilityRole="adjustable"` to real "increment"/
+  // "decrement" actions that move the task exactly one slot and commit
+  // through the SAME `onReorder` (-> `reorderTasks`) persist path the
+  // physical drag uses on drop, just as a single self-contained step instead
+  // of the drag's continuous snapshot-then-commit-on-drop flow.
+  const moveOneSlot = useCallback(
+    (deltaSlots: 1 | -1) => {
+      const ids = manualIdsRef.current;
+      const from = ids.indexOf(task.id);
+      const to = from + deltaSlots;
+      if (from < 0 || to < 0 || to >= ids.length) return;
+      const next = ids.slice();
+      const tmp = next[from];
+      next[from] = next[to];
+      next[to] = tmp;
+      fireSelectionHaptic();
+      onReorder(next);
+    },
+    [manualIdsRef, task.id, fireSelectionHaptic, onReorder],
+  );
+
+  const handleAccessibilityAction = useCallback(
+    (event: { nativeEvent: { actionName: string } }) => {
+      if (event.nativeEvent.actionName === "increment") moveOneSlot(1);
+      else if (event.nativeEvent.actionName === "decrement") moveOneSlot(-1);
+    },
+    [moveOneSlot],
+  );
+
+  // Position within the manual list, for `accessibilityValue` — 1-based so
+  // "now" reads naturally ("2 of 5") rather than a raw zero-based index.
+  const position = manualIdsRef.current.indexOf(task.id);
+  const listLength = manualIdsRef.current.length;
+  const accessibilityValue =
+    position >= 0 ? { min: 1, max: listLength, now: position + 1 } : undefined;
 
   const pan = useMemo(
     () =>
@@ -1080,7 +1194,13 @@ function DraggableTaskCard({
               className="min-w-11 min-h-11 items-center justify-center"
               accessibilityRole="adjustable"
               accessibilityLabel="Reorder task"
-              accessibilityHint="Long press and drag to move this task up or down the list"
+              accessibilityHint="Long press and drag to move this task up or down the list. Screen-reader users can also swipe up or down to move it one step."
+              accessibilityActions={[
+                { name: "increment", label: "Move down" },
+                { name: "decrement", label: "Move up" },
+              ]}
+              onAccessibilityAction={handleAccessibilityAction}
+              accessibilityValue={accessibilityValue}
             >
               <Ionicons name="reorder-three-outline" size={22} color="#A8A29A" />
             </Animated.View>
@@ -1090,6 +1210,8 @@ function DraggableTaskCard({
     </Animated.View>
   );
 }
+
+const DraggableTaskCard = React.memo(DraggableTaskCardImpl);
 
 // ---------------------------------------------------------------------------
 // Inline schedule modal: Duration + Due.

@@ -21,7 +21,22 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { newId } from '@/core/id'
 import * as taskLogic from '@/core/task-logic'
 import { mmkvStateStorage } from '@/store/mmkv'
+import { celebrateCompletion } from '@/services/notifications'
 import type { Subtask, Task } from '@/types'
+
+/**
+ * Fire the single "Completion Celebrate" beat (§8.9) only on a genuine
+ * todo/doing -> done transition, so undo->re-complete, completing an
+ * already-done task, or a subtask edit that leaves status unchanged never
+ * double-fires. Fire-and-forget: the service never throws and respects its own
+ * quiet-hours / rate-limit conventions.
+ */
+function maybeCelebrate(prev: Task | undefined, next: Task | undefined): void {
+  if (!next) return
+  if (prev?.status === 'done') return // was already done — no new beat
+  if (next.status !== 'done') return // didn't just complete
+  void celebrateCompletion(next)
+}
 
 interface TaskState {
   tasks: Record<string, Task>
@@ -134,17 +149,31 @@ export const useTaskStore = create<TaskState>()(
       },
 
       setSubtaskCompleted: (id, subtaskId, completed) => {
-        set((state) => ({
-          tasks: applyToTask(state.tasks, id, (task, now) =>
+        let prev: Task | undefined
+        let next: Task | undefined
+        set((state) => {
+          prev = state.tasks[id]
+          const tasks = applyToTask(state.tasks, id, (task, now) =>
             taskLogic.setSubtaskCompleted(task, subtaskId, completed, now)
-          ),
-        }))
+          )
+          next = tasks[id]
+          return { tasks }
+        })
+        // Completing the last subtask rolls the parent up to 'done' — celebrate
+        // that transition, but only if it genuinely just flipped.
+        maybeCelebrate(prev, next)
       },
 
       completeTask: (id) => {
-        set((state) => ({
-          tasks: applyToTask(state.tasks, id, (task, now) => taskLogic.completeTask(task, now)),
-        }))
+        let prev: Task | undefined
+        let next: Task | undefined
+        set((state) => {
+          prev = state.tasks[id]
+          const tasks = applyToTask(state.tasks, id, (task, now) => taskLogic.completeTask(task, now))
+          next = tasks[id]
+          return { tasks }
+        })
+        maybeCelebrate(prev, next)
       },
 
       reopenTask: (id) => {

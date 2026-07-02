@@ -286,9 +286,16 @@ function buildSpecsForTask(task: Task, settings: Settings, now: number): Notific
   const deadlineEnabled = kinds?.deadline !== false
   const motivationEnabled = kinds?.motivation !== false
 
+  // Cadence "Off" (maxNotificationsPerHour <= 0) is a HARD MUTE for the
+  // non-urgent baseline: silence the proactive start + motivation nudges
+  // entirely (FR-63). A genuinely urgency-raised deadline reminder (due < 12h)
+  // still comes through — matching the urgency ceiling in `requiredSpacingMs`,
+  // which never falls back to the baseline spacing when the task is due soon.
+  const cadenceMuted = settings.maxNotificationsPerHour <= 0
+
   // Start reminder: at the user's energy-peak start, on the next day that peak
   // occurs, when the deadline is comfortably far out (> 12h).
-  if (startEnabled && hoursToDue > 12) {
+  if (startEnabled && !cadenceMuted && hoursToDue > 12) {
     const startAt = nextEnergyPeak(settings.energyPeak, now)
     if (startAt < dueMs) {
       const copy = startReminderCopy(task, firstStep)
@@ -318,8 +325,9 @@ function buildSpecsForTask(task: Task, settings: Settings, now: number): Notific
   }
 
   // Motivation nudge: if the task hasn't been touched in 24h, gently nudge at
-  // the next energy peak (only for not-yet-started work).
-  if (motivationEnabled && task.status === 'todo' && now - task.updatedAt > 24 * MS_PER_HOUR) {
+  // the next energy peak (only for not-yet-started work). Also a non-urgent
+  // baseline nudge, so cadence "Off" silences it too.
+  if (motivationEnabled && !cadenceMuted && task.status === 'todo' && now - task.updatedAt > 24 * MS_PER_HOUR) {
     const nudgeAt = nextEnergyPeak(settings.energyPeak, now)
     if (nudgeAt < dueMs) {
       const copy = motivationCopy(task, firstStep)

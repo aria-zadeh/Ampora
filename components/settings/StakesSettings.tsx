@@ -31,9 +31,12 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 /**
  * The 6 safety categories that are ALWAYS reachable and can never be removed
- * (§9.10, doc 06 §4 — enforced client + server). User-added always-reachable
- * apps live alongside these but, unlike them, may be removed by the user.
- * Compared case-insensitively so a stray-cased persisted value still counts.
+ * (§9.10, doc 06 §4). Client-enforced today: the app never locks these, and the
+ * server stores the list; full server/device-level enforcement (a CHECK/trigger
+ * plus native shielding that honors it) arrives with native app-locking in
+ * Round C. User-added always-reachable apps live alongside these but, unlike
+ * them, may be removed by the user. Compared case-insensitively so a stray-cased
+ * persisted value still counts.
  */
 const PROTECTED_CATEGORIES = [
   "phone",

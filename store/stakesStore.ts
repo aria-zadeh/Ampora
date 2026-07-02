@@ -21,7 +21,7 @@
 
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { getBlockingStrategy } from '@/core/blocking'
+import { getBlockingStrategy, getLockState } from '@/core/blocking'
 import { newId } from '@/core/id'
 import { FEATURE_FLAGS } from '@/constants/featureFlags'
 import { mmkv, mmkvStateStorage } from '@/store/mmkv'
@@ -91,6 +91,15 @@ export function isLockable(category: string | undefined, settings: Settings): bo
 // De-escalation tuning (§9.10, doc 06 §3.9). After repeated panic-valve use in
 // a short window, lower the default stake strength and offer to pause.
 // ---------------------------------------------------------------------------
+
+/**
+ * A persisted `activeSession` older than this on launch is considered stale and
+ * released rather than resumed (doc 06 §3.6 recovery bound). No legitimate soft
+ * lock survives this long across an app restart, and the daily cap (default
+ * 180m) already ceilings any real session well under it. Generous so a genuine
+ * mid-session reload still recovers.
+ */
+const STALE_ACTIVE_SESSION_MAX_AGE_MS = 6 * 60 * 60 * 1000 // 6h
 
 /** Panic count at/above which we offer to pause stakes and drop default strength. */
 const PANIC_DEESCALATE_THRESHOLD = 2
@@ -195,6 +204,19 @@ interface StakesState {
   pauseStakesForToday: () => void
   /** Clear a pause early (user chose to resume). */
   resumeStakes: () => void
+
+  /**
+   * Launch reconciliation for a persisted `activeSession` (doc 06 §3.6). The
+   * soft in-app lock state is module-level and NOT persisted, so after a cold
+   * start a persisted `activeSession` is never backed by a live lock. This
+   * re-derives whether the session should still hold: it RELEASES the session
+   * (never leaving the user trapped by a ghost lock) when there is no live
+   * lock, when it predates `now` beyond the sane recovery bound, when we are in
+   * quiet hours, or when the daily cap is exhausted — otherwise it re-applies
+   * the shield so a genuine mid-session reload recovers cleanly. Safe to call
+   * once on app launch; a no-op when there is no active session. Never throws.
+   */
+  reconcileActiveSession: (atMs?: number) => void
 
   /**
    * Accrual + auto-expiry tick. Call ~once/minute while a session is active.
@@ -489,6 +511,54 @@ export const useStakesStore = create<StakesState>()(
 
         resumeStakes: () => set({ stakesPausedUntil: null }),
 
+        reconcileActiveSession: (atMs) => {
+          try {
+            const now = atMs ?? Date.now()
+            const active = get().activeSession
+            if (!active) return // nothing persisted to reconcile
+
+            ensureToday(now)
+            const settings = currentSettings()
+
+            // Release (fail toward the user, never trap) when the session can no
+            // longer legitimately hold:
+            //  - no live soft lock (module-level lock state doesn't survive a
+            //    cold start, so a persisted session with no live lock is stale),
+            //  - it predates `now` beyond the sane recovery bound,
+            //  - we're inside quiet hours (stakes always release here),
+            //  - the daily cap is already exhausted.
+            const lockLive = getLockState().locked
+            const tooOld = now - active.startedAt > STALE_ACTIVE_SESSION_MAX_AGE_MS
+            const inQuiet = isQuietHours(settings, now)
+            const capExhausted =
+              Math.max(0, settings.dailyLockCapMin - get().todayLockMin) <= 0
+
+            if (!lockLive || tooOld || inQuiet || capExhausted) {
+              // `endActive` also calls removeShield (fail-safe) so any lingering
+              // enforcement is cleared, and logs shield_off for the record.
+              endActive('expired', now)
+              return
+            }
+
+            // Legit still-active session within bounds: the persisted session is
+            // real but its in-app lock state was lost on reload — re-apply the
+            // shield so the focus/lock UI reflects it. Fail-safe on rejection.
+            void Promise.resolve(getBlockingStrategy().applyShield(active)).catch((err) => {
+              console.warn('reconcileActiveSession re-apply failed (releasing):', err)
+              endActive('expired', Date.now())
+            })
+          } catch (err) {
+            // Never let launch reconciliation throw. On any unexpected failure,
+            // release rather than risk a trapped user.
+            console.warn('reconcileActiveSession failed (releasing any active session):', err)
+            try {
+              if (get().activeSession) endActive('expired', atMs ?? Date.now())
+            } catch {
+              // Give up silently — nothing more we can safely do here.
+            }
+          }
+        },
+
         tick: (atMs) => {
           const now = atMs ?? Date.now()
           ensureToday(now)
@@ -555,3 +625,21 @@ export function selectStakeEvents(state: StakesState): LockEvent[] {
 export function selectEligibleApps(state: StakesState): StakeApp[] {
   return state.apps.filter((a) => a.eligible)
 }
+
+/**
+ * How many "lock until start" sessions the user has genuinely COMPLETED
+ * (outcome === 'completed'). Used to gate the punishment-style "beat the clock"
+ * mode: it is only offered once the user has a track record of earned, gentle
+ * sessions (PRD §C3 / doc 12 "gated behind successful sessions"). Counts across
+ * both the active session (if it somehow already resolved) and history.
+ */
+export function selectSuccessfulStartSessionCount(state: StakesState): number {
+  let count = 0
+  for (const s of Object.values(state.sessions)) {
+    if (s.mode === 'lock_until_start' && s.outcome === 'completed') count += 1
+  }
+  return count
+}
+
+/** Successful `lock_until_start` completions at/above which the "beat the clock" mode may be offered. */
+export const BEAT_THE_CLOCK_UNLOCK_THRESHOLD = 3

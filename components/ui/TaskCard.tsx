@@ -83,7 +83,7 @@ function resolveBarColor(hex?: string): string | undefined {
   return match ? listColors[match].bar : hex;
 }
 
-export function TaskCard({
+function TaskCardImpl({
   task,
   listColor,
   onPress,
@@ -261,3 +261,13 @@ export function TaskCard({
     </View>
   );
 }
+
+/**
+ * Memoized (Phase 7 perf fix): FlashList recycles/re-renders every visible
+ * row on any store mutation (create/complete/edit/filter), even rows whose
+ * own `task` is unchanged. Default shallow prop comparison is enough here —
+ * `task` only gets a new identity when the store actually mutates that
+ * task (see `taskStore`'s immutable updates), and callers now pass stable
+ * callback identities (see `app/(tabs)/tasks.tsx`).
+ */
+export const TaskCard = React.memo(TaskCardImpl);

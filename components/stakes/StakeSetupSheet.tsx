@@ -47,7 +47,11 @@ import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { FEATURE_FLAGS } from "@/constants/featureFlags";
-import { useStakesStore } from "@/store/stakesStore";
+import {
+  useStakesStore,
+  selectSuccessfulStartSessionCount,
+  BEAT_THE_CLOCK_UNLOCK_THRESHOLD,
+} from "@/store/stakesStore";
 import { getBlockingStrategy } from "@/core/blocking";
 import type { StakeSession, Task } from "@/types";
 
@@ -123,15 +127,24 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
   const strategyKind = useMemo(() => getBlockingStrategy().kind, []);
   const isSoft = strategyKind === "soft";
 
-  // --- Available modes (beat-the-clock gated by the flag) ---
+  // Successful "lock until start" completions — gates the punishment-style
+  // "beat the clock" mode (PRD §C3 / doc 12: OFF by default, earned by a track
+  // record of gentle successful sessions). With FEATURE_FLAGS.BEAT_THE_CLOCK
+  // false today the mode is never shown regardless; if a future build flips the
+  // flag on, the mode still stays hidden until this count crosses the threshold.
+  const successfulStartCount = useStakesStore(selectSuccessfulStartSessionCount);
+  const beatTheClockAvailable =
+    FEATURE_FLAGS.BEAT_THE_CLOCK && successfulStartCount >= BEAT_THE_CLOCK_UNLOCK_THRESHOLD;
+
+  // --- Available modes (beat-the-clock flag-gated AND earned) ---
   const modeSegments = useMemo(() => {
     const segs = [
       { key: "lock_until_start", label: "Until I start" },
       { key: "lock_until_done", label: "Until done" },
     ];
-    if (FEATURE_FLAGS.BEAT_THE_CLOCK) segs.push({ key: "beat_the_clock", label: "Beat the clock" });
+    if (beatTheClockAvailable) segs.push({ key: "beat_the_clock", label: "Beat the clock" });
     return segs;
-  }, []);
+  }, [beatTheClockAvailable]);
 
   // --- Which completion conditions this task can offer ---
   const hasFirstMove = task.firstMove != null;
@@ -313,7 +326,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                   </View>
 
                   {/* --- Beat-the-clock timer --- */}
-                  {mode === "beat_the_clock" && FEATURE_FLAGS.BEAT_THE_CLOCK ? (
+                  {mode === "beat_the_clock" && beatTheClockAvailable ? (
                     <Animated.View
                       entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
                       className="rounded-xl border border-neutral-200 bg-white p-4"

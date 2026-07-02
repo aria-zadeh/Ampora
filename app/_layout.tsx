@@ -1,7 +1,7 @@
 import "../global.css";
 import "@/nativewind-reanimated";
 import React, { useEffect, useState } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "nativewind";
@@ -17,6 +17,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { useScheduleStore, selectAllBlocks } from "@/store/scheduleStore";
 import { useTaskStore, selectAllTasks } from "@/store/taskStore";
 import { useRecoveryStore } from "@/store/recoveryStore";
+import { useStakesStore } from "@/store/stakesStore";
 import { scheduleTaskReminders } from "@/services/notifications";
 import { detectLapse } from "@/core/recovery";
 import { isActive } from "@/core/subscription";
@@ -126,6 +127,17 @@ export default function RootLayout() {
     useScheduleStore.getState().recompute();
   }, [ready]);
 
+  // Reconcile any persisted Ignition session on launch (doc 06 §3.6). The soft
+  // in-app lock state is not persisted, so a stale `activeSession` left over
+  // from a prior run would otherwise never be released. `reconcileActiveSession`
+  // releases it (never trapping the user) when it can no longer legitimately
+  // hold — no live lock, too old, quiet hours, or cap exhausted — and re-applies
+  // the shield only for a genuine still-active session within bounds. Runs once.
+  useEffect(() => {
+    if (!ready) return;
+    useStakesStore.getState().reconcileActiveSession();
+  }, [ready]);
+
   // Reschedule notification reminders whenever tasks or the notification-
   // relevant settings change (FR-63, §8.9). Debounced 500ms so a burst of
   // edits (e.g. adding subtasks) only reschedules once. `scheduleTaskReminders`
@@ -159,14 +171,30 @@ export default function RootLayout() {
       if (
         a.quietHours !== b.quietHours ||
         a.energyPeak !== b.energyPeak ||
-        a.maxNotificationsPerHour !== b.maxNotificationsPerHour
+        a.maxNotificationsPerHour !== b.maxNotificationsPerHour ||
+        a.reminderKinds !== b.reminderKinds
       ) {
         reschedule();
       }
     });
 
+    // Web has no OS-level scheduling, so a scheduled reminder only fires if
+    // something drives `checkAndFireWebReminders` on an interval while the app
+    // is open (services/notifications.ts). On web, poll ~every 60s off current
+    // tasks + settings (reschedule() delegates to checkAndFireWebReminders).
+    // Native is unchanged — expo-notifications handles scheduling itself.
+    let webPoll: ReturnType<typeof setInterval> | null = null;
+    if (Platform.OS === "web") {
+      webPoll = setInterval(() => {
+        const tasks = selectAllTasks(useTaskStore.getState());
+        const settings = useSettingsStore.getState().settings;
+        void scheduleTaskReminders(tasks, settings);
+      }, 60 * 1000);
+    }
+
     return () => {
       if (timer) clearTimeout(timer);
+      if (webPoll) clearInterval(webPoll);
       unsubTasks();
       unsubSettings();
     };

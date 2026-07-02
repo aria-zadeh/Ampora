@@ -17,8 +17,13 @@
  * SoftBlockingStrategy (in-app focus lock), which works today on web and dev
  * builds with no entitlement.
  *
- * BEAT_THE_CLOCK gates the third stake mode. On by default — it is pure
- * in-app timer logic and needs no native support.
+ * BEAT_THE_CLOCK gates the third stake mode. OFF by default (PRD §C3 / doc 12
+ * "Beat-the-clock is OFF by default, gated behind successful sessions"). It is
+ * pure in-app timer logic and needs no native support, but because it is the
+ * one punishment-style mode we never offer it unearned. Even if a future build
+ * flips this flag on, `StakeSetupSheet` additionally requires the user to have
+ * a track record of successful "lock until start" sessions before the mode is
+ * shown.
  */
 export const FEATURE_FLAGS = {
   /**
@@ -29,8 +34,13 @@ export const FEATURE_FLAGS = {
    */
   IGNITION_NATIVE: false,
 
-  /** The "Beat the clock" stake mode. Pure in-app timer, safe to ship today. */
-  BEAT_THE_CLOCK: true,
+  /**
+   * The "Beat the clock" stake mode. OFF by default — it is the punishment-
+   * style mode, so it is never offered unearned. `StakeSetupSheet` also gates
+   * it behind a track record of successful "lock until start" sessions, so
+   * flipping this true is necessary but not sufficient to show the mode.
+   */
+  BEAT_THE_CLOCK: false,
 
   /**
    * Dev-only paywall bypass. When true, the paywall renders a "Skip (dev)"
