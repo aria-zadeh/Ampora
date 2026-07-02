@@ -221,6 +221,14 @@ export interface Task extends BaseEntity {
    */
   scheduleSubtasksSeparately?: boolean
 
+  /**
+   * User-assigned position for the Tasks screen's "Manual" sort (Phase 3,
+   * `app/(tabs)/tasks.tsx`). Lower sorts first. Set by
+   * `taskStore.reorderTasks`; undefined until a row is dragged at least once,
+   * in which case manual sort falls back to `createdAt` order.
+   */
+  manualOrder?: number
+
   // -- Forward-compatible scheduling fields (types only; no engine logic yet,
   //    engine is Milestone 2). All optional so Milestone-1 code need not set
   //    them. --

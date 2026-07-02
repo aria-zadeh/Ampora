@@ -35,6 +35,10 @@ type HapticStyle = "light" | "medium" | "success" | "selection" | false;
 interface PressableScaleProps {
   children: React.ReactNode;
   onPress?: (event: GestureResponderEvent) => void;
+  /** Fires after `delayLongPress` ms of holding (Phase 3: task row context menu). */
+  onLongPress?: (event: GestureResponderEvent) => void;
+  /** Ms before `onLongPress` fires. @default 500 (RN default) */
+  delayLongPress?: number;
   /** Haptic to fire on press. @default "light" */
   haptic?: HapticStyle;
   /** Style applied to the animated wrapper. */
@@ -77,6 +81,8 @@ function fireHaptic(haptic: HapticStyle) {
 export function PressableScale({
   children,
   onPress,
+  onLongPress,
+  delayLongPress,
   haptic = "light",
   style,
   className,
@@ -139,6 +145,8 @@ export function PressableScale({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={handlePress}
+      onLongPress={onLongPress}
+      delayLongPress={delayLongPress}
       disabled={disabled}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}

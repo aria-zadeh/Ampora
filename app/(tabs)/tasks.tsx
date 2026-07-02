@@ -1,16 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Pressable, TextInput, Modal } from "react-native";
+import { Animated as RNAnimated, View, Text, Pressable, Modal } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
-import { Swipeable } from "react-native-gesture-handler";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import { Swipeable, Gesture, GestureDetector } from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
+import Animated, {
+  FadeInDown,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 import { useTaskStore } from "@/store/taskStore";
 import { useListStore, selectAllLists, selectAllTags } from "@/store/listStore";
 import { parseQuickAdd } from "@/core/quick-add";
 import { TaskCard } from "@/components/ui/TaskCard";
+import { TaskActionSheet } from "@/components/ui/TaskActionSheet";
+import { Input } from "@/components/ui/Input";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Chip } from "@/components/ui/Chip";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -18,7 +28,7 @@ import { FAB } from "@/components/ui/FAB";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Heading } from "@/components/ui/Heading";
-import { DURATIONS, staggerDelay } from "@/utils/motion";
+import { DURATIONS, SPRINGS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { Task } from "@/types";
 
@@ -76,6 +86,14 @@ function formatDueShort(due: number): string {
   return new Date(due).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+/** "Tomorrow" due target (23:59 local), used by both swipe-left and the action sheet. */
+function tomorrowDue(now: number): number {
+  const d = new Date(now);
+  d.setDate(d.getDate() + 1);
+  d.setHours(23, 59, 0, 0);
+  return d.getTime();
+}
+
 // Section buckets, in display order. Inbox first (no due date), then time buckets.
 type SectionKey = "inbox" | "overdue" | "today" | "week" | "later" | "completed";
 
@@ -92,6 +110,9 @@ const SECTION_TITLE: Record<SectionKey, string> = {
 type Row =
   | { kind: "header"; key: string; section: SectionKey; count: number; collapsible?: boolean }
   | { kind: "task"; key: string; task: Task; index: number };
+
+// NL-parse hint chips shown when the quick-add field is focused (item 5).
+const QUICK_ADD_HINTS = ["tomorrow 3pm", "#list", "!high"];
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -115,6 +136,7 @@ export default function TasksScreen() {
   const deleteTask = useTaskStore((s) => s.deleteTask);
   const completeTask = useTaskStore((s) => s.completeTask);
   const reopenTask = useTaskStore((s) => s.reopenTask);
+  const reorderTasks = useTaskStore((s) => s.reorderTasks);
 
   const lists = useListStore(useShallow(selectAllLists));
   const tags = useListStore(useShallow(selectAllTags));
@@ -123,6 +145,7 @@ export default function TasksScreen() {
 
   // UI state.
   const [quickText, setQuickText] = useState("");
+  const [quickFocused, setQuickFocused] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("due");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -131,6 +154,7 @@ export default function TasksScreen() {
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>(0);
   const [completedCollapsed, setCompletedCollapsed] = useState(true);
   const [scheduleFor, setScheduleFor] = useState<Task | null>(null);
+  const [menuFor, setMenuFor] = useState<Task | null>(null);
 
   const listColorById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -157,6 +181,10 @@ export default function TasksScreen() {
     });
     setQuickText("");
   }, [preview, createTask]);
+
+  const applyHint = useCallback((hint: string) => {
+    setQuickText((cur) => (cur.trim().length > 0 ? `${cur.trim()} ${hint}` : hint));
+  }, []);
 
   // -------------------------------------------------------------------------
   // Derive filtered + sorted + sectioned rows.
@@ -185,7 +213,9 @@ export default function TasksScreen() {
     const incomplete = filtered.filter((t) => t.status !== "done");
     const completed = filtered.filter((t) => t.status === "done");
 
-    // Bucket incomplete tasks.
+    // Bucket incomplete tasks. Manual sort collapses everything into one
+    // "Inbox" bucket (a single ordered list is the point of manual reorder —
+    // splitting it by due date would fight the user's own ordering).
     const buckets: Record<Exclude<SectionKey, "completed">, Task[]> = {
       inbox: [],
       overdue: [],
@@ -193,15 +223,20 @@ export default function TasksScreen() {
       week: [],
       later: [],
     };
-    for (const t of incomplete) {
-      if (t.due == null) buckets.inbox.push(t);
-      else if (t.due < now) buckets.overdue.push(t);
-      else if (t.due <= todayEnd) buckets.today.push(t);
-      else if (t.due <= weekEnd) buckets.week.push(t);
-      else buckets.later.push(t);
+    if (sort === "manual") {
+      buckets.inbox = incomplete;
+    } else {
+      for (const t of incomplete) {
+        if (t.due == null) buckets.inbox.push(t);
+        else if (t.due < now) buckets.overdue.push(t);
+        else if (t.due <= todayEnd) buckets.today.push(t);
+        else if (t.due <= weekEnd) buckets.week.push(t);
+        else buckets.later.push(t);
+      }
     }
 
-    // Sort comparator (manual = insertion/createdAt order).
+    // Sort comparator (manual = user-assigned manualOrder, falling back to
+    // createdAt for tasks never dragged).
     const cmp = (a: Task, b: Task): number => {
       switch (sort) {
         case "due": {
@@ -221,8 +256,12 @@ export default function TasksScreen() {
           return a.createdAt - b.createdAt;
         }
         case "manual":
-        default:
+        default: {
+          const ao = a.manualOrder ?? Number.POSITIVE_INFINITY;
+          const bo = b.manualOrder ?? Number.POSITIVE_INFINITY;
+          if (ao !== bo) return ao - bo;
           return a.createdAt - b.createdAt;
+        }
       }
     };
 
@@ -235,13 +274,10 @@ export default function TasksScreen() {
     // `index` on each task row drives the one-time stagger entrance.
     const out: Row[] = [];
     let rowIndex = 0;
-    const order: Exclude<SectionKey, "completed">[] = [
-      "inbox",
-      "overdue",
-      "today",
-      "week",
-      "later",
-    ];
+    const order: Exclude<SectionKey, "completed">[] =
+      sort === "manual"
+        ? ["inbox"]
+        : ["inbox", "overdue", "today", "week", "later"];
     for (const section of order) {
       const items = buckets[section];
       if (items.length === 0) continue;
@@ -280,6 +316,40 @@ export default function TasksScreen() {
     completedCollapsed,
   ]);
 
+  // Indices of every header row — fed to FlashList's `stickyHeaderIndices`
+  // (item 2). Recomputed alongside `rows` since header positions shift with
+  // any filter/sort/collapse change.
+  const stickyHeaderIndices = useMemo(
+    () => rows.reduce<number[]>((acc, row, i) => (row.kind === "header" ? [...acc, i] : acc), []),
+    [rows],
+  );
+
+  // Ordered task ids for the CURRENT flattened list — the drag-reorder
+  // handle mutates a local copy of this and commits via `reorderTasks` on
+  // drop (item 6). Only meaningful in manual-sort mode.
+  const manualIds = useMemo(
+    () => rows.filter((r): r is Extract<Row, { kind: "task" }> => r.kind === "task").map((r) => r.task.id),
+    [rows],
+  );
+
+  // -------------------------------------------------------------------------
+  // Long-press context menu (item 3) — wired to the existing store methods.
+  // -------------------------------------------------------------------------
+  const closeMenu = useCallback(() => setMenuFor(null), []);
+
+  const handleMenuMoveToList = useCallback(
+    (listId: string | undefined) => {
+      if (!menuFor) return;
+      updateTask(menuFor.id, { listId });
+    },
+    [menuFor, updateTask],
+  );
+
+  const handleMenuScheduleTomorrow = useCallback(() => {
+    if (!menuFor) return;
+    updateTask(menuFor.id, { due: tomorrowDue(Date.now()) });
+  }, [menuFor, updateTask]);
+
   // -------------------------------------------------------------------------
   // Row renderers.
   // -------------------------------------------------------------------------
@@ -289,28 +359,25 @@ export default function TasksScreen() {
         const collapsible = item.collapsible === true;
         const collapsed = item.section === "completed" && completedCollapsed;
         return (
-          <Pressable
-            disabled={!collapsible}
-            onPress={collapsible ? () => setCompletedCollapsed((c) => !c) : undefined}
-            className="flex-row items-center px-5 pt-7 pb-3 min-h-11"
-            accessibilityRole={collapsible ? "button" : "header"}
-            accessibilityLabel={`${SECTION_TITLE[item.section]}, ${item.count} ${
-              item.count === 1 ? "task" : "tasks"
-            }${collapsible ? (collapsed ? ". Collapsed" : ". Expanded") : ""}`}
-          >
-            {collapsible && (
-              <Ionicons
-                name={collapsed ? "chevron-forward" : "chevron-down"}
-                size={18}
-                color="#71717A"
-                style={{ marginRight: 6 }}
-              />
-            )}
-            <Heading size="h4">{SECTION_TITLE[item.section]}</Heading>
-            <View className="ml-2.5 min-w-6 h-6 px-1.5 rounded-full bg-neutral-200 items-center justify-center">
-              <Text className="text-caption font-semibold text-neutral-600">{item.count}</Text>
-            </View>
-          </Pressable>
+          <View className="bg-neutral-100">
+            <Pressable
+              disabled={!collapsible}
+              onPress={collapsible ? () => setCompletedCollapsed((c) => !c) : undefined}
+              className="flex-row items-center px-5 pt-7 pb-3 min-h-11"
+              accessibilityRole={collapsible ? "button" : "header"}
+              accessibilityLabel={`${SECTION_TITLE[item.section]}, ${item.count} ${
+                item.count === 1 ? "task" : "tasks"
+              }${collapsible ? (collapsed ? ". Collapsed" : ". Expanded") : ""}`}
+            >
+              {collapsible && (
+                <ChevronSpring collapsed={collapsed} />
+              )}
+              <Heading size="h4">{SECTION_TITLE[item.section]}</Heading>
+              <View className="ml-2.5 min-w-6 h-6 px-1.5 rounded-full bg-neutral-200 items-center justify-center">
+                <Text className="text-caption font-semibold text-neutral-600">{item.count}</Text>
+              </View>
+            </Pressable>
+          </View>
         );
       }
 
@@ -325,7 +392,11 @@ export default function TasksScreen() {
           <TaskRow
             task={item.task}
             listColor={item.task.listId ? listColorById[item.task.listId] : undefined}
+            manualSort={sort === "manual"}
+            manualIds={manualIds}
+            onReorder={reorderTasks}
             onOpen={() => router.push(`/task/${item.task.id}`)}
+            onLongPress={() => setMenuFor(item.task)}
             onToggle={() =>
               item.task.status === "done"
                 ? reopenTask(item.task.id)
@@ -334,11 +405,23 @@ export default function TasksScreen() {
             onDone={() => completeTask(item.task.id)}
             onDelete={() => deleteTask(item.task.id)}
             onSchedule={() => setScheduleFor(item.task)}
+            onScheduleTomorrow={() => updateTask(item.task.id, { due: tomorrowDue(Date.now()) })}
           />
         </Animated.View>
       );
     },
-    [completedCollapsed, listColorById, completeTask, reopenTask, deleteTask, reduceMotion]
+    [
+      completedCollapsed,
+      listColorById,
+      sort,
+      manualIds,
+      reorderTasks,
+      completeTask,
+      reopenTask,
+      deleteTask,
+      updateTask,
+      reduceMotion,
+    ],
   );
 
   const keyExtractor = useCallback((item: Row) => item.key, []);
@@ -364,30 +447,24 @@ export default function TasksScreen() {
         </Pressable>
       </View>
 
-      {/* Quick-add bar */}
-      <View className="px-5">
+      {/* Sticky quick-add (item 5) — pins to the top of the list; expands with
+          NL-parse hint chips on focus. Rendered OUTSIDE the FlashList so it
+          never scrolls away, matching "sticky" rather than "sticky header". */}
+      <View className="px-5 bg-neutral-100 z-10">
         <View className="flex-row items-center gap-2">
-          <View className="flex-1 flex-row items-center bg-white border border-neutral-200 rounded-md min-h-12 px-3">
-            <Ionicons name="add-circle-outline" size={20} color="#A1A1AA" />
-            <TextInput
+          <View className="flex-1">
+            <Input
               value={quickText}
               onChangeText={setQuickText}
+              onFocus={() => setQuickFocused(true)}
+              onBlur={() => setQuickFocused(false)}
               placeholder="Add a task…  try “Read ch 11 due fri 2h high”"
-              placeholderTextColor="#A1A1AA"
-              className="flex-1 ml-2 text-body-lg text-neutral-900"
+              icon="add-circle-outline"
+              clearable
               returnKeyType="done"
               onSubmitEditing={handleAdd}
               accessibilityLabel="Quick add task"
             />
-            {quickText.length > 0 && (
-              <Pressable
-                onPress={() => setQuickText("")}
-                hitSlop={8}
-                accessibilityLabel="Clear quick add"
-              >
-                <Ionicons name="close-circle" size={18} color="#D4D4D8" />
-              </Pressable>
-            )}
           </View>
           <Button
             title="Add"
@@ -397,6 +474,16 @@ export default function TasksScreen() {
             onPress={handleAdd}
           />
         </View>
+
+        {/* NL-parse hint chips — only while the field is focused and empty of
+            a recognized token, so they read as a suggestion, not clutter. */}
+        {quickFocused && !preview && (
+          <View className="flex-row items-center flex-wrap gap-2 mt-2.5 px-1">
+            {QUICK_ADD_HINTS.map((hint) => (
+              <Chip key={hint} label={hint} onPress={() => applyHint(hint)} />
+            ))}
+          </View>
+        )}
 
         {/* Live preview strip */}
         {preview && (
@@ -423,22 +510,14 @@ export default function TasksScreen() {
 
       {/* Search */}
       <View className="px-5 mt-3">
-        <View className="flex-row items-center bg-white border border-neutral-200 rounded-md min-h-11 px-3">
-          <Ionicons name="search" size={18} color="#A1A1AA" />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search tasks"
-            placeholderTextColor="#A1A1AA"
-            className="flex-1 ml-2 text-body text-neutral-900"
-            accessibilityLabel="Search tasks"
-          />
-          {search.length > 0 && (
-            <Pressable onPress={() => setSearch("")} hitSlop={8} accessibilityLabel="Clear search">
-              <Ionicons name="close-circle" size={18} color="#D4D4D8" />
-            </Pressable>
-          )}
-        </View>
+        <Input
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search tasks"
+          icon="search"
+          clearable
+          accessibilityLabel="Search tasks"
+        />
       </View>
 
       {/* Filter chips */}
@@ -501,7 +580,9 @@ export default function TasksScreen() {
         </View>
       </View>
 
-      {/* List */}
+      {/* List. MMKV persist hydrates synchronously (same as every other tab
+          in this app), so there is no genuine async-loading window here to
+          gate with a skeleton — only the two real empty states below. */}
       <View className="flex-1 mt-1">
         {isEmpty ? (
           <EmptyState
@@ -521,6 +602,7 @@ export default function TasksScreen() {
             renderItem={renderItem}
             keyExtractor={keyExtractor}
             getItemType={getItemType}
+            stickyHeaderIndices={stickyHeaderIndices}
             extraData={completedCollapsed}
             contentContainerStyle={{ paddingBottom: 120 }}
             showsVerticalScrollIndicator={false}
@@ -539,90 +621,419 @@ export default function TasksScreen() {
           setScheduleFor(null);
         }}
       />
+
+      {/* Long-press context menu (item 3) */}
+      <TaskActionSheet
+        visible={menuFor != null}
+        task={menuFor}
+        lists={lists}
+        onClose={closeMenu}
+        onEdit={() => menuFor && router.push(`/task/${menuFor.id}`)}
+        onToggleComplete={() => {
+          if (!menuFor) return;
+          menuFor.status === "done" ? reopenTask(menuFor.id) : completeTask(menuFor.id);
+        }}
+        onScheduleTomorrow={handleMenuScheduleTomorrow}
+        onMoveToList={handleMenuMoveToList}
+        onDelete={() => menuFor && deleteTask(menuFor.id)}
+        onPutOnTheLine={() => menuFor && router.push(`/task/${menuFor.id}`)}
+      />
     </View>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Task row with swipe actions.
+// Chevron with a spring rotation (item 2: "ensure it springs").
 // ---------------------------------------------------------------------------
+
+function ChevronSpring({ collapsed }: { collapsed: boolean }) {
+  const reduceMotion = useReduceMotion();
+  const rotation = useSharedValue(collapsed ? 0 : 90);
+
+  useEffect(() => {
+    const target = collapsed ? 0 : 90;
+    rotation.value = reduceMotion ? target : withSpring(target, SPRINGS.tactile);
+  }, [collapsed, reduceMotion, rotation]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
+  return (
+    <Animated.View style={[{ marginRight: 6 }, style]}>
+      <Ionicons name="chevron-forward" size={18} color="#71717A" />
+    </Animated.View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Task row: swipe (both directions) + long-press + optional drag handle.
+// ---------------------------------------------------------------------------
+
+/** Fraction of an action's reveal past which it's considered "armed" (haptic fires once). */
+const ARM_FRACTION = 0.6;
 
 interface TaskRowProps {
   task: Task;
   listColor?: string;
+  manualSort: boolean;
+  /** Current ordered task ids across the whole (flattened) list — read by the drag handle. */
+  manualIds: string[];
+  onReorder: (orderedIds: string[]) => void;
   onOpen: () => void;
+  onLongPress: () => void;
   onToggle: () => void;
   onDone: () => void;
   onDelete: () => void;
   onSchedule: () => void;
+  onScheduleTomorrow: () => void;
 }
 
-function TaskRow({ task, listColor, onOpen, onToggle, onDone, onDelete, onSchedule }: TaskRowProps) {
+function TaskRow({
+  task,
+  listColor,
+  manualSort,
+  manualIds,
+  onReorder,
+  onOpen,
+  onLongPress,
+  onToggle,
+  onDone,
+  onDelete,
+  onSchedule,
+  onScheduleTomorrow,
+}: TaskRowProps) {
   const swipeRef = useRef<Swipeable>(null);
   const isDone = task.status === "done";
 
+  // Armed-state tracker for the left-swipe reveal, so the threshold haptic
+  // fires exactly once per crossing, not on every frame of drag (classic
+  // Swipeable exposes plain `Animated.Value`s, not Reanimated shared values).
+  // The right-swipe (Complete) is a single full-commitment action with no
+  // progressive "arming" of its own, so it needs no tracker.
+  const leftArmed = useRef(false);
+
   const close = useCallback(() => swipeRef.current?.close(), []);
 
+  const handleCompleteSwipe = useCallback(() => {
+    close();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    onDone();
+  }, [close, onDone]);
+
+  // Right-swipe = Complete (item 1). A single green action that fills the
+  // whole revealed width, so completing reads as one clear commitment.
   const renderRight = useCallback(
-    () => (
-      <View className="flex-row items-stretch pr-5 pl-2">
-        {!isDone && (
+    (progress: RNAnimated.AnimatedInterpolation<number>) => {
+      if (isDone) return null;
+      const scale = progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.6, 1],
+        extrapolate: "clamp",
+      });
+      const opacity = progress.interpolate({
+        inputRange: [0, 0.3, 1],
+        outputRange: [0, 0.6, 1],
+        extrapolate: "clamp",
+      });
+      return (
+        <RNAnimated.View
+          style={{ opacity, transform: [{ scale }] }}
+          className="w-24 my-0.5 mr-5 ml-2 rounded-lg bg-success-700 items-center justify-center"
+        >
           <Pressable
-            onPress={() => {
-              close();
-              onSchedule();
-            }}
-            className="w-20 my-0.5 rounded-lg bg-primary-600 items-center justify-center"
-            accessibilityRole="button"
-            accessibilityLabel="Schedule task"
-          >
-            <Ionicons name="calendar-outline" size={20} color="#FFFFFF" />
-            <Text className="text-tiny text-white mt-1">Schedule</Text>
-          </Pressable>
-        )}
-        {!isDone && (
-          <Pressable
-            onPress={() => {
-              close();
-              onDone();
-            }}
-            className="w-20 ml-2 my-0.5 rounded-lg bg-success-700 items-center justify-center"
+            onPress={handleCompleteSwipe}
+            className="w-full h-full items-center justify-center"
             accessibilityRole="button"
             accessibilityLabel="Mark task done"
           >
-            <Ionicons name="checkmark" size={22} color="#FFFFFF" />
+            <Ionicons name="checkmark" size={24} color="#FFFFFF" />
             <Text className="text-tiny text-white mt-1">Done</Text>
           </Pressable>
-        )}
-        <Pressable
-          onPress={() => {
-            close();
-            onDelete();
-          }}
-          className="w-20 ml-2 my-0.5 rounded-lg bg-danger-600 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Delete task"
-        >
-          <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-          <Text className="text-tiny text-white mt-1">Delete</Text>
-        </Pressable>
-      </View>
-    ),
-    [isDone, close, onSchedule, onDone, onDelete]
+        </RNAnimated.View>
+      );
+    },
+    [isDone, handleCompleteSwipe],
   );
+
+  // Left-swipe = Schedule tomorrow + Delete (item 1). Icons peek progressively
+  // with drag distance via the `progress` interpolation; each button arms
+  // (haptic fires) once its own reveal threshold is crossed.
+  const renderLeft = useCallback(
+    (progress: RNAnimated.AnimatedInterpolation<number>) => {
+      const tomorrowOpacity = progress.interpolate({
+        inputRange: [0, 0.2, 1],
+        outputRange: [0, 0.5, 1],
+        extrapolate: "clamp",
+      });
+      const tomorrowScale = progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.6, 1],
+        extrapolate: "clamp",
+      });
+      const deleteOpacity = progress.interpolate({
+        inputRange: [0, 0.45, 1],
+        outputRange: [0, 0.4, 1],
+        extrapolate: "clamp",
+      });
+      const deleteScale = progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.6, 1],
+        extrapolate: "clamp",
+      });
+
+      // Fire a threshold haptic exactly once per crossing (armed <-> disarmed).
+      // `removeAllListeners` first guards against accumulating a listener per
+      // Swipeable-internal re-render of this same `progress` value.
+      progress.removeAllListeners();
+      progress.addListener(({ value }) => {
+        const armed = value >= ARM_FRACTION;
+        if (armed && !leftArmed.current) {
+          leftArmed.current = true;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        } else if (!armed && leftArmed.current) {
+          leftArmed.current = false;
+        }
+      });
+
+      return (
+        <View className="flex-row items-stretch pl-5 pr-2">
+          <RNAnimated.View
+            style={{ opacity: tomorrowOpacity, transform: [{ scale: tomorrowScale }] }}
+            className="w-20 my-0.5 rounded-lg bg-primary-600 items-center justify-center"
+          >
+            <Pressable
+              onPress={() => {
+                close();
+                Haptics.selectionAsync().catch(() => {});
+                onScheduleTomorrow();
+              }}
+              className="w-full h-full items-center justify-center"
+              accessibilityRole="button"
+              accessibilityLabel="Schedule tomorrow"
+            >
+              <Ionicons name="sunny-outline" size={20} color="#FFFFFF" />
+              <Text className="text-tiny text-white mt-1">Tomorrow</Text>
+            </Pressable>
+          </RNAnimated.View>
+          <RNAnimated.View
+            style={{ opacity: deleteOpacity, transform: [{ scale: deleteScale }] }}
+            className="w-20 ml-2 my-0.5 rounded-lg bg-danger-600 items-center justify-center"
+          >
+            <Pressable
+              onPress={() => {
+                close();
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+                onDelete();
+              }}
+              className="w-full h-full items-center justify-center"
+              accessibilityRole="button"
+              accessibilityLabel="Delete task"
+            >
+              <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+              <Text className="text-tiny text-white mt-1">Delete</Text>
+            </Pressable>
+          </RNAnimated.View>
+        </View>
+      );
+    },
+    [close, onDelete, onScheduleTomorrow],
+  );
+
+  // Reset the armed tracker whenever the row closes, so the NEXT open swipe
+  // starts from a clean disarmed state.
+  const handleClose = useCallback(() => {
+    leftArmed.current = false;
+  }, []);
 
   return (
     <View className="px-5 py-1">
       <Swipeable
         ref={swipeRef}
-        renderRightActions={renderRight}
+        renderRightActions={isDone ? undefined : renderRight}
+        renderLeftActions={renderLeft}
         overshootRight={false}
-        rightThreshold={40}
+        overshootLeft={false}
+        rightThreshold={56}
+        leftThreshold={56}
         friction={2}
+        onSwipeableClose={handleClose}
       >
-        <TaskCard task={task} listColor={listColor} onPress={onOpen} onToggleComplete={onToggle} />
+        {manualSort ? (
+          <DraggableTaskCard
+            task={task}
+            listColor={listColor}
+            manualIds={manualIds}
+            onReorder={onReorder}
+            onOpen={onOpen}
+            onLongPress={onLongPress}
+            onToggle={onToggle}
+          />
+        ) : (
+          <TaskCard
+            task={task}
+            listColor={listColor}
+            onPress={onOpen}
+            onLongPress={onLongPress}
+            onToggleComplete={onToggle}
+          />
+        )}
       </Swipeable>
     </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Manual-reorder drag handle (item 6). A dedicated `≡` handle (not the whole
+// row) starts the drag, so tap-to-open and swipe both keep working normally
+// everywhere else on the card.
+// ---------------------------------------------------------------------------
+
+const ROW_HEIGHT_ESTIMATE = 72; // TaskCard min-h-14 (56) + row py-1*2 + meta row ≈ 72px.
+
+interface DraggableTaskCardProps {
+  task: Task;
+  listColor?: string;
+  manualIds: string[];
+  onReorder: (orderedIds: string[]) => void;
+  onOpen: () => void;
+  onLongPress: () => void;
+  onToggle: () => void;
+}
+
+function DraggableTaskCard({
+  task,
+  listColor,
+  manualIds,
+  onReorder,
+  onOpen,
+  onLongPress,
+  onToggle,
+}: DraggableTaskCardProps) {
+  const reduceMotion = useReduceMotion();
+  const translateY = useSharedValue(0);
+  const dragging = useSharedValue(0);
+
+  // Snapshots the order at gesture start and the last "slot" the drag settled
+  // in, so `onChange` only mutates+haptics on an actual slot CROSSING.
+  const orderRef = useRef<string[]>(manualIds);
+  const lastSlotRef = useRef(0);
+
+  const [lifted, setLifted] = useState(false);
+
+  const fireSelectionHaptic = useCallback(() => {
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+
+  const fireLiftHaptic = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }, []);
+
+  const armLift = useCallback(() => {
+    orderRef.current = manualIds;
+    lastSlotRef.current = 0;
+    setLifted(true);
+  }, [manualIds]);
+
+  const disarmLift = useCallback(() => {
+    setLifted(false);
+  }, []);
+
+  // Swap the dragged task with the neighbor `deltaSlots` away (±1 per
+  // crossing) in the local snapshot, and haptic-tick. Does NOT persist —
+  // persistence happens once, on drop.
+  const swapSlot = useCallback(
+    (deltaSlots: 1 | -1) => {
+      const ids = orderRef.current;
+      const from = ids.indexOf(task.id);
+      const to = from + deltaSlots;
+      if (from < 0 || to < 0 || to >= ids.length) return;
+      const next = ids.slice();
+      const tmp = next[from];
+      next[from] = next[to];
+      next[to] = tmp;
+      orderRef.current = next;
+      fireSelectionHaptic();
+    },
+    [task.id, fireSelectionHaptic],
+  );
+
+  const commitDrop = useCallback(() => {
+    if (orderRef.current !== manualIds) onReorder(orderRef.current);
+  }, [manualIds, onReorder]);
+
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        // The drag handle sits inside the row's `Swipeable`, which owns its
+        // own (horizontal) pan gesture. Constraining this handle's gesture to
+        // near-vertical movement — and failing fast on horizontal movement —
+        // keeps the two from contending: a horizontal touch on the handle
+        // falls through to the Swipeable instead of starting a reorder drag.
+        .activeOffsetY([-8, 8])
+        .failOffsetX([-8, 8])
+        .onStart(() => {
+          "worklet";
+          dragging.value = 1;
+          runOnJS(armLift)();
+          runOnJS(fireLiftHaptic)();
+        })
+        .onChange((e) => {
+          "worklet";
+          translateY.value = e.translationY;
+          const slot = Math.round(e.translationY / ROW_HEIGHT_ESTIMATE);
+          if (slot !== lastSlotRef.current) {
+            const delta = slot > lastSlotRef.current ? 1 : -1;
+            lastSlotRef.current = slot;
+            runOnJS(swapSlot)(delta as 1 | -1);
+          }
+        })
+        .onEnd(() => {
+          "worklet";
+          translateY.value = reduceMotion ? 0 : withSpring(0, SPRINGS.tactile);
+          dragging.value = 0;
+          runOnJS(commitDrop)();
+          runOnJS(disarmLift)();
+        })
+        .onFinalize(() => {
+          "worklet";
+          if (dragging.value !== 0) {
+            translateY.value = reduceMotion ? 0 : withSpring(0, SPRINGS.tactile);
+            dragging.value = 0;
+            runOnJS(disarmLift)();
+          }
+        }),
+    [armLift, fireLiftHaptic, swapSlot, commitDrop, disarmLift, reduceMotion, translateY, dragging],
+  );
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: reduceMotion ? 0 : translateY.value }],
+    zIndex: dragging.value !== 0 ? 10 : 0,
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <TaskCard
+        task={task}
+        listColor={listColor}
+        onPress={onOpen}
+        onLongPress={onLongPress}
+        onToggleComplete={onToggle}
+        lifted={lifted}
+        leading={
+          <GestureDetector gesture={pan}>
+            <Animated.View
+              className="min-w-11 min-h-11 items-center justify-center"
+              accessibilityRole="adjustable"
+              accessibilityLabel="Reorder task"
+              accessibilityHint="Long press and drag to move this task up or down the list"
+            >
+              <Ionicons name="reorder-three-outline" size={22} color="#A1A1AA" />
+            </Animated.View>
+          </GestureDetector>
+        }
+      />
+    </Animated.View>
   );
 }
 

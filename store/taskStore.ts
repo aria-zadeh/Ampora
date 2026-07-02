@@ -39,6 +39,7 @@ interface TaskState {
   setSubtaskCompleted: (id: string, subtaskId: string, completed: boolean) => void
   completeTask: (id: string) => void
   reopenTask: (id: string) => void
+  reorderTasks: (orderedIds: string[]) => void
 }
 
 /** Applies a `core/task-logic` transform (which needs the current Task + now) to the stored task, if it exists. */
@@ -150,6 +151,26 @@ export const useTaskStore = create<TaskState>()(
         set((state) => ({
           tasks: applyToTask(state.tasks, id, (task, now) => taskLogic.reopenTask(task, now)),
         }))
+      },
+
+      // Assigns `manualOrder` by array position (Phase 3 manual-sort drag
+      // reorder, `app/(tabs)/tasks.tsx`). Ids not present in `state.tasks`
+      // (e.g. a stale drag against a task deleted mid-gesture) are skipped
+      // rather than throwing. A single `set` call, so this is one atomic
+      // state transition — safe to call once per drop.
+      reorderTasks: (orderedIds) => {
+        set((state) => {
+          const now = Date.now()
+          const next: Record<string, Task> = { ...state.tasks }
+          let changed = false
+          orderedIds.forEach((id, index) => {
+            const existing = next[id]
+            if (!existing || existing.manualOrder === index) return
+            next[id] = { ...existing, manualOrder: index, updatedAt: now, syncState: 'pending' }
+            changed = true
+          })
+          return changed ? { tasks: next } : state
+        })
       },
     }),
     {
