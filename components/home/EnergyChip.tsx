@@ -15,16 +15,25 @@
  * read rather than a confident claim.
  */
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { useBehavioralStore } from "@/store/behavioralStore";
 import { useScheduleStore } from "@/store/scheduleStore";
 import { energyState, type EnergyState } from "@/core/learning";
 import { colors, iconSizes } from "@/utils/design-tokens";
+import { SPRINGS } from "@/utils/motion";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 
 interface EnergyMeta {
   label: string;
@@ -55,6 +64,8 @@ const ENERGY_META: Record<EnergyState, EnergyMeta> = {
 };
 
 export function EnergyChip() {
+  const reduceMotion = useReduceMotion();
+
   // Subscribe to the signal-log length (a scalar) so the read refreshes as new
   // signals arrive, without the subscription returning a fresh array.
   const signalCount = useBehavioralStore((s) => s.signals.length);
@@ -66,6 +77,34 @@ export function EnergyChip() {
   }, [signalCount]);
 
   const meta = ENERGY_META[state];
+
+  // Animate the icon tile whenever the energy state itself changes (not on
+  // every re-render): a quiet fade+scale dip timed so the icon/tint swap lands
+  // at the bottom of the dip, then springs back — reads as the cue "updating"
+  // rather than a jump-cut. Skips entirely under reduce-motion.
+  const prevStateRef = useRef(state);
+  const tileScale = useSharedValue(1);
+  const tileOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    if (prevStateRef.current === state) return;
+    prevStateRef.current = state;
+    if (reduceMotion) return;
+
+    tileOpacity.value = withSequence(
+      withTiming(0.35, { duration: 90 }),
+      withTiming(1, { duration: 140 }),
+    );
+    tileScale.value = withSequence(
+      withTiming(0.85, { duration: 90 }),
+      withSpring(1, SPRINGS.tactile),
+    );
+  }, [state, reduceMotion, tileOpacity, tileScale]);
+
+  const tileAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: tileOpacity.value,
+    transform: [{ scale: tileScale.value }],
+  }));
 
   const onPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -90,12 +129,12 @@ export function EnergyChip() {
         accessibilityLabel={`Energy: ${meta.label}. ${meta.cue}. Opens Focus DNA.`}
         accessibilityHint="Opens your Focus DNA insights"
       >
-        <View
+        <Animated.View
           className="mr-2.5 h-7 w-7 items-center justify-center rounded-full"
-          style={{ backgroundColor: meta.tint.bg }}
+          style={[{ backgroundColor: meta.tint.bg }, tileAnimatedStyle]}
         >
           <Ionicons name={meta.icon} size={iconSizes.xs} color={meta.tint.fg} />
-        </View>
+        </Animated.View>
         <Text className="flex-1 text-caption font-medium text-neutral-700" numberOfLines={1}>
           {meta.cue}
         </Text>

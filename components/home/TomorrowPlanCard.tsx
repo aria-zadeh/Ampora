@@ -1,14 +1,24 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useShallow } from "zustand/react/shallow";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { GradientCard } from "@/components/ui/GradientCard";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { useScheduleStore, selectBlocksByDay } from "@/store/scheduleStore";
 import { useTaskStore } from "@/store/taskStore";
 import { nextStep } from "@/core/task-logic";
 import { gradients, iconSizes } from "@/utils/design-tokens";
+import { EASINGS } from "@/utils/motion";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { ScheduledBlock, Task } from "@/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -40,6 +50,69 @@ function starterLine(task: Task): string | null {
 }
 
 /**
+ * A quiet "moon-phase" visual moment for the evening card: the moon glyph
+ * breathes very slowly (fade + a whisper of scale) and a faint halo behind it
+ * pulses in the same rhythm, like a phase gently waxing and waning. Deliberately
+ * slow (2.6s halves) and low-amplitude — a single ambient cue, not a spinner.
+ * Reduce-motion renders a static moon + halo at rest, no animation.
+ */
+function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
+  const breathe = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    // Idle a beat on mount, then loop a slow 0 -> 1 -> 0 breathing cycle forever.
+    breathe.value = withDelay(
+      300,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 2600, easing: EASINGS.inOut }),
+          withTiming(0, { duration: 2600, easing: EASINGS.inOut }),
+        ),
+        -1,
+        false,
+      ),
+    );
+  }, [reduceMotion, breathe]);
+
+  const moonStyle = useAnimatedStyle(() => ({
+    opacity: reduceMotion ? 1 : 0.8 + breathe.value * 0.2,
+    transform: [{ scale: reduceMotion ? 1 : 1 + breathe.value * 0.06 }],
+  }));
+
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: reduceMotion ? 0.16 : 0.1 + breathe.value * 0.16,
+    transform: [{ scale: reduceMotion ? 1 : 1 + breathe.value * 0.22 }],
+  }));
+
+  return (
+    <View
+      className="items-center justify-center"
+      style={{ width: iconSizes.lg + 20, height: iconSizes.lg + 20 }}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      {/* Faint halo — decorative depth behind the glyph, never carries meaning. */}
+      <Animated.View
+        style={[
+          haloStyle,
+          {
+            position: "absolute",
+            width: iconSizes.lg + 20,
+            height: iconSizes.lg + 20,
+            borderRadius: (iconSizes.lg + 20) / 2,
+            backgroundColor: "#2563EB",
+          },
+        ]}
+      />
+      <Animated.View style={moonStyle}>
+        <Ionicons name="moon-outline" size={iconSizes.lg} color="#2563EB" />
+      </Animated.View>
+    </View>
+  );
+}
+
+/**
  * TomorrowPlanCard (FR-90) — a calm "Ready for tomorrow" card surfaced on the
  * Home screen in the evening / whenever tomorrow already has a plan.
  *
@@ -54,6 +127,8 @@ function starterLine(task: Task): string | null {
  * mutates state.
  */
 export function TomorrowPlanCard() {
+  const reduceMotion = useReduceMotion();
+
   // Tomorrow's local-day window. Recomputed from `Date.now()` each render; the
   // Home screen re-mounts often enough that this stays fresh without a timer.
   const tomorrowStart = useMemo(() => startOfDay(Date.now()) + DAY_MS, []);
@@ -115,11 +190,7 @@ export function TomorrowPlanCard() {
                 with a first move ready.
               </Text>
             </View>
-            <Ionicons
-              name="moon-outline"
-              size={iconSizes.lg}
-              color="#2563EB"
-            />
+            <MoonPhase reduceMotion={reduceMotion} />
           </View>
         </GradientCard>
       </PressableScale>

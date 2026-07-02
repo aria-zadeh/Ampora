@@ -22,15 +22,11 @@ export function TimerDisplay({ seconds, running, label }: TimerDisplayProps) {
       accessibilityLabel={`${formatTime(seconds)} ${running ? "running" : "paused"}`}
     >
       {label && (
-        <Text className="text-caption text-content-secondary dark:text-content-dark-secondary mb-1">
-          {label}
-        </Text>
+        <Text className="text-caption text-neutral-500 mb-1">{label}</Text>
       )}
       <Text
-        className={`text-display font-bold tracking-wider ${
-          running
-            ? "text-content dark:text-content-dark-primary"
-            : "text-content-muted dark:text-content-dark-muted"
+        className={`text-display font-bold ${
+          running ? "text-neutral-900" : "text-neutral-400"
         }`}
         style={{ fontSize: 56, lineHeight: 64, ...tabularNums }}
       >

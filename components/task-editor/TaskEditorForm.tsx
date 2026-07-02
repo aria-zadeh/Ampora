@@ -6,6 +6,7 @@ import {
   Pressable,
   Switch,
   ScrollView,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -196,9 +197,16 @@ export function TaskEditorForm({
   const storeSubtasks = useTaskStore((s) =>
     taskId ? s.tasks[taskId]?.subtasks : undefined
   );
+  const storeProgressMin = useTaskStore((s) =>
+    taskId ? s.tasks[taskId]?.progressMin : undefined
+  );
   const subtasks: Subtask[] = isEdit
     ? storeSubtasks ?? []
     : draft.subtasks ?? [];
+  // Live task-level progress. In edit mode read it from the store so it never
+  // goes stale after a subtask toggle (which writes straight to the store, not
+  // the draft); create mode has no recorded progress yet.
+  const liveProgressMin = isEdit ? storeProgressMin ?? 0 : draft.progressMin ?? 0;
 
   // Direct store actions (edit-mode subtask writes persist immediately).
   const storeAddSubtask = useTaskStore((s) => s.addSubtask);
@@ -380,10 +388,16 @@ export function TaskEditorForm({
     setAiNote(result.isFallback ? result.note ?? "Showing general steps — tap Refine to shape them." : null);
   };
 
-  const handleBreakDown = async () => {
-    if (breakingDown) return;
+  /** Does the current step list have any real progress worth protecting? */
+  const hasSubtaskProgress =
+    subtasks.some((s) => taskLogic.isSubtaskDone(s)) || liveProgressMin > 0;
+  // Confirm dialog for regenerating steps when progress would be lost
+  // (AIB-29 audit gap). Shown only when there is something to protect.
+  const [confirmRebreakdown, setConfirmRebreakdown] = useState(false);
+
+  const runBreakDown = async () => {
     const title = (draft.title ?? "").trim();
-    if (!title) return;
+    if (!title || breakingDown) return;
     setBreakingDown(true);
     setAiNote(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -402,6 +416,22 @@ export function TaskEditorForm({
     } finally {
       setBreakingDown(false);
     }
+  };
+
+  /** Entry point for the "Break it down" / "Re-generate steps" button. Confirms
+   * before replacing steps that already carry progress (AIB-29 audit gap). */
+  const handleBreakDown = () => {
+    if (breakingDown) return;
+    if (subtasks.length > 0 && hasSubtaskProgress) {
+      setConfirmRebreakdown(true);
+      return;
+    }
+    runBreakDown();
+  };
+
+  const handleConfirmReplace = () => {
+    setConfirmRebreakdown(false);
+    runBreakDown();
   };
 
   const handleRefine = async () => {
@@ -1115,6 +1145,50 @@ export function TaskEditorForm({
           disabled={!titleValid}
         />
       </View>
+
+      {/* Re-breakdown confirm (AIB-29): protects progress already made on the
+          current steps before an AI regenerate would replace them. */}
+      <Modal
+        visible={confirmRebreakdown}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmRebreakdown(false)}
+      >
+        <Pressable
+          className="flex-1 items-center justify-center bg-black/40 px-6"
+          onPress={() => setConfirmRebreakdown(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss"
+        >
+          <Pressable
+            className="w-full rounded-2xl bg-white p-6"
+            style={shadows.lg}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Heading size="h3">Replace your steps?</Heading>
+            <Text className="mt-2 text-body text-neutral-600">
+              You have progress on these steps. Regenerating will replace the list — completed steps
+              won&apos;t carry over unless you keep them.
+            </Text>
+            <View className="mt-6 flex-row gap-3">
+              <View className="flex-1">
+                <Button
+                  title="Keep my steps"
+                  variant="secondary"
+                  onPress={() => setConfirmRebreakdown(false)}
+                />
+              </View>
+              <View className="flex-1">
+                <Button
+                  title="Replace"
+                  variant="destructive"
+                  onPress={handleConfirmReplace}
+                />
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -7,6 +7,7 @@ import { useTaskStore } from "@/store/taskStore";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
+import { SkeletonLoader } from "@/components/ui/SkeletonLoader";
 import { TaskEditorForm } from "@/components/task-editor/TaskEditorForm";
 import { VerificationSheet } from "@/components/verification/VerificationSheet";
 import { StakeSetupSheet, type ArmedStake } from "@/components/stakes/StakeSetupSheet";
@@ -25,6 +26,16 @@ export default function TaskEditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const task = useTaskStore((s) => s.tasks[id]);
   const updateTask = useTaskStore((s) => s.updateTask);
+
+  // MMKV reads are synchronous but zustand's persist middleware still finishes
+  // rehydration a tick after mount, so a deep-linked open of this screen can
+  // briefly see `task === undefined` before the real data lands. Track that
+  // window so we show a loading skeleton instead of a false "not found".
+  const [storeHydrated, setStoreHydrated] = useState(() => useTaskStore.persist.hasHydrated());
+  useEffect(() => {
+    if (storeHydrated) return;
+    return useTaskStore.persist.onFinishHydration(() => setStoreHydrated(true));
+  }, [storeHydrated]);
 
   // Verification (Mark done) sheet — completes the task with a chosen method.
   const [verifyOpen, setVerifyOpen] = useState(false);
@@ -78,6 +89,42 @@ export default function TaskEditScreen() {
   };
 
   if (!task || !initialDraft) {
+    // Still hydrating from MMKV — show a loading skeleton, not "not found".
+    if (!storeHydrated) {
+      return (
+        <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
+          <View
+            className="flex-row items-center border-b border-neutral-200 bg-white px-5 py-3.5"
+            style={shadows.xs}
+          >
+            <PressableScale
+              onPress={() => router.back()}
+              haptic="light"
+              className="h-11 w-11 -ml-2 items-center justify-center rounded-full"
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+            >
+              <Ionicons name="chevron-back" size={24} color="#18181B" />
+            </PressableScale>
+            <Heading size="h3" className="ml-1">
+              Task
+            </Heading>
+          </View>
+          <View className="gap-6 px-5 pb-10 pt-4" accessibilityLabel="Loading task">
+            <View className="gap-5 rounded-2xl border border-neutral-200 bg-white p-5">
+              <SkeletonLoader height={48} radius={8} />
+              <SkeletonLoader height={96} radius={8} />
+            </View>
+            <View className="gap-5 rounded-2xl border border-neutral-200 bg-white p-5">
+              <SkeletonLoader height={20} width="40%" radius={6} />
+              <SkeletonLoader height={44} radius={10} />
+              <SkeletonLoader height={44} radius={10} />
+            </View>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
     return (
       <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
         <View

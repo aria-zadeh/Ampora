@@ -29,7 +29,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
 import { useTaskStore } from "@/store/taskStore";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -44,11 +50,12 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { PulseScale } from "@/components/ui/PulseScale";
+import { ProgressRing } from "@/components/focus/ProgressRing";
 import { LockBanner } from "@/components/stakes/LockBanner";
 import { PanicValveSheet } from "@/components/stakes/PanicValveSheet";
 import { DeEscalationSheet } from "@/components/stakes/DeEscalationSheet";
-import { iconSizes } from "@/utils/design-tokens";
-import { DURATIONS } from "@/utils/motion";
+import { iconSizes, tabularNums } from "@/utils/design-tokens";
+import { DURATIONS, SPRINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { NextStep } from "@/core/task-logic";
 import type { StakeSession } from "@/types";
@@ -198,6 +205,31 @@ export default function FocusSessionScreen() {
       totalCount: total,
     };
   }, [task]);
+
+  // -- Elapsed fraction of the CURRENT phase (work or break), for the ambient
+  //    progress ring around the timer digits. 0 at the start of a phase, 1 the
+  //    instant it completes (right before the flip resets it). --
+  const phaseTotalSec = (phase === "work" ? workMin : breakMin) * 60;
+  const phaseProgress = useMemo(() => {
+    if (phaseTotalSec <= 0) return 0;
+    return Math.min(1, Math.max(0, 1 - remainingSec / phaseTotalSec));
+  }, [remainingSec, phaseTotalSec]);
+
+  // -- Phase-flip spring (work <-> break): a quiet pop on the timer block the
+  //    instant the phase changes, so the transition reads as a deliberate beat
+  //    rather than a silent label swap. Reduce-motion holds at rest scale. --
+  const phaseFlipScale = useSharedValue(1);
+  const prevPhaseRef = useRef(phase);
+  useEffect(() => {
+    if (prevPhaseRef.current === phase) return;
+    prevPhaseRef.current = phase;
+    if (reduceMotion) return;
+    phaseFlipScale.value = 0.94;
+    phaseFlipScale.value = withSpring(1, SPRINGS.tactile);
+  }, [phase, reduceMotion, phaseFlipScale]);
+  const phaseFlipStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: phaseFlipScale.value }],
+  }));
 
   // -- Session lifecycle: start on mount, log actualStart, end on unmount --
   useEffect(() => {
@@ -513,15 +545,15 @@ export default function FocusSessionScreen() {
             {task?.title ?? "Focus session"}
           </Text>
         </View>
-        <Pressable
+        <PressableScale
           onPress={() => finishAndLeave(progress >= 1)}
+          haptic="selection"
           className="min-w-11 min-h-11 items-center justify-center"
           accessibilityRole="button"
           accessibilityLabel="End focus session"
-          hitSlop={8}
         >
           <Ionicons name="close" size={26} color="#18181B" />
-        </Pressable>
+        </PressableScale>
       </View>
 
       {missing ? (
@@ -609,28 +641,38 @@ export default function FocusSessionScreen() {
             </Animated.View>
           </PulseScale>
 
-          {/* Timer */}
-          <Animated.View entering={enter} className="items-center mt-10">
+          {/* Timer — an ambient ring traces the current phase's progress around
+              the digits (the Focus screen's signature motion beat); the block
+              springs on work<->break transitions. */}
+          <Animated.View entering={enter} style={phaseFlipStyle} className="items-center mt-10">
             <Text className="text-caption text-neutral-500 mb-1">
               {isBreak ? "Break" : "Focus"} · {isBreak ? breakMin : workMin} min
             </Text>
-            <Text
-              className={`font-bold tracking-wider ${
-                running ? "text-neutral-900" : "text-neutral-400"
-              }`}
-              style={{ fontSize: 72, lineHeight: 80, fontVariant: ["tabular-nums"] }}
-              accessibilityRole="timer"
-              accessibilityLabel={`${mmss(remainingSec)} ${running ? "running" : "paused"}`}
-            >
-              {mmss(remainingSec)}
-            </Text>
 
-            <Pressable
+            <ProgressRing
+              progress={phaseProgress}
+              size={232}
+              strokeWidth={7}
+              color={running ? (isBreak ? "#F97316" : "#2563EB") : "#D7D3CC"}
+            >
+              <Text
+                className={`font-bold ${
+                  running ? "text-neutral-900" : "text-neutral-400"
+                }`}
+                style={{ fontSize: 76, lineHeight: 84, ...tabularNums }}
+                accessibilityRole="timer"
+                accessibilityLabel={`${mmss(remainingSec)} ${running ? "running" : "paused"}`}
+              >
+                {mmss(remainingSec)}
+              </Text>
+            </ProgressRing>
+
+            <PressableScale
               onPress={toggleRunning}
-              className="mt-3 flex-row items-center gap-1.5 px-4 py-2 rounded-full active:opacity-60"
+              haptic={false}
+              className="mt-3 min-h-11 flex-row items-center gap-1.5 px-4 rounded-full"
               accessibilityRole="button"
               accessibilityLabel={running ? "Pause timer" : "Resume timer"}
-              hitSlop={6}
             >
               <Ionicons
                 name={running ? "pause" : "play"}
@@ -640,7 +682,7 @@ export default function FocusSessionScreen() {
               <Text className="text-label font-medium text-neutral-600">
                 {running ? "Pause" : "Resume"}
               </Text>
-            </Pressable>
+            </PressableScale>
 
             {/* Paused-because-you-left note. The timer holds until you resume,
                 so time away never counts as focus time. */}
@@ -702,11 +744,13 @@ export default function FocusSessionScreen() {
 
           {/* Ambient audio */}
           <View className="mt-6">
-            <Pressable
+            <PressableScale
               onPress={() => setAudioOpen((o) => !o)}
-              className="flex-row items-center justify-between px-4 h-12 rounded-xl bg-white border border-neutral-200 active:opacity-70"
+              haptic="selection"
+              className="flex-row items-center justify-between px-4 h-12 rounded-xl bg-white border border-neutral-200"
               accessibilityRole="button"
               accessibilityLabel="Ambient sound"
+              accessibilityState={{ expanded: audioOpen }}
             >
               <View className="flex-row items-center gap-2">
                 <Ionicons name="musical-notes-outline" size={iconSizes.sm} color="#52525B" />
@@ -724,7 +768,7 @@ export default function FocusSessionScreen() {
                   color="#A1A1AA"
                 />
               </View>
-            </Pressable>
+            </PressableScale>
 
             {audioOpen && (
               <Animated.View
@@ -734,9 +778,10 @@ export default function FocusSessionScreen() {
                 {AUDIO_PICKER_OPTIONS.map((opt) => {
                   const active = audio.current === opt.kind;
                   return (
-                    <Pressable
+                    <PressableScale
                       key={opt.kind}
                       onPress={() => pickAudio(opt.kind)}
+                      haptic={false}
                       className={`flex-row items-center gap-1.5 px-3.5 h-10 rounded-full border ${
                         active
                           ? "bg-primary-600 border-primary-600"
@@ -758,7 +803,7 @@ export default function FocusSessionScreen() {
                       >
                         {opt.label}
                       </Text>
-                    </Pressable>
+                    </PressableScale>
                   );
                 })}
               </Animated.View>

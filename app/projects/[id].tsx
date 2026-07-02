@@ -59,6 +59,8 @@ export default function ProjectDetailScreen() {
 
   const createTask = useTaskStore((s) => s.createTask);
   const addSubtask = useTaskStore((s) => s.addSubtask);
+  const deleteTask = useTaskStore((s) => s.deleteTask);
+  const updateTask = useTaskStore((s) => s.updateTask);
 
   const [tab, setTab] = useState<Tab>("progress");
   const [planning, setPlanning] = useState(false);
@@ -299,13 +301,24 @@ export default function ProjectDetailScreen() {
         onClose={() => setPlanned(null)}
       />
 
-      {/* Delete confirm */}
+      {/* Delete confirm — offers "also delete its N generated tasks"; default is
+          keep + unlink so a project delete never silently destroys task work. */}
       <ConfirmDeleteSheet
         visible={confirmDelete}
         name={project.name}
+        taskCount={project.taskIds.length}
         onCancel={() => setConfirmDelete(false)}
-        onConfirm={() => {
+        onConfirm={(alsoDeleteTasks) => {
           setConfirmDelete(false);
+          for (const taskId of project.taskIds) {
+            if (alsoDeleteTasks) {
+              deleteTask(taskId);
+            } else {
+              // Keep + unlink (default): the task survives, just no longer
+              // back-references a project that is about to be gone.
+              updateTask(taskId, { projectId: undefined });
+            }
+          }
           deleteProject(project.id);
           router.back();
         }}
@@ -427,14 +440,27 @@ function PlannedSheet({
 function ConfirmDeleteSheet({
   visible,
   name,
+  taskCount,
   onCancel,
   onConfirm,
 }: {
   visible: boolean;
   name: string;
+  /** Number of tasks this project generated (`project.taskIds.length`). */
+  taskCount: number;
   onCancel: () => void;
-  onConfirm: () => void;
+  /** `alsoDeleteTasks` reflects the checkbox — false (keep + unlink) by default. */
+  onConfirm: (alsoDeleteTasks: boolean) => void;
 }) {
+  // Default is keep + unlink so a project delete never silently destroys task
+  // work (Projects audit gap). Reset every time the sheet opens.
+  const [alsoDeleteTasks, setAlsoDeleteTasks] = useState(false);
+  React.useEffect(() => {
+    if (visible) setAlsoDeleteTasks(false);
+  }, [visible]);
+
+  const taskLabel = taskCount === 1 ? "task" : "tasks";
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
       <Pressable
@@ -449,15 +475,47 @@ function ConfirmDeleteSheet({
           </View>
           <Heading size="h3">Delete project?</Heading>
           <Text className="text-body text-neutral-500 mt-1.5 mb-5">
-            "{name}" and its files, chat, and progress will be removed. Tasks it generated stay in
-            your task list.
+            "{name}" and its files, chat, and progress will be removed.
+            {taskCount > 0
+              ? ` It generated ${taskCount} ${taskLabel} — choose what happens to ${taskCount === 1 ? "it" : "them"} below.`
+              : " It hasn't generated any tasks yet."}
           </Text>
+
+          {taskCount > 0 && (
+            <Pressable
+              onPress={() => setAlsoDeleteTasks((v) => !v)}
+              className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3.5 mb-5"
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: alsoDeleteTasks }}
+              accessibilityLabel={`Also delete the ${taskCount} generated ${taskLabel}`}
+              accessibilityHint="When off, its tasks stay in your task list, unlinked from this project"
+            >
+              <View
+                className={`mt-0.5 h-5 w-5 items-center justify-center rounded ${
+                  alsoDeleteTasks ? "bg-danger-600" : "border-2 border-neutral-300"
+                }`}
+              >
+                {alsoDeleteTasks ? <Ionicons name="checkmark" size={13} color="#FFFFFF" /> : null}
+              </View>
+              <View className="flex-1">
+                <Text className="text-label font-medium text-neutral-800">
+                  Also delete its {taskCount} generated {taskLabel}
+                </Text>
+                <Text className="text-caption text-neutral-500 mt-0.5">
+                  {alsoDeleteTasks
+                    ? "These tasks will be permanently removed too."
+                    : `Off by default — ${taskCount === 1 ? "it" : "they"} will stay in your task list, unlinked from this project.`}
+                </Text>
+              </View>
+            </Pressable>
+          )}
+
           <View className="flex-row gap-3">
             <View className="flex-1">
               <Button title="Cancel" variant="secondary" onPress={onCancel} />
             </View>
             <View className="flex-1">
-              <Button title="Delete" variant="destructive" onPress={onConfirm} />
+              <Button title="Delete" variant="destructive" onPress={() => onConfirm(alsoDeleteTasks)} />
             </View>
           </View>
         </Pressable>

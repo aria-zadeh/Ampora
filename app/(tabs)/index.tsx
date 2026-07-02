@@ -155,7 +155,7 @@ export default function HomeScreen() {
               <Text className="text-overline font-semibold text-primary-600 uppercase tracking-wide mb-2">
                 Today
               </Text>
-              <Heading size="h1">
+              <Heading size="display">
                 {greeting}
                 {displayName ? `,\n${displayName}` : ""}
               </Heading>
@@ -191,7 +191,7 @@ export default function HomeScreen() {
             for Projects, so it belongs here. */}
         <Animated.View
           entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
-          className="mt-6"
+          className="mt-7"
         >
           <ProjectsEntryCard />
         </Animated.View>
@@ -212,7 +212,7 @@ export default function HomeScreen() {
         {firstMoveTask?.firstMove && (
           <Animated.View
             entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
-            className="mt-6"
+            className="mt-7"
           >
             <StarterActionCard
               action={firstMoveTask.firstMove}
@@ -232,7 +232,7 @@ export default function HomeScreen() {
         {hasUpcoming && (
           <Animated.View
             entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
-            className="mt-10"
+            className="mt-7"
           >
             <View className="flex-row items-baseline justify-between mb-4">
               <Heading size="h3">Scheduled</Heading>
@@ -247,7 +247,7 @@ export default function HomeScreen() {
         {showTomorrowPlan && (
           <Animated.View
             entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
-            className="mt-10"
+            className="mt-7"
           >
             <TomorrowPlanCard />
           </Animated.View>
@@ -255,7 +255,7 @@ export default function HomeScreen() {
 
         {/* Coming up */}
         {comingUp.length > 0 ? (
-          <View className="mt-10">
+          <View className="mt-7">
             <View className="flex-row items-baseline justify-between mb-4">
               <Heading size="h3">Coming up</Heading>
               <Text className="text-caption text-neutral-400">
@@ -281,7 +281,7 @@ export default function HomeScreen() {
             </View>
           </View>
         ) : (
-          <View className="mt-16">
+          <View className="mt-7">
             <EmptyState
               title="You're all caught up"
               subtitle="Nothing on deck right now. Add a task and your first move will show up here."

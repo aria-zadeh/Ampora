@@ -19,7 +19,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -30,7 +30,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { useTaskStore } from "@/store/taskStore";
 import { nextStep } from "@/core/task-logic";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { DURATIONS } from "@/utils/motion";
+import { DURATIONS, EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { Task } from "@/types";
 import type { NextStep } from "@/core/task-logic";
@@ -106,7 +106,13 @@ export default function BlindfoldScreen() {
   }, [task, step, updateTask, setSubtaskCompleted]);
 
   const done = !task || step.kind === "none";
-  const enter = reduceMotion ? undefined : FadeIn.duration(DURATIONS.slower);
+  // A single gentle fade — the calm-down surface's one motion beat. Eased
+  // (ease-out) rather than linear so it settles instead of moving at a
+  // constant rate; still just an opacity fade, never a slide/spring, to keep
+  // stimulation low. Skipped entirely under reduce-motion.
+  const enter = reduceMotion
+    ? undefined
+    : FadeIn.duration(DURATIONS.slower).easing(EASINGS.standard);
 
   return (
     <View className="flex-1" style={{ backgroundColor: "#FFFBF5" }}>
@@ -122,15 +128,15 @@ export default function BlindfoldScreen() {
       <SafeAreaView className="flex-1" edges={["top", "bottom"]}>
         {/* Quiet exit — top-left, unobtrusive. */}
         <View className="flex-row items-center px-5 pt-2">
-          <Pressable
+          <PressableScale
             onPress={exit}
+            haptic={false}
             className="min-w-11 min-h-11 items-center justify-center -ml-2"
             accessibilityRole="button"
             accessibilityLabel="Leave Blindfold mode"
-            hitSlop={8}
           >
             <Ionicons name="chevron-down" size={24} color="#C2410C" />
-          </Pressable>
+          </PressableScale>
         </View>
 
         {/* One thing, centered. */}

@@ -45,6 +45,48 @@ interface FileListProps {
   onRemoveFile: (fileId: string) => void;
 }
 
+// Project file limits (audit gap — doc `10` §4 default caps). Enforced here in
+// the add path so a project's knowledge base stays a bounded, groundable set
+// rather than growing unbounded.
+const MAX_FILES = 20;
+const MAX_FILE_MB = 25;
+const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+
+// Accepted document-picker MIME filter: pdf / image / doc / sheet, plus plain
+// text (kept — it is how pasted-style notes get real text extraction today).
+const ACCEPTED_DOCUMENT_TYPES = [
+  "application/pdf",
+  "image/*",
+  "text/*",
+  // Word-style documents
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  // Spreadsheets
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/csv",
+];
+
+/** File extensions accepted as a fallback check when mimeType is missing/generic. */
+const ACCEPTED_EXTENSIONS = /\.(pdf|png|jpe?g|gif|webp|heic|heif|bmp|doc|docx|xls|xlsx|csv|txt|md)$/i;
+
+/** Whether a picked asset's mime/name matches an accepted category (pdf/img/doc/sheet/text). */
+function isAcceptedFileType(mime: string | undefined, name: string): boolean {
+  const m = (mime ?? "").toLowerCase();
+  if (
+    m.startsWith("image/") ||
+    m.startsWith("text/") ||
+    m === "application/pdf" ||
+    m === "application/msword" ||
+    m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    m === "application/vnd.ms-excel" ||
+    m === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  ) {
+    return true;
+  }
+  return ACCEPTED_EXTENSIONS.test(name.toLowerCase());
+}
+
 const TYPE_META: Record<
   ProjectFile["type"],
   { label: string; icon: keyof typeof import("@expo/vector-icons").Ionicons.glyphMap }
@@ -94,9 +136,18 @@ async function extractTrivialText(
 export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [attaching, setAttaching] = useState(false);
+  // Calm inline limit error (file count / size / type) — cleared on the next
+  // successful add or user retry, never an alert/"Oops!" popup.
+  const [limitError, setLimitError] = useState<string | null>(null);
+
+  const atFileLimit = files.length >= MAX_FILES;
 
   const handleAddText = useCallback(
     (name: string, text: string) => {
+      if (files.length >= MAX_FILES) {
+        setLimitError(`This project already has ${MAX_FILES} files, the most it can hold at once.`);
+        return;
+      }
       const file: ProjectFile = {
         id: newId(),
         name,
@@ -105,23 +156,39 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
         addedAt: Date.now(),
       };
       onAddFile(file);
+      setLimitError(null);
       setPasteOpen(false);
     },
-    [onAddFile]
+    [files.length, onAddFile]
   );
 
-  /** Pick a document (PDF / doc / spreadsheet / — on web, anything). Guarded. */
+  /** Pick a document (PDF / image / doc / spreadsheet / text). Guarded. */
   const pickDocument = useCallback(async () => {
     if (attaching) return;
+    if (files.length >= MAX_FILES) {
+      setLimitError(`This project already has ${MAX_FILES} files, the most it can hold at once.`);
+      return;
+    }
     setAttaching(true);
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "text/*", "image/*", "*/*"],
+        type: ACCEPTED_DOCUMENT_TYPES,
         copyToCacheDirectory: true,
         multiple: false,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        const name = asset.name || "Attachment";
+
+        if (!isAcceptedFileType(asset.mimeType, name)) {
+          setLimitError("That file type isn't supported yet — try a PDF, image, document, or spreadsheet.");
+          return;
+        }
+        if (asset.size != null && asset.size > MAX_FILE_BYTES) {
+          setLimitError(`"${name}" is over the ${MAX_FILE_MB} MB limit for a single file.`);
+          return;
+        }
+
         const extractedText = await extractTrivialText({
           uri: asset.uri,
           mimeType: asset.mimeType,
@@ -130,23 +197,28 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
         });
         onAddFile({
           id: newId(),
-          name: asset.name || "Attachment",
-          type: fileTypeFromMime(asset.mimeType, asset.name || ""),
+          name,
+          type: fileTypeFromMime(asset.mimeType, name),
           uri: asset.uri,
           extractedText,
           addedAt: Date.now(),
         });
+        setLimitError(null);
       }
     } catch {
       // Unsupported / denied / cancelled — never crash, just stop.
     } finally {
       setAttaching(false);
     }
-  }, [attaching, onAddFile]);
+  }, [attaching, files.length, onAddFile]);
 
   /** Pick a photo/diagram from the library (native-focused). Guarded. */
   const pickImage = useCallback(async () => {
     if (attaching) return;
+    if (files.length >= MAX_FILES) {
+      setLimitError(`This project already has ${MAX_FILES} files, the most it can hold at once.`);
+      return;
+    }
     setAttaching(true);
     try {
       // Permission is a no-op on web; guard it so a throw doesn't block the pick.
@@ -162,6 +234,12 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const name = asset.fileName || `Image ${new Date().toLocaleDateString()}`;
+
+        if (asset.fileSize != null && asset.fileSize > MAX_FILE_BYTES) {
+          setLimitError(`"${name}" is over the ${MAX_FILE_MB} MB limit for a single file.`);
+          return;
+        }
+
         onAddFile({
           id: newId(),
           name,
@@ -169,13 +247,14 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
           uri: asset.uri,
           addedAt: Date.now(),
         });
+        setLimitError(null);
       }
     } catch {
       // Unsupported / denied / cancelled — never crash.
     } finally {
       setAttaching(false);
     }
-  }, [attaching, onAddFile]);
+  }, [attaching, files.length, onAddFile]);
 
   return (
     <View>
@@ -237,6 +316,14 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
         </View>
       )}
 
+      {/* Calm inline limit error — file count, size, or type. Never an alert. */}
+      {limitError ? (
+        <View className="flex-row items-start gap-2 rounded-lg border border-warning-100 bg-warning-100/50 p-3 mt-4">
+          <Ionicons name="information-circle-outline" size={iconSizes.sm} color="#C2410C" />
+          <Text className="flex-1 text-caption text-warning-700">{limitError}</Text>
+        </View>
+      ) : null}
+
       {/* Add actions */}
       <View className="flex-row gap-3 mt-4">
         <View className="flex-1">
@@ -244,6 +331,7 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
             title="Attach file"
             variant="secondary"
             loading={attaching}
+            disabled={atFileLimit}
             onPress={pickDocument}
             icon={<Ionicons name="document-attach-outline" size={iconSizes.sm} color="#18181B" />}
           />
@@ -252,6 +340,7 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
           <Button
             title="Paste text"
             variant="ghost"
+            disabled={atFileLimit}
             onPress={() => setPasteOpen(true)}
             icon={<Ionicons name="clipboard-outline" size={iconSizes.sm} color="#2563EB" />}
           />
@@ -263,21 +352,31 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
       {Platform.OS !== "web" && (
         <Pressable
           onPress={pickImage}
-          disabled={attaching}
+          disabled={attaching || atFileLimit}
           className="flex-row items-center justify-center mt-3 py-2"
           accessibilityRole="button"
           accessibilityLabel="Add a photo or diagram"
+          accessibilityState={{ disabled: attaching || atFileLimit }}
         >
-          <Ionicons name="image-outline" size={iconSizes.sm} color="#2563EB" />
-          <Text className="text-label font-medium text-primary-600 ml-1.5">
+          <Ionicons
+            name="image-outline"
+            size={iconSizes.sm}
+            color={atFileLimit ? "#A1A1AA" : "#2563EB"}
+          />
+          <Text
+            className={`text-label font-medium ml-1.5 ${
+              atFileLimit ? "text-neutral-400" : "text-primary-600"
+            }`}
+          >
             Add a photo or diagram
           </Text>
         </Pressable>
       )}
 
       <Text className="text-caption text-neutral-400 mt-2">
-        Attach PDFs, docs, or photos, or paste text directly. Plain-text files are read now; full
-        OCR and PDF text extraction arrive in a later update.
+        {atFileLimit
+          ? `This project is at its ${MAX_FILES}-file limit. Remove one to add another.`
+          : `Attach PDFs, docs, photos, or spreadsheets (up to ${MAX_FILE_MB} MB each, ${MAX_FILES} files per project), or paste text directly. Plain-text files are read now; full OCR and PDF text extraction arrive in a later update.`}
       </Text>
 
       <AddTextSheet visible={pasteOpen} onClose={() => setPasteOpen(false)} onSave={handleAddText} />

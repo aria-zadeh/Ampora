@@ -302,10 +302,15 @@ export function ProjectChat({ project, onAppendMessage }: ProjectChatProps) {
         })}
 
         {sending && (
-          <View className="flex-row items-center self-start bg-neutral-100 rounded-2xl px-4 py-3 ml-1">
+          <Animated.View
+            entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
+            className="flex-row items-center self-start bg-neutral-100 rounded-2xl px-4 py-3 ml-1"
+            accessibilityLabel="Planner is typing"
+            accessibilityRole="text"
+          >
             <ActivityIndicator size="small" color={PROJECT_ACCENT} />
             <Text className="text-caption text-neutral-500 ml-2">Thinking…</Text>
-          </View>
+          </Animated.View>
         )}
       </ScrollView>
 
