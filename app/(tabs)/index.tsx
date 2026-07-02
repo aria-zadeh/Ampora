@@ -236,7 +236,7 @@ export default function HomeScreen() {
           >
             <View className="flex-row items-baseline justify-between mb-4">
               <Heading size="h3">Scheduled</Heading>
-              <Text className="text-caption text-neutral-400">Your plan</Text>
+              <Text className="text-caption text-neutral-500">Your plan</Text>
             </View>
             <UpcomingList limit={6} />
           </Animated.View>
@@ -258,7 +258,7 @@ export default function HomeScreen() {
           <View className="mt-7">
             <View className="flex-row items-baseline justify-between mb-4">
               <Heading size="h3">Coming up</Heading>
-              <Text className="text-caption text-neutral-400">
+              <Text className="text-caption text-neutral-500">
                 {comingUp.length} {comingUp.length === 1 ? "task" : "tasks"}
               </Text>
             </View>

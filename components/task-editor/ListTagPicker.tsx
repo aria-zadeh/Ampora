@@ -22,7 +22,7 @@ const COLOR_PRESETS = [
   "#DC2626", // danger
   "#0891B2", // cyan
   "#DB2777", // pink
-  "#52525B", // neutral
+  "#57534E", // neutral
 ];
 
 interface SingleProps {
@@ -159,7 +159,7 @@ export function ListTagPicker(props: ListTagPickerProps) {
             <TextInput
               className="mt-5 min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
               placeholder={isSingle ? "List name" : "Tag name"}
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor="#A8A29A"
               value={draftName}
               onChangeText={setDraftName}
               autoFocus

@@ -72,7 +72,7 @@ function DayHeader({
     <View className="flex-1 items-center py-2" accessibilityRole="header">
       <Text
         className={`text-tiny font-medium uppercase ${
-          isToday ? 'text-primary-600' : 'text-neutral-400'
+          isToday ? 'text-primary-600' : 'text-neutral-500'
         }`}
       >
         {weekday}
@@ -251,7 +251,7 @@ export function ThreeDayView({
                       className="items-end pr-2"
                     >
                       <Text
-                        className="text-tiny text-neutral-400"
+                        className="text-tiny text-neutral-500"
                         style={{ marginTop: -6 }}
                         accessibilityLabel={hourLabelLong(hour)}
                         allowFontScaling

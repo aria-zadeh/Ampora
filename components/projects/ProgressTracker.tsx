@@ -127,7 +127,7 @@ function DeliverableTracker({
                   accessibilityRole="button"
                   accessibilityLabel={`Remove phase ${phase.title}`}
                 >
-                  <Ionicons name="close-circle" size={iconSizes.sm} color="#D4D4D8" />
+                  <Ionicons name="close-circle" size={iconSizes.sm} color="#D7D3CC" />
                 </Pressable>
               </View>
               <ProgressBar
@@ -220,7 +220,7 @@ function StudyTracker({
                     accessibilityRole="button"
                     accessibilityLabel={`Remove topic ${topic.title}`}
                   >
-                    <Ionicons name="close-circle" size={iconSizes.sm} color="#D4D4D8" />
+                    <Ionicons name="close-circle" size={iconSizes.sm} color="#D7D3CC" />
                   </Pressable>
                 </View>
                 <View
@@ -242,7 +242,7 @@ function StudyTracker({
                           className="w-6 h-6 rounded-full border"
                           style={{
                             backgroundColor: on ? accent : "#FFFFFF",
-                            borderColor: on ? accent : "#E4E4E7",
+                            borderColor: on ? accent : "#E8E6E0",
                           }}
                         />
                       </Pressable>
@@ -337,7 +337,7 @@ function Stepper({
         disabled ? "bg-neutral-50 border-neutral-200" : "bg-white border-neutral-300"
       }`}
     >
-      <Ionicons name={icon} size={iconSizes.lg} color={disabled ? "#D4D4D8" : "#18181B"} />
+      <Ionicons name={icon} size={iconSizes.lg} color={disabled ? "#D7D3CC" : "#1C1917"} />
     </PressableScale>
   );
 }
@@ -363,12 +363,12 @@ function AddRow({
   return (
     <View className="flex-row items-center gap-2">
       <View className="flex-1 flex-row items-center bg-white border border-neutral-200 rounded-md min-h-11 px-3">
-        <Ionicons name="add" size={iconSizes.md} color="#A1A1AA" />
+        <Ionicons name="add" size={iconSizes.md} color="#A8A29A" />
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#A1A1AA"
+          placeholderTextColor="#A8A29A"
           className="flex-1 ml-2 text-body text-neutral-900"
           returnKeyType="done"
           onSubmitEditing={onAdd}
@@ -381,7 +381,7 @@ function AddRow({
         onPress={onAdd}
         accessibilityLabel="Add"
         className="w-11 h-11 rounded-md items-center justify-center"
-        style={{ backgroundColor: canAdd ? accent : "#E4E4E7" }}
+        style={{ backgroundColor: canAdd ? accent : "#E8E6E0" }}
       >
         <Ionicons name="checkmark" size={iconSizes.md} color="#FFFFFF" />
       </PressableScale>

@@ -203,7 +203,7 @@ export default function AuthScreen() {
               >
                 <Text
                   className={`text-label font-medium ${
-                    cooldown > 0 ? "text-neutral-400" : "text-primary-600"
+                    cooldown > 0 ? "text-neutral-500" : "text-primary-600"
                   }`}
                 >
                   {cooldownLabel}

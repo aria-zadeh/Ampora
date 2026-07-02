@@ -249,8 +249,8 @@ export function ProjectChat({ project, onAppendMessage }: ProjectChatProps) {
             accessibilityLabel="Clear conversation"
             accessibilityHint="Removes all messages in this project's chat"
           >
-            <Ionicons name="trash-outline" size={iconSizes.xs} color="#A1A1AA" />
-            <Text className="text-caption text-neutral-400 ml-1">Clear</Text>
+            <Ionicons name="trash-outline" size={iconSizes.xs} color="#A8A29A" />
+            <Text className="text-caption text-neutral-500 ml-1">Clear</Text>
           </Pressable>
         </View>
       )}
@@ -358,7 +358,7 @@ export function ProjectChat({ project, onAppendMessage }: ProjectChatProps) {
             value={input}
             onChangeText={setInput}
             placeholder="Plan with this project…"
-            placeholderTextColor="#A1A1AA"
+            placeholderTextColor="#A8A29A"
             className="flex-1 text-body text-neutral-900 max-h-24"
             multiline
             accessibilityLabel="Message this project"
@@ -370,7 +370,7 @@ export function ProjectChat({ project, onAppendMessage }: ProjectChatProps) {
           disabled={sending || input.trim().length === 0}
           className="w-11 h-11 rounded-full items-center justify-center"
           style={{
-            backgroundColor: input.trim().length === 0 || sending ? "#E4E4E7" : PROJECT_ACCENT,
+            backgroundColor: input.trim().length === 0 || sending ? "#E8E6E0" : PROJECT_ACCENT,
           }}
           accessibilityRole="button"
           accessibilityLabel="Send message"
@@ -425,7 +425,7 @@ function DayDivider({ at }: { at: number }) {
   return (
     <View className="flex-row items-center px-2 my-1" accessibilityRole="text">
       <View className="flex-1 h-px bg-neutral-200" />
-      <Text className="text-tiny font-medium text-neutral-400 mx-2 uppercase tracking-wide">
+      <Text className="text-tiny font-medium text-neutral-500 mx-2 uppercase tracking-wide">
         {dayLabel(at)}
       </Text>
       <View className="flex-1 h-px bg-neutral-200" />
@@ -491,7 +491,7 @@ function MessageBubble({
             <Ionicons
               name={undone ? "arrow-undo-outline" : "checkmark-circle"}
               size={iconSizes.sm}
-              color={undone ? "#71717A" : "#15803D"}
+              color={undone ? "#6F6862" : "#15803D"}
             />
             <Text
               className={`text-caption font-semibold ml-1.5 ${
@@ -551,8 +551,8 @@ function MessageBubble({
 
       {!isUser && msg.isFallback && (
         <View className="flex-row items-center mt-1 ml-1">
-          <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color="#A1A1AA" />
-          <Text className="text-tiny text-neutral-400 ml-1">
+          <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color="#A8A29A" />
+          <Text className="text-tiny text-neutral-500 ml-1">
             Offline — reconnect for a source-grounded reply.
           </Text>
         </View>

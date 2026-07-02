@@ -158,7 +158,7 @@ export function UpcomingList({
     <View className="gap-5">
       {groups.map((group) => (
         <View key={group.key} className="gap-3">
-          <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-400">
+          <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500">
             {group.header}
           </Text>
           <View className="gap-3">
@@ -237,7 +237,7 @@ function UpcomingRowCard({ row }: { row: UpcomingRow }) {
 
       {/* Steps hint. */}
       {hasSubtasks && (
-        <Text className="text-caption text-neutral-400">
+        <Text className="text-caption text-neutral-500">
           {subtaskCount} {subtaskCount === 1 ? "step" : "steps"}
         </Text>
       )}

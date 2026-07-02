@@ -35,9 +35,13 @@ export interface InputProps extends Omit<TextInputProps, "style" | "className"> 
  *
  * 48px min height, 16px input text, neutral-200 border that eases to a
  * primary-500 focus ring, optional label-above / leading icon / clear button.
- * Token-driven — no hardcoded colors beyond the design system's semantic
- * ramps referenced via className, matching every other `components/ui/*`
- * primitive in this codebase.
+ * The border/icon/clear-glyph hexes below are the warm-neutral (Stone) ramp
+ * steps (design-tokens `colors.light.border` / `textMuted`), inlined because
+ * they're consumed by RN style props (Reanimated `useAnimatedStyle`, Ionicons
+ * `color`) that can't take a className. The placeholder text specifically
+ * uses neutral-500 (`textSecondary`), one step darker than the icon/border
+ * tint, so it clears WCAG AA as the only field descriptor on a label-less
+ * input.
  */
 export function Input({
   label,
@@ -84,7 +88,7 @@ export function Input({
       ? "#DC2626"
       : ring.value > 0.5
         ? "#2563EB"
-        : "#E4E4E7",
+        : "#E8E6E0",
   }));
 
   const hasValue = typeof value === "string" && value.length > 0;
@@ -105,7 +109,7 @@ export function Input({
           <Ionicons
             name={icon}
             size={18}
-            color={focused ? "#2563EB" : "#A1A1AA"}
+            color={focused ? "#2563EB" : "#A8A29A"}
             style={{ marginRight: 8 }}
           />
         ) : null}
@@ -115,7 +119,7 @@ export function Input({
           onChangeText={onChangeText}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholderTextColor="#A1A1AA"
+          placeholderTextColor="#6F6862"
           className="flex-1 py-2.5 text-body-lg text-neutral-900"
           accessibilityLabel={accessibilityLabel ?? label}
         />
@@ -127,7 +131,7 @@ export function Input({
             accessibilityRole="button"
             accessibilityLabel={`Clear ${label ?? "field"}`}
           >
-            <Ionicons name="close-circle" size={18} color="#D4D4D8" />
+            <Ionicons name="close-circle" size={18} color="#D7D3CC" />
           </Pressable>
         ) : null}
       </Animated.View>

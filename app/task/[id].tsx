@@ -104,7 +104,7 @@ export default function TaskEditScreen() {
               accessibilityRole="button"
               accessibilityLabel="Back"
             >
-              <Ionicons name="chevron-back" size={24} color="#18181B" />
+              <Ionicons name="chevron-back" size={24} color="#1C1917" />
             </PressableScale>
             <Heading size="h3" className="ml-1">
               Task
@@ -138,7 +138,7 @@ export default function TaskEditScreen() {
             accessibilityRole="button"
             accessibilityLabel="Back"
           >
-            <Ionicons name="chevron-back" size={24} color="#18181B" />
+            <Ionicons name="chevron-back" size={24} color="#1C1917" />
           </PressableScale>
           <Heading size="h3" className="ml-1">
             Task
@@ -172,7 +172,7 @@ export default function TaskEditScreen() {
             accessibilityRole="button"
             accessibilityLabel="Back"
           >
-            <Ionicons name="chevron-back" size={24} color="#18181B" />
+            <Ionicons name="chevron-back" size={24} color="#1C1917" />
           </PressableScale>
         </View>
         <Heading size="h3">Edit task</Heading>

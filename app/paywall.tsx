@@ -142,11 +142,11 @@ function PlanCard({
             <Ionicons
               name={selected ? 'checkmark-circle' : 'ellipse-outline'}
               size={18}
-              color={selected ? '#7C3AED' : '#D4D4D8'}
+              color={selected ? '#7C3AED' : '#D7D3CC'}
             />
             <Text
               className={`ml-1.5 text-caption ${
-                selected ? 'font-medium text-accent-700' : 'text-neutral-400'
+                selected ? 'font-medium text-accent-700' : 'text-neutral-500'
               }`}
             >
               {selected ? 'Selected' : 'Choose'}
@@ -429,7 +429,7 @@ export default function PaywallScreen() {
         </Animated.View>
 
         {/* IAP honesty note */}
-        <Text className="mt-6 text-center text-caption text-neutral-400 leading-5">
+        <Text className="mt-6 text-center text-caption text-neutral-500 leading-5">
           {Platform.OS === 'ios'
             ? 'Billing runs through the App Store. In-app purchase is being finalized — for now this sets up your plan locally.'
             : 'In-app purchase is being finalized. For now this sets up your plan locally so you can explore everything.'}
@@ -446,7 +446,7 @@ export default function PaywallScreen() {
               accessibilityLabel="Skip payment and enter the app (developer only)"
               accessibilityHint="Marks your subscription active locally without a purchase"
             >
-              <Ionicons name="construct-outline" size={16} color="#71717A" />
+              <Ionicons name="construct-outline" size={16} color="#6F6862" />
               <Text className="text-label font-medium text-neutral-600">
                 Skip / bypass payment (dev)
               </Text>
@@ -469,7 +469,7 @@ function PaywallHeader({ onClose }: { onClose: () => void }) {
         accessibilityRole="button"
         accessibilityLabel="Close"
       >
-        <Ionicons name="close" size={24} color="#52525B" />
+        <Ionicons name="close" size={24} color="#57534E" />
       </PressableScale>
     </View>
   )

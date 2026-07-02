@@ -78,7 +78,7 @@ export default function ProjectsHubScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Ionicons name="chevron-back" size={iconSizes.lg} color="#18181B" />
+          <Ionicons name="chevron-back" size={iconSizes.lg} color="#1C1917" />
         </Pressable>
         <View className="flex-1">
           <Heading size="h1">Projects</Heading>

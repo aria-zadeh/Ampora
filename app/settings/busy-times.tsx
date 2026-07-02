@@ -18,7 +18,7 @@ export default function BusyTimesScreen() {
             accessibilityLabel="Go back"
             hitSlop={8}
           >
-            <Ionicons name="arrow-back" size={24} color="#18181B" />
+            <Ionicons name="arrow-back" size={24} color="#1C1917" />
           </Pressable>
         </View>
       </SafeAreaView>

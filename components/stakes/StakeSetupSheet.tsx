@@ -295,7 +295,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#52525B" />
+                    <Ionicons name="close" size={20} color="#57534E" />
                   </Pressable>
                 </View>
 
@@ -391,7 +391,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                                 <Ionicons
                                   name={selected ? "radio-button-on" : "radio-button-off"}
                                   size={18}
-                                  color={selected ? "#2563EB" : "#D4D4D8"}
+                                  color={selected ? "#2563EB" : "#D7D3CC"}
                                 />
                                 <Text
                                   className={`flex-1 text-body ${
@@ -492,7 +492,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                             }
                           >
                             <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-                              <Ionicons name="apps-outline" size={18} color="#52525B" />
+                              <Ionicons name="apps-outline" size={18} color="#57534E" />
                             </View>
                             <View className="flex-1">
                               <Text className="text-label font-medium text-neutral-900">Choose apps</Text>
@@ -502,7 +502,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                                   : "Name what pulls you away"}
                               </Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={18} color="#A1A1AA" />
+                            <Ionicons name="chevron-forward" size={18} color="#A8A29A" />
                           </Pressable>
                         </>
                       ) : (
@@ -524,7 +524,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                               ? `${chosenAppCount} app${chosenAppCount === 1 ? "" : "s"} chosen. Tap to change.`
                               : "Choose which apps to lock on your phone."}
                           </Text>
-                          <Ionicons name="chevron-forward" size={18} color="#A1A1AA" />
+                          <Ionicons name="chevron-forward" size={18} color="#A8A29A" />
                         </Pressable>
                       )}
                     </View>
@@ -609,7 +609,7 @@ function ConditionTile({
           active ? "bg-primary-100" : "bg-neutral-100"
         }`}
       >
-        <Ionicons name={icon} size={20} color={active ? "#2563EB" : "#71717A"} />
+        <Ionicons name={icon} size={20} color={active ? "#2563EB" : "#6F6862"} />
       </View>
       <View className="flex-1">
         <Text className={`text-body-lg font-medium ${active ? "text-primary-700" : "text-neutral-900"}`}>
@@ -622,7 +622,7 @@ function ConditionTile({
       <Ionicons
         name={active ? "radio-button-on" : "radio-button-off"}
         size={20}
-        color={active ? "#2563EB" : "#D4D4D8"}
+        color={active ? "#2563EB" : "#D7D3CC"}
       />
     </PressableScale>
   );

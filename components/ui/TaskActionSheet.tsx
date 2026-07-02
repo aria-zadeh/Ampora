@@ -164,7 +164,7 @@ export function TaskActionSheet({
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#52525B" />
+                    <Ionicons name="close" size={20} color="#57534E" />
                   </Pressable>
                 </View>
 
@@ -245,7 +245,7 @@ function ListPicker({
   onBack: () => void
 }) {
   const options = useMemo(
-    () => [{ id: undefined as string | undefined, name: 'No list', color: '#A1A1AA' }, ...lists],
+    () => [{ id: undefined as string | undefined, name: 'No list', color: '#A8A29A' }, ...lists],
     [lists],
   )
 
@@ -302,7 +302,7 @@ function ListPicker({
 type Tint = 'neutral' | 'primary' | 'success' | 'danger'
 
 const TINT_STYLES: Record<Tint, { icon: string; iconBg: string; text: string }> = {
-  neutral: { icon: '#3F3F46', iconBg: 'bg-neutral-100', text: 'text-neutral-900' },
+  neutral: { icon: '#44403C', iconBg: 'bg-neutral-100', text: 'text-neutral-900' },
   primary: { icon: '#2563EB', iconBg: 'bg-primary-100', text: 'text-neutral-900' },
   success: { icon: '#15803D', iconBg: 'bg-success-100', text: 'text-neutral-900' },
   danger: { icon: '#DC2626', iconBg: 'bg-danger-100', text: 'text-danger-700' },

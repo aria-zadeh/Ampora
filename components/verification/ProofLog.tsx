@@ -43,7 +43,7 @@ const METHOD_META: Record<
   screenshot: { icon: "phone-portrait-outline", label: "Screenshot", tint: "#7C3AED", bg: "bg-accent-100" },
   word_count: { icon: "create-outline", label: "Word count", tint: "#0891B2", bg: "bg-primary-100" },
   screen_aware: { icon: "eye-outline", label: "Screen-aware", tint: "#16A34A", bg: "bg-success-100" },
-  honor: { icon: "hand-left-outline", label: "Honor", tint: "#71717A", bg: "bg-neutral-100" },
+  honor: { icon: "hand-left-outline", label: "Honor", tint: "#6F6862", bg: "bg-neutral-100" },
 };
 
 /** A short "3:40 PM · Jul 1" style stamp; locale-formatted, never crashes. */

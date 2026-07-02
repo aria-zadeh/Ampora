@@ -181,7 +181,7 @@ export default function AvailabilityScreen() {
                 canDown={customStart > 0}
               />
               <View className="px-4">
-                <Ionicons name="arrow-forward" size={20} color="#A1A1AA" />
+                <Ionicons name="arrow-forward" size={20} color="#A8A29A" />
               </View>
               <StepperColumn
                 label="End"
@@ -198,7 +198,7 @@ export default function AvailabilityScreen() {
         {/* Summary line */}
         <Animated.View entering={enter(280)} className="mt-6">
           <Text className="text-caption text-neutral-500 leading-5">
-            <Ionicons name="time-outline" size={13} color="#71717A" /> We’ll plan
+            <Ionicons name="time-outline" size={13} color="#6F6862" /> We’ll plan
             your weekdays between{" "}
             <Text className="text-neutral-700 font-medium">
               {formatHour(startHour)}
@@ -279,7 +279,7 @@ function PresetCard({ preset, isSelected, onPress }: PresetCardProps) {
           <Ionicons
             name={preset.icon}
             size={22}
-            color={isSelected ? "#2563EB" : "#71717A"}
+            color={isSelected ? "#2563EB" : "#6F6862"}
           />
         </View>
         <View className="flex-1">
@@ -339,7 +339,7 @@ function StepperColumn({
             <Ionicons
               name="remove"
               size={18}
-              color={canDown ? "#18181B" : "#D4D4D8"}
+              color={canDown ? "#1C1917" : "#D7D3CC"}
             />
           </View>
         </PressableScale>
@@ -360,7 +360,7 @@ function StepperColumn({
             <Ionicons
               name="add"
               size={18}
-              color={canUp ? "#18181B" : "#D4D4D8"}
+              color={canUp ? "#1C1917" : "#D7D3CC"}
             />
           </View>
         </PressableScale>

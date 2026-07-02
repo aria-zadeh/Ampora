@@ -222,7 +222,7 @@ function PreviewBody({
           )}
           {preview.rebuildCount > 0 && (
             <View className="mb-2 mt-2 flex-row items-center gap-2 px-1">
-              <Ionicons name="calendar-outline" size={16} color="#71717A" />
+              <Ionicons name="calendar-outline" size={16} color="#6F6862" />
               <Text className="text-caption text-neutral-500">
                 {preview.rebuildCount} other{' '}
                 {preview.rebuildCount === 1 ? 'task' : 'tasks'} replanned around your week.

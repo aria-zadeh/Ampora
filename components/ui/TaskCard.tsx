@@ -201,7 +201,7 @@ export function TaskCard({
           <View className="flex-row items-start justify-between">
             <Text
               className={`flex-1 text-body font-medium ${
-                isDone ? "line-through text-neutral-400" : "text-neutral-900"
+                isDone ? "line-through text-neutral-500" : "text-neutral-900"
               }`}
               numberOfLines={2}
             >

@@ -276,7 +276,7 @@ function DayHeader({
       className="items-center justify-center py-1"
       accessibilityLabel={`${WEEKDAY_LONG[dayOfWeek]} ${dateNum}${isToday ? ', today' : ''}`}
     >
-      <Text className="text-tiny font-medium text-neutral-400 mb-0.5">
+      <Text className="text-tiny font-medium text-neutral-500 mb-0.5">
         {WEEKDAY_SHORT[dayOfWeek]}
       </Text>
       <View
@@ -341,7 +341,7 @@ function GutterLabels({
             style={{ top: hour * pxPerHour - 6, left: 0 }}
           >
             <Text
-              className="text-tiny text-neutral-400"
+              className="text-tiny text-neutral-500"
               accessibilityLabel={hourLabelLong(hour)}
               allowFontScaling
             >

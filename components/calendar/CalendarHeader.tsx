@@ -115,7 +115,7 @@ export function CalendarHeader({
             }`}
           >
             <Text
-              className={`text-label font-medium ${isToday ? 'text-neutral-400' : 'text-neutral-700'}`}
+              className={`text-label font-medium ${isToday ? 'text-neutral-500' : 'text-neutral-700'}`}
             >
               Today
             </Text>
@@ -152,7 +152,7 @@ function NavButton({
       accessibilityLabel={label}
       className="w-9 h-9 rounded-full items-center justify-center bg-white border border-neutral-200"
     >
-      <Ionicons name={icon} size={18} color="#3F3F46" />
+      <Ionicons name={icon} size={18} color="#44403C" />
     </PressableScale>
   )
 }

@@ -18,7 +18,7 @@ const SLACK_STYLES = {
   red: { accent: '#EF4444', tint: '#FEF2F2', dot: '#DC2626', label: 'At risk' },
 } as const
 
-const EVENT_STYLE = { accent: '#71717A', tint: '#FAFAFA', dot: '#71717A', label: 'Event' } as const
+const EVENT_STYLE = { accent: '#6F6862', tint: '#FAF9F7', dot: '#6F6862', label: 'Event' } as const
 
 /** §8.7 height thresholds. */
 const H_FULL = 44 // >= 44: title + time (+ meta)
@@ -129,7 +129,7 @@ export function CalendarBlock({
           {
             backgroundColor: style.tint,
             borderWidth: 1,
-            borderColor: isEvent ? '#E4E4E7' : `${style.accent}33`,
+            borderColor: isEvent ? '#E8E6E0' : `${style.accent}33`,
             opacity: done ? 0.6 : 1,
           },
           shadows.xs,
@@ -156,7 +156,7 @@ export function CalendarBlock({
               {showTitle ? (
                 <Text
                   numberOfLines={1}
-                  className={`flex-1 text-caption font-semibold ${done ? 'text-neutral-400 line-through' : 'text-neutral-900'}`}
+                  className={`flex-1 text-caption font-semibold ${done ? 'text-neutral-500 line-through' : 'text-neutral-900'}`}
                 >
                   {title}
                 </Text>

@@ -128,7 +128,7 @@ function PermissionNudge() {
               accessibilityRole="button"
               accessibilityLabel="Dismiss this notice"
             >
-              <Text className="text-label font-medium text-neutral-400">Dismiss</Text>
+              <Text className="text-label font-medium text-neutral-500">Dismiss</Text>
             </PressableScale>
           </View>
         </View>

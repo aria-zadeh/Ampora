@@ -152,11 +152,11 @@ export function BestWindowsChart({ windows }: BestWindowsChartProps) {
       {/* Axis ticks */}
       <View className="mt-2 flex-row justify-between">
         {AXIS_TICKS.map((h) => (
-          <Text key={h} className="text-tiny text-neutral-400">
+          <Text key={h} className="text-tiny text-neutral-500">
             {hourLabel(h)}
           </Text>
         ))}
-        <Text className="text-tiny text-neutral-400">{hourLabel(0)}</Text>
+        <Text className="text-tiny text-neutral-500">{hourLabel(0)}</Text>
       </View>
     </View>
   );

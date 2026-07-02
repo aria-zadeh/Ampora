@@ -96,7 +96,7 @@ function SettingsRow({
     >
       <View className="flex-1 flex-row items-center">
         <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-          <Ionicons name={icon} size={18} color="#52525B" />
+          <Ionicons name={icon} size={18} color="#57534E" />
         </View>
         <Text className="ml-3 text-body-lg text-neutral-900">{label}</Text>
       </View>
@@ -321,7 +321,7 @@ export default function ProfileScreen() {
                       <Ionicons
                         name={option.icon}
                         size={16}
-                        color={isSelected ? "#2563EB" : "#71717A"}
+                        color={isSelected ? "#2563EB" : "#6F6862"}
                       />
                       <Text
                         className={
@@ -421,7 +421,7 @@ export default function ProfileScreen() {
           <SettingsGroup title="Account" index={6}>
             <View className="flex-row items-center border-b border-neutral-100 py-3.5">
               <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-                <Ionicons name="mail-outline" size={18} color="#52525B" />
+                <Ionicons name="mail-outline" size={18} color="#57534E" />
               </View>
               <Text
                 className="ml-3 flex-1 text-body-lg text-neutral-900"
@@ -473,7 +473,7 @@ export default function ProfileScreen() {
               value={nameDraft}
               onChangeText={setNameDraft}
               placeholder="Your name"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor="#A8A29A"
               autoFocus
               autoCapitalize="words"
               returnKeyType="done"

@@ -260,7 +260,7 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
     <View>
       {files.length === 0 ? (
         <Card variant="flat" className="items-center py-6">
-          <Ionicons name="folder-open-outline" size={iconSizes.xl} color="#A1A1AA" />
+          <Ionicons name="folder-open-outline" size={iconSizes.xl} color="#A8A29A" />
           <Text className="text-body text-neutral-500 text-center mt-2 max-w-[260px]">
             No files yet. Attach a PDF, notes, or a photo — or paste text — and the project will
             ground its help in your real material.
@@ -275,7 +275,7 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
             return (
               <Card key={file.id} className="flex-row items-start">
                 <View className="w-9 h-9 rounded-lg bg-neutral-100 items-center justify-center mt-0.5">
-                  <Ionicons name={meta.icon} size={iconSizes.md} color="#71717A" />
+                  <Ionicons name={meta.icon} size={iconSizes.md} color="#6F6862" />
                 </View>
                 <View className="flex-1 ml-3">
                   <View className="flex-row items-center gap-2">
@@ -292,11 +292,11 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
                       {preview}
                     </Text>
                   ) : hasFileBytes ? (
-                    <Text className="text-caption text-neutral-400 mt-1 italic">
+                    <Text className="text-caption text-neutral-500 mt-1 italic">
                       Attached · text extraction coming later.
                     </Text>
                   ) : (
-                    <Text className="text-caption text-neutral-400 mt-1 italic">
+                    <Text className="text-caption text-neutral-500 mt-1 italic">
                       No text yet.
                     </Text>
                   )}
@@ -308,7 +308,7 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
                   accessibilityRole="button"
                   accessibilityLabel={`Remove file ${file.name}`}
                 >
-                  <Ionicons name="trash-outline" size={iconSizes.sm} color="#A1A1AA" />
+                  <Ionicons name="trash-outline" size={iconSizes.sm} color="#A8A29A" />
                 </Pressable>
               </Card>
             );
@@ -333,7 +333,7 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
             loading={attaching}
             disabled={atFileLimit}
             onPress={pickDocument}
-            icon={<Ionicons name="document-attach-outline" size={iconSizes.sm} color="#18181B" />}
+            icon={<Ionicons name="document-attach-outline" size={iconSizes.sm} color="#1C1917" />}
           />
         </View>
         <View className="flex-1">
@@ -361,11 +361,11 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
           <Ionicons
             name="image-outline"
             size={iconSizes.sm}
-            color={atFileLimit ? "#A1A1AA" : "#2563EB"}
+            color={atFileLimit ? "#A8A29A" : "#2563EB"}
           />
           <Text
             className={`text-label font-medium ml-1.5 ${
-              atFileLimit ? "text-neutral-400" : "text-primary-600"
+              atFileLimit ? "text-neutral-500" : "text-primary-600"
             }`}
           >
             Add a photo or diagram
@@ -373,7 +373,7 @@ export function FileList({ files, onAddFile, onRemoveFile }: FileListProps) {
         </Pressable>
       )}
 
-      <Text className="text-caption text-neutral-400 mt-2">
+      <Text className="text-caption text-neutral-500 mt-2">
         {atFileLimit
           ? `This project is at its ${MAX_FILES}-file limit. Remove one to add another.`
           : `Attach PDFs, docs, photos, or spreadsheets (up to ${MAX_FILE_MB} MB each, ${MAX_FILES} files per project), or paste text directly. Plain-text files are read now; full OCR and PDF text extraction arrive in a later update.`}
@@ -449,12 +449,12 @@ function AddTextSheet({
           </Text>
 
           <View className="flex-row items-center bg-white border border-neutral-200 rounded-md min-h-12 px-3 mb-3">
-            <Ionicons name="pricetag-outline" size={iconSizes.md} color="#A1A1AA" />
+            <Ionicons name="pricetag-outline" size={iconSizes.md} color="#A8A29A" />
             <TextInput
               value={name}
               onChangeText={setName}
               placeholder="File name (optional)"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor="#A8A29A"
               className="flex-1 ml-2 text-body-lg text-neutral-900"
               accessibilityLabel="File name"
             />
@@ -465,7 +465,7 @@ function AddTextSheet({
               value={text}
               onChangeText={setText}
               placeholder="Paste the content here…"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor="#A8A29A"
               className="text-body text-neutral-900 min-h-[140px]"
               multiline
               textAlignVertical="top"

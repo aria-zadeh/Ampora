@@ -63,7 +63,7 @@ export function ProjectsEntryCard() {
         <Ionicons
           name="chevron-forward"
           size={iconSizes.sm}
-          color="#A1A1AA"
+          color="#A8A29A"
         />
       </View>
     </PressableScale>

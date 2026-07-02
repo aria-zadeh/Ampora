@@ -77,7 +77,7 @@ export function RevealedSelfCard({ insight, onAccept, onDismiss }: RevealedSelfC
         That's just how you work — no problem. Want to plan it for when you actually start?
       </Text>
 
-      <Text className="mt-3 text-tiny text-neutral-400">
+      <Text className="mt-3 text-tiny text-neutral-500">
         Based on {insight.sampleCount} recent {insight.sampleCount === 1 ? "session" : "sessions"}
       </Text>
 

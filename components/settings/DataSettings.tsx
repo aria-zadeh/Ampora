@@ -65,7 +65,7 @@ function downloadOnWeb(json: string, filename: string): boolean {
 /** A tappable action row with a leading icon bubble + chevron/trailing slot. */
 function ActionRow({
   icon,
-  iconTint = '#52525B',
+  iconTint = '#57534E',
   iconBg = 'bg-neutral-100',
   label,
   sublabel,
@@ -204,7 +204,7 @@ export function DataSettings() {
         {userEmail ? (
           <View className="flex-row items-center border-b border-neutral-100 py-3.5">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-              <Ionicons name="mail-outline" size={18} color="#52525B" />
+              <Ionicons name="mail-outline" size={18} color="#57534E" />
             </View>
             <Text className="ml-3 flex-1 text-body-lg text-neutral-900" numberOfLines={1}>
               {userEmail}
@@ -248,7 +248,7 @@ export function DataSettings() {
         />
         <View className="flex-row items-center py-3.5">
           <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-            <Ionicons name="information-circle-outline" size={18} color="#52525B" />
+            <Ionicons name="information-circle-outline" size={18} color="#57534E" />
           </View>
           <Text className="ml-3 flex-1 text-body-lg text-neutral-900">Version</Text>
           <Text className="text-body text-neutral-500">{APP_VERSION}</Text>
@@ -372,7 +372,7 @@ export function DataSettings() {
             ) : (
               <>
                 <View className="h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
-                  <Ionicons name="document-text-outline" size={24} color="#52525B" />
+                  <Ionicons name="document-text-outline" size={24} color="#57534E" />
                 </View>
                 <Heading size="h3" className="mt-4">
                   Privacy and terms

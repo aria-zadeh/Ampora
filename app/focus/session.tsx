@@ -552,13 +552,13 @@ export default function FocusSessionScreen() {
           accessibilityRole="button"
           accessibilityLabel="End focus session"
         >
-          <Ionicons name="close" size={26} color="#18181B" />
+          <Ionicons name="close" size={26} color="#1C1917" />
         </PressableScale>
       </View>
 
       {missing ? (
         <View className="flex-1 items-center justify-center px-8">
-          <Ionicons name="timer-outline" size={iconSizes.hero} color="#A1A1AA" />
+          <Ionicons name="timer-outline" size={iconSizes.hero} color="#A8A29A" />
           <Heading size="h4" className="mt-4 text-center">
             Nothing to focus on
           </Heading>
@@ -657,7 +657,7 @@ export default function FocusSessionScreen() {
             >
               <Text
                 className={`font-bold ${
-                  running ? "text-neutral-900" : "text-neutral-400"
+                  running ? "text-neutral-900" : "text-neutral-500"
                 }`}
                 style={{ fontSize: 76, lineHeight: 84, ...tabularNums }}
                 accessibilityRole="timer"
@@ -677,7 +677,7 @@ export default function FocusSessionScreen() {
               <Ionicons
                 name={running ? "pause" : "play"}
                 size={iconSizes.sm}
-                color="#52525B"
+                color="#57534E"
               />
               <Text className="text-label font-medium text-neutral-600">
                 {running ? "Pause" : "Resume"}
@@ -753,7 +753,7 @@ export default function FocusSessionScreen() {
               accessibilityState={{ expanded: audioOpen }}
             >
               <View className="flex-row items-center gap-2">
-                <Ionicons name="musical-notes-outline" size={iconSizes.sm} color="#52525B" />
+                <Ionicons name="musical-notes-outline" size={iconSizes.sm} color="#57534E" />
                 <Text className="text-label font-medium text-neutral-700">
                   Ambient sound
                 </Text>
@@ -765,7 +765,7 @@ export default function FocusSessionScreen() {
                 <Ionicons
                   name={audioOpen ? "chevron-up" : "chevron-down"}
                   size={iconSizes.sm}
-                  color="#A1A1AA"
+                  color="#A8A29A"
                 />
               </View>
             </PressableScale>
@@ -794,7 +794,7 @@ export default function FocusSessionScreen() {
                       <Ionicons
                         name={opt.icon as keyof typeof Ionicons.glyphMap}
                         size={iconSizes.sm}
-                        color={active ? "#FFFFFF" : "#52525B"}
+                        color={active ? "#FFFFFF" : "#57534E"}
                       />
                       <Text
                         className={`text-label font-medium ${
@@ -873,7 +873,7 @@ function SecondaryButton({
       <Ionicons
         name={icon}
         size={iconSizes.sm}
-        color={warm ? "#C2410C" : "#52525B"}
+        color={warm ? "#C2410C" : "#57534E"}
       />
       <Text
         className={`ml-2 text-label font-medium ${

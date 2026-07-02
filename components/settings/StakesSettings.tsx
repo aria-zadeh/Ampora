@@ -71,7 +71,7 @@ function categoryLabel(key: string): string {
 /** A row inside the group: leading icon bubble, label + optional sublabel, trailing slot. */
 function Row({
   icon,
-  iconTint = "#52525B",
+  iconTint = "#57534E",
   iconBg = "bg-neutral-100",
   label,
   sublabel,
@@ -147,7 +147,7 @@ function Stepper({
         accessibilityLabel={`Decrease ${a11yLabel}`}
         accessibilityState={{ disabled: atMin }}
       >
-        <Ionicons name="remove" size={18} color="#18181B" />
+        <Ionicons name="remove" size={18} color="#1C1917" />
       </Pressable>
       <Text
         className="mx-3 min-w-[56px] text-center text-body-lg font-semibold text-neutral-900"
@@ -166,7 +166,7 @@ function Stepper({
         accessibilityLabel={`Increase ${a11yLabel}`}
         accessibilityState={{ disabled: atMax }}
       >
-        <Ionicons name="add" size={18} color="#18181B" />
+        <Ionicons name="add" size={18} color="#1C1917" />
       </Pressable>
     </View>
   );
@@ -381,10 +381,10 @@ export function StakesSettings() {
                 : "The leisure apps a stake can lock"}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color="#A1A1AA" />
+          <Ionicons name="chevron-forward" size={18} color="#A8A29A" />
         </Pressable>
       </View>
-      <Text className="ml-1 mt-2 text-caption text-neutral-400">
+      <Text className="ml-1 mt-2 text-caption text-neutral-500">
         On iPhone you&apos;ll pick these with Apple&apos;s Screen Time picker once app
         locking is enabled.
       </Text>
@@ -400,7 +400,7 @@ export function StakesSettings() {
           accessibilityRole="button"
           accessibilityLabel="Why can't these be locked?"
         >
-          <Ionicons name="information-circle-outline" size={18} color="#71717A" />
+          <Ionicons name="information-circle-outline" size={18} color="#6F6862" />
         </Pressable>
       </View>
       <View
@@ -431,7 +431,7 @@ export function StakesSettings() {
           <Row
             key={key}
             icon="lock-open-outline"
-            iconTint="#52525B"
+            iconTint="#57534E"
             iconBg="bg-neutral-100"
             label={categoryLabel(key)}
             sublabel="Added by you"
@@ -443,7 +443,7 @@ export function StakesSettings() {
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${categoryLabel(key)} from always reachable`}
               >
-                <Ionicons name="close-circle" size={20} color="#A1A1AA" />
+                <Ionicons name="close-circle" size={20} color="#A8A29A" />
               </Pressable>
             }
           />
@@ -469,7 +469,7 @@ export function StakesSettings() {
           </Text>
         </Pressable>
       </View>
-      <Text className="ml-1 mt-2 text-caption text-neutral-400">
+      <Text className="ml-1 mt-2 text-caption text-neutral-500">
         The 6 safety apps stay open no matter what — they can't be locked or
         removed. Add your own always-reachable apps too, and remove those any
         time.
@@ -583,7 +583,7 @@ export function StakesSettings() {
               }}
               onSubmitEditing={addUserApp}
               placeholder="e.g. Banking, Health, Duolingo"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor="#A8A29A"
               returnKeyType="done"
               autoFocus
               maxLength={40}

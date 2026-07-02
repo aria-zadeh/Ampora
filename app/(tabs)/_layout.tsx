@@ -2,9 +2,10 @@ import { Tabs } from "expo-router";
 import React from "react";
 import { Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { colors } from "@/utils/design-tokens";
 
-// Slightly larger, calmer tab icons. bg-white with a hairline neutral-200 top
-// border; active tint primary-600, inactive neutral-400. Restrained — no glow.
+// Slightly larger, calmer tab icons. bg-white with a hairline border top
+// border; active tint primary, inactive muted. Restrained — no glow.
 const TAB_ICON_SIZE = 25;
 
 export default function TabLayout() {
@@ -12,17 +13,17 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#2563EB", // primary-600
-        tabBarInactiveTintColor: "#A1A1AA", // neutral-400
+        tabBarActiveTintColor: colors.light.primary,
+        tabBarInactiveTintColor: colors.light.textMuted,
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
-          borderTopColor: "#E4E4E7", // neutral-200
+          backgroundColor: colors.light.card,
+          borderTopColor: colors.light.border,
           borderTopWidth: 1,
           paddingTop: 8,
           paddingBottom: Platform.OS === "ios" ? 28 : 12,
           height: Platform.OS === "ios" ? 88 : 68,
           // Soft lift off the canvas — subtle, not a heavy shadow.
-          shadowColor: "#18181B",
+          shadowColor: colors.light.text,
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.03,
           shadowRadius: 8,

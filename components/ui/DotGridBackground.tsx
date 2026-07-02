@@ -8,7 +8,7 @@ interface DotGridBackgroundProps {
   /** Extra positioning style, merged after the absolute-fill default. */
   style?: StyleProp<ViewStyle>;
   /**
-   * Dot color. Defaults to the near-black ink (`#18181B`) at 5% opacity so the
+   * Dot color. Defaults to the near-black ink (`#1C1917`) at 5% opacity so the
    * texture reads as a whisper of depth on the neutral canvas, never as noise.
    */
   tint?: string;
@@ -23,7 +23,7 @@ interface DotGridBackgroundProps {
 export default function DotGridBackground({
   className,
   style,
-  tint = "#18181B",
+  tint = "#1C1917",
 }: DotGridBackgroundProps) {
   return (
     <Svg

@@ -178,7 +178,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                         icon={<Ionicons name="arrow-back" size={18} color="#FFFFFF" />}
                         accessibilityLabel="Cancel the unlock and go back to your task"
                       />
-                      <Text className="pb-1 text-center text-caption text-neutral-400">
+                      <Text className="pb-1 text-center text-caption text-neutral-500">
                         Or just wait — the apps unlock on their own.
                       </Text>
                     </>

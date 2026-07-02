@@ -48,7 +48,7 @@ export default function NewTaskScreen() {
             accessibilityRole="button"
             accessibilityLabel="Cancel"
           >
-            <Ionicons name="close" size={24} color="#18181B" />
+            <Ionicons name="close" size={24} color="#1C1917" />
           </PressableScale>
         </View>
         <Heading size="h3">New task</Heading>

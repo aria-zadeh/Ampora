@@ -135,7 +135,7 @@ export function MonthView({
       <View className="flex-row py-2">
         {WEEKDAY_SHORT.map((label, i) => (
           <View key={i} className="flex-1 items-center">
-            <Text className="text-tiny font-semibold uppercase tracking-wide text-neutral-400">
+            <Text className="text-tiny font-semibold uppercase tracking-wide text-neutral-500">
               {label}
             </Text>
           </View>

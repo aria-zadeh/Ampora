@@ -69,7 +69,7 @@ export default function AllSettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color="#18181B" />
+          <Ionicons name="chevron-back" size={24} color="#1C1917" />
         </PressableScale>
       </View>
 

@@ -35,7 +35,7 @@ export function EmptyState({
       accessibilityLabel={`${title}. ${subtitle}`}
     >
       <View className="w-16 h-16 rounded-full bg-neutral-100 items-center justify-center mb-5">
-        <Ionicons name={icon} size={iconSizes.hero} color="#A1A1AA" />
+        <Ionicons name={icon} size={iconSizes.hero} color="#A8A29A" />
       </View>
       <Heading size="h4" className="text-center">
         {title}

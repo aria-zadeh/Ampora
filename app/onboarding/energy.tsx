@@ -163,7 +163,7 @@ function EnergyOption({ slot, isSelected, onPress }: EnergyOptionProps) {
           <Ionicons
             name={slot.icon}
             size={24}
-            color={isSelected ? "#2563EB" : "#71717A"}
+            color={isSelected ? "#2563EB" : "#6F6862"}
           />
         </View>
         <View className="flex-1">

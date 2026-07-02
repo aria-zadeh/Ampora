@@ -88,6 +88,11 @@ export function recompute(input: ScheduleInput): ScheduleResult {
   // --- 4. Stability reconciliation (§9.5.10). ---
   const freshBlocks = state.blocks
 
+  // Task lookup, built once: used both by the elapsed-block carry-forward in the
+  // stability pass and by the missed auto-marking pass below.
+  const taskById = new Map<string, Task>()
+  for (const t of tasks) taskById.set(t.id, t)
+
   // Index prev blocks by their stable (task,time) key. Pinned blocks are
   // carried through as immovable inputs regardless of the new placement.
   const prevByKey = new Map<string, ScheduledBlock>()
@@ -119,6 +124,25 @@ export function recompute(input: ScheduleInput): ScheduleResult {
     }
   }
 
+  // Carry forward ELAPSED non-pinned prev blocks the fresh run did not reproduce,
+  // so the missed-mark pass below can flag them (PRD FR-16 / §8.6). The fresh
+  // placement clamps every candidate slot to `now` (`buildFreeIntervals` /
+  // `candidateSlots`), so a past session can NEVER be re-emitted by this run —
+  // without this carry-forward it would simply be dropped and never marked
+  // 'missed'. We only rescue blocks that (a) already ended (`end <= now`) and
+  // (b) belong to a still-open task (not done / not actively doing) — those are
+  // the missed candidates. Un-reproduced FUTURE non-pinned prev blocks are left
+  // out on purpose: the fresh placement legitimately replaced them, so carrying
+  // them would double-schedule the same task's remaining work. The final sort
+  // below gives a total, deterministic order regardless of insertion order.
+  for (const prev of prevByKey.values()) {
+    if (usedPrev.has(prev.id)) continue // already re-emitted as an unchanged match
+    if (prev.end > now) continue // future: the fresh run owns this slot — do not duplicate
+    const task = taskById.get(prev.taskId)
+    if (!task || task.status === 'done' || task.status === 'doing') continue // task closed/active
+    reconciled.push(prev)
+  }
+
   reconciled.sort((a, b) => a.start - b.start || (a.taskId < b.taskId ? -1 : 1))
 
   // --- 5. Missed auto-marking (PRD FR-16 / §8.6 "Needs attention"). ---
@@ -131,9 +155,6 @@ export function recompute(input: ScheduleInput): ScheduleResult {
   // source of truth. We reuse `isMissedBlock` for the block half of the test
   // and additionally require the parent task itself to be open, so a past
   // `planned` block whose task the user has since completed is NOT flagged.
-  const taskById = new Map<string, Task>()
-  for (const t of tasks) taskById.set(t.id, t)
-
   const marked = reconciled.map((block) => {
     if (block.status === 'missed') return block // already marked; leave it be
     if (!isMissedBlock(block, now)) return block // not elapsed / already done/in-progress

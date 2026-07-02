@@ -20,7 +20,7 @@ interface ProgressRingProps {
   stroke?: number;
   /** Ring color (the project accent). @default "#7C3AED" */
   color?: string;
-  /** Track (unfilled) color. @default "#E4E4E7" */
+  /** Track (unfilled) color. @default "#E8E6E0" */
   trackColor?: string;
 }
 
@@ -82,7 +82,7 @@ export function ProgressRing({
   size = 54,
   stroke = 5,
   color = "#7C3AED",
-  trackColor = "#E4E4E7",
+  trackColor = "#E8E6E0",
 }: ProgressRingProps) {
   const value = clampPct(pct);
 
@@ -114,11 +114,11 @@ export function ProgressRing({
 
       {/* Centered percent label — the ring is never color-only. */}
       <Text
-        style={{ fontSize: size * 0.26, fontWeight: "700", color: "#18181B" }}
+        style={{ fontSize: size * 0.26, fontWeight: "700", color: "#1C1917" }}
         allowFontScaling={false}
       >
         {value}
-        <Text style={{ fontSize: size * 0.16, fontWeight: "600", color: "#71717A" }}>%</Text>
+        <Text style={{ fontSize: size * 0.16, fontWeight: "600", color: "#6F6862" }}>%</Text>
       </Text>
     </View>
   );

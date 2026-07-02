@@ -1097,7 +1097,7 @@ function EllipsisButton() {
         backgroundColor: 'rgba(255,255,255,0.72)',
       }}
     >
-      <Ionicons name="ellipsis-horizontal" size={14} color="#52525B" />
+      <Ionicons name="ellipsis-horizontal" size={14} color="#57534E" />
     </View>
   )
 }

@@ -199,7 +199,7 @@ export default function BlindfoldScreen() {
                   I did this
                 </Text>
               </PressableScale>
-              <Text className="text-caption text-neutral-400 text-center mt-4">
+              <Text className="text-caption text-neutral-500 text-center mt-4">
                 The next step stays hidden until this one is done.
               </Text>
             </>

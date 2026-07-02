@@ -39,7 +39,7 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
 /** A calm caption under a card, for the "why" / reassurance copy. */
 export function SectionFootnote({ children }: { children: React.ReactNode }) {
   return (
-    <Text className="ml-1 mt-2 text-caption text-neutral-400">{children}</Text>
+    <Text className="ml-1 mt-2 text-caption text-neutral-500">{children}</Text>
   )
 }
 
@@ -62,7 +62,7 @@ export function Group({ children }: { children: React.ReactNode }) {
 /** A settings row: leading icon bubble, label + optional sublabel, trailing slot. */
 export function Row({
   icon,
-  iconTint = '#52525B',
+  iconTint = '#57534E',
   iconBg = 'bg-neutral-100',
   label,
   sublabel,
@@ -146,7 +146,7 @@ export function Stepper({
         accessibilityLabel={`Decrease ${a11yLabel}`}
         accessibilityState={{ disabled: atMin }}
       >
-        <Ionicons name="remove" size={18} color="#18181B" />
+        <Ionicons name="remove" size={18} color="#1C1917" />
       </Pressable>
       <Text
         className="mx-3 min-w-[64px] text-center text-body-lg font-semibold text-neutral-900"
@@ -165,7 +165,7 @@ export function Stepper({
         accessibilityLabel={`Increase ${a11yLabel}`}
         accessibilityState={{ disabled: atMax }}
       >
-        <Ionicons name="add" size={18} color="#18181B" />
+        <Ionicons name="add" size={18} color="#1C1917" />
       </Pressable>
     </View>
   )
@@ -258,7 +258,7 @@ export function Toggle({
   }, [value, reduceMotion, progress])
 
   const trackStyle = useAnimatedStyle(() => ({
-    backgroundColor: progress.value > 0.5 ? '#2563EB' : '#E4E4E7',
+    backgroundColor: progress.value > 0.5 ? '#2563EB' : '#E8E6E0',
   }))
   const thumbStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: progress.value * 20 }],

@@ -113,7 +113,7 @@ export function NeedsAttention() {
     >
       <View className="flex-row items-baseline justify-between mb-4">
         <Heading size="h3">Needs attention</Heading>
-        <Text className="text-caption text-neutral-400">
+        <Text className="text-caption text-neutral-500">
           {rows.length} {rows.length === 1 ? "item" : "items"}
         </Text>
       </View>

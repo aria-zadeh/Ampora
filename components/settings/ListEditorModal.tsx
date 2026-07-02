@@ -19,7 +19,7 @@ const COLOR_SWATCHES = [
   "#DC2626",
   "#0891B2",
   "#DB2777",
-  "#52525B",
+  "#57534E",
 ];
 
 /** Weekdays Mon-Fri as Date#getDay() indices (1 = Mon ... 5 = Fri). */
@@ -152,7 +152,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
             <TextInput
               className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
               placeholder="List name"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor="#A8A29A"
               value={name}
               onChangeText={setName}
               returnKeyType="done"
@@ -255,7 +255,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
                 </>
               ) : null}
             </View>
-            <Text className="ml-1 mt-2 text-caption text-neutral-400">
+            <Text className="ml-1 mt-2 text-caption text-neutral-500">
               A task's own hours still win; then this list's; then your default.
             </Text>
 

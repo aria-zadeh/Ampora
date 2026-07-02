@@ -60,7 +60,7 @@ const PROVIDERS: CalendarProvider[] = [
     key: 'apple',
     label: 'iCloud Calendar',
     icon: 'logo-apple',
-    tint: '#18181B',
+    tint: '#1C1917',
     tintBg: 'bg-neutral-100',
   },
 ]
@@ -117,7 +117,7 @@ export function CalendarSyncSettings() {
         ))}
       </View>
 
-      <Text className="ml-1 mt-2 text-caption text-neutral-400">
+      <Text className="ml-1 mt-2 text-caption text-neutral-500">
         Events from connected calendars are shown as busy blocks and are never moved by the
         scheduler.
       </Text>

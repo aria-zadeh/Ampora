@@ -231,7 +231,7 @@ export function TomorrowPlanCard() {
             <Ionicons
               name="calendar-outline"
               size={iconSizes.xs}
-              color="#71717A"
+              color="#6F6862"
             />
             <Text className="ml-1 text-caption font-medium text-neutral-500">
               {sessionLabel}

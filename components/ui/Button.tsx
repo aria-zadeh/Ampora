@@ -172,7 +172,7 @@ export function Button({
       >
         {loading ? (
           <ActivityIndicator
-            color={usesLightText ? "#FFFFFF" : "#18181B"}
+            color={usesLightText ? "#FFFFFF" : "#1C1917"}
             className="mr-2"
           />
         ) : icon ? (

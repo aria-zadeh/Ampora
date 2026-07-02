@@ -54,9 +54,9 @@ interface CatalogApp {
 
 const CATALOG: CatalogApp[] = [
   { key: "instagram", label: "Instagram", token: "com.burbn.instagram", icon: "logo-instagram", tint: "#C13584", tintBg: "bg-accent-100" },
-  { key: "tiktok", label: "TikTok", token: "com.zhiliaoapp.musically", icon: "musical-notes", tint: "#18181B", tintBg: "bg-neutral-100" },
+  { key: "tiktok", label: "TikTok", token: "com.zhiliaoapp.musically", icon: "musical-notes", tint: "#1C1917", tintBg: "bg-neutral-100" },
   { key: "youtube", label: "YouTube", token: "com.google.ios.youtube", icon: "logo-youtube", tint: "#DC2626", tintBg: "bg-danger-100" },
-  { key: "x", label: "X (Twitter)", token: "com.atebits.Tweetie2", icon: "logo-twitter", tint: "#18181B", tintBg: "bg-neutral-100" },
+  { key: "x", label: "X (Twitter)", token: "com.atebits.Tweetie2", icon: "logo-twitter", tint: "#1C1917", tintBg: "bg-neutral-100" },
   { key: "snapchat", label: "Snapchat", token: "com.toyopagroup.picaboo", icon: "logo-snapchat", tint: "#CA8A04", tintBg: "bg-warning-100" },
   { key: "reddit", label: "Reddit", token: "com.reddit.Reddit", icon: "logo-reddit", tint: "#EA580C", tintBg: "bg-warning-100" },
   { key: "facebook", label: "Facebook", token: "com.facebook.Facebook", icon: "logo-facebook", tint: "#2563EB", tintBg: "bg-primary-100" },
@@ -196,7 +196,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#52525B" />
+                    <Ionicons name="close" size={20} color="#57534E" />
                   </Pressable>
                 </View>
 
@@ -269,7 +269,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                         <Ionicons
                           name={isSel ? "checkmark-circle" : "ellipse-outline"}
                           size={22}
-                          color={isSel ? "#2563EB" : "#D4D4D8"}
+                          color={isSel ? "#2563EB" : "#D7D3CC"}
                         />
                       </Pressable>
                     );
@@ -277,7 +277,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
 
                   {/* Platform note — set expectations honestly. */}
                   <View className="mt-2 flex-row items-start gap-2.5 rounded-xl bg-neutral-100 p-3.5">
-                    <Ionicons name="phone-portrait-outline" size={16} color="#71717A" />
+                    <Ionicons name="phone-portrait-outline" size={16} color="#6F6862" />
                     <Text className="flex-1 text-caption text-neutral-500">
                       On iPhone, you&apos;ll pick the real apps with Apple&apos;s Screen Time picker once app
                       locking is enabled. This list is a preview of what that feels like.

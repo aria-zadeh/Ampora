@@ -179,7 +179,7 @@ export function TimeGrid({
                   <View style={{ width: GUTTER_WIDTH }} className="items-end pr-2">
                     {/* Nudge the label up so it centers on the line, not below it. */}
                     <Text
-                      className="text-tiny text-neutral-400"
+                      className="text-tiny text-neutral-500"
                       style={{ marginTop: -6 }}
                       accessibilityLabel={hourLabelLong(hour)}
                       allowFontScaling

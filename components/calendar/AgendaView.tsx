@@ -155,7 +155,7 @@ export function AgendaView({ date, onBlockPress, testID }: AgendaViewProps) {
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) =>
           item.type === 'header' ? (
-            <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-400 mt-5 mb-3">
+            <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500 mt-5 mb-3">
               {item.label}
             </Text>
           ) : (
@@ -234,7 +234,7 @@ function AgendaRowCard({
           </Text>
           <Text
             className={`text-body font-medium mt-0.5 ${
-              done ? 'text-neutral-400 line-through' : 'text-neutral-900'
+              done ? 'text-neutral-500 line-through' : 'text-neutral-900'
             }`}
             numberOfLines={1}
           >
@@ -244,7 +244,7 @@ function AgendaRowCard({
 
         {/* "N steps" hint (PRD FR-27). */}
         {steps > 0 ? (
-          <Text className="text-caption text-neutral-400">
+          <Text className="text-caption text-neutral-500">
             {steps} {steps === 1 ? 'step' : 'steps'}
           </Text>
         ) : null}

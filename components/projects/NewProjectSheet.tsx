@@ -107,12 +107,12 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
             Name
           </Text>
           <View className="flex-row items-center bg-white border border-neutral-200 rounded-md min-h-12 px-3 mb-5">
-            <Ionicons name="bookmark-outline" size={iconSizes.md} color="#A1A1AA" />
+            <Ionicons name="bookmark-outline" size={iconSizes.md} color="#A8A29A" />
             <TextInput
               value={name}
               onChangeText={setName}
               placeholder="e.g. Study for SciOly Remote Sensing"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor="#A8A29A"
               className="flex-1 ml-2 text-body-lg text-neutral-900"
               returnKeyType="next"
               autoFocus
@@ -142,12 +142,12 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
                 >
                   <View
                     className="w-9 h-9 rounded-full items-center justify-center"
-                    style={{ backgroundColor: active ? PROJECT_ACCENT : "#F4F4F5" }}
+                    style={{ backgroundColor: active ? PROJECT_ACCENT : "#F7F6F3" }}
                   >
                     <Ionicons
                       name={meta.icon}
                       size={iconSizes.md}
-                      color={active ? "#FFFFFF" : "#71717A"}
+                      color={active ? "#FFFFFF" : "#6F6862"}
                     />
                   </View>
                   <View className="flex-1 ml-3">
@@ -177,7 +177,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
               value={description}
               onChangeText={setDescription}
               placeholder="What's the goal? Any context?"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor="#A8A29A"
               className="text-body text-neutral-900 min-h-[44px]"
               multiline
               textAlignVertical="top"

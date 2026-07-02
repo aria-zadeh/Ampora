@@ -51,7 +51,7 @@ export function StarterActionCard({ action, onToggle }: StarterActionCardProps) 
             {/* The action */}
             <Heading
               size="h4"
-              className={`mt-1.5 ${done ? "line-through text-neutral-400" : ""}`}
+              className={`mt-1.5 ${done ? "line-through text-neutral-500" : ""}`}
               accessibilityLabel={`First move: ${action.text}${done ? ", done" : ""}`}
             >
               {action.text}

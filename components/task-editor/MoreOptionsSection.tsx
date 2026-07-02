@@ -43,7 +43,7 @@ export function MoreOptionsSection({
         accessibilityLabel="More options"
       >
         <View className="flex-row items-center gap-2">
-          <Ionicons name="options-outline" size={18} color="#52525B" />
+          <Ionicons name="options-outline" size={18} color="#57534E" />
           <Text className="text-body-lg font-semibold text-neutral-900">
             More options
           </Text>
@@ -51,7 +51,7 @@ export function MoreOptionsSection({
         <Ionicons
           name={expanded ? "chevron-up" : "chevron-down"}
           size={18}
-          color="#A1A1AA"
+          color="#A8A29A"
         />
       </PressableScale>
 

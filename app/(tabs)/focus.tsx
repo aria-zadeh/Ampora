@@ -164,7 +164,7 @@ export default function FocusScreen() {
           <View className="mt-10">
             <View className="flex-row items-baseline justify-between mb-4">
               <Heading size="h3">Ready to focus</Heading>
-              <Text className="text-caption text-neutral-400">
+              <Text className="text-caption text-neutral-500">
                 {focusable.length} {focusable.length === 1 ? "task" : "tasks"}
               </Text>
             </View>
@@ -217,7 +217,7 @@ function FocusTaskRow({ task, onPress }: { task: Task; onPress: () => void }) {
       onPress={onPress}
       haptic="light"
       className="rounded-xl bg-white border border-neutral-200 p-4"
-      style={{ shadowColor: "#18181B", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}
+      style={{ shadowColor: "#1C1917", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}
       accessibilityLabel={`Focus on ${task.title}. Next: ${stepLabel}`}
     >
       <View className="flex-row items-center">

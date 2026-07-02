@@ -55,11 +55,11 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
       ) : null}
 
       <View className="mb-2 min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-3">
-        <Ionicons name="search" size={16} color="#A1A1AA" />
+        <Ionicons name="search" size={16} color="#A8A29A" />
         <TextInput
           className="ml-2 flex-1 text-body-lg text-neutral-900"
           placeholder="Search tasks"
-          placeholderTextColor="#A1A1AA"
+          placeholderTextColor="#A8A29A"
           value={query}
           onChangeText={setQuery}
           accessibilityLabel="Search tasks to depend on"

@@ -66,7 +66,7 @@ export function SubtaskRow({
         >
           <Text
             className={`text-body ${
-              done ? "line-through text-neutral-400" : "text-neutral-900"
+              done ? "line-through text-neutral-500" : "text-neutral-900"
             }`}
             numberOfLines={2}
           >
@@ -77,7 +77,7 @@ export function SubtaskRow({
         <View className="flex-1 ml-1">
           <Text
             className={`text-body ${
-              done ? "line-through text-neutral-400" : "text-neutral-900"
+              done ? "line-through text-neutral-500" : "text-neutral-900"
             }`}
             numberOfLines={2}
           >
@@ -102,7 +102,7 @@ export function SubtaskRow({
           accessibilityLabel="Delete step"
           hitSlop={8}
         >
-          <Ionicons name="trash-outline" size={18} color="#71717A" />
+          <Ionicons name="trash-outline" size={18} color="#6F6862" />
         </Pressable>
       )}
     </View>

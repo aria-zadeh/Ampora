@@ -715,7 +715,7 @@ function ChevronSpring({ collapsed }: { collapsed: boolean }) {
 
   return (
     <Animated.View style={[{ marginRight: 6 }, style]}>
-      <Ionicons name="chevron-forward" size={18} color="#71717A" />
+      <Ionicons name="chevron-forward" size={18} color="#6F6862" />
     </Animated.View>
   );
 }
@@ -1082,7 +1082,7 @@ function DraggableTaskCard({
               accessibilityLabel="Reorder task"
               accessibilityHint="Long press and drag to move this task up or down the list"
             >
-              <Ionicons name="reorder-three-outline" size={22} color="#A1A1AA" />
+              <Ionicons name="reorder-three-outline" size={22} color="#A8A29A" />
             </Animated.View>
           </GestureDetector>
         }

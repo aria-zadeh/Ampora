@@ -96,7 +96,7 @@ export function SubtaskChecklist({
                   <Ionicons
                     name="chevron-up"
                     size={16}
-                    color={index === 0 ? "#D4D4D8" : "#71717A"}
+                    color={index === 0 ? "#D7D3CC" : "#6F6862"}
                   />
                 </Pressable>
                 <Pressable
@@ -111,7 +111,7 @@ export function SubtaskChecklist({
                   <Ionicons
                     name="chevron-down"
                     size={16}
-                    color={index === subtasks.length - 1 ? "#D4D4D8" : "#71717A"}
+                    color={index === subtasks.length - 1 ? "#D7D3CC" : "#6F6862"}
                   />
                 </Pressable>
               </View>
@@ -131,7 +131,7 @@ export function SubtaskChecklist({
         <TextInput
           className="min-h-12 flex-1 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
           placeholder="Add a step"
-          placeholderTextColor="#A1A1AA"
+          placeholderTextColor="#A8A29A"
           value={newTitle}
           onChangeText={setNewTitle}
           returnKeyType="done"
@@ -141,7 +141,7 @@ export function SubtaskChecklist({
         <TextInput
           className="min-h-12 w-16 rounded-md border border-neutral-200 bg-white px-2 text-center text-body-lg text-neutral-900"
           placeholder="min"
-          placeholderTextColor="#A1A1AA"
+          placeholderTextColor="#A8A29A"
           value={newMin}
           onChangeText={setNewMin}
           keyboardType="number-pad"

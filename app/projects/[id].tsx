@@ -123,7 +123,7 @@ export default function ProjectDetailScreen() {
     return (
       <SafeAreaView className="flex-1 bg-neutral-100 items-center justify-center px-8">
         <Stack.Screen options={{ headerShown: false }} />
-        <Ionicons name="folder-open-outline" size={iconSizes.hero} color="#A1A1AA" />
+        <Ionicons name="folder-open-outline" size={iconSizes.hero} color="#A8A29A" />
         <Text className="text-body text-neutral-500 text-center mt-3">
           This project isn't available.
         </Text>
@@ -149,7 +149,7 @@ export default function ProjectDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Ionicons name="chevron-back" size={iconSizes.lg} color="#18181B" />
+          <Ionicons name="chevron-back" size={iconSizes.lg} color="#1C1917" />
         </Pressable>
         <View className="flex-1" />
         <Pressable
@@ -159,7 +159,7 @@ export default function ProjectDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Delete project"
         >
-          <Ionicons name="trash-outline" size={iconSizes.md} color="#A1A1AA" />
+          <Ionicons name="trash-outline" size={iconSizes.md} color="#A8A29A" />
         </Pressable>
       </View>
 
@@ -242,7 +242,7 @@ export default function ProjectDetailScreen() {
                   <Ionicons
                     name={t.icon}
                     size={iconSizes.sm}
-                    color={active ? "#18181B" : "#71717A"}
+                    color={active ? "#1C1917" : "#6F6862"}
                   />
                   <Text
                     className={
@@ -400,15 +400,15 @@ function PlannedSheet({
                     <Text className="flex-1 text-body text-neutral-800 ml-2.5" numberOfLines={2}>
                       {s.title}
                     </Text>
-                    <Text className="text-caption text-neutral-400 ml-2">{s.estimatedMin}m</Text>
+                    <Text className="text-caption text-neutral-500 ml-2">{s.estimatedMin}m</Text>
                   </View>
                 ))}
               </View>
 
               {result.isFallback && result.note && (
                 <View className="flex-row items-center mt-3">
-                  <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color="#A1A1AA" />
-                  <Text className="text-tiny text-neutral-400 ml-1">{result.note}</Text>
+                  <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color="#A8A29A" />
+                  <Text className="text-tiny text-neutral-500 ml-1">{result.note}</Text>
                 </View>
               )}
 

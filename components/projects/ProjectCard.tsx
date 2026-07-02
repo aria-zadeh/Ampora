@@ -54,14 +54,14 @@ export function ProjectCard({ project, onPress }: ProjectCardProps) {
         <View className="flex-row items-center gap-2 mt-1.5">
           <Badge label={meta.label} tone="accent" />
           <View className="flex-row items-center">
-            <Ionicons name="document-text-outline" size={iconSizes.xs} color="#71717A" />
+            <Ionicons name="document-text-outline" size={iconSizes.xs} color="#6F6862" />
             <Text className="text-caption text-neutral-500 ml-1">
               {fileCount} {fileCount === 1 ? "file" : "files"}
             </Text>
           </View>
           {taskCount > 0 && (
             <View className="flex-row items-center">
-              <Ionicons name="checkbox-outline" size={iconSizes.xs} color="#71717A" />
+              <Ionicons name="checkbox-outline" size={iconSizes.xs} color="#6F6862" />
               <Text className="text-caption text-neutral-500 ml-1">
                 {taskCount} {taskCount === 1 ? "task" : "tasks"}
               </Text>
@@ -70,7 +70,7 @@ export function ProjectCard({ project, onPress }: ProjectCardProps) {
         </View>
       </View>
 
-      <Ionicons name="chevron-forward" size={iconSizes.md} color="#D4D4D8" />
+      <Ionicons name="chevron-forward" size={iconSizes.md} color="#D7D3CC" />
     </Card>
   );
 }

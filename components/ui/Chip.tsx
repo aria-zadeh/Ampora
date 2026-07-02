@@ -45,7 +45,7 @@ export function Chip({
           <Ionicons
             name="close"
             size={14}
-            color={selected ? "#1D4ED8" : "#71717A"}
+            color={selected ? "#1D4ED8" : "#6F6862"}
           />
         </Pressable>
       ) : null}

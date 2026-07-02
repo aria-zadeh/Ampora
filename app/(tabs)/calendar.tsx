@@ -363,7 +363,7 @@ function ZoomButton({
       <Ionicons
         name={icon}
         size={18}
-        color={disabled ? "#D4D4D8" : "#3F3F46"}
+        color={disabled ? "#D7D3CC" : "#44403C"}
       />
     </PressableScale>
   );

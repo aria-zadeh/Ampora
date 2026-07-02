@@ -10,7 +10,7 @@ export const PRIORITY_VALUES = [1, 2, 3, 4] as const;
 
 /** Selected-state accent per priority level (higher = warmer/more urgent). */
 const SELECTED_CLASSES: Record<number, { bg: string; text: string; dot: string }> = {
-  1: { bg: "bg-white", text: "text-neutral-800", dot: "#71717A" },
+  1: { bg: "bg-white", text: "text-neutral-800", dot: "#6F6862" },
   2: { bg: "bg-white", text: "text-primary-700", dot: "#2563EB" },
   3: { bg: "bg-white", text: "text-warning-700", dot: "#F97316" },
   4: { bg: "bg-white", text: "text-danger-700", dot: "#DC2626" },
@@ -81,7 +81,7 @@ export function PrioritySelector({ value, onChange }: PrioritySelectorProps) {
 
 /** Soft lift for the selected segment so it reads as raised above the track. */
 const SEGMENT_SHADOW = {
-  shadowColor: "#18181B",
+  shadowColor: "#1C1917",
   shadowOffset: { width: 0, height: 1 },
   shadowOpacity: 0.06,
   shadowRadius: 3,

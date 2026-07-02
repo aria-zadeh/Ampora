@@ -101,7 +101,7 @@ const COLOR_SWATCHES = [
   "#DC2626",
   "#0891B2",
   "#DB2777",
-  "#52525B",
+  "#57534E",
 ];
 
 // ---------------------------------------------------------------------------
@@ -512,7 +512,7 @@ export function TaskEditorForm({
                 "title"
               )} bg-white px-4 text-body-lg text-neutral-900`}
               placeholder="What needs doing?"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor="#A8A29A"
               value={draft.title ?? ""}
               onChangeText={(title) => patch({ title })}
               onFocus={() => setFocusedField("title")}
@@ -532,7 +532,7 @@ export function TaskEditorForm({
                 "notes"
               )} bg-white px-4 py-3 text-body-lg text-neutral-900`}
               placeholder="Add details (optional)"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor="#A8A29A"
               value={draft.notes ?? ""}
               onChangeText={(notes) => patch({ notes })}
               onFocus={() => setFocusedField("notes")}
@@ -640,7 +640,7 @@ export function TaskEditorForm({
                 "firstMove"
               )} bg-white px-4 text-body-lg text-neutral-900`}
               placeholder="e.g. Open the doc and write one line"
-              placeholderTextColor="#A1A1AA"
+              placeholderTextColor="#A8A29A"
               value={firstMoveText}
               onChangeText={setFirstMoveText}
               onFocus={() => setFocusedField("firstMove")}
@@ -728,7 +728,7 @@ export function TaskEditorForm({
                   <TextInput
                     className="min-h-12 rounded-md border border-primary-500 bg-white px-4 text-body-lg text-neutral-900"
                     placeholder='e.g. "break it down by function" or "step 2 is too big"'
-                    placeholderTextColor="#A1A1AA"
+                    placeholderTextColor="#A8A29A"
                     value={refineText}
                     onChangeText={setRefineText}
                     returnKeyType="done"
@@ -793,7 +793,7 @@ export function TaskEditorForm({
             <Switch
               value={draft.autoSchedule ?? true}
               onValueChange={(autoSchedule) => patch({ autoSchedule })}
-              trackColor={{ true: "#2563EB", false: "#D4D4D8" }}
+              trackColor={{ true: "#2563EB", false: "#D7D3CC" }}
               accessibilityLabel="Auto-schedule"
             />
           </View>
@@ -818,7 +818,7 @@ export function TaskEditorForm({
                   "duration"
                 )} bg-white px-4 text-body-lg text-neutral-900`}
                 placeholder="e.g. 30"
-                placeholderTextColor="#A1A1AA"
+                placeholderTextColor="#A8A29A"
                 value={
                   draft.durationMin != null && draft.durationMin > 0
                     ? String(draft.durationMin)
@@ -872,8 +872,8 @@ export function TaskEditorForm({
                 accessibilityRole="button"
                 accessibilityLabel="Set a due date"
               >
-                <Ionicons name="calendar-outline" size={18} color="#71717A" />
-                <Text className="ml-2 text-body-lg text-neutral-400">
+                <Ionicons name="calendar-outline" size={18} color="#6F6862" />
+                <Text className="ml-2 text-body-lg text-neutral-500">
                   Set a deadline
                 </Text>
               </Pressable>
@@ -914,8 +914,8 @@ export function TaskEditorForm({
                 accessibilityRole="button"
                 accessibilityLabel="Set a start-after date"
               >
-                <Ionicons name="time-outline" size={18} color="#71717A" />
-                <Text className="ml-2 text-body-lg text-neutral-400">
+                <Ionicons name="time-outline" size={18} color="#6F6862" />
+                <Text className="ml-2 text-body-lg text-neutral-500">
                   Set a start date
                 </Text>
               </Pressable>
@@ -935,7 +935,7 @@ export function TaskEditorForm({
             <Switch
               value={draft.splittable ?? false}
               onValueChange={(splittable) => patch({ splittable })}
-              trackColor={{ true: "#2563EB", false: "#D4D4D8" }}
+              trackColor={{ true: "#2563EB", false: "#D7D3CC" }}
               accessibilityLabel="Split into sessions"
             />
           </View>
@@ -948,7 +948,7 @@ export function TaskEditorForm({
                   <TextInput
                     className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 30"
-                    placeholderTextColor="#A1A1AA"
+                    placeholderTextColor="#A8A29A"
                     value={draft.minBlockMin != null ? String(draft.minBlockMin) : ""}
                     onChangeText={(text) => {
                       const parsed = parseInt(text, 10);
@@ -964,7 +964,7 @@ export function TaskEditorForm({
                   <TextInput
                     className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 90"
-                    placeholderTextColor="#A1A1AA"
+                    placeholderTextColor="#A8A29A"
                     value={draft.maxBlockMin != null ? String(draft.maxBlockMin) : ""}
                     onChangeText={(text) => {
                       const parsed = parseInt(text, 10);

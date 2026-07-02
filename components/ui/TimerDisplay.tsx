@@ -26,7 +26,7 @@ export function TimerDisplay({ seconds, running, label }: TimerDisplayProps) {
       )}
       <Text
         className={`text-display font-bold ${
-          running ? "text-neutral-900" : "text-neutral-400"
+          running ? "text-neutral-900" : "text-neutral-500"
         }`}
         style={{ fontSize: 56, lineHeight: 64, ...tabularNums }}
       >
