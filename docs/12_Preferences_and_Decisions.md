@@ -98,6 +98,110 @@ careful and mostly additive — do not regress v1.
 
 ---
 
+## Round B — design v2 + finish the app (2026-07-01)
+
+Context: Round A shipped; Aria reviewed and asked for (1) design that reaches
+**Todoist / Trello-level professional**, (2) a fix for the buggy, feedback-less
+calendar drag, (3) polish + finish the remaining features, (4) everything AI
+**ready but not keyed** yet. Executed autonomously as Plan v2 (Phases 0–7).
+
+### Design direction (locked)
+
+- **The mix: "clean & minimal" (Linear / Todoist) + "warm & premium" (Notion /
+  Things), with richer & tactile motion** — Aria explicitly approved motion that
+  is livelier than the old quiet-motion default. Dials locked: **DESIGN_VARIANCE 5,
+  MOTION_INTENSITY 6, VISUAL_DENSITY 5**. Do not re-litigate.
+- **Warm the neutral spine.** Migrated cool Zinc → warm Stone: canvas is warm
+  bone **`#F7F6F3`**, ink is warm near-black **`#1C1917`** (supersedes the old
+  `#18181B`), one warm gray family throughout (never mix warm/cool grays).
+  Shadows are warm-tinted (`#292524`) and ultra-diffuse. Added a muted-pastel
+  **`listColors`** set, a **`FeatureShell`** nested "feature card" primitive
+  (reserved for ~4 focal cards only), and **tabular numerals** for all aligned
+  numbers. **Never hardcode colors** is now actually enforced — every legacy
+  hardcoded gray was migrated to tokens (0 cool-Zinc literals remain). `Inter`
+  stays (correct for the Linear-style brief; the design skills' own override).
+- **Motion vocabulary:** `SPRINGS.tactile` for control/drag physics, live drag
+  feedback, a single celebratory completion beat. Reduce-motion always respected.
+
+### Calendar drag (the headline bug — fixed)
+
+Live snapped-time pill while dragging (the missing feedback), snap-during-drag
+selection haptics, deterministic scroll-lock + edge autoscroll, a tactile
+drop-spring, a pinned-block lock glyph with a working Lock/Unlock toggle, and
+44px resize targets. **Cross-day drag in 3-Day/Week is deliberately gated off**
+(RN clips sibling day columns; a correct version needs one shared absolute
+canvas — Round C). Vertical drag is fully polished; better janky-free than shipped-janky.
+
+### §2.6 open-GAP decisions (all resolved this round)
+
+- **Day capacity** = that day's scheduling-hours minutes minus fixed events.
+- **Pinned block vs a new overlapping fixed event:** the real fixed event wins;
+  the pinned task block reflows (never a silent drop).
+- **Over-subscription:** keep highest-priority + earliest-due; the rest surface
+  in the unschedulable list with a reason. Never silently dropped.
+- **Event crossing midnight:** split at the day boundary in Day/3-Day/Week.
+- **Timezone/travel:** recompute on tz change; blocks are wall-clock-local.
+- **Notification permission denied:** degrade to in-app/web + a *one-time*
+  Settings nudge (no nagging).
+- **Project files:** 20 files/project, 25 MB/file, types pdf/img/doc/sheet.
+- **Delete a project:** default **keep + unlink** its tasks; the confirm dialog
+  offers "also delete its N tasks". Don't destroy the user's work by default.
+- **A task belongs to at most one project** (no multi-project tasks).
+- **Undated auto-scheduled tasks** backfill and never displace dated work
+  (confirmed). **Multi-device stakes / beat-the-clock cooldown** confirmed built.
+- **Monetization:** paid app, **no free tier**, so no per-feature AI/project
+  gating for v1. (Revisit only if a Free tier is ever wanted.)
+- **Privacy policy / ToS** (required for minors at launch): **Round C legal
+  task — flagged to Aria, not code.**
+
+### AI — ready for key, not keyed
+
+- **Agentic project chat = a planner that acts.** It edits the plan via a
+  client-side **`ToolAction`** pipeline (create/update/complete task, subtasks,
+  first move, schedule hints, project phase/memory) validated + applied on-device
+  with one-tap **Undo**; confirmation chips render in the thread. Local-first —
+  no MCP server this round; the tool vocabulary is designed to lift to the future
+  MCP server verbatim.
+- All 6 existing edge functions + a new `ai-verify-proof` are **deployed** and
+  return the `no_key` contract until the key is set. **Activation is one step:**
+  set `GEMINI_API_KEY` as an Edge Function secret on the **active** Supabase
+  project **`pgqbwhksxqgnfdkmwlop`** (the project-scoped MCP points at a *dead*
+  Dandelion project `dypqqazrwwtwekbligpy` — do not use it). No rebuild needed.
+
+### Wellbeing
+
+- **Beat-the-clock is OFF by default and must be earned** — it only becomes
+  available after **≥3 successful lock-until-start sessions** (restores the
+  invariant that was silently violated by a hardcoded-true flag). Panic valve,
+  180-min daily cap, 30-min cooldown, quiet-hours auto-release, and the 6
+  never-lock categories are all preserved; a stale lock session is now
+  reconciled (released) on app launch. Never-lock is client-enforced today;
+  full server/device enforcement lands with native shielding (Round C).
+
+### Deep review (Phase 7)
+
+A multi-agent adversarial review (find → refute → confirm) surfaced **14
+confirmed findings**, all fixed: the biggest were a **scheduler missed-marking
+bug** (elapsed non-pinned blocks were dropped before they could be marked, so
+"Needs attention" silently never populated) and the **beat-the-clock default**.
+Also fixed: the warm migration was incomplete (legacy hardcoded grays), a
+caption-contrast AA failure (`text-neutral-400` on the warm canvas), a
+per-kind-reminder toggle that didn't reschedule, web reminders that never
+polled, an unwired completion celebration, and a stale-lock-session gap.
+
+### Deferred to Round C+ (explicit, with blockers)
+
+Native iOS Ignition locking (Apple Family Controls entitlement, weeks) · real
+IAP/StoreKit (Apple dev account) · **native magic-link deep-link** (works on
+web; native needs a dev build + routing/supabase wiring + a device) · document
+RAG "ask my syllabus" (pgvector + OCR + embeddings) · voice brain-dump STT ·
+home/lock-screen widgets · MCP server + public API · real-device notification
+timing · calendar-sync OAuth. Also flagged: `send-auth-email` exists only on
+the dead Dandelion project — if magic-link emails are needed live, redeploy it
+to the active project.
+
+---
+
 ### How to use this log
 
 - When Aria asks for a change, **append a dated entry** under a round heading

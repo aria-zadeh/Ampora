@@ -13,6 +13,38 @@
 - **Round C+:** built 2 · partial 17 · missing 24 · gated 4
 - **Open in-scope rows (Round B, not yet `built`):** 35 (must be closed or reclassified by Phase 7)
 
+## Round B closure (2026-07-01) — conformance gate result
+
+Round B (Plan v2, Phases 0–7) closed the in-scope work. The 35 open-in-scope
+rows from the Phase-0 audit are resolved as follows:
+
+- **Built this round** — design v3 warm system + a11y contrast (DS-inputs, DS
+  list motion), calendar drag feedback + midnight split (GAP), Todoist task
+  affordances, agentic `ToolAction` planner + thread history (API-PHASE5-*),
+  `ai-verify-proof` + lenient proof check (VER-3/VER-9), missed view + auto-mark
+  (FR-16/FR-60), per-list scheduling hours, buffer steppers, workload wiring,
+  project file limits + delete-project confirm (GAPs), notification-permission
+  nudge (GAP), inbox scheduling gate confirmed (FR-5), re-breakdown confirm
+  (AIB-29).
+- **§2.6 GAPs** — all resolved per the recommended defaults (see `docs/12` Round
+  B for each decision); the only starred deferral is privacy-policy/ToS (Round C
+  legal, not code).
+- **Deep review (Phase 7)** — 14 adversarially-confirmed findings, all fixed,
+  incl. a real scheduler missed-marking bug and the beat-the-clock default.
+
+**Reclassified Round C+ (deferred, with blockers)** — native iOS Ignition
+locking (Apple Family Controls entitlement), IAP/StoreKit (Apple dev account),
+native magic-link deep-link (needs native build + routing/supabase wiring +
+device; web works), document RAG (pgvector+OCR+embeddings), voice STT, widgets,
+MCP server + public API, real-device notification tuning, calendar-sync OAuth.
+These carry their blockers here and in `docs/12`; none are silent drops.
+
+**Gate status:** 0 `tsc` errors, clean web export, app boots warm end-to-end.
+The row-level `built/partial/missing/gated` tags below reflect the Phase-0
+snapshot; the Round B closure above supersedes them for in-scope items.
+
+---
+
 ## Functional Requirements (Section 7.1) - Ampora v1
 
 Ampora v1 shipped with 90 functional requirements spanning the full task system, on-device deterministic scheduler, five calendar views, full Learning Engine (Focus DNA, Revealed Self, Energy), Ignition soft-lock with wellbeing caps and panic valve, Recovery Mode, Focus + Blindfold sessions, AI breakdown with local fallbacks, Projects (files + chat + progress), full auth + subscription scaffolding, and settings exposing every tunable. Core engine (scheduler, calendar, blocking) is portable pure TypeScript, running identically on-device and ready for Edge Functions. 6 FRs are partial (voice capture, calendar sync OAuth, multi-modal source attachment, project agentic tools, unschedulable-task UI, beat-the-clock calibration) deferred to Phase 6-8. 3 FRs are missing (Claude MCP, public API, Claude context channel) deliberately deferred to Phase 8+ as forward-looking integrations. All shipped code typechecks at zero errors and web-exports cleanly.

@@ -74,62 +74,62 @@ Decision needed (see Open Decisions): what is the unfinished state that brings s
 Status key: ANSWERED (where) or GAP (needs a decision). The GAPs are consolidated in Part D.
 
 **Auth and account**
-- Sign in with Apple and Google. Status: being added now (Part E, PRD FR-87).
-- Can you use the app before signing in (local-first implies yes)? On sign-in, how does local data migrate? GAP.
-- Account deletion and data export specifics. Partially answered (NFR-4 says export and delete exist), exact flow GAP.
+- Sign in with Apple and Google. Status: shipped (Part E, PRD FR-87). Round C: native magic-link deep-link handling (needs a native dev build plus routing/Supabase wiring on a device); web magic-link works today.
+- Can you use the app before signing in (local-first implies yes)? On sign-in, how does local data migrate? RESOLVED: an account is required, the cloud is the source of truth with a local cache, and there is no anonymous local-only mode, so there is no pre-sign-in local set to migrate (FR-87, Part D item 7).
+- Account deletion and data export specifics. RESOLVED: both are available in Settings (FR-87, NFR-4); Round B added Help/About/Legal entries alongside them (PRD §8.14).
 - Migrating existing Focal v1 users vs a clean break. RESOLVED: no existing users, brand-new app, no migration (Part D).
 
 **Scheduling engine**
 - Ordering, splitting, recalculate, stability, unschedulable handling. ANSWERED (FR-9 to FR-21, 9.5).
-- What does the engine do with an auto-scheduled task that has no due date? GAP.
-- Precise definition of a day's capacity used in balancing. GAP (define = scheduling-hours minutes minus fixed events that day).
-- Pinned block versus a newly added fixed event that overlaps it, who wins? GAP.
-- Time zone changes and travel. GAP.
-- Over-subscription (more work than time before deadlines), which tasks get dropped and how is it surfaced? Partially answered (FR-20), priority of dropping GAP.
+- What does the engine do with an auto-scheduled task that has no due date? RESOLVED (Round B): not force-placed; stays on the list, optional lowest-priority backfill, never displaces dated work (PRD 9.5.11).
+- Precise definition of a day's capacity used in balancing. RESOLVED (Round B): day capacity = scheduling-hours minutes minus fixed events that day; confirmed in placement.
+- Pinned block versus a newly added fixed event that overlaps it, who wins? RESOLVED (Round B): the real fixed event wins; the pinned task block reflows (no silent drop).
+- Time zone changes and travel. RESOLVED (Round B): recompute on tz change; blocks are wall-clock-local.
+- Over-subscription (more work than time before deadlines), which tasks get dropped and how is it surfaced? RESOLVED (Round B): keep highest-priority + earliest-due; the rest surface in the unschedulable list with a reason (never silent-drop). Elapsed blocks of still-open tasks are marked missed and surfaced in Home "Needs attention" (PRD 9.5.12, FR-20).
 
 **Calendar**
-- Views, zoom, block rendering, overlap, gestures. ANSWERED (FR-23 to FR-28).
-- Events crossing midnight and multi-day events rendering. GAP.
-- Whether the calendar is even in v1 (Part A says defer). GAP/decision.
+- Views, zoom, block rendering, overlap, gestures. ANSWERED (FR-23 to FR-28); Round B added the drag overhaul (live snapped-time pill, snap haptics, scroll-lock + edge autoscroll, tactile drop-spring, pinned lock glyph + Lock/Unlock, 44px resize targets) per PRD §8.14.
+- Events crossing midnight and multi-day events rendering. RESOLVED (Round B): split at the day boundary in Day/3-Day/Week.
+- Whether the calendar is even in v1 (Part A says defer). RESOLVED: the calendar ships (full Day/3-Day/Week/Month/Agenda). Remaining Round C item: cross-day drag in 3-Day/Week (needs a shared cross-column canvas), gated off today.
 
 **Ignition and verification**
-- Modes, panic valve, caps, the verification spectrum. ANSWERED (FR-40 to FR-47, 77, 78, docs 06 and 09).
-- Multi-device stakes (start on phone, does it lock a tablet or second device?). GAP.
-- Beat-the-clock cooldown: during cooldown, can finishing the task end the lock early, and exactly what is locked? GAP.
-- If the user deletes Ampora mid-lock, does the iOS shield clear? (Likely yes since ManagedSettings is tied to the app, confirm and state.) GAP.
-- Cost and rate limits of AI vision verification, and offline behavior (cannot verify offline). GAP.
+- Modes, panic valve, caps, the verification spectrum. ANSWERED (FR-40 to FR-47, 77, 78, docs 06 and 09). Round B: Beat-the-clock now defaults OFF and is earned after >= 3 successful lock-until-start completions (PRD §8.14).
+- Multi-device stakes (start on phone, does it lock a tablet or second device?). RESOLVED (Round B): each device independent, no multi-device lock (FR-41b).
+- Beat-the-clock cooldown: during cooldown, can finishing the task end the lock early, and exactly what is locked? RESOLVED (Round B): finishing the task ends the cooldown early (FR-41).
+- If the user deletes Ampora mid-lock, does the iOS shield clear? (Likely yes since ManagedSettings is tied to the app, confirm and state.) Round C: verified end-to-end only once the native module ships behind the Family Controls entitlement; soft-lock has no OS shield to strand today.
+- Cost and rate limits of AI vision verification, and offline behavior (cannot verify offline). RESOLVED (Round B): image verification runs through the `ai-verify-proof` edge function with a lenient default-pass `checkProofPlausibility`; no key or offline falls back to accept (never traps), consistent with the no-key contract and FR-78.
 
 **Breakdown, memory, projects**
-- Pipeline, grounding, memory, custom/voice, project model. ANSWERED (docs 07, 10).
-- Which model powers breakdown and the project chat, the per-call cost, and the free-tier limits. GAP (ties to monetization).
-- Project file storage limits (count, size, types). GAP.
-- Deleting a project, what happens to its generated tasks. GAP.
-- Can a task belong to more than one project. GAP (recommend no).
+- Pipeline, grounding, memory, custom/voice, project model. ANSWERED (docs 07, 10). Round B: the project chat is now agentic on-device via the validated `ToolAction` union with one-tap Undo (PRD §8.14, FR-84).
+- Which model powers breakdown and the project chat, the per-call cost, and the free-tier limits. RESOLVED: Google Gemini (`gemini-2.5-flash`) behind the edge functions; the subscription covers AI cost and there is no free tier, so no per-feature limits (PRD 9.11, §13 2026-07-01).
+- Project file storage limits (count, size, types). RESOLVED (Round B): 20 files/project, 25 MB/file, types pdf/img/doc/sheet, enforced in the file picker.
+- Deleting a project, what happens to its generated tasks. RESOLVED (Round B): default keep + unlink its generated tasks; the confirm dialog offers "also delete tasks".
+- Can a task belong to more than one project. RESOLVED (Round B): no, one project per task.
 
 **Notifications**
-- Cadence, types, copy, quiet hours. ANSWERED (FR-63, 8.9).
-- Exact behavior when notification permission is denied, and web push. GAP (minor).
+- Cadence, types, copy, quiet hours. ANSWERED (FR-63, 8.9). Round B: per-kind reminder toggles now feed scheduling (PRD §8.14).
+- Exact behavior when notification permission is denied, and web push. RESOLVED (Round B): degrades to in-app/web plus a one-time Settings nudge, no nagging. Real-device timing tuning remains a Round C polish item.
 
 **Monetization and limits (high priority)**
-- Free versus Pro split exists in the business plan, but the PRD does not gate features or define limits (AI breakdowns per month, number of projects, which stakes, learning engine). GAP, important.
-- Payment infrastructure (Apple IAP on iOS, Stripe elsewhere) and the minor-founder account holder. GAP, important (touched in the business plan, not resolved).
-- Free trial or freemium only. GAP.
+- Free versus Pro split exists in the business plan, but the PRD does not gate features or define limits (AI breakdowns per month, number of projects, which stakes, learning engine). RESOLVED: paid app, no free tier, so there is no per-feature gating for v1 (Part D item 2; FR-88).
+- Payment infrastructure (Apple IAP on iOS, Stripe elsewhere) and the minor-founder account holder. Apple IAP is the chosen path (FR-88); real StoreKit/IAP purchasing is Round C (needs an Apple developer account). Account-holder (parent vs LLC) is still an external decision, tracked in §15 Q5.
+- Free trial or freemium only. RESOLVED: 2-week free trial then monthly/annual subscription, no freemium (Part D item 2).
 
 **Data, sync, privacy, legal**
 - Local-first, no ads, COPPA 13+, opaque tokens. ANSWERED (NFR-4, 9.12, doc 06).
-- Sync conflict resolution detail for complex objects like a day's schedule. Partially answered (last-write-wins per field), edge detail GAP.
-- Privacy policy and terms of service. GAP (required for launch).
+- Sync conflict resolution detail for complex objects like a day's schedule. RESOLVED (Round B): last-write-wins per field (built); device-local Settings fields are preserved across cloud reconcile.
+- Privacy policy and terms of service. Round C (still required before submission): a legal task, flagged, not code. Especially important for minors given behavioral and optional screenshot data (see Part B1).
 
 **Onboarding and brand**
-- Steps. ANSWERED (8.10), but must be re-cut for the lean v1 so it reaches the aha fast. GAP/decision.
-- Final accent color, app icon, logo. GAP.
-- The single reference app to copy most closely (Things 3 recommended). GAP/confirm.
+- Steps. ANSWERED (8.10), re-cut so the aha (sign in, add one task, lock an app, start) comes first; scheduling-hours and energy-peak setup are deferred/optional.
+- Final accent color, app icon, logo. Brand/identity is owned by the founder separately (Part D item 10). Round B locked the in-app visual system to Design System v3 "Calm Premium" (warm Stone spine, bone canvas, primary `#2563EB`, Projects accent `#7C3AED`) per PRD §8.14.
+- The single reference app to copy most closely (Things 3 recommended). Superseded: the shipped bar is Todoist-grade task affordances plus FlowSavvy-grade scheduling, under Design System v3 (PRD §8.14).
 
 **Platform scope**
-- Web (no blocking possible) in or out for v1. GAP.
-- iOS-first confirmed, Android timing. GAP/confirm.
-- Internationalization (assume English-only first). GAP/confirm.
-- Analytics tool (privacy-respecting). GAP (minor).
+- Web (no blocking possible) in or out for v1. RESOLVED: web is a target with full functionality except app-blocking, which needs the phone (FR-89, Part D item 9).
+- iOS-first confirmed, Android timing. RESOLVED: iOS and Android phones both target full functionality including blocking; native iOS app-locking is gated on the Family Controls entitlement (Round C blocker), soft-lock ships today (FR-89).
+- Internationalization (assume English-only first). RESOLVED: English only at launch (FR-89, Part D item 9).
+- Analytics tool (privacy-respecting). Still a minor Round C item: on-device-first event log, only aggregate non-identifying metrics leave the device if any (§10). No third-party analytics chosen yet.
 
 ---
 
@@ -149,7 +149,21 @@ All eleven open questions are answered. Each is reflected in the PRD (decision l
 10. **Brand.** Handled by the founder separately. No brand or visual work needed here.
 11. **Existing users.** None. Brand-new app, no migration.
 
-Remaining external constraints (not scope, not code): the Family Controls distribution entitlement approval and App Store review timelines.
+**Round B (v2) resolutions (folded into the docs 2026-07-01).** The remaining Part C GAPs from the gap scan are now closed and reflected in the PRD (§8.14 and the §13 decision log):
+- **Day capacity** = scheduling-hours minutes minus fixed events that day (PRD 9.5.11/placement).
+- **Pinned block vs a new overlapping fixed event:** the real fixed event wins, the pinned task block reflows, never silently dropped.
+- **Over-subscription:** keep highest-priority + earliest-due, surface the rest in the unschedulable list with a reason; elapsed blocks of open tasks are marked missed and shown in Home "Needs attention" with Reschedule / Let it go (no shame). (PRD 9.5.12.)
+- **Events crossing midnight:** split at the day boundary in Day/3-Day/Week.
+- **Time zone / travel:** recompute on tz change; blocks are wall-clock-local.
+- **Notification permission denied:** degrades to in-app/web plus a one-time Settings nudge, no nagging.
+- **Project file limits:** 20 files/project, 25 MB/file, types pdf/img/doc/sheet, enforced in the picker.
+- **Delete a project:** default keep + unlink its generated tasks; the confirm dialog offers "also delete tasks".
+- **Task in multiple projects:** no, one project per task.
+- **Sync conflict on a day's schedule:** last-write-wins per field (built); device-local Settings fields preserved across cloud reconcile.
+- **Beat-the-clock:** OFF by default, earned after >= 3 successful lock-until-start completions.
+- **Agentic project chat:** on-device `ToolAction` union with one-tap Undo; the vocabulary lifts verbatim to the future MCP server.
+
+Remaining external constraints and Round C items (not scope closed this pass): the Family Controls distribution entitlement approval and App Store review timelines; real IAP/StoreKit purchasing (needs an Apple developer account); native magic-link deep-link handling; document RAG "ask my syllabus" (pgvector + OCR + embeddings); voice brain-dump STT; home/lock-screen widgets; the MCP server + public API; real-device notification-timing tuning; calendar-sync OAuth (Google/Outlook/iCloud); cross-day calendar drag in 3-Day/Week; and the **privacy policy / terms of service** (required for submission, especially for minors, per Part B1). The Round B `ToolAction` vocabulary is deliberately designed to lift to the future MCP server verbatim.
 
 
 ---
