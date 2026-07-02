@@ -10,16 +10,18 @@
  *                      (so the scheduler never re-places it before that instant,
  *                      PRD §9.5.3) AND moves the block there now (FlowSavvy
  *                      "push it later"). The block pins as part of the move.
- *   • Lock at this time — pins the block (setPinned) so recompute treats it as
- *                      an immovable input (FlowSavvy "lock started blocks").
+ *   • Lock / Unlock   — a TOGGLE (Round B fix #7): pins the block (setPinned
+ *                      true) so recompute treats it as an immovable input
+ *                      (FlowSavvy "lock started blocks"), or unpins it so the
+ *                      next recompute can move it again.
  *   • Open           — push the task detail route.
  *   • Mark complete  — completeTask (rolls up subtasks, doc 07 Part 3.5).
  *   • Delete         — deleteTask.
  *
  * The sheet is presentational: every mutation is delegated to a callback the
- * caller wires to the stores (`onPostpone`, `onLock`, `onOpen`, `onComplete`,
- * `onDelete`), keeping this file store-agnostic and easy to reuse from both the
- * Day and 3-Day layers.
+ * caller wires to the stores (`onPostpone`, `onTogglePin`, `onOpen`,
+ * `onComplete`, `onDelete`), keeping this file store-agnostic and easy to
+ * reuse from both the Day and 3-Day layers.
  *
  * RN + NativeWind, web-export safe. No native module imported (the custom-time
  * path uses the cross-platform DateTimePicker already in the design system).
@@ -117,8 +119,12 @@ export interface BlockActionSheetProps {
    * it), so the plan updates immediately and future recomputes respect it.
    */
   onPostpone: (newStart: number) => void
-  /** Pin the block at its current time (immovable input to recompute). */
-  onLock: () => void
+  /**
+   * Toggle the block's pinned flag. Called with the NEXT desired state: `true`
+   * to pin it at its current time (immovable input to recompute), `false` to
+   * unlock it so recompute can move it again.
+   */
+  onTogglePin: (pinned: boolean) => void
   /** Open the task's detail screen. */
   onOpen: () => void
   /** Mark the whole task complete. */
@@ -139,7 +145,7 @@ export function BlockActionSheet({
   task,
   onClose,
   onPostpone,
-  onLock,
+  onTogglePin,
   onOpen,
   onComplete,
   onDelete,
@@ -184,9 +190,9 @@ export function BlockActionSheet({
     onClose()
   }
 
-  const handleLock = () => {
+  const handleTogglePin = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
-    onLock()
+    onTogglePin(!isPinned)
     onClose()
   }
 
@@ -343,14 +349,14 @@ export function BlockActionSheet({
                   <View className="mt-4 gap-2">
                     <ActionRow
                       icon={isPinned ? 'lock-closed' : 'lock-closed-outline'}
-                      label={isPinned ? 'Locked at this time' : 'Lock at this time'}
+                      label={isPinned ? 'Unlock' : 'Lock at this time'}
                       blurb={
                         isPinned
-                          ? 'This block stays put when the schedule rebuilds.'
+                          ? 'Locked — rebuilding the schedule won\'t move it. Tap to unlock.'
                           : "Keep this block here — rebuilding the schedule won't move it."
                       }
-                      onPress={handleLock}
-                      disabled={isPinned}
+                      onPress={handleTogglePin}
+                      active={isPinned}
                       tint="primary"
                     />
                     <ActionRow
@@ -400,6 +406,8 @@ function ActionRow({
   blurb,
   onPress,
   disabled,
+  /** True when this row represents a toggle that is currently ON (e.g. "Locked"). Tints the row instead of dimming it. */
+  active,
   tint = 'neutral',
 }: {
   icon: keyof typeof Ionicons.glyphMap
@@ -407,6 +415,7 @@ function ActionRow({
   blurb?: string
   onPress: () => void
   disabled?: boolean
+  active?: boolean
   tint?: Tint
 }) {
   const t = TINT_STYLES[tint]
@@ -415,13 +424,17 @@ function ActionRow({
       onPress={disabled ? undefined : onPress}
       haptic={false}
       disabled={disabled}
-      className={`flex-row items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 ${
-        disabled ? 'opacity-60' : ''
+      className={`flex-row items-center gap-3 rounded-xl border px-4 py-3 ${
+        disabled
+          ? 'border-neutral-200 bg-white opacity-60'
+          : active
+            ? 'border-primary-300 bg-primary-50'
+            : 'border-neutral-200 bg-white'
       }`}
-      style={shadows.xs}
-      accessibilityRole="button"
+      style={active ? undefined : shadows.xs}
+      accessibilityRole={active != null ? 'switch' : 'button'}
       accessibilityLabel={blurb ? `${label}. ${blurb}` : label}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled, checked: active }}
     >
       <View className={`h-10 w-10 items-center justify-center rounded-full ${t.iconBg}`}>
         <Ionicons name={icon} size={20} color={t.icon} />

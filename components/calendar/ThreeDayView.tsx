@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -10,6 +10,7 @@ import {
 } from '@/store/scheduleStore'
 import { useTaskStore } from '@/store/taskStore'
 import { DayBlocksLayer } from './DayView'
+import { useGridScrollController, type GridScrollController } from './gridScroll'
 import {
   GUTTER_WIDTH,
   HOURS_IN_DAY,
@@ -22,6 +23,27 @@ import {
 
 /** How many day columns the 3-Day view shows (PRD FR-23: default on phone). */
 const DAYS = 3
+
+/**
+ * Round B fix #5 gate: cross-day drag (dragging a block from one day column
+ * into an adjacent one) is DELIBERATELY NOT implemented yet. Each day column
+ * here is its own `DayColumnBlocks` -> `DayBlocksLayer`, clipped to that
+ * column's own box (RN Views clip their children by default, and there is no
+ * "escape into a sibling's paint area" primitive) — so a block dragged past
+ * its own column's edge would be invisibly clipped mid-drag, the opposite of
+ * this round's "show feedback while dragging" goal. Doing this properly needs
+ * ONE shared absolute canvas spanning all 3 days (not 3 independent per-day
+ * layers) so a lifted block can visually cross a column boundary, which is a
+ * real layout change to this view, not a wiring change — left for a follow-up
+ * round rather than shipped half-working. Vertical (in-column) drag, resize,
+ * the time pill, snap haptics, spring-drop, and edge-autoscroll all work
+ * fully here today via the same {@link DayBlocksLayer} DayView uses.
+ *
+ * Exported (unused elsewhere today) so a future cross-day implementation has
+ * an obvious single switch, matching the `FEATURE_FLAGS.IGNITION_NATIVE`
+ * gating pattern already used for the native app-locking module.
+ */
+export const ENABLE_CROSS_DAY_DRAG = false
 
 interface ThreeDayViewProps {
   /** The anchor date; this and the next two days are shown. */
@@ -142,7 +164,18 @@ export function ThreeDayView({
   now,
   testID,
 }: ThreeDayViewProps) {
-  const scrollRef = useRef<ScrollView>(null)
+  const {
+    controller: scrollController,
+    scrollEnabled,
+    onScroll,
+    onViewportLayout,
+    onContentSizeChange,
+  } = useGridScrollController()
+  const scrollRef = scrollController.scrollRef
+  // Same viewport-measurement pattern as TimeGrid (fix #4 edge-autoscroll needs
+  // window-space bounds; a plain View ref is cleanly typed for `measureInWindow`,
+  // the ScrollView instance itself is not — see TimeGrid.tsx for the full note).
+  const viewportWrapRef = React.useRef<View>(null)
   const pxPerMin = pxPerMinFromHour(pxPerHour)
   const totalHeight = HOURS_IN_DAY * pxPerHour
   const nowMs = now ?? Date.now()
@@ -167,7 +200,13 @@ export function ThreeDayView({
       0
     )
     return () => clearTimeout(id)
-  }, [pxPerHour])
+  }, [pxPerHour, scrollRef])
+
+  const measureViewport = () => {
+    viewportWrapRef.current?.measureInWindow((_x, y, _w, h) => {
+      onViewportLayout({ top: y, bottom: y + h })
+    })
+  }
 
   return (
     <View style={{ flex: 1 }} testID={testID}>
@@ -185,98 +224,105 @@ export function ThreeDayView({
         </View>
       </View>
 
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        className="flex-1"
-        contentContainerStyle={{ height: totalHeight }}
-      >
-        <View style={{ height: totalHeight }}>
-          {/* Hour lines + gutter labels, spanning the full width. */}
-          {hours.map((hour) => {
-            const top = hour * pxPerHour
-            return (
-              <View
-                key={hour}
-                pointerEvents="none"
-                style={{ position: 'absolute', top, left: 0, right: 0 }}
-              >
-                <View className="flex-row">
-                  <View
-                    style={{ width: GUTTER_WIDTH }}
-                    className="items-end pr-2"
-                  >
-                    <Text
-                      className="text-tiny text-neutral-400"
-                      style={{ marginTop: -6 }}
-                      accessibilityLabel={hourLabelLong(hour)}
-                      allowFontScaling
+      <View ref={viewportWrapRef} style={{ flex: 1 }} onLayout={measureViewport}>
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={scrollEnabled}
+          onScroll={(e) => onScroll(e.nativeEvent.contentOffset.y)}
+          scrollEventThrottle={32}
+          onContentSizeChange={(_w, h) => onContentSizeChange(h)}
+          className="flex-1"
+          contentContainerStyle={{ height: totalHeight }}
+        >
+          <View style={{ height: totalHeight }}>
+            {/* Hour lines + gutter labels, spanning the full width. */}
+            {hours.map((hour) => {
+              const top = hour * pxPerHour
+              return (
+                <View
+                  key={hour}
+                  pointerEvents="none"
+                  style={{ position: 'absolute', top, left: 0, right: 0 }}
+                >
+                  <View className="flex-row">
+                    <View
+                      style={{ width: GUTTER_WIDTH }}
+                      className="items-end pr-2"
                     >
-                      {hour === 0 ? '' : hourLabel(hour)}
-                    </Text>
+                      <Text
+                        className="text-tiny text-neutral-400"
+                        style={{ marginTop: -6 }}
+                        accessibilityLabel={hourLabelLong(hour)}
+                        allowFontScaling
+                      >
+                        {hour === 0 ? '' : hourLabel(hour)}
+                      </Text>
+                    </View>
+                    <View className="flex-1 h-[1px] bg-neutral-200" />
                   </View>
-                  <View className="flex-1 h-[1px] bg-neutral-200" />
                 </View>
-              </View>
-            )
-          })}
+              )
+            })}
 
-          {/* Vertical separators between the day columns. */}
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              left: GUTTER_WIDTH,
-              right: 0,
-              top: 0,
-              bottom: 0,
-            }}
-            className="flex-row"
-          >
-            {dayStarts.map((ds, i) => (
-              <View
-                key={ds}
-                className={`flex-1 ${i > 0 ? 'border-l border-neutral-200' : ''}`}
-              />
-            ))}
+            {/* Vertical separators between the day columns. */}
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: GUTTER_WIDTH,
+                right: 0,
+                top: 0,
+                bottom: 0,
+              }}
+              className="flex-row"
+            >
+              {dayStarts.map((ds, i) => (
+                <View
+                  key={ds}
+                  className={`flex-1 ${i > 0 ? 'border-l border-neutral-200' : ''}`}
+                />
+              ))}
+            </View>
+
+            {/* The three day block-layers, each in its own third, offset past the gutter. */}
+            <View
+              style={{
+                position: 'absolute',
+                left: GUTTER_WIDTH,
+                right: 0,
+                top: 0,
+                bottom: 0,
+              }}
+              className="flex-row"
+            >
+              {dayStarts.map((ds) => (
+                <DayColumnBlocks
+                  key={ds}
+                  dayStartMs={ds}
+                  pxPerHour={pxPerHour}
+                  now={nowMs}
+                  onBlockPress={onBlockPress}
+                  scrollController={scrollController}
+                />
+              ))}
+            </View>
+
+            {/* Current-time line only over the column that is today. */}
+            {dayStarts.map((ds, i) =>
+              isSameDay(ds, nowMs) ? (
+                <NowLine
+                  key={`now-${ds}`}
+                  dayStartMs={ds}
+                  pxPerMin={pxPerMin}
+                  totalHeight={totalHeight}
+                  columnIndex={i}
+                />
+              ) : null
+            )}
           </View>
-
-          {/* The three day block-layers, each in its own third, offset past the gutter. */}
-          <View
-            style={{
-              position: 'absolute',
-              left: GUTTER_WIDTH,
-              right: 0,
-              top: 0,
-              bottom: 0,
-            }}
-            className="flex-row"
-          >
-            {dayStarts.map((ds) => (
-              <DayColumnBlocks
-                key={ds}
-                dayStartMs={ds}
-                pxPerHour={pxPerHour}
-                now={nowMs}
-                onBlockPress={onBlockPress}
-              />
-            ))}
-          </View>
-
-          {/* Current-time line only over the column that is today. */}
-          {dayStarts.map((ds, i) =>
-            isSameDay(ds, nowMs) ? (
-              <NowLine
-                key={`now-${ds}`}
-                dayStartMs={ds}
-                pxPerMin={pxPerMin}
-                totalHeight={totalHeight}
-                columnIndex={i}
-              />
-            ) : null
-          )}
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
     </View>
   )
 }
@@ -292,11 +338,14 @@ function DayColumnBlocks({
   pxPerHour,
   now,
   onBlockPress,
+  scrollController,
 }: {
   dayStartMs: number
   pxPerHour: number
   now?: number
   onBlockPress: (taskId: string) => void
+  /** The shared 3-day ScrollView's scroll glue (fix #3 / #4), same controller passed to all 3 columns. */
+  scrollController?: GridScrollController
 }) {
   const blocks = useScheduleStore(useShallow(selectBlocksByDay(dayStartMs)))
   const tasks = useTaskStore((s) => s.tasks)
@@ -310,6 +359,7 @@ function DayColumnBlocks({
         tasks={tasks}
         now={now}
         onBlockPress={onBlockPress}
+        scrollController={scrollController}
       />
     </View>
   )

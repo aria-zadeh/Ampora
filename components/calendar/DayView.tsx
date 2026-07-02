@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { View } from 'react-native'
+import { View, Text } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import {
@@ -11,6 +11,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withSpring,
   runOnJS,
 } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
@@ -34,11 +35,13 @@ import {
 } from '@/store/scheduleStore'
 import { useTaskStore } from '@/store/taskStore'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
-import { EASINGS, DURATIONS } from '@/utils/motion'
+import { EASINGS, DURATIONS, SPRINGS } from '@/utils/motion'
+import { shadows, tabularNums } from '@/utils/design-tokens'
 import { TimeGrid } from './TimeGrid'
 import { CalendarBlock } from './CalendarBlock'
 import { BlockActionSheet } from './BlockActionSheet'
-import { isSameDay, HOURS_IN_DAY } from './hours'
+import { isSameDay, HOURS_IN_DAY, formatClockTime } from './hours'
+import { AUTOSCROLL, autoscrollSpeed, type GridScrollController } from './gridScroll'
 
 /** Snap granularity for drag-to-reschedule + resize (PRD FR-28: "snaps to a 5-min grid"). */
 const SNAP_MIN = 5
@@ -51,13 +54,17 @@ const MIN_DURATION_MIN = 5
  */
 const DRAG_TAP_THRESHOLD_PX = 4
 /**
- * Height (px) of each top/bottom edge resize hit-zone. Kept small so it only
- * grabs deliberate edge drags; the body long-press still moves the whole block.
- * Only shown when the block is tall enough to host two edge zones + a body.
+ * Height (px) of each top/bottom edge resize hit-zone TOUCH TARGET (Round B
+ * fix #8 — was 14px, too small to reliably grab). The visual grip stays a
+ * thin 3px line; this only widens the invisible hit area around it, and it
+ * only renders (any opacity above 0) on the active/lifted block so it adds no
+ * visual noise at rest.
  */
-const EDGE_ZONE_PX = 14
+const EDGE_ZONE_PX = 44
 /** A block must be at least this tall (px) to expose resize edge-zones. */
 const MIN_RESIZABLE_PX = 44
+/** Lift scale at full pick-up (Round B fix #6: 1.02 -> 1.03, a touch more pop). */
+const LIFT_SCALE = 0.03
 
 /**
  * A time-grid item ready to lay out: either a scheduled task block or a fixed
@@ -171,6 +178,7 @@ function DraggableBlock({
   now,
   onBlockPress,
   onRequestSheet,
+  scrollController,
 }: {
   laid: LaidOutItem<GridItem>
   dayStartMs: number
@@ -182,6 +190,8 @@ function DraggableBlock({
   now?: number
   onBlockPress: (taskId: string) => void
   onRequestSheet: (target: SheetTarget) => void
+  /** The hosting grid's scroll glue (fix #3 scroll-lock, fix #4 autoscroll). Optional — a grid with no scroll (none exist today) can omit it. */
+  scrollController?: GridScrollController
 }) {
   const reduceMotion = useReduceMotion()
 
@@ -190,11 +200,6 @@ function DraggableBlock({
   const isTask = block != null
   const blockId = block ? block.id : item.id
   const taskId = block ? block.taskId : ''
-  // Duration edits are ignored by the rollup when subtasks exist (doc 07 Part
-  // 3.2), so only offer a duration-changing resize on subtask-free tasks. A
-  // start move (top edge) still works there (anchored via startAfter).
-  const canResize = isTask && (task?.subtasks.length ?? 0) === 0
-
   // Base geometry from the (possibly not-yet-dragged) times.
   const { top, height } = blockGeometry(
     item.start,
@@ -203,6 +208,14 @@ function DraggableBlock({
     pxPerMin,
     MIN_BLOCK_HEIGHT
   )
+
+  // Duration edits are ignored by the rollup when subtasks exist (doc 07 Part
+  // 3.2), so only offer a duration-changing resize on subtask-free tasks. A
+  // start move (top edge) still works there (anchored via startAfter). Also
+  // requires enough height to host two {@link EDGE_ZONE_PX} touch targets plus
+  // a body in between (fix #8 widened the zones to 44px, so this guard now
+  // actually matters — a very short block keeps the whole-block drag only).
+  const canResize = isTask && (task?.subtasks.length ?? 0) === 0 && height >= MIN_RESIZABLE_PX
 
   // Fractional overlap placement -> absolute px within the content column.
   const left = laid.xFraction * contentWidth
@@ -222,6 +235,54 @@ function DraggableBlock({
   // Eased 0->1 affordance driver (scale + shadow) for the body lift.
   const lift = useSharedValue(0)
 
+  // --- Round B additions: live feedback + autoscroll state ---------------
+  // Fix #4: total px the grid has been auto-scrolled DURING the current body
+  // drag. The finger's raw translationY stays exactly under the touch (RNGH
+  // measures it from raw touch deltas, unaffected by what scrolls underneath),
+  // but the DAY-SPACE distance traveled also includes whatever the grid itself
+  // scrolled — so the commit/pill math adds this in, while the visual
+  // transform (which must stay glued to the finger) does not.
+  const scrollAccum = useSharedValue(0)
+  // Fix #4: UI-thread timestamp of the last autoscroll JS-thread hop, so the
+  // `runOnJS(autoscrollTick)` call is throttled to `AUTOSCROLL.TICK_MS` even
+  // though `onChange` itself fires at the native gesture event rate (~60Hz) —
+  // without this, autoscroll would hop to JS on every frame while the finger
+  // sits in an edge zone, which is unnecessary work against the 60fps budget.
+  const lastAutoscrollTickMs = useSharedValue(0)
+  // Fix #1: 0->1 visibility of the floating time-label pill, eased in/out.
+  const pillOpacity = useSharedValue(0)
+  // P2 fix: monotonic "which drag is this" counter, bumped on every body
+  // long-press `onStart`. The deferred `commitMove` (fired from the
+  // drop-spring's completion callback, see `pan.onEnd`) captures the
+  // generation it belongs to and only commits if it's STILL the current one
+  // when the spring settles — this is a one-shot guard (can't double-commit
+  // within a drag) that ALSO can't misfire across drags (a slow/late spring
+  // callback from a drag the user already released and re-grabbed can't
+  // commit using its own stale `clamped`, since `dragGeneration` has moved on).
+  const dragGeneration = useSharedValue(0)
+  // Fix #2: the most recent SNAPPED slot (epoch ms) we already reacted to, one
+  // per gesture kind (move / resize-top / resize-bottom each snap
+  // independently), so `selectionAsync` + the pill text update only fire on a
+  // slot CHANGE, not per pixel of movement.
+  const lastMoveSlot = useSharedValue(item.start)
+  const lastResizeTopSlot = useSharedValue(item.start)
+  const lastResizeBottomSlot = useSharedValue(item.end)
+
+  const fireSelectionHaptic = useCallback(() => {
+    Haptics.selectionAsync().catch(() => {})
+  }, [])
+
+  // Fix #1: the pill's visible text lives in plain React state, updated via a
+  // throttled `runOnJS` call fired only on a snap-slot change (below) — never
+  // formatted inside a worklet, since `formatClockTime` isn't itself a
+  // worklet (a plain imported function isn't auto-converted just by being
+  // called from one). Because it only fires on the 5-min snap changing, this
+  // is naturally throttled to a handful of JS-thread hops per drag, not per frame.
+  const [pillLabel, setPillLabel] = useState('')
+  const setPillRange = useCallback((startMs: number, endMs: number) => {
+    setPillLabel(`${formatClockTime(startMs)} – ${formatClockTime(endMs)}`)
+  }, [])
+
   // After a committed move/resize re-renders this block at its new geometry
   // (derived from item.start/item.end), zero the live offsets in the SAME commit
   // so they don't stack on top of the new geometry. This is what makes the drop
@@ -230,7 +291,19 @@ function DraggableBlock({
     translateY.value = 0
     resizeTop.value = 0
     resizeBottom.value = 0
-  }, [item.start, item.end, translateY, resizeTop, resizeBottom])
+    lastMoveSlot.value = item.start
+    lastResizeTopSlot.value = item.start
+    lastResizeBottomSlot.value = item.end
+  }, [
+    item.start,
+    item.end,
+    translateY,
+    resizeTop,
+    resizeBottom,
+    lastMoveSlot,
+    lastResizeTopSlot,
+    lastResizeBottomSlot,
+  ])
 
   const commitMove = useCallback(
     (deltaPx: number) => {
@@ -239,6 +312,41 @@ function DraggableBlock({
       commitBlockMove(blockId, snapped)
     },
     [pxPerMin, item.start, dayStartMs, blockId]
+  )
+
+  // Fix #4 edge-autoscroll: called (throttled, via runOnJS) on every body-pan
+  // onChange while the finger sits inside an edge zone. Reads the grid's
+  // measured viewport + the finger's window-space Y, and — if in a zone —
+  // scrolls the grid and feeds the scrolled px back into `scrollAccum` (UI
+  // thread) so the day-space delta used for the pill + commit stays correct
+  // (the visual translateY itself needs no correction — see the comment on
+  // `scrollAccum` above).
+  //
+  // P1 fix: `nextY` is clamped at BOTH ends against `maxScrollRef` (real
+  // content end), not just floored at 0. A native ScrollView silently clamps
+  // `scrollTo` past the real content end, so without this, dragging at the
+  // bottom edge past content-end would keep accumulating "scrolled" px that
+  // never actually moved on screen, corrupting the snapped commit time. Only
+  // the delta that was ACTUALLY applied after clamping is accumulated.
+  const autoscrollTick = useCallback(
+    (absoluteY: number) => {
+      const viewport = scrollController?.viewportRef.current
+      const scrollRef = scrollController?.scrollRef.current
+      if (!viewport || !scrollRef) return
+      const distanceFromTop = absoluteY - viewport.top
+      const distanceFromBottom = viewport.bottom - absoluteY
+      const speed = autoscrollSpeed(distanceFromTop, distanceFromBottom)
+      if (speed === 0) return
+      const currentY = scrollController?.scrollYRef.current ?? 0
+      const maxScroll = scrollController?.maxScrollRef.current ?? currentY
+      const nextY = Math.min(maxScroll, Math.max(0, currentY + speed))
+      const applied = nextY - currentY
+      if (applied === 0) return
+      scrollRef.scrollTo({ y: nextY, animated: false })
+      if (scrollController) scrollController.scrollYRef.current = nextY
+      scrollAccum.value += applied
+    },
+    [scrollController, scrollAccum]
   )
 
   const commitResizeTop = useCallback(
@@ -284,6 +392,8 @@ function DraggableBlock({
   // --- EDGES: independent resize pans on thin top/bottom hit-zones. -------
   // Defined BEFORE the body gesture so the body can require them to fail first
   // (an edge drag wins over the whole-block drag when the touch starts on it).
+  // Fix #2: each edge tracks its own snapped slot and fires a selection
+  // haptic only when that slot changes (never per pixel).
   const topEdgeGesture = useMemo(
     () =>
       Gesture.Pan()
@@ -295,6 +405,13 @@ function DraggableBlock({
         .onChange((e) => {
           'worklet'
           resizeTop.value = e.translationY
+          const rawStart = item.start + (e.translationY / pxPerMin) * MS_PER_MIN
+          const maxStart = item.end - MIN_DURATION_MIN * MS_PER_MIN
+          const snapped = Math.min(snapToGrid(rawStart, dayStartMs, SNAP_MIN), maxStart)
+          if (snapped !== lastResizeTopSlot.value) {
+            lastResizeTopSlot.value = snapped
+            runOnJS(fireSelectionHaptic)()
+          }
         })
         .onEnd((e) => {
           'worklet'
@@ -302,7 +419,18 @@ function DraggableBlock({
           runOnJS(commitResizeTop)(e.translationY)
           runOnJS(fireHaptic)()
         }),
-    [canResize, resizeTop, commitResizeTop, fireHaptic]
+    [
+      canResize,
+      resizeTop,
+      commitResizeTop,
+      fireHaptic,
+      fireSelectionHaptic,
+      lastResizeTopSlot,
+      item.start,
+      item.end,
+      pxPerMin,
+      dayStartMs,
+    ]
   )
 
   const bottomEdgeGesture = useMemo(
@@ -316,6 +444,13 @@ function DraggableBlock({
         .onChange((e) => {
           'worklet'
           resizeBottom.value = e.translationY
+          const rawEnd = item.end + (e.translationY / pxPerMin) * MS_PER_MIN
+          const minEnd = item.start + MIN_DURATION_MIN * MS_PER_MIN
+          const snapped = Math.max(snapToGrid(rawEnd, dayStartMs, SNAP_MIN), minEnd)
+          if (snapped !== lastResizeBottomSlot.value) {
+            lastResizeBottomSlot.value = snapped
+            runOnJS(fireSelectionHaptic)()
+          }
         })
         .onEnd((e) => {
           'worklet'
@@ -323,7 +458,18 @@ function DraggableBlock({
           runOnJS(commitResizeBottom)(e.translationY)
           runOnJS(fireHaptic)()
         }),
-    [canResize, resizeBottom, commitResizeBottom, fireHaptic]
+    [
+      canResize,
+      resizeBottom,
+      commitResizeBottom,
+      fireHaptic,
+      fireSelectionHaptic,
+      lastResizeBottomSlot,
+      item.start,
+      item.end,
+      pxPerMin,
+      dayStartMs,
+    ]
   )
 
   const openSheet = useCallback(() => {
@@ -342,6 +488,17 @@ function DraggableBlock({
           runOnJS(openSheet)()
         }),
     [isTask, openSheet]
+  )
+
+  // Fix #3: bind/unbind the hosting ScrollView's own scroll while a body drag
+  // is live, so the two pan responders never fight (belt-and-suspenders
+  // alongside `requireExternalGestureToFail` below — see the file-level note
+  // on scroll coordination). A no-op when no controller was passed down.
+  const setGridScrollEnabled = useCallback(
+    (enabled: boolean) => {
+      scrollController?.setScrollEnabled(enabled)
+    },
+    [scrollController]
   )
 
   // --- BODY: long-press to arm, then pan to move; quick tap to open. ------
@@ -366,10 +523,19 @@ function DraggableBlock({
         'worklet'
         dragging.value = 1
         didDragSV.value = 0
+        dragGeneration.value = dragGeneration.value + 1
+        scrollAccum.value = 0
+        lastMoveSlot.value = item.start
+        lastAutoscrollTickMs.value = 0
         lift.value = reduceMotion
           ? 1
           : withTiming(1, { duration: DURATIONS.fast, easing: EASINGS.standard })
+        // Fix #1: fade the floating time pill in as soon as the drag arms.
+        pillOpacity.value = reduceMotion ? 1 : withTiming(1, { duration: DURATIONS.fast, easing: EASINGS.standard })
+        runOnJS(setPillRange)(item.start, item.end)
         runOnJS(fireHaptic)() // pick-up haptic
+        // Fix #3: hand the grid's ScrollView over to the drag exclusively.
+        runOnJS(setGridScrollEnabled)(false)
       })
       .onEnd(() => {
         'worklet'
@@ -391,6 +557,29 @@ function DraggableBlock({
         if (didDragSV.value === 0 && Math.abs(e.translationY) > DRAG_TAP_THRESHOLD_PX) {
           didDragSV.value = 1
         }
+        // Fix #1 + #2: recompute the snapped target from the FULL day-space
+        // delta (finger translation + whatever the grid has auto-scrolled so
+        // far), update the pill, and fire a selection haptic exactly when the
+        // snapped slot changes.
+        const totalDeltaPx = e.translationY + scrollAccum.value
+        const deltaMs = (totalDeltaPx / pxPerMin) * MS_PER_MIN
+        const snappedStart = snapToGrid(item.start + deltaMs, dayStartMs, SNAP_MIN)
+        if (snappedStart !== lastMoveSlot.value) {
+          lastMoveSlot.value = snappedStart
+          runOnJS(setPillRange)(snappedStart, snappedStart + (item.end - item.start))
+          runOnJS(fireSelectionHaptic)()
+        }
+        // Fix #4: edge-autoscroll. Gated on a UI-thread timestamp so the
+        // `runOnJS` hop only fires every {@link AUTOSCROLL.TICK_MS}, not on
+        // every native onChange event (~60Hz) — keeps this well under the
+        // 60fps budget even while the finger sits in an edge zone.
+        if (scrollController) {
+          const nowMs = Date.now()
+          if (nowMs - lastAutoscrollTickMs.value >= AUTOSCROLL.TICK_MS) {
+            lastAutoscrollTickMs.value = nowMs
+            runOnJS(autoscrollTick)(e.absoluteY)
+          }
+        }
       })
       .onEnd((e) => {
         'worklet'
@@ -400,18 +589,47 @@ function DraggableBlock({
         lift.value = reduceMotion
           ? 0
           : withTiming(0, { duration: DURATIONS.fast, easing: EASINGS.standard })
+        // Fix #1: fade the pill back out on release.
+        pillOpacity.value = reduceMotion ? 0 : withTiming(0, { duration: DURATIONS.fast, easing: EASINGS.standard })
         if (moved) {
-          // Clamp so a block cannot be dragged off the top/bottom of the day.
+          // Clamp so a block cannot be dragged off the top/bottom of the day
+          // (day-space, i.e. including anything auto-scrolled in).
+          const totalDeltaPx = e.translationY + scrollAccum.value
           const maxDown = totalHeight - (top + height)
-          const clamped = Math.min(Math.max(e.translationY, -top), maxDown)
-          // Hold the visual at the dragged offset and commit; the effect keyed on
-          // the committed start zeroes the offset in the same commit (no flash).
-          translateY.value = clamped
-          runOnJS(commitMove)(clamped)
-          runOnJS(fireHaptic)() // drop haptic
+          const clamped = Math.min(Math.max(totalDeltaPx, -top), maxDown)
+          // P2 fix: the commit is DEFERRED to the spring's completion so the
+          // settle actually plays — committing eagerly (alongside starting
+          // the spring) let the store round-trip land before the spring
+          // finished, and the geometry-reset `useEffect` zeroed `translateY`
+          // out from under the in-flight animation, making the drop look
+          // instant. Now the block visually settles first; only once it's
+          // AT the target (spring finished) does the base position swap +
+          // the `useEffect`'s reset happen together, so there's still no
+          // jump — the block is already sitting exactly there.
+          // `dragGeneration` guards this: capture the generation THIS drag
+          // belongs to, and only commit if it's still current when the
+          // spring settles. Covers both a same-drag double-fire AND a stale
+          // callback from a drag the user already released and re-grabbed
+          // before the old spring finished.
+          const myGeneration = dragGeneration.value
+          if (reduceMotion) {
+            translateY.value = clamped
+            runOnJS(commitMove)(clamped)
+            runOnJS(fireHaptic)() // drop/commit haptic
+          } else {
+            translateY.value = withSpring(clamped, SPRINGS.tactile, (finished) => {
+              'worklet'
+              if (finished && dragGeneration.value === myGeneration) {
+                runOnJS(commitMove)(clamped)
+                runOnJS(fireHaptic)() // drop/commit haptic, on settle
+              }
+            })
+          }
         } else {
-          translateY.value = 0
+          translateY.value = reduceMotion ? 0 : withSpring(0, SPRINGS.tactile)
         }
+        // Fix #3: hand scrolling back to the ScrollView.
+        runOnJS(setGridScrollEnabled)(true)
       })
       .onFinalize(() => {
         'worklet'
@@ -419,6 +637,8 @@ function DraggableBlock({
           translateY.value = 0
           dragging.value = 0
           lift.value = 0
+          pillOpacity.value = 0
+          runOnJS(setGridScrollEnabled)(true)
         }
         didDragSV.value = 0
       })
@@ -442,6 +662,7 @@ function DraggableBlock({
     lift,
     reduceMotion,
     fireHaptic,
+    fireSelectionHaptic,
     commitMove,
     openTaskFromGesture,
     topEdgeGesture,
@@ -450,6 +671,19 @@ function DraggableBlock({
     totalHeight,
     top,
     height,
+    scrollAccum,
+    lastAutoscrollTickMs,
+    pillOpacity,
+    dragGeneration,
+    lastMoveSlot,
+    setPillRange,
+    setGridScrollEnabled,
+    scrollController,
+    autoscrollTick,
+    pxPerMin,
+    dayStartMs,
+    item.start,
+    item.end,
   ])
 
   // Live geometry: body translate + top/bottom edge deltas reshape the wrapper.
@@ -464,10 +698,12 @@ function DraggableBlock({
     return {
       top: liveTop,
       height: liveHeight,
-      transform: [{ translateY: translateY.value }, { scale: 1 + l * 0.02 }],
+      transform: [{ translateY: translateY.value }, { scale: 1 + l * LIFT_SCALE }],
       zIndex: l > 0 || rt !== 0 || rb !== 0 ? 50 : 1,
       elevation: l * 8,
-      shadowColor: '#000',
+      // Fix #6: the Phase 1 tinted shadow color (warm ink, not pure black —
+      // `shadows.*.shadowColor`, all `#292524`), scaled by the lift affordance.
+      shadowColor: shadows.lg.shadowColor,
       shadowOpacity: l * 0.18,
       shadowRadius: l * 12,
       shadowOffset: { width: 0, height: l * 6 },
@@ -477,11 +713,56 @@ function DraggableBlock({
   // The "…" affordance sits top-right; shown for tasks on blocks with room.
   const showEllipsis = isTask && height >= MIN_RESIZABLE_PX
 
+  // Fix #8: the resize grips are only visually present once the block is
+  // lifted (mid-drag) or being actively resized — never at rest, so they add
+  // no visual noise. The touch target itself ({@link EDGE_ZONE_PX}) stays the
+  // same size regardless; only the grip's opacity (and hit-testing, so a
+  // resting block's edge doesn't eat taps meant for a neighbor above/below
+  // it) follows `lift`.
+  const edgeZoneStyle = useAnimatedStyle(() => ({
+    opacity: Math.max(lift.value, resizeTop.value !== 0 || resizeBottom.value !== 0 ? 1 : 0),
+  }))
+
+  // Fix #1: the floating time-label pill, positioned just above the block and
+  // faded in/out with `pillOpacity`. It's a CHILD of the same Animated.View
+  // that already carries `translateY` (via `animatedStyle`), so it rides the
+  // block's drag position for free — it must NOT re-apply `translateY.value`
+  // itself, or it would move at double the finger's speed. Only its own
+  // fade + a small independent pop-in scale are added here.
+  const pillStyle = useAnimatedStyle(() => ({
+    opacity: pillOpacity.value,
+    transform: [{ scale: 0.9 + pillOpacity.value * 0.1 }],
+  }))
+
   return (
     <GestureDetector gesture={bodyGesture}>
       <Animated.View
         style={[{ position: 'absolute', left, width }, animatedStyle]}
       >
+        {/* Fix #1: floating snapped-time pill, shown only while dragging (JS
+            state `pillLabel` is empty otherwise; opacity is UI-thread driven
+            so it never blocks the block's own touch handling). */}
+        {pillLabel ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              { position: 'absolute', top: -34, left: 0, right: 0, alignItems: 'center', zIndex: 60 },
+              pillStyle,
+            ]}
+          >
+            <View
+              className="flex-row items-center rounded-full bg-neutral-900 px-3 py-1"
+              style={shadows.sm}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Text style={tabularNums} className="text-caption font-semibold text-white">
+                {pillLabel}
+              </Text>
+            </View>
+          </Animated.View>
+        ) : null}
+
         {/* The visual block fills the wrapper (which owns top/height/transform). */}
         <View style={{ flex: 1 }}>
           <CalendarBlock
@@ -498,18 +779,23 @@ function DraggableBlock({
           />
         </View>
 
-        {/* Resize edge-zones (task blocks with enough height only). */}
+        {/* Resize edge-zones (task blocks with enough height only). Touch
+            target is {@link EDGE_ZONE_PX} regardless of visibility (fix #8);
+            the grip itself fades in only while lifted / actively resized. */}
         {canResize ? (
           <>
             <GestureDetector gesture={topEdgeGesture}>
               <Animated.View
-                style={{
-                  position: 'absolute',
-                  top: -EDGE_ZONE_PX / 2,
-                  left: 0,
-                  right: 0,
-                  height: EDGE_ZONE_PX,
-                }}
+                style={[
+                  {
+                    position: 'absolute',
+                    top: -EDGE_ZONE_PX / 2,
+                    left: 0,
+                    right: 0,
+                    height: EDGE_ZONE_PX,
+                  },
+                  edgeZoneStyle,
+                ]}
                 accessibilityRole="adjustable"
                 accessibilityLabel="Drag to change start time"
               >
@@ -518,13 +804,16 @@ function DraggableBlock({
             </GestureDetector>
             <GestureDetector gesture={bottomEdgeGesture}>
               <Animated.View
-                style={{
-                  position: 'absolute',
-                  bottom: -EDGE_ZONE_PX / 2,
-                  left: 0,
-                  right: 0,
-                  height: EDGE_ZONE_PX,
-                }}
+                style={[
+                  {
+                    position: 'absolute',
+                    bottom: -EDGE_ZONE_PX / 2,
+                    left: 0,
+                    right: 0,
+                    height: EDGE_ZONE_PX,
+                  },
+                  edgeZoneStyle,
+                ]}
                 accessibilityRole="adjustable"
                 accessibilityLabel="Drag to change duration"
               >
@@ -568,6 +857,7 @@ export function DayBlocksLayer({
   tasks,
   now,
   onBlockPress,
+  scrollController,
 }: {
   dayStartMs: number
   pxPerHour: number
@@ -576,6 +866,8 @@ export function DayBlocksLayer({
   tasks: Record<string, Task>
   now?: number
   onBlockPress: (taskId: string) => void
+  /** The hosting grid's scroll glue (fix #3 / #4), threaded down to every {@link DraggableBlock}. Optional. */
+  scrollController?: GridScrollController
 }) {
   const pxPerMin = pxPerMinFromHour(pxPerHour)
   const totalHeight = HOURS_IN_DAY * pxPerHour
@@ -634,6 +926,7 @@ export function DayBlocksLayer({
                 now={now}
                 onBlockPress={onBlockPress}
                 onRequestSheet={setSheetTarget}
+                scrollController={scrollController}
               />
             )
           })
@@ -652,8 +945,8 @@ export function DayBlocksLayer({
           useTaskStore.getState().updateTask(task.id, { startAfter: newStart })
           useScheduleStore.getState().moveBlock(block.id, newStart)
         }}
-        onLock={() => {
-          if (sheetTarget) useScheduleStore.getState().setPinned(sheetTarget.block.id, true)
+        onTogglePin={(pinned) => {
+          if (sheetTarget) useScheduleStore.getState().setPinned(sheetTarget.block.id, pinned)
         }}
         onOpen={() => {
           if (sheetTarget) router.push(`/task/${sheetTarget.task.id}`)
@@ -686,12 +979,18 @@ export function DayColumn({
   initialScrollHour,
   testID,
 }: DayColumnProps) {
+  // Captured once TimeGrid mounts its ScrollView (fix #3 scroll-lock, fix #4
+  // autoscroll) and handed down into the block layer. Ref identity is stable,
+  // so storing it in state is safe — it never triggers a stale-closure re-run.
+  const [scrollController, setScrollController] = useState<GridScrollController>()
+
   return (
     <TimeGrid
       pxPerHour={pxPerHour}
       dayStartMs={dayStartMs}
       showNow={showNow}
       initialScrollHour={initialScrollHour}
+      onScrollController={setScrollController}
       testID={testID}
     >
       <DayBlocksLayer
@@ -702,6 +1001,7 @@ export function DayColumn({
         tasks={tasks}
         now={now}
         onBlockPress={onBlockPress}
+        scrollController={scrollController}
       />
     </TimeGrid>
   )

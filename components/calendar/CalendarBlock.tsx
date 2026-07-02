@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
 import { View, Text, type DimensionValue } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import type { ScheduledBlock, CalEvent, Task } from '@/types'
 import { slackColor } from '@/core/scheduler'
 import { PressableScale } from '@/components/ui/PressableScale'
@@ -119,7 +120,7 @@ export function CalendarBlock({
 
   const a11yLabel = isEvent
     ? `Event: ${title}, ${timeRange}`
-    : `${title}, ${timeRange}${steps > 0 ? `, ${steps} steps` : ''}, ${style.label}${done ? ', done' : ''}`
+    : `${title}, ${timeRange}${steps > 0 ? `, ${steps} steps` : ''}, ${style.label}${done ? ', done' : ''}${block?.pinned ? ', locked' : ''}`
 
   const surface = (
       <View
@@ -192,6 +193,19 @@ export function CalendarBlock({
             ) : null}
           </View>
         )}
+
+        {/* Pinned affordance (Round B fix #7): a tiny lock glyph, top-right,
+            so a user can see at a glance which blocks are immovable inputs to
+            the next recompute (PRD §9.5.10). Never the sole signal — the
+            a11y label below also announces "locked". Purely decorative. */}
+        {block?.pinned && !dense ? (
+          <View
+            pointerEvents="none"
+            style={{ position: 'absolute', top: 3, right: 3, opacity: 0.6 }}
+          >
+            <Ionicons name="lock-closed" size={12} color={style.dot} />
+          </View>
+        ) : null}
       </View>
   )
 
