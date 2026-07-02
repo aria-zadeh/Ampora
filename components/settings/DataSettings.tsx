@@ -1,5 +1,6 @@
 /**
- * DataSettings — §8.11 data export, delete-all, and account (Phase 7, PRD FR-65).
+ * DataSettings — §8.11 data export, delete-all, account, and About/Help/Legal
+ * (Phase 7, PRD FR-65).
  *
  * - Export data: serialize every local store to JSON and hand it off — the
  *   native Share sheet on iOS/Android, a file download on web. Nothing leaves
@@ -7,6 +8,10 @@
  * - Delete all data: a guarded, two-step confirm that wipes the persisted MMKV
  *   blob and resets the in-memory stores (`core/dataExport.wipeAllData`).
  * - Account: current email + sign out.
+ * - About / Help / Legal: quiet affordances (Phase 4 polish audit). No
+ *   invented external links — Ampora has no live support site or published
+ *   legal docs yet, so each opens a small honest in-app sheet instead of a
+ *   dead URL. Version reads the real `app.json`/`package.json` version.
  *
  * No native-only export library (expo-sharing/file-system aren't installed and
  * would break web export). Uses RN's built-in `Share` on native and a DOM
@@ -18,6 +23,7 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, Platform, Share, Modal, Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
+import Constants from 'expo-constants'
 
 import { Heading } from '@/components/ui/Heading'
 import { Button } from '@/components/ui/Button'
@@ -26,6 +32,8 @@ import { shadows } from '@/utils/design-tokens'
 import { SectionLabel, SectionFootnote, Group } from '@/components/settings/SettingsPrimitives'
 import { serializeExport, exportFileName, wipeAllData } from '@/core/dataExport'
 import { getCurrentUser, signOut } from '@/services/supabase'
+
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0'
 
 // ---------------------------------------------------------------------------
 // Export — platform-appropriate hand-off of the serialized JSON.
@@ -154,6 +162,12 @@ export function DataSettings() {
     setDeleted(true)
   }
 
+  const [infoSheet, setInfoSheet] = useState<'help' | 'legal' | null>(null)
+  const openInfo = (sheet: 'help' | 'legal') => {
+    Haptics.selectionAsync().catch(() => {})
+    setInfoSheet(sheet)
+  }
+
   return (
     <View>
       <Text className="mb-4 text-body text-neutral-500">
@@ -207,6 +221,38 @@ export function DataSettings() {
           isLast
           accessibilityHint="Signs you out of your account"
         />
+      </Group>
+
+      {/* About ---------------------------------------------------------------
+          Quiet affordances (Phase 4 polish audit). No invented external
+          links — each opens a small honest in-app sheet. */}
+      <View className="mt-6">
+        <SectionLabel>About</SectionLabel>
+      </View>
+      <Group>
+        <ActionRow
+          icon="help-circle-outline"
+          iconTint="#2563EB"
+          iconBg="bg-primary-50"
+          label="Help"
+          sublabel="What Ampora does and how it's built to help"
+          onPress={() => openInfo('help')}
+          accessibilityHint="Opens a short explanation of how Ampora works"
+        />
+        <ActionRow
+          icon="document-text-outline"
+          label="Legal"
+          sublabel="Privacy and terms"
+          onPress={() => openInfo('legal')}
+          accessibilityHint="Opens the current privacy and terms notice"
+        />
+        <View className="flex-row items-center py-3.5">
+          <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
+            <Ionicons name="information-circle-outline" size={18} color="#52525B" />
+          </View>
+          <Text className="ml-3 flex-1 text-body-lg text-neutral-900">Version</Text>
+          <Text className="text-body text-neutral-500">{APP_VERSION}</Text>
+        </View>
       </Group>
 
       {/* Danger zone -------------------------------------------------------- */}
@@ -285,6 +331,67 @@ export function DataSettings() {
                 size="lg"
                 onPress={() => setConfirmDelete(false)}
                 accessibilityLabel="Cancel and keep my data"
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Help / Legal info sheet — honest, static content; no external links. */}
+      <Modal
+        visible={infoSheet != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setInfoSheet(null)}
+      >
+        <Pressable
+          className="flex-1 items-center justify-center bg-black/40 px-8"
+          onPress={() => setInfoSheet(null)}
+        >
+          <Pressable
+            className="w-full max-w-[360px] rounded-2xl bg-white p-6"
+            style={shadows.lg}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {infoSheet === 'help' ? (
+              <>
+                <View className="h-12 w-12 items-center justify-center rounded-full bg-primary-50">
+                  <Ionicons name="help-circle-outline" size={24} color="#2563EB" />
+                </View>
+                <Heading size="h3" className="mt-4">
+                  How Ampora helps
+                </Heading>
+                <Text className="mt-2 text-body text-neutral-600 leading-6">
+                  Ampora plans your week around how you actually work, gives you a
+                  small first step for every task, and can lock your own apps
+                  behind the work if you choose to turn that on. A panic valve is
+                  always available if a lock ever feels like too much. Nothing
+                  here is medical advice — it's a planning tool.
+                </Text>
+              </>
+            ) : (
+              <>
+                <View className="h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
+                  <Ionicons name="document-text-outline" size={24} color="#52525B" />
+                </View>
+                <Heading size="h3" className="mt-4">
+                  Privacy and terms
+                </Heading>
+                <Text className="mt-2 text-body text-neutral-600 leading-6">
+                  Your tasks and settings live on your device first and sync to
+                  your account so you can pick up on another device. Full,
+                  published privacy and terms documents are being finalized —
+                  this notice will link to them once they're live.
+                </Text>
+              </>
+            )}
+            <View className="mt-6">
+              <Button
+                title="Close"
+                variant="secondary"
+                size="lg"
+                onPress={() => setInfoSheet(null)}
+                accessibilityLabel="Close"
               />
             </View>
           </Pressable>

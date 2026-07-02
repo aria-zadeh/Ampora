@@ -1,26 +1,20 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
+import { View, Text, KeyboardAvoidingView, Platform } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
+import { Input } from "@/components/ui/Input";
 import { useSettingsStore } from "@/store/settingsStore";
-import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { ProgressDots } from "./ProgressDots";
 
 export default function NameScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const [name, setName] = useState("");
-  const [focused, setFocused] = useState(false);
 
   const handleContinue = () => {
     if (name.trim()) {
@@ -46,6 +40,9 @@ export default function NameScreen() {
         style={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }}
       >
         <View>
+          <Animated.View entering={enter(0)} className="mb-6">
+            <ProgressDots total={5} current={1} />
+          </Animated.View>
           <Animated.View entering={enter(0)}>
             <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
               A quick hello
@@ -59,20 +56,11 @@ export default function NameScreen() {
           </Animated.View>
 
           <Animated.View entering={enter(90)} className="mt-10">
-            <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-2">
-              Your name
-            </Text>
-            <TextInput
-              className={`h-12 bg-white rounded-md px-4 text-body-lg text-neutral-900 border ${
-                focused ? "border-primary-500" : "border-neutral-200"
-              }`}
-              style={shadows.xs}
+            <Input
+              label="Your name"
               placeholder="Your first name"
-              placeholderTextColor="#A1A1AA"
               value={name}
               onChangeText={setName}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
               autoFocus
               autoCapitalize="words"
               returnKeyType="done"

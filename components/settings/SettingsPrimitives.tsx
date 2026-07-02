@@ -10,11 +10,18 @@
  * hardcoded colors beyond the Ionicons `color` prop (which cannot take a class).
  */
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { View, Text, Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated'
 import { shadows } from '@/utils/design-tokens'
+import { EASINGS, DURATIONS } from '@/utils/motion'
+import { useReduceMotion } from '@/hooks/useReduceMotion'
 
 // ---------------------------------------------------------------------------
 // Section header + grouped card
@@ -215,6 +222,74 @@ export function InlineSegmented<T extends string>({
         )
       })}
     </View>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Toggle (switch)
+// ---------------------------------------------------------------------------
+
+/**
+ * A track-and-thumb toggle switch matching the app's calm, springless
+ * settings motion (eased withTiming, not a spring — a switch here is a
+ * settings commit, not a tactile drag control). Track tints primary-600 when
+ * on, neutral-200 when off; thumb is always white. Reduce-motion collapses
+ * the transition to an instant snap.
+ */
+export function Toggle({
+  value,
+  onChange,
+  a11yLabel,
+  disabled = false,
+}: {
+  value: boolean
+  onChange: (next: boolean) => void
+  a11yLabel: string
+  disabled?: boolean
+}) {
+  const reduceMotion = useReduceMotion()
+  const progress = useSharedValue(value ? 1 : 0)
+
+  useEffect(() => {
+    const target = value ? 1 : 0
+    progress.value = reduceMotion
+      ? target
+      : withTiming(target, { duration: DURATIONS.fast, easing: EASINGS.standard })
+  }, [value, reduceMotion, progress])
+
+  const trackStyle = useAnimatedStyle(() => ({
+    backgroundColor: progress.value > 0.5 ? '#2563EB' : '#E4E4E7',
+  }))
+  const thumbStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: progress.value * 20 }],
+  }))
+
+  const toggle = () => {
+    if (disabled) return
+    Haptics.selectionAsync().catch(() => {})
+    onChange(!value)
+  }
+
+  return (
+    <Pressable
+      onPress={toggle}
+      disabled={disabled}
+      hitSlop={10}
+      accessibilityRole="switch"
+      accessibilityLabel={a11yLabel}
+      accessibilityState={{ checked: value, disabled }}
+      className={disabled ? 'opacity-40' : ''}
+    >
+      <Animated.View
+        style={trackStyle}
+        className="h-7 w-[46px] justify-center rounded-full px-0.5"
+      >
+        <Animated.View
+          style={[thumbStyle, shadows.xs]}
+          className="h-6 w-6 rounded-full bg-white"
+        />
+      </Animated.View>
+    </Pressable>
   )
 }
 

@@ -4,15 +4,21 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { useSettingsStore } from "@/store/settingsStore";
 import type { SchedulingHours } from "@/types";
 import { shadows, gradients } from "@/utils/design-tokens";
-import { DURATIONS, staggerDelay } from "@/utils/motion";
+import { DURATIONS, SPRINGS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { ProgressDots } from "./ProgressDots";
 
 /** Weekdays Mon-Fri as Date#getDay() indices (1 = Mon ... 5 = Fri). */
 const WEEKDAYS = [1, 2, 3, 4, 5];
@@ -123,7 +129,10 @@ export default function AvailabilityScreen() {
         contentContainerClassName="px-6 pb-6"
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={enter(0)} className="mt-12">
+        <Animated.View entering={enter(0)} className="mb-6">
+          <ProgressDots total={5} current={3} />
+        </Animated.View>
+        <Animated.View entering={enter(0)}>
           <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
             Your focus window
           </Text>
@@ -145,49 +154,11 @@ export default function AvailabilityScreen() {
                 key={preset.id}
                 entering={enter(100 + staggerDelay(i))}
               >
-                <PressableScale
-                  haptic="selection"
+                <PresetCard
+                  preset={preset}
+                  isSelected={isSelected}
                   onPress={() => setSelected(preset.id)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: isSelected }}
-                  accessibilityLabel={`${preset.label}, ${preset.subtitle}`}
-                >
-                  <View
-                    className={`flex-row items-center gap-4 rounded-2xl p-4 border ${
-                      isSelected
-                        ? "border-primary-500 bg-primary-50"
-                        : "border-neutral-200 bg-white"
-                    }`}
-                    style={isSelected ? undefined : shadows.sm}
-                  >
-                    <View
-                      className={`w-11 h-11 rounded-full items-center justify-center ${
-                        isSelected ? "bg-primary-100" : "bg-neutral-100"
-                      }`}
-                    >
-                      <Ionicons
-                        name={preset.icon}
-                        size={22}
-                        color={isSelected ? "#2563EB" : "#71717A"}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <Text
-                        className={`text-body-lg font-semibold ${
-                          isSelected ? "text-neutral-900" : "text-neutral-700"
-                        }`}
-                      >
-                        {preset.label}
-                      </Text>
-                      <Text className="text-caption text-neutral-500 mt-0.5">
-                        {preset.subtitle}
-                      </Text>
-                    </View>
-                    {isSelected && (
-                      <Ionicons name="checkmark-circle" size={24} color="#2563EB" />
-                    )}
-                  </View>
-                </PressableScale>
+                />
               </Animated.View>
             );
           })}
@@ -251,6 +222,83 @@ export default function AvailabilityScreen() {
         />
       </View>
     </View>
+  );
+}
+
+interface PresetCardProps {
+  preset: Preset;
+  isSelected: boolean;
+  onPress: () => void;
+}
+
+/**
+ * Selectable preset row. On selection the card springs with a quick scale
+ * pulse (SPRINGS.tactile) while the tint/border cross-fades — the same
+ * "selected state springs" pattern used on the energy screen. Reduce-motion
+ * drops the pulse but keeps the color swap.
+ */
+function PresetCard({ preset, isSelected, onPress }: PresetCardProps) {
+  const reduceMotion = useReduceMotion();
+  const scale = useSharedValue(1);
+
+  const pulse = () => {
+    if (reduceMotion) return;
+    scale.value = withSpring(1.03, SPRINGS.tactile, () => {
+      scale.value = withSpring(1, SPRINGS.tactile);
+    });
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: reduceMotion ? [] : [{ scale: scale.value }],
+  }));
+
+  return (
+    <PressableScale
+      haptic="selection"
+      onPress={() => {
+        onPress();
+        pulse();
+      }}
+      accessibilityRole="radio"
+      accessibilityState={{ selected: isSelected }}
+      accessibilityLabel={`${preset.label}, ${preset.subtitle}`}
+    >
+      <Animated.View
+        style={[isSelected ? undefined : shadows.sm, animatedStyle]}
+        className={`flex-row items-center gap-4 rounded-2xl p-4 border ${
+          isSelected
+            ? "border-primary-500 bg-primary-50"
+            : "border-neutral-200 bg-white"
+        }`}
+      >
+        <View
+          className={`w-11 h-11 rounded-full items-center justify-center ${
+            isSelected ? "bg-primary-100" : "bg-neutral-100"
+          }`}
+        >
+          <Ionicons
+            name={preset.icon}
+            size={22}
+            color={isSelected ? "#2563EB" : "#71717A"}
+          />
+        </View>
+        <View className="flex-1">
+          <Text
+            className={`text-body-lg font-semibold ${
+              isSelected ? "text-neutral-900" : "text-neutral-700"
+            }`}
+          >
+            {preset.label}
+          </Text>
+          <Text className="text-caption text-neutral-500 mt-0.5">
+            {preset.subtitle}
+          </Text>
+        </View>
+        {isSelected && (
+          <Ionicons name="checkmark-circle" size={24} color="#2563EB" />
+        )}
+      </Animated.View>
+    </PressableScale>
   );
 }
 

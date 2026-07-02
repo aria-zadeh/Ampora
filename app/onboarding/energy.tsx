@@ -5,14 +5,20 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { useSettingsStore } from "@/store/settingsStore";
 import { shadows, gradients } from "@/utils/design-tokens";
-import { DURATIONS, staggerDelay } from "@/utils/motion";
+import { DURATIONS, SPRINGS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { ProgressDots } from "./ProgressDots";
 
 const timeSlots = [
   { label: "Morning", subtitle: "8am - 12pm", start: 8, end: 12, icon: "sunny-outline" as const },
@@ -59,7 +65,10 @@ export default function EnergyScreen() {
         contentContainerClassName="px-6 pb-6"
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={enter(0)} className="mt-12">
+        <Animated.View entering={enter(0)} className="mb-6">
+          <ProgressDots total={5} current={4} />
+        </Animated.View>
+        <Animated.View entering={enter(0)}>
           <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
             One last thing
           </Text>
@@ -77,49 +86,11 @@ export default function EnergyScreen() {
             const isSelected = selected === i;
             return (
               <Animated.View key={i} entering={enter(100 + staggerDelay(i))}>
-                <PressableScale
-                  haptic="selection"
+                <EnergyOption
+                  slot={slot}
+                  isSelected={isSelected}
                   onPress={() => setSelected(i)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: isSelected }}
-                  accessibilityLabel={`${slot.label}: ${slot.subtitle}`}
-                >
-                  <View
-                    className={`flex-row items-center gap-4 rounded-2xl p-4 border ${
-                      isSelected
-                        ? "border-primary-500 bg-primary-50"
-                        : "border-neutral-200 bg-white"
-                    }`}
-                    style={isSelected ? undefined : shadows.sm}
-                  >
-                    <View
-                      className={`w-12 h-12 rounded-full items-center justify-center ${
-                        isSelected ? "bg-primary-100" : "bg-neutral-100"
-                      }`}
-                    >
-                      <Ionicons
-                        name={slot.icon}
-                        size={24}
-                        color={isSelected ? "#2563EB" : "#71717A"}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <Text
-                        className={`text-body-lg font-semibold ${
-                          isSelected ? "text-neutral-900" : "text-neutral-700"
-                        }`}
-                      >
-                        {slot.label}
-                      </Text>
-                      <Text className="text-caption text-neutral-500 mt-0.5">
-                        {slot.subtitle}
-                      </Text>
-                    </View>
-                    {isSelected && (
-                      <Ionicons name="checkmark-circle" size={24} color="#2563EB" />
-                    )}
-                  </View>
-                </PressableScale>
+                />
               </Animated.View>
             );
           })}
@@ -128,7 +99,7 @@ export default function EnergyScreen() {
 
       <View className="px-6 pt-2">
         <Button
-          title="All set — let's go"
+          title="Finish setup"
           variant="primaryBlue"
           size="lg"
           onPress={handleFinish}
@@ -136,5 +107,81 @@ export default function EnergyScreen() {
         />
       </View>
     </View>
+  );
+}
+
+interface EnergyOptionProps {
+  slot: (typeof timeSlots)[number];
+  isSelected: boolean;
+  onPress: () => void;
+}
+
+/**
+ * Selectable energy-peak row. Springs a quick scale pulse (SPRINGS.tactile)
+ * on selection while the tint/border cross-fades, matching the availability
+ * screen's preset cards. Reduce-motion drops the pulse, keeps the color swap.
+ */
+function EnergyOption({ slot, isSelected, onPress }: EnergyOptionProps) {
+  const reduceMotion = useReduceMotion();
+  const scale = useSharedValue(1);
+
+  const pulse = () => {
+    if (reduceMotion) return;
+    scale.value = withSpring(1.03, SPRINGS.tactile, () => {
+      scale.value = withSpring(1, SPRINGS.tactile);
+    });
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: reduceMotion ? [] : [{ scale: scale.value }],
+  }));
+
+  return (
+    <PressableScale
+      haptic="selection"
+      onPress={() => {
+        onPress();
+        pulse();
+      }}
+      accessibilityRole="radio"
+      accessibilityState={{ selected: isSelected }}
+      accessibilityLabel={`${slot.label}: ${slot.subtitle}`}
+    >
+      <Animated.View
+        style={[isSelected ? undefined : shadows.sm, animatedStyle]}
+        className={`flex-row items-center gap-4 rounded-2xl p-4 border ${
+          isSelected
+            ? "border-primary-500 bg-primary-50"
+            : "border-neutral-200 bg-white"
+        }`}
+      >
+        <View
+          className={`w-12 h-12 rounded-full items-center justify-center ${
+            isSelected ? "bg-primary-100" : "bg-neutral-100"
+          }`}
+        >
+          <Ionicons
+            name={slot.icon}
+            size={24}
+            color={isSelected ? "#2563EB" : "#71717A"}
+          />
+        </View>
+        <View className="flex-1">
+          <Text
+            className={`text-body-lg font-semibold ${
+              isSelected ? "text-neutral-900" : "text-neutral-700"
+            }`}
+          >
+            {slot.label}
+          </Text>
+          <Text className="text-caption text-neutral-500 mt-0.5">
+            {slot.subtitle}
+          </Text>
+        </View>
+        {isSelected && (
+          <Ionicons name="checkmark-circle" size={24} color="#2563EB" />
+        )}
+      </Animated.View>
+    </PressableScale>
   );
 }

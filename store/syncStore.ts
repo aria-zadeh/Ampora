@@ -192,8 +192,20 @@ async function reconcileSettings(): Promise<void> {
   const lastSyncedAt = useSyncStore.getState().lastSyncedAt ?? 0
 
   if (remote && remote.updatedAt > lastSyncedAt) {
-    // Cloud changed since we last synced (likely another device) — adopt it.
-    useSettingsStore.setState({ settings: remote.settings })
+    // Cloud changed since we last synced (likely another device) — adopt it,
+    // but preserve device-local-only fields that the sync mapper (settingsToRow/
+    // settingsFromRow) deliberately doesn't carry, so a newer cloud row can't
+    // silently reset them (e.g. wipe a dismissed one-time nudge back to
+    // undefined and make it reappear). Keep this list in sync with the fields
+    // excluded from SettingsRow.
+    const local = useSettingsStore.getState().settings
+    useSettingsStore.setState({
+      settings: {
+        ...remote.settings,
+        reminderKinds: local.reminderKinds,
+        notificationNudgeDismissed: local.notificationNudgeDismissed,
+      },
+    })
   }
   // Always push local up (local wins ties / establishes the row if absent).
   await upsertSettings(useSettingsStore.getState().settings).catch(() => {})

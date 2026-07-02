@@ -1,11 +1,18 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { View, Text, ScrollView, Pressable, Modal, TextInput } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { useSettingsStore } from "@/store/settingsStore";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
@@ -15,7 +22,7 @@ import { CalendarSyncSettings } from "@/components/settings/CalendarSyncSettings
 import { getCurrentUser, signOut } from "@/services/supabase";
 import { trialDaysLeft, isActive } from "@/core/subscription";
 import { shadows, gradients } from "@/utils/design-tokens";
-import { DURATIONS } from "@/utils/motion";
+import { DURATIONS, SPRINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 
 const THEME_OPTIONS = [
@@ -136,6 +143,33 @@ export default function ProfileScreen() {
     return { label: "Choose a plan", tone: "lapsed" as const };
   }, [subscription]);
 
+  // Trial countdown chip tick — a quiet dip+settle whenever the chip's LABEL
+  // changes (days-left counting down, or the status itself flipping), so the
+  // count feels alive rather than a static text swap. Reduce-motion safe.
+  const prevChipLabelRef = useRef(subscriptionChip.label);
+  const chipScale = useSharedValue(1);
+  const chipOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    if (prevChipLabelRef.current === subscriptionChip.label) return;
+    prevChipLabelRef.current = subscriptionChip.label;
+    if (reduceMotion) return;
+
+    chipOpacity.value = withSequence(
+      withTiming(0.5, { duration: 90 }),
+      withTiming(1, { duration: 140 }),
+    );
+    chipScale.value = withSequence(
+      withTiming(0.94, { duration: 90 }),
+      withSpring(1, SPRINGS.tactile),
+    );
+  }, [subscriptionChip.label, reduceMotion, chipOpacity, chipScale]);
+
+  const chipAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: chipOpacity.value,
+    transform: [{ scale: chipScale.value }],
+  }));
+
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameDraft, setNameDraft] = useState(displayName ?? "");
 
@@ -208,7 +242,8 @@ export default function ProfileScreen() {
             accessibilityLabel={`${subscriptionChip.label}. Open subscription options`}
             accessibilityHint="Opens plans and your free trial"
           >
-            <View
+            <Animated.View
+              style={chipAnimatedStyle}
               className={`flex-row items-center rounded-full px-3 py-1.5 ${
                 subscriptionChip.tone === "active"
                   ? "bg-accent-100"
@@ -257,7 +292,7 @@ export default function ProfileScreen() {
                 }
                 style={{ marginLeft: 2 }}
               />
-            </View>
+            </Animated.View>
           </PressableScale>
         </Animated.View>
 

@@ -2,11 +2,10 @@
  * Auth screen — magic link sign-in
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,6 +17,7 @@ import { useRouter } from "expo-router";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
+import { Input } from "@/components/ui/Input";
 import { signInWithMagicLink } from "@/services/supabase";
 import { useSettingsStore } from "@/store/settingsStore";
 import { shadows, gradients } from "@/utils/design-tokens";
@@ -25,16 +25,59 @@ import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 
 type ScreenState = "idle" | "loading" | "success" | "error";
+type ErrorKind = "invalidEmail" | "network" | "generic";
+
+/** Seconds the user must wait before "Resend link" becomes tappable again. */
+const RESEND_COOLDOWN_SECONDS = 45;
+
+/** Calm, jargon-free copy per error kind — no "Oops!", no raw error strings. */
+const ERROR_COPY: Record<ErrorKind, string> = {
+  invalidEmail: "That email doesn't look right. Double-check it and try again.",
+  network:
+    "Couldn't send the link. Check your connection and try again.",
+  generic: "Couldn't send the link right now. Please try again in a moment.",
+};
+
+/** Best-effort classification from a Supabase AuthError — never throws. */
+function classifyError(error: Error): ErrorKind {
+  const message = error.message?.toLowerCase() ?? "";
+  const status = (error as { status?: number }).status;
+  if (
+    message.includes("network") ||
+    message.includes("fetch") ||
+    message.includes("offline") ||
+    status === undefined
+  ) {
+    return "network";
+  }
+  if (message.includes("email") || message.includes("invalid")) {
+    return "invalidEmail";
+  }
+  return "generic";
+}
 
 export default function AuthScreen() {
   const [email, setEmail] = useState("");
-  const [focused, setFocused] = useState(false);
   const [screenState, setScreenState] = useState<ScreenState>("idle");
+  const [errorKind, setErrorKind] = useState<ErrorKind>("generic");
+  const [cooldown, setCooldown] = useState(0);
   const router = useRouter();
   const reduceMotion = useReduceMotion();
   const onboardingComplete = useSettingsStore((s) => s.settings.onboardingComplete);
+  const cooldownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isValidEmail = email.includes("@") && email.includes(".");
+
+  // Countdown ticks every second while > 0; cleans up on unmount.
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    cooldownTimer.current = setInterval(() => {
+      setCooldown((s) => (s <= 1 ? 0 : s - 1));
+    }, 1000);
+    return () => {
+      if (cooldownTimer.current) clearInterval(cooldownTimer.current);
+    };
+  }, [cooldown]);
 
   async function handleSend() {
     if (!isValidEmail || screenState === "loading") return;
@@ -43,14 +86,33 @@ export default function AuthScreen() {
     const { error } = await signInWithMagicLink(email.trim().toLowerCase());
 
     if (error) {
+      setErrorKind(classifyError(error));
       setScreenState("error");
     } else {
       setScreenState("success");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    }
+  }
+
+  /** Resend uses the same send path but never re-shows loading chrome over the success card. */
+  async function handleResend() {
+    if (cooldown > 0) return;
+    const { error } = await signInWithMagicLink(email.trim().toLowerCase());
+    if (error) {
+      setErrorKind(classifyError(error));
+      setScreenState("error");
+    } else {
+      setCooldown(RESEND_COOLDOWN_SECONDS);
     }
   }
 
   const enter = (delay: number) =>
     reduceMotion ? undefined : FadeInDown.delay(delay).duration(DURATIONS.base);
+
+  const cooldownLabel =
+    cooldown > 0
+      ? `Resend in ${Math.floor(cooldown / 60)}:${String(cooldown % 60).padStart(2, "0")}`
+      : "Resend link";
 
   return (
     <KeyboardAvoidingView
@@ -120,54 +182,64 @@ export default function AuthScreen() {
                 <Text className="text-neutral-900 font-medium">{email.trim()}</Text>
                 . Tap it and you are in — no password needed.
               </Text>
+              <Text className="text-caption text-neutral-500">
+                The link expires in 1 hour. Didn't get it? Check spam, or resend
+                below.
+              </Text>
+
+              <Pressable
+                onPress={handleResend}
+                disabled={cooldown > 0}
+                hitSlop={8}
+                className="mt-1 min-h-[44px] items-center justify-center rounded-md"
+                accessibilityRole="button"
+                accessibilityLabel="Resend sign-in link"
+                accessibilityState={{ disabled: cooldown > 0 }}
+                accessibilityHint={
+                  cooldown > 0
+                    ? `Available again in ${cooldown} seconds`
+                    : "Sends another sign-in link to the same email address"
+                }
+              >
+                <Text
+                  className={`text-label font-medium ${
+                    cooldown > 0 ? "text-neutral-400" : "text-primary-600"
+                  }`}
+                >
+                  {cooldownLabel}
+                </Text>
+              </Pressable>
             </Animated.View>
           ) : (
             /* Form state */
             <Animated.View entering={enter(90)} className="gap-3">
-              {/* Email input */}
-              <View>
-                <Text
-                  className="text-overline text-neutral-500 uppercase tracking-wide mb-2"
-                  accessibilityLabel="Email address label"
-                >
-                  Email address
-                </Text>
-                <TextInput
-                  className={`h-12 bg-white rounded-md px-4 text-body-lg text-neutral-900 border ${
-                    focused ? "border-primary-500" : "border-neutral-200"
-                  }`}
-                  style={shadows.xs}
+              {/* Email input — helperText carries the error copy. The wrapping
+                  View is a live region so screen readers announce the error
+                  as soon as it appears, without duplicating visible text. */}
+              <View accessibilityLiveRegion="polite">
+                <Input
+                  label="Email address"
+                  placeholder="you@example.com"
                   value={email}
                   onChangeText={(t) => {
                     setEmail(t);
                     if (screenState === "error") setScreenState("idle");
                   }}
-                  onFocus={() => setFocused(true)}
-                  onBlur={() => setFocused(false)}
-                  placeholder="you@example.com"
-                  placeholderTextColor="#A1A1AA"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="email"
                   returnKeyType="send"
                   onSubmitEditing={handleSend}
+                  editable={screenState !== "loading"}
+                  error={screenState === "error"}
+                  helperText={
+                    screenState === "error" ? ERROR_COPY[errorKind] : undefined
+                  }
                   accessibilityLabel="Email address input"
                   accessibilityHint="Enter your email address to receive a sign-in link"
-                  editable={screenState !== "loading"}
                 />
               </View>
-
-              {/* Error message */}
-              {screenState === "error" && (
-                <Text
-                  className="text-caption text-danger-600"
-                  accessibilityLiveRegion="polite"
-                  accessibilityRole="alert"
-                >
-                  Hmm, something went wrong. Try again?
-                </Text>
-              )}
 
               {/* Submit button — the single primary action */}
               <View className="mt-2">

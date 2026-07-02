@@ -17,23 +17,31 @@
  * (#7C3AED) sets the tone. RN + NativeWind, web-export safe.
  */
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ScrollView, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
-import Animated, { FadeInDown } from 'react-native-reanimated'
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated'
 
 import { Heading } from '@/components/ui/Heading'
 import { Button } from '@/components/ui/Button'
 import { PressableScale } from '@/components/ui/PressableScale'
+import { FeatureShell } from '@/components/ui/FeatureShell'
 import { useSettingsStore } from '@/store/settingsStore'
 import { startTrial, trialDaysLeft, isActive } from '@/core/subscription'
 import { FEATURE_FLAGS } from '@/constants/featureFlags'
 import { shadows } from '@/utils/design-tokens'
-import { DURATIONS } from '@/utils/motion'
+import { DURATIONS, SPRINGS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
 
 // ---------------------------------------------------------------------------
@@ -102,46 +110,50 @@ function PlanCard({
         plan.note ? `, ${plan.note}` : ''
       }${selected ? ', selected' : ''}`}
     >
-      <View
-        className={`rounded-2xl border-2 bg-white p-4 ${
-          selected ? 'border-accent-600' : 'border-neutral-200'
-        }`}
+      {/* Nested "focal card" treatment (doc 02 v3) — sanctioned use, plan
+          cards are one of the few true focal moments in the app. The
+          selection state rings the OUTER shell in accent when chosen, since
+          FeatureShell's own bezel is a fixed neutral wash. */}
+      <FeatureShell
+        className={selected ? 'border-accent-600' : ''}
         style={shadows.sm}
       >
-        <View className="flex-row items-center justify-between">
-          <Text className="text-label font-semibold text-neutral-900">{plan.title}</Text>
-          {plan.best ? (
-            <View className="rounded-full bg-accent-100 px-2 py-0.5">
-              <Text className="text-tiny font-semibold uppercase tracking-wide text-accent-700">
-                Best value
-              </Text>
-            </View>
-          ) : null}
-        </View>
-        <Text className="mt-3 text-h2 font-bold tracking-tight-h2 text-neutral-900">
-          {plan.price}
-        </Text>
-        <Text className="text-caption text-neutral-500">{plan.cadence}</Text>
-        {plan.note ? (
-          <Text className="mt-1 text-caption font-medium text-accent-700">{plan.note}</Text>
-        ) : null}
-
-        {/* Selection tick */}
-        <View className="mt-3 flex-row items-center">
-          <Ionicons
-            name={selected ? 'checkmark-circle' : 'ellipse-outline'}
-            size={18}
-            color={selected ? '#7C3AED' : '#D4D4D8'}
-          />
-          <Text
-            className={`ml-1.5 text-caption ${
-              selected ? 'font-medium text-accent-700' : 'text-neutral-400'
-            }`}
-          >
-            {selected ? 'Selected' : 'Choose'}
+        <View className="p-4">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-label font-semibold text-neutral-900">{plan.title}</Text>
+            {plan.best ? (
+              <View className="rounded-full bg-accent-100 px-2 py-0.5">
+                <Text className="text-tiny font-semibold uppercase tracking-wide text-accent-700">
+                  Best value
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <Text className="mt-3 text-h2 font-bold tracking-tight-h2 text-neutral-900">
+            {plan.price}
           </Text>
+          <Text className="text-caption text-neutral-500">{plan.cadence}</Text>
+          {plan.note ? (
+            <Text className="mt-1 text-caption font-medium text-accent-700">{plan.note}</Text>
+          ) : null}
+
+          {/* Selection tick */}
+          <View className="mt-3 flex-row items-center">
+            <Ionicons
+              name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+              size={18}
+              color={selected ? '#7C3AED' : '#D4D4D8'}
+            />
+            <Text
+              className={`ml-1.5 text-caption ${
+                selected ? 'font-medium text-accent-700' : 'text-neutral-400'
+              }`}
+            >
+              {selected ? 'Selected' : 'Choose'}
+            </Text>
+          </View>
         </View>
-      </View>
+      </FeatureShell>
     </PressableScale>
   )
 }
@@ -160,6 +172,33 @@ export default function PaywallScreen() {
   const active = useMemo(() => isActive(subscription), [subscription])
   const daysLeft = useMemo(() => trialDaysLeft(subscription), [subscription])
   const inTrial = subscription.status === 'trial'
+
+  // Trial countdown chip tick — a quiet dip+settle whenever the days-left
+  // count changes, so the number reads as alive rather than a static label.
+  // Reduce-motion safe (skips straight to steady state).
+  const prevDaysLeftRef = useRef(daysLeft)
+  const chipScale = useSharedValue(1)
+  const chipOpacity = useSharedValue(1)
+
+  useEffect(() => {
+    if (prevDaysLeftRef.current === daysLeft) return
+    prevDaysLeftRef.current = daysLeft
+    if (reduceMotion) return
+
+    chipOpacity.value = withSequence(
+      withTiming(0.5, { duration: 90 }),
+      withTiming(1, { duration: 140 }),
+    )
+    chipScale.value = withSequence(
+      withTiming(0.94, { duration: 90 }),
+      withSpring(1, SPRINGS.tactile),
+    )
+  }, [daysLeft, reduceMotion, chipOpacity, chipScale])
+
+  const chipAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: chipOpacity.value,
+    transform: [{ scale: chipScale.value }],
+  }))
 
   const [selectedPlan, setSelectedPlan] = useState<PlanKey>('annual')
 
@@ -269,13 +308,16 @@ export default function PaywallScreen() {
 
           {inTrial ? (
             <>
-              <View className="mt-5 self-start rounded-full bg-accent-100 px-3 py-1">
+              <Animated.View
+                style={chipAnimatedStyle}
+                className="mt-5 self-start rounded-full bg-accent-100 px-3 py-1"
+              >
                 <Text className="text-caption font-semibold text-accent-700">
                   {daysLeft > 0
                     ? `Trial: ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`
                     : 'Trial ended'}
                 </Text>
-              </View>
+              </Animated.View>
               <Heading size="h1" className="mt-3">
                 Keep your momentum
               </Heading>

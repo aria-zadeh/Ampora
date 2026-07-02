@@ -11,6 +11,7 @@ import { requestNotificationPermissions } from "@/services/notifications";
 import { gradients } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { ProgressDots } from "./ProgressDots";
 
 const PROMISES = [
   { icon: "volume-low-outline" as const, text: "At most one reminder an hour." },
@@ -49,6 +50,9 @@ export default function NotificationsScreen() {
 
       <View className="flex-1 justify-between px-6" style={{ paddingTop: 48 }}>
         <View>
+          <Animated.View entering={enter(0)} className="mb-6">
+            <ProgressDots total={5} current={2} />
+          </Animated.View>
           <Animated.View entering={enter(0)}>
             <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
               Gentle by default

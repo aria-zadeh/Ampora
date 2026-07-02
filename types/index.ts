@@ -557,6 +557,30 @@ export interface Settings {
   schedulingHours: SchedulingHours
   /** Notification rate limit, default cadence PRD FR-63 (max 1/hour baseline; task-level urgency raises this elsewhere). */
   maxNotificationsPerHour: number
+  /**
+   * Per-kind reminder toggles (PRD FR-65 "expose every configurable value").
+   * Optional so pre-existing persisted Settings load without it; every kind
+   * reads as ON when unset (`services/notifications.ts` treats a missing key
+   * as enabled), so this is additive and never silently mutes an existing
+   * user. Gates which of the three proactive kinds `services/notifications.ts`
+   * will ever build a spec for — "Completion celebrate" is a direct response
+   * to the user finishing a task, not a proactive nudge, so it is not gated
+   * here.
+   */
+  reminderKinds?: {
+    /** "Ready for a first move?" — energy-peak start nudge. Default true. */
+    start?: boolean
+    /** "Heads up — due soon" — 12h-before-deadline nudge. Default true. */
+    deadline?: boolean
+    /** "Still here when you are" — 24h-untouched nudge. Default true. */
+    motivation?: boolean
+  }
+  /**
+   * Whether the one-time "notifications are off" nudge in Settings has been
+   * dismissed. Set once the user taps Dismiss/Skip on that card so it never
+   * nags again, even if permission stays denied (PRD §8.9 anti-nag rule).
+   */
+  notificationNudgeDismissed?: boolean
   /** The user's self-reported or inferred best-focus window (PRD §3.1, §9.5.8, FR-55). */
   energyPeak: TimeWindow
   displayName?: string

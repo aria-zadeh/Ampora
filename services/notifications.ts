@@ -114,6 +114,37 @@ async function requestWebPermission(): Promise<boolean> {
   }
 }
 
+/**
+ * Read-only permission check — never prompts. Used by the Settings screen to
+ * decide whether to show the one-time "notifications are off" nudge, so
+ * opening Settings never itself triggers an OS/browser permission dialog.
+ * Returns 'unsupported' on platforms/environments where the check can't run
+ * (treated the same as 'granted' by callers — never nudge for something the
+ * user can't act on).
+ */
+export async function getNotificationPermissionStatus(): Promise<
+  'granted' | 'denied' | 'undetermined' | 'unsupported'
+> {
+  if (Platform.OS === 'web') {
+    try {
+      if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported'
+      if (Notification.permission === 'granted') return 'granted'
+      if (Notification.permission === 'denied') return 'denied'
+      return 'undetermined'
+    } catch {
+      return 'unsupported'
+    }
+  }
+  try {
+    const { status } = await Notifications.getPermissionsAsync()
+    if (status === 'granted') return 'granted'
+    if (status === 'denied') return 'denied'
+    return 'undetermined'
+  } catch {
+    return 'unsupported'
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Quiet-hours helpers (TimeWindow = minutes-from-midnight, may wrap midnight)
 // ---------------------------------------------------------------------------
@@ -248,9 +279,16 @@ function buildSpecsForTask(task: Task, settings: Settings, now: number): Notific
   const hoursToDue = (dueMs - now) / MS_PER_HOUR
   const firstStep = firstStepHint(task)
 
+  // Per-kind toggles (PRD FR-65) — missing key reads as enabled so existing
+  // persisted Settings keep today's behavior until the user opts out.
+  const kinds = settings.reminderKinds
+  const startEnabled = kinds?.start !== false
+  const deadlineEnabled = kinds?.deadline !== false
+  const motivationEnabled = kinds?.motivation !== false
+
   // Start reminder: at the user's energy-peak start, on the next day that peak
   // occurs, when the deadline is comfortably far out (> 12h).
-  if (hoursToDue > 12) {
+  if (startEnabled && hoursToDue > 12) {
     const startAt = nextEnergyPeak(settings.energyPeak, now)
     if (startAt < dueMs) {
       const copy = startReminderCopy(task, firstStep)
@@ -267,7 +305,7 @@ function buildSpecsForTask(task: Task, settings: Settings, now: number): Notific
 
   // Deadline approaching: 12h before the deadline (if that's still in the future).
   const deadlineFireAt = dueMs - 12 * MS_PER_HOUR
-  if (deadlineFireAt > now) {
+  if (deadlineEnabled && deadlineFireAt > now) {
     const copy = deadlineCopy(task, dueLabel(dueMs, deadlineFireAt))
     specs.push({
       identifier: `deadline-${task.id}`,
@@ -281,7 +319,7 @@ function buildSpecsForTask(task: Task, settings: Settings, now: number): Notific
 
   // Motivation nudge: if the task hasn't been touched in 24h, gently nudge at
   // the next energy peak (only for not-yet-started work).
-  if (task.status === 'todo' && now - task.updatedAt > 24 * MS_PER_HOUR) {
+  if (motivationEnabled && task.status === 'todo' && now - task.updatedAt > 24 * MS_PER_HOUR) {
     const nudgeAt = nextEnergyPeak(settings.energyPeak, now)
     if (nudgeAt < dueMs) {
       const copy = motivationCopy(task, firstStep)

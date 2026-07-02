@@ -10,6 +10,7 @@ import { Heading } from "@/components/ui/Heading";
 import { gradients } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { ProgressDots } from "./ProgressDots";
 
 const VALUE_LINES = [
   {
@@ -50,6 +51,9 @@ export default function WelcomeScreen() {
       <View className="flex-1 justify-between px-6">
         {/* Hero */}
         <View className="mt-16">
+          <Animated.View entering={enter(0)} className="mb-6">
+            <ProgressDots total={5} current={0} />
+          </Animated.View>
           <Animated.View entering={enter(0)}>
             <Text className="text-overline text-primary-600 uppercase tracking-wide mb-3">
               Welcome to Ampora
@@ -89,7 +93,7 @@ export default function WelcomeScreen() {
         {/* CTA — single primary action */}
         <Animated.View entering={enter(280)}>
           <Button
-            title="Let's get started"
+            title="Get started"
             variant="primaryBlue"
             size="lg"
             onPress={() => router.push("/onboarding/name")}
