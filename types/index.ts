@@ -598,3 +598,43 @@ export interface Settings {
    */
   autoScheduleCutoffWeeks?: number
 }
+
+// ---------------------------------------------------------------------------
+// Agentic project-chat tool actions (Phase 5 AI Round B — doc `10` §5, doc
+// `08` portable engine). The project chat is an agentic PLANNER: it can
+// organize the study plan AND act on it via a small, closed vocabulary of
+// tool calls that the CLIENT validates and applies against the existing store
+// APIs (no MCP server this round — tools execute on-device, local-first).
+//
+// The wire contract is `ai-project-chat` -> { reply, actions: ToolAction[] };
+// each action is validated (shape + referenced ids must exist) and dropped
+// silently if invalid, then applied via taskStore / projectStore, with an
+// inverse captured so the whole turn is one-tap Undoable. Field names below
+// match the REAL entity fields (Subtask uses `estimatedMin`; the first move is
+// a `StarterAction` whose copy lives in `.text`; a task's earliest-start is
+// `Task.startAfter`; a deliverable phase is `ProjectPhase{title,pct}` with its
+// id assigned by the store).
+// ---------------------------------------------------------------------------
+
+/**
+ * A single agent action proposed by the project chat, applied client-side.
+ * Discriminated on `type`. All ids reference existing entities; unknown or
+ * malformed actions are dropped by the validator (`core/ai-actions.ts`).
+ */
+export type ToolAction =
+  /** Create a new task, optionally linked to a project, with a duration/deadline. */
+  | { type: 'create_task'; title: string; projectId?: string; durationMin?: number; due?: number }
+  /** Patch an existing task's title/deadline/duration. */
+  | { type: 'update_task'; taskId: string; patch: { title?: string; due?: number; durationMin?: number } }
+  /** Mark an existing task complete. */
+  | { type: 'complete_task'; taskId: string }
+  /** Append an execution checklist to a task (each step carries a minutes estimate). */
+  | { type: 'create_subtasks'; taskId: string; subtasks: { title: string; estimatedMin: number }[] }
+  /** Set the task's "first move" (the 2-to-5-minute starter action). Stored on `Task.firstMove.text`. */
+  | { type: 'set_first_move'; taskId: string; text: string }
+  /** A soft scheduling nudge: earliest-start (`Task.startAfter`) and/or deadline hint. */
+  | { type: 'schedule_hint'; taskId: string; startAfter?: number; due?: number }
+  /** Add a phase to a deliverable project's progress (`ProjectPhase`, id assigned by the store). */
+  | { type: 'add_project_phase'; projectId: string; phase: { title: string; pct: number } }
+  /** Replace the project's memory (decisions / style / weak spots — local-first, never shared-model training). */
+  | { type: 'update_project_memory'; projectId: string; entries: string[] }

@@ -56,6 +56,16 @@ export interface ExtractedTask {
   priority?: number;
 }
 
+/**
+ * Result of a lenient proof-plausibility check (VER-3/VER-9, doc 09 §5). Only
+ * `"uncertain"` is ever surfaced to the UI; every other case (pass, no key,
+ * network failure, any ambiguity) resolves to `"pass"` — a false reject is the
+ * worst outcome, so this always errs toward accepting.
+ */
+export interface ProofPlausibilityResult {
+  verdict: "pass" | "uncertain";
+}
+
 // ---------------------------------------------------------------------------
 // Edge invocation helper
 // ---------------------------------------------------------------------------
@@ -269,4 +279,30 @@ export async function extractTasks(text: string): Promise<ExtractedTask[]> {
       return out;
     })
     .filter((t) => t.title.length > 0);
+}
+
+/**
+ * Lenient proof-plausibility check (VER-3/VER-9, doc 09 §5). Calls the
+ * `ai-verify-proof` edge function to ask whether an attached proof plausibly
+ * relates to the task. This is a light nudge, NOT a grader.
+ *
+ * ALWAYS resolves to `{ verdict: "pass" }` unless the model explicitly says
+ * `"uncertain"` — no key, network failure, empty/invalid output, or any thrown
+ * error all funnel to "pass" (a false reject is the worst outcome). Never
+ * throws, so `VerificationSheet` can call it and treat anything but "uncertain"
+ * as acceptance. `note` is an optional caption/description the model reasons
+ * over alongside the task title (image bytes are not uploaded).
+ */
+export async function checkProofPlausibility(
+  uri: string,
+  taskTitle: string,
+  note?: string
+): Promise<ProofPlausibilityResult> {
+  const raw = await invokeEdge<{ verdict?: unknown }>("ai-verify-proof", {
+    proof: { uri, note: note ?? "" },
+    task: { title: taskTitle },
+  });
+  // invokeEdge returns null on no_key / soft-error / transport failure -> pass.
+  const verdict = raw && raw.verdict === "uncertain" ? "uncertain" : "pass";
+  return { verdict };
 }

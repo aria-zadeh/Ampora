@@ -25,7 +25,11 @@
  */
 
 import { supabase } from "@/services/supabase";
-import type { Project, ProjectProgress } from "@/types";
+import { validateAndExecuteActions, type ActionDeps } from "@/core/ai-actions";
+import { extractTasks } from "@/services/ai";
+import { useProjectStore } from "@/store/projectStore";
+import { useTaskStore } from "@/store/taskStore";
+import type { Project, ProjectProgress, ToolAction } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Public result shapes
@@ -49,9 +53,18 @@ export interface NextTaskResult {
 }
 
 export interface ProjectChatResult {
+  /** The assistant's reply text (warm, grounded). Also aliased as `text` for callers. */
+  reply: string;
+  /** @deprecated alias of `reply` — kept so existing callers keep working. */
   text: string;
-  /** True when this came from the local templated reply, not live AI. */
+  /** The tool actions that were validated AND applied this turn (may be empty). */
+  actions: ToolAction[];
+  /** True when this came from the local templated reply / fallback path, not live AI. */
   isFallback: boolean;
+  /** Reverts every action applied this turn, in one call. Null when no action ran. Idempotent. */
+  undo: (() => void) | null;
+  /** Short human summary of what changed, e.g. "Added 3 tasks". Empty when nothing changed. */
+  summary: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -148,9 +161,77 @@ function projectPayload(project: Project) {
     progress: project.progress,
     memory: project.memory,
     fileNames: project.files.map((f) => f.name),
+    // Real task ids so the planner can reference existing tasks (update/complete/
+    // subtasks). The client re-validates every id, so a stale id is harmless.
+    taskIds: project.taskIds,
     // Trim to keep the payload bounded; the server retrieves the rest as needed.
     recentChat: project.chat.slice(-8).map((m) => ({ role: m.role, text: m.text })),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Agentic action wiring (Phase 5 AI Round B)
+// ---------------------------------------------------------------------------
+
+/** Build the `ActionDeps` the executor needs from the live Zustand stores. */
+function liveActionDeps(): ActionDeps {
+  const task = useTaskStore.getState();
+  const project = useProjectStore.getState();
+  return {
+    getTask: (id) => useTaskStore.getState().tasks[id],
+    getProject: (id) => useProjectStore.getState().projects[id],
+    createTask: task.createTask,
+    updateTask: task.updateTask,
+    deleteTask: task.deleteTask,
+    completeTask: task.completeTask,
+    reopenTask: task.reopenTask,
+    addSubtask: task.addSubtask,
+    removeSubtask: task.removeSubtask,
+    updateProject: project.updateProject,
+    addPhase: project.addPhase,
+    updateMemory: project.updateMemory,
+  };
+}
+
+/**
+ * Heuristic: does this message look like a "turn this into tasks / break it into
+ * steps" request? Used only on the OFFLINE path to decide whether to run the
+ * deterministic extractTasks parser so the confirmation chips + Undo still work
+ * with no key (doc `08` local-first agentic fallback).
+ */
+function looksLikeExtractRequest(message: string): boolean {
+  return /\b(add|make|create|turn|break|split|plan|schedule|steps?|tasks?|to[- ]?dos?|checklist)\b/i.test(
+    message
+  );
+}
+
+/**
+ * Offline agentic fallback: run the deterministic per-line quick-add parser
+ * (extractTasks) over the user's message and materialize `create_task` actions
+ * through the SAME validate+execute pipeline, so chips/Undo behave identically
+ * to the live path. Returns applied actions (possibly none). Never throws.
+ */
+async function fallbackActions(
+  project: Project,
+  userMessage: string,
+  deps: ActionDeps
+): Promise<{ actions: ToolAction[]; undo: (() => void) | null; summary: string }> {
+  if (!looksLikeExtractRequest(userMessage)) {
+    return { actions: [], undo: null, summary: "" };
+  }
+  const extracted = await extractTasks(userMessage);
+  if (extracted.length === 0) return { actions: [], undo: null, summary: "" };
+
+  const actions: ToolAction[] = extracted.slice(0, 8).map((t) => ({
+    type: "create_task",
+    title: t.title,
+    projectId: project.id,
+    ...(t.durationMin != null ? { durationMin: t.durationMin } : {}),
+    ...(t.due != null ? { due: t.due } : {}),
+  }));
+
+  const { executed, undo, summary } = validateAndExecuteActions(actions, deps);
+  return { actions: executed, undo, summary };
 }
 
 // ---------------------------------------------------------------------------
@@ -158,24 +239,42 @@ function projectPayload(project: Project) {
 // ---------------------------------------------------------------------------
 
 /**
- * Answer/act on a message in the project's scoped chat (doc `10` §5). Calls the
- * `ai-project-chat` edge function; on any failure returns a warm, templated
- * reply grounded in the project's name, kind, progress, and files so the chat
- * still responds offline. Never throws.
+ * Answer/act on a message in the project's scoped chat (doc `10` §5), AGENTIC.
+ * Calls the `ai-project-chat` edge function, which returns `{ reply, actions }`.
+ * The returned actions are re-validated and applied CLIENT-side via
+ * `validateAndExecuteActions` (tools run on-device, local-first — no MCP server
+ * this round); the applied set + a single `undo()` + a human `summary` come
+ * back so the UI can show a confirmation chip with one-tap revert.
+ *
+ * On no_key / network failure it falls back locally: a warm grounded reply, plus
+ * — when the message reads like "turn this into tasks / break it into steps" —
+ * the deterministic extractTasks parser feeds `create_task` actions through the
+ * SAME pipeline, so chips + Undo still work offline. The return shape is
+ * identical on both paths, so the UI is agnostic. Never throws.
  */
 export async function projectChat(
   project: Project,
   userMessage: string
 ): Promise<ProjectChatResult> {
-  const raw = await invokeEdge<{ text?: unknown }>("ai-project-chat", {
+  const deps = liveActionDeps();
+
+  const raw = await invokeEdge<{ reply?: unknown; actions?: unknown }>("ai-project-chat", {
     project: projectPayload(project),
     message: userMessage,
   });
 
-  const text = raw && typeof raw.text === "string" ? raw.text.trim() : "";
-  if (text) return { text, isFallback: false };
+  const reply = raw && typeof raw.reply === "string" ? raw.reply.trim() : "";
 
-  return { text: fallbackChatReply(project, userMessage), isFallback: true };
+  if (reply) {
+    // Live path: validate + apply whatever actions the planner proposed.
+    const { executed, undo, summary } = validateAndExecuteActions(raw?.actions, deps);
+    return { reply, text: reply, actions: executed, isFallback: false, undo, summary };
+  }
+
+  // Offline path: grounded templated reply + deterministic action fallback.
+  const fallbackReply = fallbackChatReply(project, userMessage);
+  const { actions, undo, summary } = await fallbackActions(project, userMessage, deps);
+  return { reply: fallbackReply, text: fallbackReply, actions, isFallback: true, undo, summary };
 }
 
 /**

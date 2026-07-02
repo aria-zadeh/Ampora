@@ -21,7 +21,13 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { newId } from '@/core/id'
 import { mmkvStateStorage } from '@/store/mmkv'
-import type { ChatMessage, Project, ProjectFile, ProjectKind, ProjectProgress } from '@/types'
+import type { ChatMessage, Project, ProjectFile, ProjectKind, ProjectPhase, ProjectProgress } from '@/types'
+
+/** Clamp a percent into 0..100 (integer), tolerating NaN/±Infinity from the wire. */
+function clampPct(n: number): number {
+  if (!Number.isFinite(n)) return 0
+  return Math.min(100, Math.max(0, Math.round(n)))
+}
 
 /** The initial, empty progress representation for a freshly-created project of `kind`. */
 function initialProgress(kind: ProjectKind): ProjectProgress {
@@ -60,6 +66,20 @@ interface ProjectState {
   setProgress: (id: string, progress: ProjectProgress) => void
   /** Link a generated Task to this project (doc `10` §7). Idempotent — no duplicate ids. */
   linkTask: (id: string, taskId: string) => void
+
+  /**
+   * Append a phase to a DELIVERABLE project's progress (doc `10` §6, agentic
+   * chat action `add_project_phase`). The store assigns the phase id. No-op if
+   * the project is missing or its progress is not of kind 'deliverable' (a phase
+   * only makes sense there — the discriminated `ProjectProgress` union keeps the
+   * other kinds phase-free).
+   */
+  addPhase: (id: string, phase: { title: string; pct: number }) => void
+  /**
+   * Replace the project's memory list (doc `10` §8, agentic chat action
+   * `update_project_memory`). Local-first, never shared-model training.
+   */
+  updateMemory: (id: string, entries: string[]) => void
 }
 
 /** Apply a patch to one project (updating sync bookkeeping), or no-op if it is gone. */
@@ -140,6 +160,30 @@ export const useProjectStore = create<ProjectState>()(
           projects: patchProject(state.projects, id, (p) =>
             p.taskIds.includes(taskId) ? p : { ...p, taskIds: [...p.taskIds, taskId] }
           ),
+        }))
+      },
+
+      addPhase: (id, phase) => {
+        set((state) => ({
+          projects: patchProject(state.projects, id, (p) => {
+            // Phases only exist on deliverable progress; leave other kinds untouched.
+            if (p.progress.kind !== 'deliverable') return p
+            const newPhase: ProjectPhase = {
+              id: newId(),
+              title: phase.title,
+              pct: clampPct(phase.pct),
+            }
+            return {
+              ...p,
+              progress: { kind: 'deliverable', phases: [...p.progress.phases, newPhase] },
+            }
+          }),
+        }))
+      },
+
+      updateMemory: (id, entries) => {
+        set((state) => ({
+          projects: patchProject(state.projects, id, (p) => ({ ...p, memory: entries })),
         }))
       },
     }),
