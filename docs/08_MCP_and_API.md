@@ -2,22 +2,24 @@
 
 > How Ampora connects to Claude the way FlowSavvy does, so a user can manage their tasks and schedule by talking to Claude, with the full set of task abilities (create, edit, break down, schedule, recalculate, recover). Companion to `01_PRD.md`. No em dashes, no semicolons.
 >
-> FlowSavvy ships a public API and an MCP server that let AI assistants and external tools interact directly with a user's tasks and schedule. Ampora matches that surface and adds breakdown, stakes configuration, and the focus profile.
+> **Post-launch.** MCP and the public API deliver zero value to a day-one user and must never gate store submission. Build them after the launch surface is solid (Milestone 7 in `07`). The portable-engine decision below is worth making early anyway, since it also powers offline recompute.
+>
+> FlowSavvy ships a public API and an MCP server that let AI assistants and external tools interact directly with a user's tasks and schedule. Ampora matches that surface and adds breakdown and stakes configuration.
 
 ---
 
 ## 1. The key architectural decision: one portable engine
 
-The scheduling engine, the breakdown engine, and the memory system must run in two places: on the device (for instant local recompute) and on a server (because Claude is not on the device, so MCP and API calls run server-side).
+The scheduling engine and the breakdown engine must run in two places: on the device (for instant local recompute) and on a server (because Claude is not on the device, so MCP and API calls run server-side).
 
-Decision: build the engine and breakdown/memory logic as **one pure, deterministic TypeScript module with no platform dependencies and no I/O**. It takes inputs (tasks, events, settings, signals, memory) and returns outputs (placed blocks, subtasks). It is packaged once and imported by both the React Native app and the Supabase Edge Functions.
+Decision: build the engine and breakdown logic as **one pure, deterministic TypeScript module with no platform dependencies and no I/O**. It takes inputs (tasks, events, settings) and returns outputs (placed blocks, subtasks). It is packaged once and imported by both the React Native app and the Supabase Edge Functions.
 
 Why this works: the engine is already required to be deterministic and churn-minimizing (PRD NFR-2), so the same inputs produce the same schedule no matter where it runs. The device runs it for offline, instant recompute. The server runs it when Claude or the API changes something. Sync reconciles the two. No logic is duplicated and no behavior diverges.
 
 ```
 packages/
   engine/        # pure TS: scheduling + splitting + ordering (deterministic, no I/O)
-  breakdown/     # pure TS: prompt assembly + validation + memory retrieval/update
+  breakdown/     # pure TS: prompt assembly + validation (grounded, no memory)
 app/             # React Native (imports engine + breakdown, runs locally)
 functions/       # Supabase Edge Functions + MCP server (import engine + breakdown, run server-side)
 ```
@@ -40,12 +42,12 @@ A hosted MCP server (a Supabase Edge Function or a small Node service) exposing 
 Full parity with a best-in-class scheduler plus Ampora extras. Each tool validates inputs and returns structured results.
 
 **Tasks**
-- `create_task` (all fields: title, notes, list, tags, priority, autoSchedule, durationMin, dueAt, startAfter, schedulingHoursId, splittable, minBlockMin, maxBlockMin, buffers, recurrence, dependsOn, energyRequired, color, sourceMaterial)
+- `create_task` (all fields: title, notes, list, tags, priority, autoSchedule, durationMin, dueAt, startAfter, schedulingHoursId, splittable, minBlockMin, maxBlockMin, buffers, recurrence, dependsOn, color, source)
 - `update_task` (any field by id)
 - `delete_task`
 - `complete_task` and `set_task_progress` (progressMin or percentage)
 - `get_task`, `list_tasks` (filters: list, tag, priority, due range, scheduled/unscheduled, has-stake, completed)
-- `break_down_task` (runs the breakdown engine with grounding + memory; optional inline source; returns First move + subtasks)
+- `break_down_task` (runs the breakdown engine with source grounding; optional inline source; returns First move + subtasks)
 - `refine_breakdown` (taskId + instruction -> regenerated subtasks)
 - `add_subtask`, `update_subtask`, `complete_subtask`, `reorder_subtasks`, `delete_subtask`
 
@@ -65,23 +67,18 @@ Full parity with a best-in-class scheduler plus Ampora extras. Each tool validat
 
 **Stakes (read and configure only, never remote-trigger a device lock)**
 - `list_stake_apps` (count and labels only; iOS tokens are opaque)
-- `attach_stake` (set a task's stake config: mode, completion condition, strength within caps)
+- `attach_stake` (set a task's stake config: hold [session or until_done], trigger [manual or scheduled], sessionMin, startWindowMin, verification, strength within caps)
 - `list_stake_sessions` (history/outcomes)
-Note: actually shielding apps happens on-device with the user present (PRD Section 14 and `06`). Claude can configure a stake on a task, but the lock engages when the user starts the session on their device. This is a safety boundary: no remote, surprise lock.
-
-**Learning**
-- `get_focus_profile` (read Focus DNA: best windows, estimation multipliers, dodged types)
+Note: actually shielding apps happens on-device with the user present (PRD Section 7 and `05`). Claude can configure a stake on a task, but the lock engages when the user starts the session on their device. This is a safety boundary: no remote, surprise lock.
 
 ### 2.4 Example interactions
 - User to Claude: "Add my chem lab due Friday at 5, it'll take 2 hours, and break it into steps." Claude calls `create_task` then `break_down_task`. Ampora grounds on any attached handout and applies the user's memory. The task and its subtasks appear in the app on sync.
 - "Rebuild my week, I got behind." Claude calls `recovery_replan`. The server runs the engine, reprioritizes, returns the new schedule, and the device updates.
 - "What's on my plate tomorrow?" Claude calls `get_schedule` for tomorrow and reads back the blocks.
-- "Make my essay tasks break down by outline-first." Claude calls `refine_breakdown` or sets a preference, which the memory system records for that task-type.
+- "Break this essay down outline-first." Claude calls `refine_breakdown` with that instruction and the task regenerates.
 
-### 2.5 Breakdown and memory over MCP
-Because breakdown and memory are the shared server-capable modules (Section 1), `break_down_task` over MCP uses the exact same grounding and the same per-user memory as the in-app button. So personalization persists no matter where the user works, the app or Claude.
-
-`break_down_task` also accepts an optional `externalContext` string. When Claude triggers a breakdown, it can pass what it knows about the user and the exact task (their real class, the assignment they were just discussing, their skill level, past struggles) as additional grounding, layered on top of the local breakdown memory and any attached source. This is the "Claude knows more about you" channel (doc `07` Part 1C.6). It is the user's own Claude and their own data, and it is optional, the default in-app path uses local memory and source only.
+### 2.5 Breakdown over MCP
+Because breakdown is a shared server-capable module (Section 1), `break_down_task` over MCP uses the exact same source grounding and validation as the in-app button, so results are identical no matter where the user works, the app or Claude.
 
 ### 2.6 Sync back to device
 All MCP writes go through the same Supabase data layer the app syncs with, so changes Claude makes show up in the app (and the reverse) via the existing last-write-wins sync with a conflict log (PRD 9.12).
@@ -107,11 +104,11 @@ A user can use either, both, or neither.
 - Stakes cannot be remotely engaged (Section 2.3). No tool can disable the wellbeing caps or the never-lock list.
 - Rate limits per token/key. Audit log of MCP/API writes available to the user.
 - Secrets (model keys, OAuth secrets) live in Edge Function config, never in the client.
-- The same privacy rules apply (NFR-4): no selling data, no cross-user training, behavioral and breakdown data stay the user's own.
+- The same privacy rules apply (NFR-4): no selling data, no cross-user training, the user's data stays the user's own.
 
 ---
 
-## 6. New requirements this adds (fold into the PRD)
-- FR-73 MCP server exposing the full task/event/schedule/breakdown/focus surface to Claude, with OAuth or API-key auth, operating only on the authenticated user's data, with stakes limited to read/configure (no remote lock).
+## 6. Requirements this maps to (in the PRD, post-launch)
+- FR-73 MCP server exposing the task/event/schedule/breakdown/focus surface to Claude, with OAuth or API-key auth, operating only on the authenticated user's data, with stakes limited to read/configure (no remote lock).
 - FR-74 Public API (REST or GraphQL) with the same operations, API-key auth, rate-limited.
-- FR-75 The engine and breakdown/memory modules are packaged as pure portable TypeScript and run both on-device and in Edge Functions, so app and Claude produce identical results.
+- FR-75 The engine and breakdown modules are packaged as pure portable TypeScript and run both on-device and in Edge Functions, so app and Claude produce identical results.

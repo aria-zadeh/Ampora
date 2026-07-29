@@ -1,6 +1,6 @@
 # Ampora — Technical Spec: App Blocking (Ignition)
 
-> The implementation reference for the lock-your-own-apps mechanic. Companion to `01_PRD.md` Section 14 and 9.10. Written so an AI coding agent can build it. Grounded in the current iOS Family Controls / Screen Time frameworks and the real RN/Expo packages that wrap them. No em dashes, no semicolons.
+> The implementation reference for the lock-your-own-apps mechanic. Companion to `01_PRD.md` Section 7 (FR-40 to FR-46) and Section 9.9/9.10, and `04_Ignition_Sessions_and_Verification.md` (the session model this enforces). Written so an AI coding agent can build it. Grounded in the current iOS Family Controls / Screen Time frameworks and the real RN/Expo packages that wrap them. No em dashes, no semicolons.
 >
 > **One-line model:** the user authorizes Ampora to restrict their own device, picks their own leisure apps via Apple's native picker (which returns opaque tokens, not bundle IDs), Ampora shields those apps with ManagedSettings, and a DeviceActivity extension plus shield extensions handle scheduling and the block screen. There is always an escape hatch.
 
@@ -25,10 +25,7 @@ These are not opinions, they are platform realities that shape the product. Buil
 **Android:**
 - No Apple-style sanctioned API. Use `UsageStatsManager` to detect the foreground app (requires the Usage Access special permission) plus a foreground service plus a full-screen system overlay to interrupt the blocked app (requires the "Display over other apps" permission, granted manually in settings). Detection has roughly a half-second delay (polling), so the blocked app flashes briefly before the overlay.
 
-**Desktop (later):**
-- Family Controls authorization is not supported on Mac Catalyst. A desktop companion cannot reuse iOS shielding. It must block at the OS/network level (hosts file, a local filtering proxy, or process control). Treat desktop as a separate enforcement path.
-
-**Web:** browser cannot enforce app-blocking. Stakes are unavailable on web.
+**Web:** a browser cannot enforce app-blocking. Stakes are unavailable on web (the web app configures stakes; the lock is enforced on the phone). This is the only non-blocking launch platform. Any OS-level desktop enforcement path is out of scope for launch (see `V2_Changes.md`).
 
 ---
 
@@ -39,7 +36,7 @@ You do not need to write all the Swift from scratch. Two community packages wrap
 - **`expo-app-blocker`** (cross-platform: iOS Screen Time + Android UsageStats/overlay; ships `setBlockConfiguration`, `clearAllBlocks`, `temporaryUnlock`, `relockApps`, `getRemainingUnlockTime`, a `FamilyActivityPickerView`, and pending-unlock listeners). The `temporaryUnlock` API maps cleanly to the panic valve.
 - **`react-native-device-activity`** (kingstinct): direct access to Screen Time, DeviceActivity, and shielding, with picker components and scheduling. More granular, good if you need custom DeviceActivity scheduling.
 
-Pick one as the base. `expo-app-blocker` is the faster path to the core lock-until-done and panic-valve flows. Use `react-native-device-activity` if you need fine DeviceActivity scheduling for Beat-the-clock.
+Pick one as the base. `expo-app-blocker` is the faster path to the core session-hold and panic-valve flows. Use `react-native-device-activity` if you need fine DeviceActivity scheduling for the scheduled trigger and its start window.
 
 **Required iOS setup (the package config plugin does most of this, but verify):**
 - App ID and all extension App IDs have `com.apple.developer.family-controls`, `com.apple.developer.deviceactivity`, `com.apple.developer.managedsettings`, and an **App Group** (`com.apple.security.application-groups`, for example `group.com.ampora.blocker`).
@@ -80,10 +77,13 @@ startStake(session):
   store.shield.applications = selection.applicationTokens
   store.shield.applicationCategories = .specific(selection.categoryTokens)   // if categories chosen
   store.shield.webDomains = selection.webDomainTokens                        // if sites chosen
-  write session state (mode, condition, startedAt, strength) into App Group
-  if mode == beat_the_clock:
-     schedule a DeviceActivity monitor for the timer window (see 3.5)
-  show in-app banner with the unlock condition
+  write session state (hold, trigger, sessionMin, startedAt, strength) into App Group
+  if hold == session:
+     schedule a DeviceActivity monitor for the session end at startedAt + sessionMin (see 3.5)
+  // hold == until_done: no timed release; the shield holds until verified proof
+  //   or until the single-session cap converts it to a release (see 3.5 auto-expiry)
+  always schedule the auto-expiry monitor (daily cap, quiet-hours boundary, single-session cap)
+  show in-app banner with what is locked and the minutes remaining
   post a "locked" state so the UI reflects it
 ```
 
@@ -96,13 +96,14 @@ endStake(reason):
   clear session state in App Group
   log outcome (completed | panic_valve | timed_out | expired)
 ```
-Auto-release is triggered by: completion condition met (the app sets it on First-move/subtask/task completion), the daily lock cap reached, the quiet-hours boundary, or app/device restart recovery (3.6).
+Auto-release is triggered by: the session timer completing (hold = session), verified completion (hold = until_done, the app sets it after a passing proof or an override), the task being completed during the session (releases early), the daily lock cap reached, the single-session cap reached, the quiet-hours boundary, or app/device restart recovery (3.6).
 
-**3.5 DeviceActivity for scheduling (Beat-the-clock and auto-expiry).**
-- Use a `DeviceActivitySchedule` plus a `DeviceActivityEvent` with a threshold to fire `eventDidReachThreshold` / `intervalDidEnd` in the **DeviceActivityMonitor** extension at the end of the timer or cooldown.
+**3.5 DeviceActivity for scheduling (scheduled triggers, session end, and auto-expiry).**
+- **Session end (hold = session).** Use a `DeviceActivitySchedule` plus a `DeviceActivityEvent` with a threshold to fire `eventDidReachThreshold` / `intervalDidEnd` in the **DeviceActivityMonitor** extension at `startedAt + sessionMin`, so the shield lifts even if the app is closed.
+- **Scheduled trigger auto-arm (trigger = scheduled).** At `scheduledAt`, if the user has not started, wait `startWindowMin` (the grace window that absorbs the old beat-the-clock). If still not started at `scheduledAt + startWindowMin`, and it is not quiet hours, call `startStake` to arm the lock for one session length. Completing the task during the window or the lock releases it early. This timing is driven in-app when foregrounded, with a DeviceActivity monitor as the backstop for when the app is closed. A scheduled lock never arms inside quiet hours.
 - In the extension's callback, apply or remove the shield via a fresh `ManagedSettingsStore()` (the extension and the app share the store and the App Group).
 - Because events can fire prematurely on some iOS versions, also enforce the wall-clock timing in-app as the source of truth, and treat the extension callback as a backstop. Never rely on the extension alone for correctness.
-- Always schedule an auto-expiry monitor so a forgotten lock releases at the daily cap or quiet-hours boundary even if the app is closed.
+- Always schedule an auto-expiry monitor so a forgotten lock releases at the daily cap, the single-session cap, or the quiet-hours boundary even if the app is closed. For hold = until_done this monitor is what enforces the cap-to-release conversion.
 
 **3.6 Persistence and recovery (kill / restart).**
 - The ManagedSettings shield persists across app termination and device restart by design (it is system-enforced), which is what makes the lock real.
@@ -110,7 +111,7 @@ Auto-release is triggered by: completion condition met (the app sets it on First
 - Handle the token-mismatch bug: if the stored tokens no longer match what the extensions receive, release the shield, surface a gentle "re-pick your apps" prompt, and do not leave the user stuck.
 
 **3.7 Shield screen (ShieldConfiguration extension).**
-- Configure: app icon, title ("Locked until you start"), subtitle ("Finish your first move in Ampora to unlock"), and button labels. Primary button label "Open Ampora" (note: tapping it cannot launch Ampora directly, so the ShieldAction handler triggers a local notification that deep-links back; see 3.8). Secondary button "Unlock early".
+- Configure: app icon, title ("Locked while you focus"), subtitle ("Your apps unlock when this session ends. Open Ampora to keep going."), and button labels. (For hold = until_done the subtitle reads "Your apps unlock when you finish and submit proof in Ampora.") Primary button label "Open Ampora" (note: tapping it cannot launch Ampora directly, so the ShieldAction handler triggers a local notification that deep-links back; see 3.8). Secondary button "Unlock early".
 - Colors and blur per the design system. No custom views beyond what the API allows.
 
 **3.8 Shield actions (ShieldAction extension).**
@@ -182,11 +183,9 @@ Document the ~500ms flash and the manual overlay-permission grant in onboarding.
 
 ---
 
-## 6. Desktop companion (P3)
+## 6. Desktop enforcement (deferred)
 
-- Tauri or Electron. Blocks at the OS level: edit the hosts file or run a local filtering proxy for sites, and use process monitoring to close/blur target apps.
-- Syncs the active stake session from Supabase so a lock started on the phone also holds on the desktop, and vice versa.
-- Natural home for the optional, consensual screen-aware focus check (it can see the active window). That feature is self-monitoring only, visible to no one but the user, and is out of scope until P3.
+Out of scope for launch. See `V2_Changes.md`. The `BlockingStrategy` interface (Section 7) is designed so a desktop path can slot in later without touching shared logic.
 
 ---
 
@@ -216,7 +215,8 @@ The Ignition session logic, caps, panic valve, and de-escalation live in shared 
 - [ ] Authorization `.individual` succeeds; status re-checks correctly on foreground after revoking in Settings.
 - [ ] Picker selection persists in the App Group and survives app restart.
 - [ ] Shield applies and the app is actually blocked; shield persists across app kill and device reboot.
-- [ ] Completion condition (First move done) auto-unlocks within a second.
+- [ ] Session timer completes and auto-unlocks within a second (hold = session); the until_done photo path unlocks on a passing proof or an override.
+- [ ] Scheduled trigger auto-arms after the start window if not started, and never arms in quiet hours; completing the task releases early.
 - [ ] Daily cap and quiet-hours boundary auto-release even with the app closed.
 - [ ] Panic valve 60s friction works; repeated use triggers de-escalation and lowers strength.
 - [ ] Token-mismatch path: corrupt/changed tokens lead to a graceful re-pick, never a stuck lock.
