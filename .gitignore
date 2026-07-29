@@ -56,8 +56,11 @@ app-example
 /ios
 /android
 # Claude Code / AI tooling
+# CLAUDE.md is deliberately NOT ignored: it is the project brief every agent
+# reads first, it contains no secrets, and a clone without it (a second dev
+# machine, a CI checkout) gets no build rules at all. Local tooling state
+# stays ignored.
 .claude/
-CLAUDE.md
 .paul/
 thoughts/
 graphify-out/
