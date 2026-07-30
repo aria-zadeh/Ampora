@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyRecoveryDrop,
   buildRecoveryPreview,
   countMissedBlocks,
   countMissedDays,
@@ -264,5 +265,165 @@ describe('recovery: buildRecoveryPreview — rebuildCount + summary', () => {
     const p1 = buildRecoveryPreview(tasks, [], now)
     const p2 = buildRecoveryPreview(shuffled, [], now)
     expect(p1).toEqual(p2)
+  })
+})
+
+describe('recovery: applyRecoveryDrop (FR-16, FR-60 apply step)', () => {
+  // Regression coverage for the data-loss bug: `RecoverySheet.tsx#handleRebuild`
+  // used to call `deleteTask` for EVERY drop, including `missed_occurrence`
+  // ones, which destroyed the whole recurring series over a single missed
+  // instance. `applyRecoveryDrop` is the pure function that now decides
+  // delete-vs-advance; `store/taskStore.ts#applyRecoveryDrop` just calls it.
+
+  it('a recurring task with a missed occurrence SURVIVES a rebuild: never null, rolled to the advance due date, fresh occurrence state', () => {
+    const task = makeTask({
+      id: 'adv1',
+      due: now - 2 * MS_PER_DAY,
+      status: 'todo',
+      durationMin: 60,
+      progressMin: 30,
+      subtasks: [
+        { id: 's1', title: 'Step 1', estimatedMin: 30, completedAt: now - 2 * MS_PER_DAY },
+        { id: 's2', title: 'Step 2', estimatedMin: 30 },
+      ],
+      firstMove: { id: 'fm1', text: 'Open the doc', done: true },
+      recurrence: { freq: 'daily', interval: 1 },
+    })
+    const preview = buildRecoveryPreview([task], [], now)
+    expect(preview.drops).toHaveLength(1)
+    const drop = preview.drops[0]
+    expect(drop.reason).toBe('missed_occurrence')
+
+    const result = applyRecoveryDrop(task, drop, now)
+
+    // Survives — the task is never deleted.
+    expect(result).not.toBeNull()
+    expect(result!.id).toBe('adv1')
+    expect(result!.recurrence).toBeDefined()
+    // Rolled forward to the computed advance, not left sitting in the past.
+    expect(result!.due).toBe(drop.recurringAdvance!.due)
+    expect(result!.due).toBeGreaterThanOrEqual(now)
+    // Fresh occurrence (drop default, doc `03` §2.9): checklist reset, not
+    // carried over half-done.
+    expect(result!.progressMin).toBe(0)
+    expect(result!.subtasks.every((s) => s.completedAt === undefined)).toBe(true)
+    expect(result!.status).toBe('todo')
+    expect(result!.firstMove?.done).toBe(false)
+  })
+
+  it('a count-limited recurring rule has its count decremented by the advance, not left stale', () => {
+    const task = makeTask({
+      id: 'adv2',
+      due: now - 3 * MS_PER_DAY,
+      status: 'todo',
+      recurrence: { freq: 'daily', interval: 1, count: 10 },
+    })
+    const preview = buildRecoveryPreview([task], [], now)
+    const drop = preview.drops[0]
+    expect(drop.recurringAdvance!.nextCount).toBe(7) // 3 missed days consumed
+
+    const result = applyRecoveryDrop(task, drop, now)!
+    expect(result.recurrence!.count).toBe(7)
+  })
+
+  it('leaves an unbounded rule\'s (no count) recurrence otherwise untouched aside from due', () => {
+    const task = makeTask({
+      id: 'adv3',
+      due: now - 2 * MS_PER_DAY,
+      status: 'todo',
+      recurrence: { freq: 'daily', interval: 1, byWeekday: [1, 2, 3, 4, 5] },
+    })
+    const preview = buildRecoveryPreview([task], [], now)
+    const drop = preview.drops[0]
+    expect(drop.recurringAdvance!.nextCount).toBeUndefined()
+
+    const result = applyRecoveryDrop(task, drop, now)!
+    expect(result.recurrence!.count).toBeUndefined()
+    expect(result.recurrence!.byWeekday).toEqual([1, 2, 3, 4, 5]) // rest of the rule untouched
+  })
+
+  it('a non-recurring moot past-due task still resolves to null (delete), same as before the fix', () => {
+    const task = makeTask({ id: 'moot1', due: now - MS_PER_DAY, status: 'todo' })
+    const preview = buildRecoveryPreview([task], [], now)
+    const drop = preview.drops[0]
+    expect(drop.reason).toBe('moot_past_due')
+    expect(applyRecoveryDrop(task, drop, now)).toBeNull()
+  })
+
+  it('a recurring series that has genuinely ended (seriesEnded) also resolves to null — deleting here is correct, not data loss', () => {
+    // count:2 cannot catch all the way up to "now" 10 days later — confirmed
+    // by the existing buildRecoveryPreview suite above (`rc4`).
+    const task = makeTask({
+      id: 'ended1',
+      due: now - 10 * MS_PER_DAY,
+      status: 'todo',
+      recurrence: { freq: 'daily', interval: 1, count: 2 },
+    })
+    const preview = buildRecoveryPreview([task], [], now)
+    const drop = preview.drops[0]
+    expect(drop.recurringAdvance!.seriesEnded).toBe(true)
+    expect(applyRecoveryDrop(task, drop, now)).toBeNull()
+  })
+
+  it('carry-forward opt-in PRESERVES progress/subtasks/first-move instead of resetting them, unlike the drop default (FR-16)', () => {
+    const task = makeTask({
+      id: 'cf1',
+      due: now - 5 * MS_PER_DAY,
+      status: 'todo',
+      progressMin: 30,
+      subtasks: [
+        { id: 's1', title: 'Step 1', estimatedMin: 30, completedAt: now - 5 * MS_PER_DAY },
+        { id: 's2', title: 'Step 2', estimatedMin: 30 },
+      ],
+      firstMove: { id: 'fm1', text: 'Open the doc', done: true },
+      recurrence: { freq: 'daily', interval: 1, count: 10, carryForward: true },
+    })
+    const preview = buildRecoveryPreview([task], [], now)
+    const drop = preview.drops[0]
+    expect(drop.recurringAdvance!.carryForward).toBe(true)
+    expect(drop.recurringAdvance!.nextCount).toBe(9) // decremented by exactly 1
+
+    const result = applyRecoveryDrop(task, drop, now)!
+    // Preserved, NOT reset — the missed work carries into the next occurrence.
+    expect(result.progressMin).toBe(30)
+    expect(result.subtasks.find((s) => s.id === 's1')?.completedAt).toBe(now - 5 * MS_PER_DAY)
+    expect(result.firstMove?.done).toBe(true)
+    // But due/rule DID advance — carry-forward still moves the series on.
+    expect(result.due).toBe(drop.recurringAdvance!.due)
+    expect(result.recurrence!.count).toBe(9)
+  })
+
+  it('end-to-end simulation of the store apply loop: every recurring drop survives with its rule intact, every moot one-off is removed, untouched tasks are left alone', () => {
+    // Mirrors store/taskStore.ts#applyRecoveryDrop's set() loop and
+    // components/recovery/RecoverySheet.tsx#handleRebuild's `for (const drop
+    // of preview.drops) applyRecoveryDrop(drop)` — this is the regression
+    // test for the original bug ("Catch me up" deleted recurring tasks
+    // outright instead of advancing them).
+    const recurringSurvivor = makeTask({
+      id: 'sim-recurring',
+      due: now - MS_PER_DAY,
+      status: 'todo',
+      recurrence: { freq: 'daily', interval: 1 },
+    })
+    const mootOneOff = makeTask({ id: 'sim-moot', due: now - MS_PER_DAY, status: 'todo' })
+    const stillOpen = makeTask({ id: 'sim-open', due: now + MS_PER_DAY, status: 'todo' })
+
+    const tasks = [recurringSurvivor, mootOneOff, stillOpen]
+    const preview = buildRecoveryPreview(tasks, [], now)
+
+    const byId = new Map(tasks.map((t) => [t.id, t]))
+    for (const drop of preview.drops) {
+      const current = byId.get(drop.task.id)
+      if (!current) continue
+      const resolved = applyRecoveryDrop(current, drop, now)
+      if (resolved == null) byId.delete(drop.task.id)
+      else byId.set(drop.task.id, resolved)
+    }
+
+    expect(byId.has('sim-recurring')).toBe(true) // survived — NOT deleted
+    expect(byId.get('sim-recurring')!.recurrence).toBeDefined() // rule intact
+    expect(byId.get('sim-recurring')!.due).toBeGreaterThanOrEqual(now) // actually advanced
+    expect(byId.has('sim-moot')).toBe(false) // correctly dropped, as before
+    expect(byId.has('sim-open')).toBe(true) // not due yet, untouched
   })
 })

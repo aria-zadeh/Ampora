@@ -21,6 +21,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { newId } from '@/core/id'
 import * as taskLogic from '@/core/task-logic'
 import { rollToNextOccurrence } from '@/core/recurrence'
+import * as recovery from '@/core/recovery'
 import { mmkvStateStorage } from '@/store/mmkv'
 import { celebrateCompletion } from '@/services/notifications'
 import type { Subtask, Task } from '@/types'
@@ -68,6 +69,17 @@ interface TaskState {
   ) => Task
   updateTask: (id: string, patch: Partial<Omit<Task, 'id' | 'createdAt'>>) => void
   deleteTask: (id: string) => void
+  /**
+   * Apply one `RecoveryPreview` drop (`core/recovery.ts`) to the task it
+   * targets (FR-16, FR-60). A non-recurring moot task, or a recurring one
+   * whose series has ended, is removed exactly like `deleteTask`. A missed
+   * RECURRING occurrence is instead advanced past the miss — the series
+   * survives with its rule (and `count`, for a count-limited series) rolled
+   * forward; only the missed instance goes away. Delegates the decision to
+   * `core/recovery.ts#applyRecoveryDrop` (pure) so there is exactly one place
+   * that computes it — never call `deleteTask` directly for a Recovery drop.
+   */
+  applyRecoveryDrop: (drop: recovery.RecoveryDrop) => void
 
   addSubtask: (id: string, subtask: Omit<Subtask, 'id'> & { id?: string }) => void
   removeSubtask: (id: string, subtaskId: string) => void
@@ -194,6 +206,26 @@ export const useTaskStore = create<TaskState>()(
           const next = { ...state.tasks }
           delete next[id]
           return { tasks: next }
+        })
+      },
+
+      applyRecoveryDrop: (drop) => {
+        set((state) => {
+          const task = state.tasks[drop.task.id]
+          if (!task) return state
+          const resolved = recovery.applyRecoveryDrop(task, drop, Date.now())
+          if (resolved == null) {
+            // moot_past_due, or a recurring series that has genuinely ended —
+            // both are finished-with, exactly like a manual delete.
+            const next = { ...state.tasks }
+            delete next[drop.task.id]
+            return { tasks: next }
+          }
+          // Recurring occurrence advanced past the miss — persist the rolled-
+          // forward task, never delete it.
+          return {
+            tasks: { ...state.tasks, [drop.task.id]: { ...resolved, syncState: 'pending' } },
+          }
         })
       },
 

@@ -16,6 +16,7 @@ The doc set was renumbered. These 11 files are the complete current set — no `
 - `docs/08_MCP_and_API.md` — Claude MCP connection + public API. Post-launch, never gates store submission.
 - `docs/09_Decisions.md` — locked product/technical decisions; the living round-by-round preferences log. **Log here when Aria requests a product/design change**, and reflect anything binding into `01_PRD.md` / `02_Design_System.md`.
 - `docs/V2_Changes.md` — everything deliberately deferred. **Never build from this file** — consult it only to know what NOT to build. See standing rule below.
+- `docs/CONFORMANCE.md` — a generated conformance audit (FR/NFR → code, dated per run), **not a spec and not part of the doc set above**. Read it to see what's actually built; never build *from* it — a gap it lists is only real if the numbered docs above also require it.
 
 ## Standing rule for every session (docs/07 §A2)
 "Build strictly from `01_PRD` and its companion specs. Match `02_Design_System` for all UI. The scheduling engine is on-device and must be smooth and correct. The lock unit is the focus session (`04`). Never build anything in `V2_Changes.md`. The existing codebase is a foundation, but the Ignition/session/verification layer is a rebuild to the new model, not an incremental patch. My style: no em dashes, no semicolons, direct, one best recommendation."

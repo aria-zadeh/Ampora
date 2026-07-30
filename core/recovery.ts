@@ -314,6 +314,72 @@ function buildSummary(dropCount: number, bumpCount: number, rebuildCount: number
   return `I'll ${joined}.`
 }
 
+// ---------------------------------------------------------------------------
+// Applying a drop (FR-60 "accepts in one tap" + the FR-16 apply step)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve ONE `RecoveryDrop` against its current, freshly-loaded task,
+ * producing the Task to persist — or `null` to mean "delete this task".
+ * `buildRecoveryPreview` only PREVIEWS; this is the piece that decides what
+ * applying a preview actually does, so the caller
+ * (`store/taskStore.ts#applyRecoveryDrop`) has exactly one place to call
+ * rather than a second hand-rolled path that can drift out of sync.
+ *
+ * - `moot_past_due` (always non-recurring): always `null`. The task is
+ *   genuinely done-with; nothing else depends on keeping it around.
+ * - `missed_occurrence` whose `recurringAdvance.seriesEnded` is true: also
+ *   `null` — the rule has no occurrence left to advance to (`until`/`count`
+ *   exhausted), so — per `core/recurrence.ts#advanceMissedOccurrence`'s own
+ *   contract — it is treated exactly like a finished one-off.
+ * - `missed_occurrence` otherwise: NEVER `null`. This is the data-loss fix:
+ *   the series continues. Returns `task` rolled to `recurringAdvance.due`,
+ *   with `recurrence.count` updated to `nextCount` when the rule tracks one
+ *   (an undefined `nextCount` means "nothing to persist" — the rule is
+ *   either unbounded or the series ended; see `RecurringAdvance`'s own
+ *   tsdoc). `carryForward` true PRESERVES progress and the subtask checklist
+ *   exactly as they stand (the missed work is due next, not discarded);
+ *   `carryForward` false (the FR-16 default) resets to a fresh occurrence —
+ *   every subtask's `completedAt` cleared, `progressMin` back to 0, the
+ *   First move reset to not-done, `status` back to `'todo'` — the same
+ *   "fresh copy of the template" contract a genuine completion rollover uses
+ *   (`core/recurrence.ts#rollToNextOccurrence`, doc `03` §2.9), because an
+ *   abandoned occurrence deserves the same fresh start as a finished one,
+ *   never a stale half-checked list bleeding into a new due date.
+ *
+ * Pure: never mutates `task`, never reads a clock — `now` only stamps
+ * `updatedAt`. Only `drop.reason` / `drop.recurringAdvance` are consulted;
+ * `drop.task` (a preview-time snapshot) is deliberately never read here —
+ * the caller passes the CURRENT task explicitly so a drop applied slightly
+ * after the preview was built still lands on live data, not a stale echo.
+ */
+export function applyRecoveryDrop(task: Task, drop: RecoveryDrop, now: number): Task | null {
+  if (drop.reason === 'moot_past_due') return null
+
+  const advance = drop.recurringAdvance
+  if (!advance || advance.seriesEnded) return null
+
+  const rule = task.recurrence
+  const nextRule = rule && advance.nextCount !== undefined ? { ...rule, count: advance.nextCount } : rule
+
+  if (advance.carryForward) {
+    return { ...task, due: advance.due, recurrence: nextRule, updatedAt: now }
+  }
+
+  // Drop (default): fresh occurrence, exactly like a genuine-completion rollover.
+  return {
+    ...task,
+    due: advance.due,
+    recurrence: nextRule,
+    status: 'todo',
+    completedAt: undefined,
+    progressMin: 0,
+    subtasks: task.subtasks.map((s) => ({ ...s, completedAt: undefined })),
+    firstMove: task.firstMove ? { ...task.firstMove, done: false } : task.firstMove,
+    updatedAt: now,
+  }
+}
+
 /** Exposed for tests / callers that need the same thresholds. */
 export const RECOVERY_CONSTANTS = {
   LAPSE_DAY_THRESHOLD,

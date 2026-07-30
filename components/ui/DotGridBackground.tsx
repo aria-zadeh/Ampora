@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Defs, Pattern, Circle, Rect } from "react-native-svg";
+import { colors } from "@/utils/design-tokens";
 
 interface DotGridBackgroundProps {
   /** Positioning classes (NativeWind). Absolute full-bleed by default. */
@@ -23,7 +24,7 @@ interface DotGridBackgroundProps {
 export default function DotGridBackground({
   className,
   style,
-  tint = "#1C1917",
+  tint = colors.light.text,
 }: DotGridBackgroundProps) {
   return (
     <Svg

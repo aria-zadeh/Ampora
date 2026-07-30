@@ -20,13 +20,15 @@
 
 | Verdict | Count |
 |---|---|
-| DONE | 47 |
-| PARTIAL | 15 |
-| MISSING | 2 |
-| DEFERRED | 0 (see §6 for scope that crept back in) |
+| DONE | 52 |
+| PARTIAL | 11 |
+| MISSING | 0 |
+| DEFERRED | 0 (nothing in-scope is deferred by definition; see §5 for out-of-scope items that crept back in anyway) |
 | POST-LAUNCH | 3 |
-| BLOCKED-EXTERNAL | 4 |
-| **Total rows** | **71** |
+| BLOCKED-EXTERNAL | 1 |
+| **Total rows** | **67** |
+
+Counted by hand against every row in §1–§2. Zero pure MISSING is not a rounding error: everything this audit went looking for had *something* real behind it, even where that something doesn't reach the user yet (see FR-20, FR-1) — which is why PARTIAL carries most of the gap-load rather than MISSING. Only one row (FR-88, real IAP) is dominated by a Mac/App-Store-Connect/API-key dependency rather than a mix of working-and-missing code, so it's the only row using BLOCKED-EXTERNAL rather than folding that caveat into a DONE/PARTIAL row (FR-7, FR-8, and FR-40 all carry the same kind of caveat inline instead, because most of what those requirements ask for is independently verifiable without a Mac or a key).
 
 (Counts cover every FR/NFR row in §1–§2 below; the Gherkin, wellbeing, copy, and V2-creep sections are qualitative follow-ups on the same evidence, not additional counted rows.)
 
@@ -44,7 +46,7 @@
 | FR-4 | Voice capture ("Brain dump") | DONE | `services/voiceCapture.ts` (on-device STT via `expo-speech-recognition`, PRD §15 Q6's own stated preference), `components/capture/BrainDumpSheet.tsx`. Explicit graceful degradation to the typed field on any failure (`services/voiceCapture.ts:16-33`). |
 | FR-5 | Inbox for detail-less capture | DONE | `types/index.ts:246-267` `Task.isInbox` with the promotion rule documented inline; store-side promotion in `store/taskStore.ts` per that doc comment. |
 | FR-6 | Lists/Tags/Search/Filters/Sorting/smart views | PARTIAL | List/tag/priority/missed/unscheduled/due-range filters confirmed in `app/(tabs)/tasks.tsx:312-324`. The "has-stake"/"Stakes active" smart view is explicitly NOT implemented — the code says so itself: `app/(tabs)/tasks.tsx:328-330` and `:772-774`, `// TODO(stakes): FR-6 also calls for "has-stake" / "Stakes active" filters here. Deliberately not implemented in this pass — stakesStore is being rewritten by another workstream right now.` That workstream (the Ignition rebuild) is now substantially done (see FR-40 below), so this TODO is stale and actionable. |
-| FR-7 | Source-grounded breakdown | DONE | `docs/03` Part 1.3 rules implemented server-side: `supabase/functions/ai-breakdown/index.ts`; client wiring `services/ai.ts:175-200` (`breakdownTask`), local fallback path never throws to UI. |
+| FR-7 | Source-grounded breakdown | DONE | `docs/03` Part 1.3 rules implemented server-side: `supabase/functions/ai-breakdown/index.ts`; client wiring `services/ai.ts:175-200` (`breakdownTask`), local fallback path never throws to UI. Per CLAUDE.md's project-state note the edge function returns `{error:"no_key"}` until `GEMINI_API_KEY` is set server-side — this task's rules forbid calling the edge function to verify that live, so real-Gemini breakdown *quality* (as opposed to the fallback path, which is what was verified here) is `BLOCKED-EXTERNAL`, not re-tested by this audit. |
 | FR-8 | First move + editable subtasks + Make easier + Refine | DONE | `components/task-editor/SubtaskChecklist.tsx`, `services/ai.ts:203-228` (`refineBreakdown`, `simplifySubtask`), edge functions `ai-refine`, `ai-simplify`. First move never unlocks anything — enforced at the session screen, see FR-41 below. |
 
 ### Scheduling engine
@@ -81,7 +83,7 @@
 
 | ID | Summary | Verdict | Evidence |
 |---|---|---|---|
-| FR-40 | Stake apps via native picker, editable, six never-lock categories enforced | DONE | `store/stakesStore.ts:600-638` (`setSelection` rejects never-lock + "all apps" tokens), `core/blocking/limits.ts:72-94` (categories + all-apps tokens), `components/stakes/AppPicker.tsx:123` (`isLockable` filters the catalog — this fixes the exact "isLockable had zero callers" issue flagged as a past failure mode; it now has two real callers). iOS opaque-token picker is real code but is `BLOCKED-EXTERNAL` (see §5); web/dev correctly uses a labeled mock catalog (`AppPicker.tsx:9-14`). |
+| FR-40 | Stake apps via native picker, editable, six never-lock categories enforced | DONE | `store/stakesStore.ts:600-638` (`setSelection` rejects never-lock + "all apps" tokens), `core/blocking/limits.ts:72-94` (categories + all-apps tokens), `components/stakes/AppPicker.tsx:123` (`isLockable` filters the catalog — this fixes the exact "isLockable had zero callers" issue flagged as a past failure mode; it now has two real callers). The real iOS opaque-token `FamilyActivityPicker` itself is written but unverifiable here — needs a Mac (see §7); web/dev correctly uses a labeled mock catalog in the meantime (`AppPicker.tsx:9-14`), so the requirement's editable-list-plus-enforcement substance is genuinely testable today even though the native picker isn't. |
 | FR-41 | Stake = hold (`session` default / `until_done` opt-in short-tasks) + trigger | DONE | `types/index.ts:420-471` (`StakeSession`), `store/stakesStore.ts:640-756` (`startStake`, full gate order, `effectiveSessionMin` clamping), `isUntilDoneEligible`:564-579 (must fit one capped session). Anti-leak enforced at the store, not the UI: `completeStake` is a documented no-op for `hold:'session'` (`store/stakesStore.ts:955-968`). Tests: `core/__tests__/ignition-migrations.test.ts`. |
 | FR-41a | Scheduled trigger, optional start window, never arms in quiet hours, dismissible | DONE | `core/stakeAutoArm.ts` (`decideAutoArm`, pure, unit-tested: `core/__tests__/stakeAutoArm.test.ts`), wired via `store/stakesStore.ts:866-921` (`autoArmDueStakes`) and `hooks/useStakeScheduler` (mounted in `app/_layout.tsx:12`). Quiet-hours-at-arm-moment check in `scheduleStake`:798-800 (distinct from at-request-time, documented why). |
 | FR-41b | Per-device, independent | DONE | `store/stakesStore.ts:60-69` (`getDeviceId`), `StakeSession.deviceId` stamped on every session (`:696-703`). No cross-device sync of active session state exists (correctly absent). |
@@ -99,7 +101,7 @@
 |---|---|---|---|
 | FR-77 | Three-tier unlock: honor / focus-time / photo-screenshot | DONE | `components/verification/VerificationSheet.tsx:116-148` (method list, exactly three tiers plus honor = four options matching the documented `verification` union), `store/proofStore.ts`. |
 | FR-77b | Focus-time pauses on background, resumes on foreground, foreground-only | DONE | `hooks/useForegroundTimer.ts:132-152` (AppState-gated, explicitly does NOT auto-resume, "the user resumes on purpose"), accrual wired `app/focus/session.tsx:241-245` (`handleSecond` → `accrueFocus`). |
-| FR-78 | Never traps: panic valve + override everywhere, AI errs toward accept, no shame copy | DONE | Override "Complete anyway" always shown when blocked (`components/verification/VerificationSheet.tsx:640-654`), AI verdict defaults to `"pass"` on any absence/error (`:95-110`), no shame copy found in a targeted search (see §4). |
+| FR-78 | Never traps: panic valve + override everywhere, AI errs toward accept, no shame copy | DONE | Override "Complete anyway" always shown when blocked (`components/verification/VerificationSheet.tsx:640-654`), AI verdict defaults to `"pass"` on any absence/error (`:95-110`), no shame copy found in a targeted search (see §3 item 7). |
 
 ### Projects
 
@@ -115,8 +117,8 @@
 | ID | Summary | Verdict | Evidence |
 |---|---|---|---|
 | FR-87 | Auth (Apple/Google/email), cloud source-of-truth, no anonymous mode, deletion+export | PARTIAL | Email magic link is real and solid: `app/auth.tsx`, `services/supabase.ts` (`signInWithMagicLink`). **Apple and Google sign-in are not implemented** — `app/auth.tsx` offers only email + a "Continue as guest" link. **A permanent, non-`__DEV__`-gated guest-mode bypass exists and directly contradicts "No anonymous local-only mode"**: `app/auth.tsx:262-281` sets `globalThis.__AMPORA_GUEST_MODE__ = true` and routes straight past auth; `app/_layout.tsx:109-137` polls that flag and exempts guest mode from the auth/onboarding/paywall gate entirely (`:129` `if (guestMode) return; // guest mode handles its own routing`). This is not a stray dev flag behind `__DEV__` — it is a labeled, always-present UI affordance. Deletion/export: `core/dataExport.ts:98` (`wipeAllData`) plus an export function, surfaced in `components/settings/DataSettings.tsx`. |
-| FR-88 | Paid app, 2-week trial, monthly/annual via Apple IAP, dev bypass | PARTIAL | Trial/entitlement math is real and tested-by-construction: `core/subscription.ts` (`TRIAL_DURATION_DAYS=14`, `isActive`, `startTrial`). The purchase-strategy seam is fully built (`core/iap/PurchaseStrategy.ts`, `MockPurchaseStrategy.ts`, `NativePurchaseStrategy.ts` — the last is real RevenueCat-calling code, gated behind `FEATURE_FLAGS.IAP_NATIVE`). But `react-native-purchases` is **not in `package.json`** — real purchasing cannot run yet; `getPurchaseStrategy()` (`core/iap/index.ts:36-45`) always returns the mock today. Dev bypass: `constants/featureFlags.ts:66` (`DEV_BYPASS_PAYWALL: __DEV__`, correctly stripped from production). This whole area (`core/iap/**`, `app/paywall.tsx`) is under active edit by another worker (P16-revenuecat) right now. |
-| FR-89 | iOS/Android full, web minus blocking, phone-first, English-only | DONE (for what's built) | `core/blocking/SoftBlockingStrategy.ts` runs identically everywhere including web (`kind:'soft'`, no native import); `components/stakes/AppPicker.tsx:9-14` documents and implements the web/dev mock-catalog stand-in explicitly so it never over-promises OS blocking. No i18n/locale infrastructure found (consistent with "English only at launch," not a gap). |
+| FR-88 | Paid app, 2-week trial, monthly/annual via Apple IAP, dev bypass | BLOCKED-EXTERNAL | Trial/entitlement math is real and tested-by-construction: `core/subscription.ts` (`TRIAL_DURATION_DAYS=14`, `isActive`, `startTrial`), and the whole gate/paywall/dev-bypass UI works today (`app/paywall.tsx`, `constants/featureFlags.ts:66` `DEV_BYPASS_PAYWALL: __DEV__`, correctly stripped from production). The purchase-strategy seam is fully built (`core/iap/PurchaseStrategy.ts`, `MockPurchaseStrategy.ts`, `NativePurchaseStrategy.ts` — the last is real RevenueCat-calling code, gated behind `FEATURE_FLAGS.IAP_NATIVE`). But the requirement's actual core ask — real money via Apple IAP — cannot complete: `react-native-purchases` is **not in `package.json`**, so `getPurchaseStrategy()` (`core/iap/index.ts:36-45`) always returns the mock, and finishing this needs App Store Connect product setup plus installing the real package, not more code. This whole area (`core/iap/**`, `app/paywall.tsx`) is under active edit by another worker (P16-revenuecat) right now. |
+| FR-89 | iOS/Android full, web minus blocking, phone-first, English-only | DONE | Scoped to what "full functionality" can mean before native locking exists: `core/blocking/SoftBlockingStrategy.ts` runs identically everywhere including web (`kind:'soft'`, no native import); `components/stakes/AppPicker.tsx:9-14` documents and implements the web/dev mock-catalog stand-in explicitly so it never over-promises OS blocking. No i18n/locale infrastructure found (consistent with "English only at launch," not a gap). |
 | FR-90 | Pre-built-tomorrow pass, "Ready for tomorrow" notification | DONE | `core/nightlyPass.ts:44-83` (`decideNightlyPass`, evening-window + missed-catch-up logic), notification copy `services/notifications.ts:103-108` (`readyForTomorrowCopy`, verbatim match to §8.9). |
 
 ### Recovery, Blindfold, Focus, Notifications, Onboarding, Settings
@@ -137,7 +139,7 @@
 |---|---|---|---|
 | FR-73 | MCP server | POST-LAUNCH | No MCP server code exists anywhere in the repo (searched for `mcp`/`MCP`/"model context protocol" — no hits outside this doc set). Correctly absent per `docs/08` and `docs/07` Milestone 7; not a gap. |
 | FR-74 | Public API | POST-LAUNCH | Same as FR-73 — no REST/GraphQL surface exists. Correctly absent. |
-| FR-75 | Portable engine (pure TS, on-device + Edge Function, identical results) | POST-LAUNCH (on-device half is DONE now) | The on-device half is real today and is exactly what `docs/08` asks for: `core/scheduler/**` has zero react-native/expo/MMKV imports (verified by reading every file in the folder), is deterministic given an explicit `now`, and is unit-tested for determinism (`core/__tests__/nfr.test.ts:66-96`, shuffled-input equality). The server-side half (an Edge Function actually importing this package) does not exist yet, which is expected — MCP/API are the only current consumers of that half and are themselves POST-LAUNCH. |
+| FR-75 | Portable engine (pure TS, on-device + Edge Function, identical results) | POST-LAUNCH | The on-device half is real today and is exactly what `docs/08` asks for: `core/scheduler/**` has zero react-native/expo/MMKV imports (verified by reading every file in the folder), is deterministic given an explicit `now`, and is unit-tested for determinism (`core/__tests__/nfr.test.ts:66-96`, shuffled-input equality). Scored POST-LAUNCH rather than DONE because the requirement's actual ask is dual-environment parity: the server-side half (an Edge Function actually importing this package) does not exist yet. That's expected — MCP/API are the only current consumers of that half and are themselves POST-LAUNCH — but it means the requirement as a whole isn't demonstrable end to end yet, only its on-device half is. |
 
 ---
 

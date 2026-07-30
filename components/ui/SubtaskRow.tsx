@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { PressableScale } from "./PressableScale";
 import * as taskLogic from "@/core/task-logic";
+import { colors } from "@/utils/design-tokens";
 import type { Subtask } from "@/types";
 
 interface SubtaskRowProps {
@@ -51,7 +52,7 @@ export function SubtaskRow({
             done ? "bg-primary-600" : "border-2 border-neutral-300"
           }`}
         >
-          {done && <Ionicons name="checkmark" size={15} color="#FFFFFF" />}
+          {done && <Ionicons name="checkmark" size={15} color={colors.light.primaryForeground} />}
         </View>
       </Pressable>
 
@@ -102,7 +103,7 @@ export function SubtaskRow({
           accessibilityLabel="Delete step"
           hitSlop={8}
         >
-          <Ionicons name="trash-outline" size={18} color="#6F6862" />
+          <Ionicons name="trash-outline" size={18} color={colors.light.textMuted} />
         </Pressable>
       )}
     </View>

@@ -6,7 +6,7 @@ import { FeatureShell } from "./FeatureShell";
 import { PressableScale } from "./PressableScale";
 import { PulseScale } from "./PulseScale";
 import { Heading } from "./Heading";
-import { gradients } from "@/utils/design-tokens";
+import { gradients, colors } from "@/utils/design-tokens";
 import type { StarterAction } from "@/types";
 
 interface StarterActionCardProps {
@@ -72,7 +72,7 @@ export function StarterActionCard({ action, onToggle }: StarterActionCardProps) 
                 <Ionicons
                   name={done ? "checkmark-circle" : "ellipse-outline"}
                   size={18}
-                  color={done ? "#15803D" : "#FFFFFF"}
+                  color={done ? "#15803D" : colors.light.primaryForeground}
                 />
                 <Text
                   className={`ml-2 text-label font-semibold ${

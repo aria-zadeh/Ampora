@@ -8,7 +8,7 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { EASINGS } from "@/utils/motion";
-import { motion, shadows } from "@/utils/design-tokens";
+import { motion, shadows, colors } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -79,7 +79,7 @@ export function FAB({ onPress, icon = "add" }: FABProps) {
           width: 56,
           height: 56,
           borderRadius: 28,
-          backgroundColor: "#2563EB",
+          backgroundColor: colors.light.primary,
           alignItems: "center",
           justifyContent: "center",
           zIndex: 50,
@@ -88,7 +88,7 @@ export function FAB({ onPress, icon = "add" }: FABProps) {
         animatedStyle,
       ]}
     >
-      <Ionicons name={icon} size={28} color="#FFFFFF" />
+      <Ionicons name={icon} size={28} color={colors.light.primaryForeground} />
     </AnimatedPressable>
   );
 }

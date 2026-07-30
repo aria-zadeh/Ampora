@@ -54,7 +54,7 @@ export function RecoverySheet({ visible, onClose }: RecoverySheetProps) {
   const tasks = useTaskStore(useShallow(selectAllTasks))
   const blocks = useScheduleStore(useShallow(selectAllBlocks))
 
-  const deleteTask = useTaskStore((s) => s.deleteTask)
+  const applyRecoveryDrop = useTaskStore((s) => s.applyRecoveryDrop)
   const updateTask = useTaskStore((s) => s.updateTask)
   const dismissBanner = useRecoveryStore((s) => s.dismissBanner)
 
@@ -79,9 +79,17 @@ export function RecoverySheet({ visible, onClose }: RecoverySheetProps) {
   const handleRebuild = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
 
-    // 1) Drop the moot / missed past-due items.
+    // 1) Resolve every past-due item. A non-recurring moot task (or a
+    // recurring one whose series has ended) is dropped outright. A missed
+    // RECURRING occurrence is instead ADVANCED past the miss — the series
+    // continues with its rule (and count, for a count-limited series)
+    // rolled forward; only the missed instance goes away (FR-16). Deleting
+    // the whole task here would destroy the user's recurring commitment over
+    // a single missed day, so this always goes through
+    // `applyRecoveryDrop` — never a direct `deleteTask` — which is the one
+    // place that decides delete-vs-advance (`core/recovery.ts`).
     for (const drop of preview.drops) {
-      deleteTask(drop.task.id)
+      applyRecoveryDrop(drop)
     }
 
     // 2) Bump now-urgent tasks to the front by raising their priority floor.

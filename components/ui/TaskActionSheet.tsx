@@ -22,7 +22,7 @@ import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 
 import { Heading } from '@/components/ui/Heading'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { shadows } from '@/utils/design-tokens'
+import { shadows, colors } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
 import type { List, Task } from '@/types'
@@ -164,7 +164,7 @@ export function TaskActionSheet({
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#57534E" />
+                    <Ionicons name="close" size={20} color={colors.light.textSecondary} />
                   </Pressable>
                 </View>
 
@@ -258,7 +258,7 @@ function ListPicker({
         accessibilityRole="button"
         accessibilityLabel="Back to actions"
       >
-        <Ionicons name="chevron-back" size={16} color="#2563EB" />
+        <Ionicons name="chevron-back" size={16} color={colors.light.primary} />
         <Text className="text-caption font-medium text-primary-600">Back</Text>
       </Pressable>
       <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
@@ -285,7 +285,7 @@ function ListPicker({
                   importantForAccessibility="no"
                 />
                 <Text className="flex-1 text-body-lg font-medium text-neutral-900">{opt.name}</Text>
-                {selected && <Ionicons name="checkmark" size={18} color="#2563EB" />}
+                {selected && <Ionicons name="checkmark" size={18} color={colors.light.primary} />}
               </PressableScale>
             )
           })}
@@ -303,7 +303,7 @@ type Tint = 'neutral' | 'primary' | 'success' | 'danger'
 
 const TINT_STYLES: Record<Tint, { icon: string; iconBg: string; text: string }> = {
   neutral: { icon: '#44403C', iconBg: 'bg-neutral-100', text: 'text-neutral-900' },
-  primary: { icon: '#2563EB', iconBg: 'bg-primary-100', text: 'text-neutral-900' },
+  primary: { icon: colors.light.primary, iconBg: 'bg-primary-100', text: 'text-neutral-900' },
   success: { icon: '#15803D', iconBg: 'bg-success-100', text: 'text-neutral-900' },
   danger: { icon: '#DC2626', iconBg: 'bg-danger-100', text: 'text-danger-700' },
 }

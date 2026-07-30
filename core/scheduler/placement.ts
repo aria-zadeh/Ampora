@@ -20,11 +20,14 @@
 import type { List, ScheduledBlock, SchedulingHours, Task } from '@/types'
 import { stableId } from '@/core/id'
 import {
+  DEPENDENCY_BLOCKED_REASON,
   MS_PER_DAY,
   MS_PER_MIN,
   type FreeInterval,
+  type MaybeDependencyBlocked,
   type Span,
   type Unschedulable,
+  type UnschedulableReasonKind,
   type WorkloadMode,
 } from './types'
 import {
@@ -270,11 +273,47 @@ function commit(state: PlacementState, task: Task, start: number, end: number, n
  * (they simply take whatever is left — §9.5.11).
  */
 export function placeTask(task: Task, ctx: PlacementContext, state: PlacementState): void {
+  // FR-20 silent-drop fix #2: `ordering.ts#orderTasks` cannot place a task
+  // whose dependency isn't itself resolvable this run, but it must not just
+  // vanish either — it tags the (cloned) task with the reason it already
+  // worked out (it has the full task list; this function only ever sees one
+  // task) and still returns it so it reaches this loop. Record the reason and
+  // stop — attempting a real placement here would ignore the very dependency
+  // that made this task unplaceable in the first place. Dedup guard: the
+  // recurring-occurrence expansion in `recompute.ts` can re-visit the same
+  // taskId more than once per run (via a fresh synthetic occurrence object
+  // that still carries this tag through object spread), and one reason per
+  // task reads better than a repeat.
+  const blockedReason = (task as MaybeDependencyBlocked)[DEPENDENCY_BLOCKED_REASON]
+  if (blockedReason) {
+    if (!state.unschedulable.some((u) => u.taskId === task.id)) {
+      state.unschedulable.push({ taskId: task.id, kind: 'dependency_blocked', reason: blockedReason })
+    }
+    return
+  }
+
   // Credit minutes already held by pinned prev blocks for this task so a
   // moved/postponed/locked block is not duplicated by a fresh placement.
   const pinnedMin = ctx.pinnedMinutesByTask?.get(task.id) ?? 0
   const remaining = remainingMinutes(task) - pinnedMin
-  if (remaining <= 0) return
+  if (remaining <= 0) {
+    // FR-20 silent-drop fix #1: nothing left to place. That's routine and
+    // silent when it means "already handled" — completed progress
+    // (durationMin - progressMin <= 0) or a pinned block already covering the
+    // remaining work (pinnedMin >= remainingMinutes(task)) both legitimately
+    // need no new block. It is NOT routine when the task itself never had a
+    // duration (durationMin <= 0): that task can never produce a block no
+    // matter how free the calendar is, and today it simply vanished with no
+    // record. Only that specific case gets a reason.
+    if (task.durationMin <= 0) {
+      state.unschedulable.push({
+        taskId: task.id,
+        kind: 'zero_duration',
+        reason: "This task has no estimated duration, so it can't be scheduled. Add a duration to place it.",
+      })
+    }
+    return
+  }
 
   const mode: WorkloadMode = isNearOrOverDue(task, ctx.now) ? 'frontload' : ctx.workload
   const bufBefore = task.bufferBeforeMin ?? 0
@@ -285,7 +324,7 @@ export function placeTask(task: Task, ctx: PlacementContext, state: PlacementSta
     const need = remaining + bufBefore + bufAfter
     const slot = bestWindow(need, candidates, mode, task, state)
     if (!slot) {
-      state.unschedulable.push({ taskId: task.id, reason: unschedReason(task, ctx) })
+      state.unschedulable.push({ taskId: task.id, ...unschedReason(task, ctx) })
       return
     }
     // Place the work inside the buffered window (buffer time is reserved, not worked).
@@ -324,22 +363,38 @@ export function placeTask(task: Task, ctx: PlacementContext, state: PlacementSta
   }
 
   if (leftover > 0) {
-    state.unschedulable.push({
-      taskId: task.id,
-      reason: placedAny
-        ? `Only part of this task fit before its deadline (${leftover} min could not be placed).`
-        : unschedReason(task, ctx),
-    })
+    if (placedAny) {
+      state.unschedulable.push({
+        taskId: task.id,
+        kind: 'partially_placed',
+        reason: `Only part of this task fit before its deadline (${leftover} min could not be placed).`,
+      })
+    } else {
+      state.unschedulable.push({ taskId: task.id, ...unschedReason(task, ctx) })
+    }
   }
 }
 
-/** Human-readable reason for FR-20's "explain why" UI. */
-function unschedReason(task: Task, ctx: PlacementContext): string {
+/** Human-readable reason (+ machine-readable kind) for FR-20's "explain why" UI. */
+function unschedReason(
+  task: Task,
+  ctx: PlacementContext
+): { reason: string; kind: UnschedulableReasonKind } {
   if (task.due != null && task.due <= ctx.now) {
-    return 'This task is past its deadline. Extend the deadline or mark it done.'
+    return {
+      kind: 'past_deadline',
+      reason: 'This task is past its deadline. Extend the deadline or mark it done.',
+    }
   }
   if (task.due != null) {
-    return 'No free time before the deadline. Try relaxing scheduling hours, extending the deadline, or making it splittable.'
+    return {
+      kind: 'no_free_time',
+      reason:
+        'No free time before the deadline. Try relaxing scheduling hours, extending the deadline, or making it splittable.',
+    }
   }
-  return 'No free time available in your scheduling hours within the planning window.'
+  return {
+    kind: 'no_free_time_undated',
+    reason: 'No free time available in your scheduling hours within the planning window.',
+  }
 }

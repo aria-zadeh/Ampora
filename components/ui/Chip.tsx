@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { PressableScale } from "./PressableScale";
+import { colors } from "@/utils/design-tokens";
 
 interface ChipProps {
   label: string;
@@ -45,7 +46,7 @@ export function Chip({
           <Ionicons
             name="close"
             size={14}
-            color={selected ? "#1D4ED8" : "#6F6862"}
+            color={selected ? colors.light.primaryDark : colors.light.textMuted}
           />
         </Pressable>
       ) : null}

@@ -41,7 +41,6 @@ export default function AhaScreen() {
   const { taskId } = useLocalSearchParams<{ taskId?: string }>();
 
   const task = useTaskStore((s) => (taskId ? s.tasks[taskId] : undefined));
-  const onboardingComplete = useSettingsStore((s) => s.settings.onboardingComplete);
 
   const [stakeOpen, setStakeOpen] = useState(false);
 
@@ -51,9 +50,22 @@ export default function AhaScreen() {
   // If this screen is somehow revisited after onboarding already completed
   // (e.g. backing out of the focus session mid-stack), don't strand the user
   // inside the onboarding flow — send them on to the real app.
+  //
+  // MUST read the store IMPERATIVELY, once, on mount only — NOT react to
+  // `onboardingComplete` via a live selector. Every exit path below
+  // (`handleArmStake`, `handleStartWithoutLock`, `handleSkip`) flips
+  // `onboardingComplete` to true THEN navigates away in the same handler; a
+  // reactive effect watching that value would also fire at that exact
+  // moment, race the real navigation, and could win — silently swapping
+  // "go to the focus session" for "go to tabs" before the session ever
+  // mounts to arm its stake (verified live: this raced and stripped the arm
+  // every time before this guard was made mount-only).
   useEffect(() => {
-    if (onboardingComplete) router.replace("/(tabs)");
-  }, [onboardingComplete]);
+    if (useSettingsStore.getState().settings.onboardingComplete) {
+      router.replace("/(tabs)");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const finishOnboarding = () => {
     useSettingsStore.getState().updateSettings({ onboardingComplete: true });

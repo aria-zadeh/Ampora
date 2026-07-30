@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import * as Haptics from "expo-haptics";
-import { shadows } from "@/utils/design-tokens";
+import { shadows, colors } from "@/utils/design-tokens";
 
 interface Segment {
   key: string;
@@ -46,7 +46,7 @@ export function SegmentedControl({
               accessibilityState={{ selected: active }}
               accessibilityLabel={segment.label}
               className="rounded-full px-4 py-1.5"
-              style={active ? [{ backgroundColor: "#FFFFFF" }, shadows.xs] : undefined}
+              style={active ? [{ backgroundColor: colors.light.card }, shadows.xs] : undefined}
             >
               <Text
                 className={

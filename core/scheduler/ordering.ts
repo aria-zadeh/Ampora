@@ -20,6 +20,7 @@
  */
 
 import type { Task } from '@/types'
+import { DEPENDENCY_BLOCKED_REASON, type MaybeDependencyBlocked } from './types'
 
 /** Numeric priority with Low as the floor. Urgent(4) > High(3) > Med(2) > Low(1). */
 export function priorityValue(task: Task): number {
@@ -91,17 +92,60 @@ export function orderTasks(tasks: Task[], now: number, cutoff: number): Task[] {
   const datedEligible = tasks.filter((t) => isDatedEligible(t, now, cutoff))
   const eligibleIds = new Set(datedEligible.map((t) => t.id))
 
-  // Second pass: keep only those whose deps are satisfiable within this set.
-  const eligible = datedEligible.filter((t) =>
-    dependenciesSatisfiable(t, byId, eligibleIds)
-  )
+  // Second pass: split into what CAN be topologically placed this run versus
+  // what can't. A task whose dependency isn't itself satisfiable this run
+  // (not done, and not in `eligibleIds`) must stay out of the topo-sorted
+  // group — placing it anyway would silently ignore the very prerequisite
+  // that blocks it (a correctness bug, not just a missing explanation). But
+  // excluding it from the RETURNED list entirely is FR-20's other silent
+  // drop: today it just vanishes. So it's tagged with why (computed here,
+  // where the full task list + statuses are visible — `placement.ts#placeTask`
+  // only ever sees one task at a time) and appended below instead of dropped.
+  const eligible: Task[] = []
+  const blocked: Task[] = []
+  for (const t of datedEligible) {
+    if (dependenciesSatisfiable(t, byId, eligibleIds)) {
+      eligible.push(t)
+    } else {
+      blocked.push(tagDependencyBlocked(t, byId))
+    }
+  }
 
   // FR-10 base sort.
   const sorted = [...eligible].sort(compareTasks)
 
   // FR-19 stable topological reorder (Kahn), preserving FR-10 order among
   // ready tasks. Edges: dep -> task for every dep that is in `eligible`.
-  return topoSort(sorted, byId)
+  const ordered = topoSort(sorted, byId)
+
+  // FR-20: dependency-blocked tasks are never silently dropped. Appended
+  // (FR-10 order, deterministic) after the placeable group so
+  // `recompute()`'s unmodified `for (const task of ordered) placeTask(...)`
+  // loop still visits them — `placeTask` recognizes the tag set below and
+  // records why instead of attempting a placement that would skip past an
+  // unresolved prerequisite.
+  const blockedSorted = [...blocked].sort(compareTasks)
+  return [...ordered, ...blockedSorted]
+}
+
+/**
+ * Return a shallow clone of `task` tagged with a human-readable reason for
+ * why its dependency chain isn't satisfiable this run (see
+ * `DEPENDENCY_BLOCKED_REASON` in `core/scheduler/types.ts` for why this rides
+ * as data on the object rather than a new function parameter threaded through
+ * `recompute.ts`). Names the first unmet prerequisite when one is found.
+ */
+function tagDependencyBlocked(task: Task, byId: Map<string, Task>): Task {
+  const blockingId = (task.dependsOn ?? []).find((depId) => {
+    const dep = byId.get(depId)
+    return dep != null && dep.status !== 'done'
+  })
+  const blockingTitle = blockingId ? byId.get(blockingId)?.title : undefined
+  const reason = blockingTitle
+    ? `Waiting on "${blockingTitle}" to be scheduled or finished first.`
+    : 'Waiting on another task to be scheduled or finished first.'
+  const tagged: MaybeDependencyBlocked = { ...task, [DEPENDENCY_BLOCKED_REASON]: reason }
+  return tagged
 }
 
 /**

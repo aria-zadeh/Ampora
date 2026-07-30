@@ -53,11 +53,51 @@ export interface Span {
 /** Slack classification for a task's deadline pressure (PRD §9.5.5). */
 export type SlackColor = 'green' | 'amber' | 'red'
 
+/**
+ * Machine-readable classification of why a task was reported unschedulable
+ * (PRD FR-20). `reason` is always the human-facing prose; `kind` is what the
+ * UI switches on to decide which one-tap fix(es) to offer, so it never has to
+ * parse prose to know whether "extend the deadline" or "make it splittable"
+ * applies. Optional on `Unschedulable` for forward/back compatibility.
+ */
+export type UnschedulableReasonKind =
+  | 'past_deadline'
+  | 'no_free_time'
+  | 'no_free_time_undated'
+  | 'partially_placed'
+  | 'zero_duration'
+  | 'dependency_blocked'
+
 /** Why a task (or part of one) could not be placed (PRD FR-20 — never silently dropped). */
 export interface Unschedulable {
   taskId: string
   reason: string
+  kind?: UnschedulableReasonKind
 }
+
+/**
+ * Internal channel carrying a precomputed "why" from `ordering.ts`'s
+ * dependency-satisfiability check through to `placement.ts`'s `placeTask`
+ * (FR-20 silent-drop fix #2). `orderTasks` can no longer simply drop a
+ * dependency-blocked task from its returned list (that silent exclusion was
+ * the bug) — but it also can't hand the computed reason to `placeTask` via
+ * `PlacementContext`, because the only place that constructs a
+ * `PlacementContext` is `core/scheduler/recompute.ts`, a shared integration
+ * file this workstream does not own (it also wires in Recovery + recurrence,
+ * both owned by other workstreams). Tagging the returned `Task` with this
+ * well-known symbol key lets the reason ride along on the SAME object
+ * reference `recompute.ts`'s unmodified `for (const task of ordered)
+ * placeTask(...)` loop already passes through — zero changes needed there.
+ * Always a shallow clone (`{ ...task, [DEPENDENCY_BLOCKED_REASON]: reason }`),
+ * never a mutation of the original — the real `Task` type in
+ * `types/index.ts` is untouched, and the tag never leaves this one recompute
+ * pass (a symbol-keyed property is not something any store's JSON serializer
+ * would round-trip, even if a caller mistakenly tried to persist it).
+ */
+export const DEPENDENCY_BLOCKED_REASON = Symbol('ampora.scheduler.dependencyBlockedReason')
+
+/** A `Task` possibly tagged with {@link DEPENDENCY_BLOCKED_REASON}. */
+export type MaybeDependencyBlocked = Task & { [DEPENDENCY_BLOCKED_REASON]?: string }
 
 /** The engine's public input bundle. Everything the algorithm needs, nothing it reads implicitly. */
 export interface ScheduleInput {
