@@ -58,7 +58,6 @@ const defaultSettings: Settings = {
   maxNotificationsPerHour: 1,
   reminderKinds: { start: true, deadline: true, motivation: true },
   notificationNudgeDismissed: false,
-  energyPeak: { start: 15 * 60, end: 17 * 60 }, // 3pm - 5pm default (PRD §3.1 Garrett profile: most energetic midday)
   displayName: undefined,
   themePreference: 'system',
   onboardingComplete: false,

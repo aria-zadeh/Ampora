@@ -55,7 +55,6 @@ export function buildPerfFixture(seed = 42): PerfFixture {
       ],
     },
     quietHours: { start: 23 * 60, end: 8 * 60 },
-    energyPeak: { start: 9 * 60, end: 12 * 60 },
   })
 
   // Recurring-ish busy calendar events (classes/meetings), a handful per

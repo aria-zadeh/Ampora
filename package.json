@@ -10,8 +10,17 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "typecheck:native": "tsc --noEmit -p tsconfig.native.json",
+    "native:on": "node scripts/native-toggle.js on",
+    "native:off": "node scripts/native-toggle.js off",
+    "native:status": "node scripts/native-toggle.js status",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "expo": {
+    "autolinking": {
+      "nativeModulesDir": "./native/modules"
+    }
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

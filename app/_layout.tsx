@@ -5,9 +5,12 @@ import { Platform, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "nativewind";
+import * as Notifications from "expo-notifications";
 import DotGridBackground from "@/components/ui/DotGridBackground";
 import { GlobalLockBanner } from "@/components/focus/GlobalLockBanner";
 import { useStakeTick } from "@/hooks/useStakeTick";
+import { useStakeScheduler } from "@/hooks/useStakeScheduler";
+import { useNightlyPass } from "@/hooks/useNightlyPass";
 import {
   useFonts,
   Inter_400Regular,
@@ -52,6 +55,19 @@ export default function RootLayout() {
   // without this a lock armed and then walked away from has no clock running
   // against it at all (NFR-7, doc `04` §7).
   useStakeTick();
+
+  // Drive `stakesStore.autoArmDueStakes()` app-wide (FR-41a, ARCH_PLAN A4):
+  // on mount (cold-launch catch-up), every 30s while foregrounded, and on
+  // every return to foreground. This is what actually arms a scheduled stake
+  // (or times it out) — see `hooks/useStakeScheduler.ts` for the exact
+  // foreground/background/killed behaviour this does and does not cover.
+  useStakeScheduler();
+
+  // Drive the nightly pre-built-tomorrow pass app-wide (FR-90): on mount, on
+  // every return to foreground, and on a coarse poll while foregrounded. See
+  // `hooks/useNightlyPass.ts` / `services/nightlyPass.ts` for exactly what
+  // fires when and why there is deliberately no background timer here.
+  useNightlyPass();
 
   // Short delay to let Zustand/MMKV hydrate before we gate routing.
   useEffect(() => {
@@ -148,12 +164,18 @@ export default function RootLayout() {
     useStakesStore.getState().reconcileActiveSession();
   }, [ready]);
 
-  // Reschedule notification reminders whenever tasks or the notification-
-  // relevant settings change (FR-63, §8.9). Debounced 500ms so a burst of
-  // edits (e.g. adding subtasks) only reschedules once. `scheduleTaskReminders`
-  // cancels the prior batch and rebuilds a rate-limited, quiet-hours-respecting
-  // set from current state, degrading to a no-op without permission / on
-  // unsupported platforms. Runs an initial pass on app open too.
+  // Reschedule notification reminders whenever tasks, the notification-
+  // relevant settings, or the SCHEDULED BLOCKS change (FR-63, §8.9). Blocks
+  // matter because Start Reminder / Motivation Nudge now anchor on a task's
+  // next scheduled block, not an energy peak (`services/notifications.ts`) —
+  // so a recompute that moves/creates/removes blocks (e.g. a drag-reschedule,
+  // or the nightly pass placing a new project session) must reschedule
+  // reminders too, or their fire times would go stale silently. Debounced
+  // 500ms so a burst of changes (e.g. a recompute plus several task edits)
+  // only reschedules once. `scheduleTaskReminders` cancels the prior batch and
+  // rebuilds a rate-limited, quiet-hours-respecting set from current state,
+  // degrading to a no-op without permission / on unsupported platforms. Runs
+  // an initial pass on app open too.
   useEffect(() => {
     if (!ready) return;
 
@@ -164,8 +186,9 @@ export default function RootLayout() {
         timer = null;
         const tasks = selectAllTasks(useTaskStore.getState());
         const settings = useSettingsStore.getState().settings;
+        const blocks = selectAllBlocks(useScheduleStore.getState());
         // Fire-and-forget; the service never throws and never surfaces errors.
-        void scheduleTaskReminders(tasks, settings);
+        void scheduleTaskReminders(tasks, settings, blocks);
       }, 500);
     };
 
@@ -180,25 +203,29 @@ export default function RootLayout() {
       const b = prev.settings;
       if (
         a.quietHours !== b.quietHours ||
-        a.energyPeak !== b.energyPeak ||
         a.maxNotificationsPerHour !== b.maxNotificationsPerHour ||
         a.reminderKinds !== b.reminderKinds
       ) {
         reschedule();
       }
     });
+    const unsubBlocks = useScheduleStore.subscribe((state, prev) => {
+      if (state.blocks !== prev.blocks) reschedule();
+    });
 
     // Web has no OS-level scheduling, so a scheduled reminder only fires if
     // something drives `checkAndFireWebReminders` on an interval while the app
     // is open (services/notifications.ts). On web, poll ~every 60s off current
-    // tasks + settings (reschedule() delegates to checkAndFireWebReminders).
-    // Native is unchanged — expo-notifications handles scheduling itself.
+    // tasks + settings + blocks (reschedule() delegates to
+    // checkAndFireWebReminders). Native is unchanged — expo-notifications
+    // handles scheduling itself.
     let webPoll: ReturnType<typeof setInterval> | null = null;
     if (Platform.OS === "web") {
       webPoll = setInterval(() => {
         const tasks = selectAllTasks(useTaskStore.getState());
         const settings = useSettingsStore.getState().settings;
-        void scheduleTaskReminders(tasks, settings);
+        const blocks = selectAllBlocks(useScheduleStore.getState());
+        void scheduleTaskReminders(tasks, settings, blocks);
       }, 60 * 1000);
     }
 
@@ -207,8 +234,51 @@ export default function RootLayout() {
       if (webPoll) clearInterval(webPoll);
       unsubTasks();
       unsubSettings();
+      unsubBlocks();
     };
   }, [ready]);
+
+  // Route a tapped notification to the right screen. Before this, NOTHING
+  // handled a notification response anywhere in the app (landmine #2), so
+  // tapping any notification — a stake cue, a task reminder, the recurring-
+  // stake weekly summary — did nothing at all. A stake cue/arm notice routes
+  // into the focus session for its task; everything else routes to the task.
+  // Two entry points, both required: the live listener covers a tap while the
+  // app is already running or backgrounded, and the one-time
+  // `getLastNotificationResponseAsync()` check covers the cold-launch case,
+  // which a listener registered only after launch would otherwise miss
+  // entirely (the tap that started the app happened before the listener
+  // existed).
+  useEffect(() => {
+    if (!ready) return;
+
+    const routeFromResponse = (response: Notifications.NotificationResponse | null) => {
+      if (!response) return;
+      const data = response.notification.request.content.data as
+        | { type?: unknown; taskId?: unknown }
+        | undefined;
+      const taskId = typeof data?.taskId === "string" ? data.taskId : "";
+      if (!taskId) return;
+      const type = typeof data?.type === "string" ? data.type : "";
+      if (type === "stake_cue" || type === "stake_arm") {
+        router.push(`/focus/session?taskId=${taskId}`);
+      } else {
+        // Task reminders AND the recurring-stake weekly summary ("tap to
+        // edit") both land on the task screen — that's where stake setup
+        // lives, so "edit" and "reminder" resolve to the same place.
+        router.push(`/task/${taskId}`);
+      }
+    };
+
+    // Fire-and-forget, never throws: a cold launch not caused by a
+    // notification simply resolves null here.
+    Notifications.getLastNotificationResponseAsync()
+      .then(routeFromResponse)
+      .catch(() => {});
+
+    const sub = Notifications.addNotificationResponseReceivedListener(routeFromResponse);
+    return () => sub.remove();
+  }, [ready, router]);
 
   // One-time Recovery check on app open (FR-60): after the initial recompute
   // settles, look for a lapse (2+ days of missed scheduled blocks). If found,

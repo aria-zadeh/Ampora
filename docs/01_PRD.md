@@ -358,6 +358,7 @@ View pills `Day` / `3-Day` / `Week` / `Month` / `Agenda`. Manual recompute butto
 **8.9 Notifications (copy)**
 - Start Reminder: "Hey, {task} is on your plate. Want to do the first move? It takes 5 minutes."
 - Scheduled-session cue: "{task} starts now. Tap to begin, or your apps lock in {X} min."
+- Lock arm cue (fires once the start window above closes, so the cue and this one are never posted at the identical instant): "{task} locks now. Open Ampora to start your session."
 - Ready for tomorrow: "Tomorrow's plan is ready. First up: {task}."
 - Recurring-stake weekly summary: "Your daily lock on {task} at {time} is still on. Tap to edit."
 - All warm, never shaming, snoozeable, rate-limited per FR-63.

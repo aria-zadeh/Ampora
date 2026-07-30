@@ -1,0 +1,18 @@
+{
+  "name": "ampora-ignition",
+  "version": "1.0.0",
+  "description": "Ampora's Apple Family Controls native module: real OS-level app shielding for Ignition focus sessions (docs/05).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "license": "UNLICENSED",
+  "private": true,
+  "homepage": "https://ampora.app",
+  "author": "Ampora",
+  "_comment": "`main`/`types` point straight at the TS source rather than a `build/` output. This module only ever runs inside the Ampora Metro bundle (never published, never installed by npm) so there is no separate compile step to keep in sync -- Metro/Babel transform it exactly like every other file under native/modules/** the moment IGNITION_NATIVE is on. Discovered by Expo autolinking via the `expo-module.config.json` next to this file, under the nativeModulesDir the root package.json declares (./native/modules).",
+  "peerDependencies": {
+    "expo": "*",
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

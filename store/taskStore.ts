@@ -144,10 +144,18 @@ export const useTaskStore = create<TaskState>()(
       },
 
       updateTask: (id, patch) => {
+        // `autoScheduleTouched` is not a real Task field — it rides along on
+        // the patch object from `TaskEditorForm`'s Save handler (which always
+        // resubmits a full draft) purely so this store can tell a deliberate
+        // auto-schedule choice apart from a stale echo of whatever the task
+        // already had. Stripped out of `rest` so it never reaches persisted
+        // state.
+        const { autoScheduleTouched, ...rest } = patch as typeof patch & { autoScheduleTouched?: boolean }
+
         set((state) => {
           const existing = state.tasks[id]
           if (!existing) return state
-          let next: Task = { ...existing, ...patch }
+          let next: Task = { ...existing, ...rest }
 
           // FR-5 promotion: an Inbox item (isInbox) becomes schedulable the
           // moment it has BOTH a duration and a due date — through the full
@@ -155,16 +163,19 @@ export const useTaskStore = create<TaskState>()(
           // patch. Checked against the RESULT of the merge (not which keys
           // `patch` happened to include) because the editor always submits
           // its whole draft, so `patch.autoSchedule` is present but merely
-          // echoes back whatever the task already had unless the user
-          // touched the toggle themselves. A task that was never flagged
-          // isInbox (created with an explicit autoSchedule choice, or with
-          // full details already) is untouched here — this only ever moves
-          // a task OUT of the Inbox, never re-derives autoSchedule for a
-          // task the user has already configured.
+          // echoes back whatever the task already had UNLESS
+          // `autoScheduleTouched` says the user actually touched the control
+          // this edit — in which case their choice (on OR off) always wins:
+          // ignoring an explicit instruction is worse than the stale-echo
+          // case this promotion otherwise guards against. A task that was
+          // never flagged isInbox (created with an explicit autoSchedule
+          // choice, or with full details already) is untouched here — this
+          // only ever moves a task OUT of the Inbox, never re-derives
+          // autoSchedule for a task the user has already configured.
           if (existing.isInbox) {
             const hasFullDetails = next.durationMin > 0 && next.due != null
             if (hasFullDetails) {
-              next = { ...next, autoSchedule: true, isInbox: false }
+              next = { ...next, autoSchedule: autoScheduleTouched ? next.autoSchedule : true, isInbox: false }
             }
           }
 

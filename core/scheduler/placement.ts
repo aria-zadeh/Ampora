@@ -9,16 +9,15 @@
  *   place one block (non-splittable) or session-sized blocks (splittable),
  *   consuming free time as we go. Unplaceable work is collected, never dropped.
  *
- * bestWindow score = base - loadPenalty - energyMismatchPenalty - latenessPenalty
+ * bestWindow score = base - loadPenalty - latenessPenalty
  *   frontload: base = -startTimeOffset  (earliest start wins)
  *   balanced : loadPenalty = k1 * (minsPlacedThatDay / dayCapacity), k1 = 1.0
- *   energyMismatchPenalty = k2 * mismatch(energyRequired, energyScore), k2 = 0.3
  *   latenessPenalty: large if placing risks missing due (forces front-load)
  *
  * Pure; mutates only its own working copies.
  */
 
-import type { EnergyLevel, List, ScheduledBlock, SchedulingHours, Task } from '@/types'
+import type { List, ScheduledBlock, SchedulingHours, Task } from '@/types'
 import { stableId } from '@/core/id'
 import {
   MS_PER_DAY,
@@ -40,33 +39,12 @@ import { sessionSizes } from './sessionSizing'
 import { isNearOrOverDue, remainingMinutes } from './slack'
 
 const K_LOAD = 1.0
-const K_ENERGY = 0.3
-const LATENESS_PENALTY = 1e6 // dominant: never let energy/balance cause a miss
+const LATENESS_PENALTY = 1e6 // dominant: never let balance cause a miss
 
 /** Working free interval with mutable end for in-place consumption. */
 interface FreeSlot {
   start: number
   end: number
-  energyScore: number
-}
-
-/** Numeric energy level for mismatch math. */
-function energyNum(level: EnergyLevel | undefined): number {
-  switch (level) {
-    case 'low':
-      return 0.25
-    case 'high':
-      return 0.9
-    case 'normal':
-    default:
-      return 0.5
-  }
-}
-
-/** Mismatch in 0..1 between required energy and a window's energy score. */
-function energyMismatch(required: EnergyLevel | undefined, windowScore: number): number {
-  if (required == null) return 0
-  return Math.abs(energyNum(required) - windowScore)
 }
 
 export interface PlacementContext {
@@ -107,7 +85,7 @@ export interface PlacementState {
 
 export function initState(free: FreeInterval[]): PlacementState {
   return {
-    slots: free.map((f) => ({ start: f.start, end: f.end, energyScore: f.energyScore })),
+    slots: free.map((f) => ({ start: f.start, end: f.end })),
     taskFinish: new Map(),
     blocks: [],
     placedPerDay: new Map(),
@@ -170,7 +148,7 @@ function candidateSlots(
     for (const h of hoursSpans) {
       const hs = Math.max(s, h.start)
       const he = Math.min(e, h.end)
-      if (he > hs) out.push({ start: hs, end: he, energyScore: slot.energyScore })
+      if (he > hs) out.push({ start: hs, end: he })
     }
   }
   out.sort((a, b) => a.start - b.start)
@@ -192,7 +170,6 @@ function dayCapacityMinutes(state: PlacementState, dayStart: number): number {
 interface Pick {
   start: number
   end: number
-  energyScore: number
 }
 
 /**
@@ -203,7 +180,6 @@ function bestWindow(
   needMin: number,
   candidates: FreeSlot[],
   mode: WorkloadMode,
-  energyRequired: EnergyLevel | undefined,
   task: Task,
   state: PlacementState
 ): Pick | null {
@@ -233,9 +209,6 @@ function bestWindow(
       score -= K_LOAD * (placed / cap)
     }
 
-    // energyMismatchPenalty (soft).
-    score -= K_ENERGY * energyMismatch(energyRequired, slot.energyScore)
-
     // latenessPenalty: dominant if this placement would end after due.
     if (task.due != null && placeEnd > task.due) {
       score -= LATENESS_PENALTY
@@ -243,7 +216,7 @@ function bestWindow(
 
     if (score > bestScore) {
       bestScore = score
-      best = { start: placeStart, end: placeEnd, energyScore: slot.energyScore }
+      best = { start: placeStart, end: placeEnd }
     }
   }
   return best
@@ -263,13 +236,7 @@ function consume(state: PlacementState, start: number, end: number): void {
     state.slots.map((s) => ({ start: s.start, end: s.end })),
     cut
   )
-  // Rebuild slots preserving energyScore by matching against originals.
-  const rebuilt: FreeSlot[] = []
-  for (const r of remaining) {
-    const src = state.slots.find((s) => s.start <= r.start && s.end >= r.end)
-    rebuilt.push({ start: r.start, end: r.end, energyScore: src ? src.energyScore : 0.5 })
-  }
-  state.slots = rebuilt.sort((a, b) => a.start - b.start)
+  state.slots = remaining.sort((a, b) => a.start - b.start)
 }
 
 /** Record placement bookkeeping (block + day load + dep finish). */
@@ -316,7 +283,7 @@ export function placeTask(task: Task, ctx: PlacementContext, state: PlacementSta
   if (!task.splittable) {
     const candidates = candidateSlots(task, ctx, state)
     const need = remaining + bufBefore + bufAfter
-    const slot = bestWindow(need, candidates, mode, task.energyRequired, task, state)
+    const slot = bestWindow(need, candidates, mode, task, state)
     if (!slot) {
       state.unschedulable.push({ taskId: task.id, reason: unschedReason(task, ctx) })
       return
@@ -343,7 +310,7 @@ export function placeTask(task: Task, ctx: PlacementContext, state: PlacementSta
   for (const size of sizes) {
     const candidates = candidateSlots(task, ctx, state) // refresh after each placement
     const need = size + bufBefore + bufAfter
-    const slot = bestWindow(need, candidates, mode, task.energyRequired, task, state)
+    const slot = bestWindow(need, candidates, mode, task, state)
     if (!slot) {
       leftover += size
       continue // try to place remaining sessions in other windows before giving up

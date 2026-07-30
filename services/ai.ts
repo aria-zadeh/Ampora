@@ -173,7 +173,7 @@ function coerceBreakdown(raw: unknown): BreakdownResult | null {
  * to a warm generic template sized by time-to-due when AI is unavailable.
  */
 export async function breakdownTask(
-  task: Pick<Task, "title"> & Partial<Pick<Task, "notes" | "durationMin" | "due" | "energyRequired">>,
+  task: Pick<Task, "title"> & Partial<Pick<Task, "notes" | "durationMin" | "due">>,
   sourceText?: string
 ): Promise<BreakdownResult> {
   const payload = {
@@ -183,7 +183,6 @@ export async function breakdownTask(
       durationMin: task.durationMin,
       dueAt: task.due,
       hoursUntilDue: Math.round(hoursUntilDue(task.due)),
-      energyRequired: task.energyRequired,
     },
     source: sourceText ?? "none",
   };

@@ -49,7 +49,6 @@ export function recompute(input: ScheduleInput): ScheduleResult {
     prevBlocks,
     schedulingHours: settings.schedulingHours,
     quietHours: settings.quietHours,
-    energyPeak: settings.energyPeak,
   })
 
   // Sum minutes held by pinned prev blocks per task. These blocks are immovable

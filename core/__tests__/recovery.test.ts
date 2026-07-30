@@ -100,6 +100,79 @@ describe('recovery: buildRecoveryPreview — drops (moot past-due dropping)', ()
   })
 })
 
+describe('recovery: buildRecoveryPreview — recurringAdvance.nextCount (FR-16, §9.5.6)', () => {
+  // These mirror core/recurrence.ts#advanceMissedOccurrence's own
+  // "drop, multi-step catch-up" / "carry-forward advances by exactly one"
+  // suites, but assert through buildRecoveryPreview's PUBLIC RecurringAdvance
+  // result — the count is computed correctly inside advanceMissedOccurrence,
+  // but was previously dropped on the floor when the preview copied only
+  // `due` and `carryForward` off it. Left uncaught, a count-limited recurring
+  // task ("repeat 10 times") caught up by Recovery would keep a stale
+  // remaining-count and outlive its own rule.
+
+  it('drop branch: nextCount decrements by every occurrence consumed catching up, not just by 1', () => {
+    // 3 days missed (Jan 3, 4, 5 all consumed to reach "now") on a count:10 rule.
+    const task = makeTask({
+      id: 'rc1',
+      due: now - 3 * MS_PER_DAY,
+      status: 'todo',
+      recurrence: { freq: 'daily', interval: 1, count: 10 }, // carryForward unset -> drop (FR-16 default)
+    })
+    const preview = buildRecoveryPreview([task], [], now)
+    const advance = preview.drops[0].recurringAdvance
+    expect(advance).toBeDefined()
+    expect(advance!.seriesEnded).toBe(false)
+    expect(advance!.carryForward).toBe(false)
+    expect(advance!.due).toBe(now)
+    expect(advance!.nextCount).toBe(7) // 10 - 3 occurrences consumed, not 10 - 1
+  })
+
+  it('carry-forward branch: nextCount always decrements by exactly 1, regardless of how many days were missed', () => {
+    // 5 days missed, but carry-forward only ever steps ONE occurrence at a time.
+    const task = makeTask({
+      id: 'rc2',
+      due: now - 5 * MS_PER_DAY,
+      status: 'todo',
+      recurrence: { freq: 'daily', interval: 1, count: 10, carryForward: true },
+    })
+    const preview = buildRecoveryPreview([task], [], now)
+    const advance = preview.drops[0].recurringAdvance
+    expect(advance).toBeDefined()
+    expect(advance!.carryForward).toBe(true)
+    expect(advance!.due).toBe(now - 4 * MS_PER_DAY) // exactly one step on from the missed due, not caught up to "now"
+    expect(advance!.nextCount).toBe(9) // decremented by exactly 1, never by the 5 days missed
+  })
+
+  it('leaves nextCount undefined for an unbounded rule (no count to track)', () => {
+    const task = makeTask({
+      id: 'rc3',
+      due: now - 2 * MS_PER_DAY,
+      status: 'todo',
+      recurrence: { freq: 'daily', interval: 1 }, // no count, no until
+    })
+    const preview = buildRecoveryPreview([task], [], now)
+    const advance = preview.drops[0].recurringAdvance
+    expect(advance).toBeDefined()
+    expect(advance!.seriesEnded).toBe(false)
+    expect(advance!.nextCount).toBeUndefined()
+  })
+
+  it('leaves nextCount undefined when the series is exhausted (seriesEnded true) — nothing left to persist', () => {
+    // count:2 cannot reach all the way to "now" 10 days later — the series ends mid-catch-up.
+    const task = makeTask({
+      id: 'rc4',
+      due: now - 10 * MS_PER_DAY,
+      status: 'todo',
+      recurrence: { freq: 'daily', interval: 1, count: 2 },
+    })
+    const preview = buildRecoveryPreview([task], [], now)
+    const advance = preview.drops[0].recurringAdvance
+    expect(advance).toBeDefined()
+    expect(advance!.seriesEnded).toBe(true)
+    expect(advance!.nextCount).toBeUndefined()
+  })
+})
+
 describe('recovery: buildRecoveryPreview — bumps (now-urgent tasks)', () => {
   it('bumps an open, auto-scheduled task with slackRatio < 0.2 to the front', () => {
     // slackRatio = availableMin / remainingMin. availableMin=100min,

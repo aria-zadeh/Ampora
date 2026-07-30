@@ -46,7 +46,6 @@ export function makeSettings(overrides: Partial<Settings> = {}): Settings {
     subscription: { status: 'trial', trialEndsAt: undefined },
     schedulingHours: allDaySchedulingHours(),
     maxNotificationsPerHour: 1,
-    energyPeak: { start: 9 * 60, end: 12 * 60 },
     themePreference: 'system',
     onboardingComplete: true,
     ...overrides,

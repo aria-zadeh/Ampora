@@ -47,16 +47,13 @@ export interface BaseEntity {
   syncState: SyncState
 }
 
-/** Soft energy classification used for task requirements and user energy state (PRD §9.5.8, §9.5.3). */
-export type EnergyLevel = 'low' | 'normal' | 'high'
-
 /** Task lifecycle status (PRD §9.4). Distinct from `ScheduledBlock['status']`, which tracks a placed session. */
 export type TaskStatus = 'todo' | 'doing' | 'done'
 
 /**
  * A clock-time window expressed as minutes-from-midnight (0-1439), NOT epoch ms.
- * Used for scheduling-hours windows, quiet hours, and energy-peak windows —
- * anything that repeats daily rather than pinning an absolute instant.
+ * Used for scheduling-hours windows and quiet hours — anything that repeats
+ * daily rather than pinning an absolute instant.
  */
 export interface TimeWindow {
   /** Minutes from midnight, inclusive. */
@@ -326,8 +323,6 @@ export interface Task extends BaseEntity {
   bufferAfterMin?: number
   /** Optional per-task display color token/hex, overriding list/tag color for this task's blocks (doc `02`). */
   color?: string
-  /** Soft energy requirement used for energy-aware placement (PRD §9.5.3 energyMismatchPenalty). */
-  energyRequired?: EnergyLevel
   /** Per-task override of which scheduling-hours windows this task may occupy (PRD FR-13). Falls back to Settings.schedulingHours when unset. */
   schedulingHours?: SchedulingHours
 }
@@ -494,31 +489,6 @@ export interface LockEvent {
 }
 
 /**
- * One observed behavioral data point feeding the Learning Engine (PRD §9.4,
- * FR-50). Powers Focus DNA, Revealed Self, Energy/State, and stake
- * calibration.
- */
-export interface BehavioralSignal {
-  id: string
-  taskType?: string
-  /** Epoch ms. */
-  plannedStart?: number
-  /** Epoch ms. */
-  actualStart?: number
-  /** 0-23. */
-  hourOfDay: number
-  /** 0-6, 0 = Sunday. */
-  dayOfWeek: number
-  completed: boolean
-  context?: {
-    energy?: 'low' | 'normal' | 'hyper'
-    afterGym?: boolean
-    sleepHours?: number
-  }
-  stakeOutcome?: StakeSession['outcome']
-}
-
-/**
  * "Focus DNA" — the stable, recomputed-weekly personal behavioral summary
  * (PRD §9.4, FR-51).
  */
@@ -580,7 +550,7 @@ export interface Proof {
  * free-form string tag (e.g. `'first_action'`, `'session_completed'`) rather
  * than a closed union, since this is a lightweight local log, not a typed
  * domain model — deliberately NOT a revival of the Learning Engine's
- * `BehavioralSignal` (no derived profiles, no learning).
+ * behavioral-signal model (no derived profiles, no learning).
  */
 export interface AppEvent {
   id: string
@@ -655,7 +625,7 @@ export interface Project extends BaseEntity {
  * App-wide settings and safety-layer configuration. PRD §9.4 defines the
  * Ignition/wellbeing fields; this also folds in the Milestone-1
  * app-preference fields the app needs day one (scheduling hours,
- * notification cadence, energy peak, display/theme, onboarding), per the
+ * notification cadence, display/theme, onboarding), per the
  * confirmed decision. Caps/quiet-hours/never-lock/stake-strength-bounds are
  * enforced both client- and server-side (not implemented here — types only
  * for the Ignition-related fields; Milestone 1 only reads/writes the
@@ -724,8 +694,6 @@ export interface Settings {
    * nags again, even if permission stays denied (PRD §8.9 anti-nag rule).
    */
   notificationNudgeDismissed?: boolean
-  /** The user's self-reported or inferred best-focus window (PRD §3.1, §9.5.8, FR-55). */
-  energyPeak: TimeWindow
   displayName?: string
   themePreference: 'light' | 'dark' | 'system'
   /** Whether the user has completed the onboarding flow (PRD §8.10). */

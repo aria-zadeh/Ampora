@@ -59,6 +59,18 @@ interface ScheduleState {
   /** Run the engine against current task + settings state and store results. */
   recompute: () => void
   /**
+   * The nightly pre-built-tomorrow pass's entry point (PRD FR-90). HONEST
+   * NAME, NOT A DIFFERENT ALGORITHM: `core/scheduler/**` has no per-day
+   * recompute mode — `recompute()` always walks the full cutoff window
+   * (PRD §9.5.1 "from now to cutoff") — so this is a thin, semantically-named
+   * alias for `recompute()` that documents WHY `services/nightlyPass.ts`
+   * calls it: "tomorrow" is inside that window, so a full recompute is what
+   * actually places any newly-generated project session (FR-84) onto
+   * tomorrow's calendar. If the engine ever grows a real day-scoped mode,
+   * this is the seam to swap it in without touching the nightly-pass caller.
+   */
+  recomputeTomorrow: () => void
+  /**
    * Re-fetch busy events from the device calendars selected in Settings
    * (`settingsStore.calendarSyncCalendarIds`) and replace the cache, then
    * recompute. Always a full replace, never a per-item merge: `fetchBusyEvents`
@@ -185,6 +197,10 @@ export const useScheduleStore = create<ScheduleState>()(
         // the plan picks up calendar changes moments later. Outside the
         // try/finally above so it can never affect `isComputing`.
         maybeKickExternalEventsRefresh()
+      },
+
+      recomputeTomorrow: () => {
+        get().recompute()
       },
 
       refreshExternalEvents: async () => {
@@ -391,8 +407,7 @@ export function wireScheduleTriggers(): () => void {
     const b = prev.settings
     if (
       a.schedulingHours !== b.schedulingHours ||
-      a.quietHours !== b.quietHours ||
-      a.energyPeak !== b.energyPeak
+      a.quietHours !== b.quietHours
     ) {
       scheduleRecompute()
     }

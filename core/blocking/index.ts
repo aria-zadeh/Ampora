@@ -18,34 +18,19 @@
  * is about to arm a lock), and conflating the two into one boolean was what
  * made the old seam lie on the permission-denied path.
  *
- * Today the flag is false and the resolver returns null, so this always returns
- * Soft.
+ * On Windows, on web, and on every shared branch (`native.config.json` is
+ * committed all-false, always — native/README.md) `FEATURE_FLAGS.
+ * IGNITION_NATIVE` is false, so this always returns Soft.
  */
 
 import { FEATURE_FLAGS } from '@/constants/featureFlags'
 import type { BlockingStrategy } from './BlockingStrategy'
-import { type IgnitionNativeModule, NativeBlockingStrategy } from './NativeBlockingStrategy'
+import { resolveIgnitionNativeModule } from './nativeModule'
+import { NativeBlockingStrategy } from './NativeBlockingStrategy'
 import { softBlockingStrategy } from './SoftBlockingStrategy'
 
 /** Memoized native instance (only created if the flag is on AND a module resolved). */
 let nativeStrategy: NativeBlockingStrategy | null = null
-
-/**
- * Resolve the optional native Ignition module, or null when it is not present.
- *
- * PLACEHOLDER. The real resolver (ARCH_PLAN Part B6) calls
- * `requireOptionalNativeModule('AmporaIgnition')` from `expo-modules-core`,
- * which takes a module NAME rather than a package path — so Metro has nothing
- * to statically resolve and the bundle never depends on the package existing.
- * It is deliberately not wired here: that is the native-isolation package's
- * work, and until it lands returning null keeps the flag path fail-safe.
- *
- * Never throws: a failure to resolve a module must never escape as an error
- * from module selection (NFR-7).
- */
-function resolveIgnitionNativeModule(): IgnitionNativeModule | null {
-  return null
-}
 
 /**
  * Returns the active blocking strategy. Native only when explicitly enabled
@@ -81,5 +66,12 @@ export {
   setLockSession,
 } from './SoftBlockingStrategy'
 export { NativeBlockingStrategy } from './NativeBlockingStrategy'
-export type { IgnitionNativeModule } from './NativeBlockingStrategy'
+export { resolveIgnitionNativeModule } from './nativeModule'
+export type {
+  IgnitionNativeModule,
+  IgnitionAuthorizationStatus,
+  NativeStakeSelectionResult,
+  NativeApplyShieldReason,
+  NativeApplyShieldResult,
+} from './nativeTypes'
 export * from './limits'

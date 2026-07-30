@@ -40,6 +40,25 @@ export const FEATURE_FLAGS = {
   IGNITION_NATIVE: process.env.EXPO_PUBLIC_AMPORA_NATIVE === '1',
 
   /**
+   * Real billing via RevenueCat (`react-native-purchases`), wired through
+   * `core/iap/NativePurchaseStrategy.ts`. Derived exactly like
+   * IGNITION_NATIVE, just off the sibling flag: `native.config.json` →
+   * `app.config.ts` → `EXPO_PUBLIC_AMPORA_PURCHASES` (`app.config.ts` already
+   * republishes both flags side by side — see its docstring). While false,
+   * `getPurchaseStrategy()` (`core/iap/index.ts`) always returns the
+   * MockPurchaseStrategy, so `app/paywall.tsx` behaves exactly as it did
+   * before real purchasing existed. Defaults to false when the variable is
+   * absent (plain Node/vitest, or any bundler that did not run through
+   * `app.config.ts`) — the fail-safe direction is "no real purchasing",
+   * matching IGNITION_NATIVE.
+   *
+   * On Windows and on web this is ALWAYS false: `native.config.json` is
+   * committed all-false on every shared branch (see `native/README.md`) and
+   * the web bundle never receives a native package regardless of the flag.
+   */
+  IAP_NATIVE: process.env.EXPO_PUBLIC_AMPORA_PURCHASES === '1',
+
+  /**
    * Dev-only paywall bypass. When true, the paywall renders a "Skip (dev)"
    * button so premium screens can be reached without a real purchase during
    * development. Gated on `__DEV__` so it is stripped from production builds.

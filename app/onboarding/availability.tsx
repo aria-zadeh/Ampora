@@ -111,11 +111,11 @@ export default function AvailabilityScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
       () => {},
     );
-    useSettingsStore.getState().updateSettings({
-      schedulingHours,
-      onboardingComplete: true,
-    });
-    router.replace("/(tabs)");
+    useSettingsStore.getState().updateSettings({ schedulingHours });
+    // Scheduling hours is step 4 of 7 (PRD §8.10), not the last step —
+    // Notifications, the guided First task, and the aha moment still follow.
+    // `onboardingComplete` is set at the very end of that chain, not here.
+    router.push("/onboarding/notifications");
   };
 
   return (
@@ -137,7 +137,7 @@ export default function AvailabilityScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={enter(0)} className="mb-6">
-          <ProgressDots total={4} current={3} />
+          <ProgressDots total={7} current={3} />
         </Animated.View>
         <Animated.View entering={enter(0)}>
           <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
@@ -221,11 +221,11 @@ export default function AvailabilityScreen() {
 
       <View className="px-6 pt-2">
         <Button
-          title="Finish setup"
+          title="Continue"
           variant="primaryBlue"
           size="lg"
           onPress={handleContinue}
-          accessibilityLabel="Save focus window and complete setup"
+          accessibilityLabel="Save focus window and continue"
         />
       </View>
     </View>

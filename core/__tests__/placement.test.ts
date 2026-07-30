@@ -27,7 +27,6 @@ function freshState(ctx: PlacementContext) {
     prevBlocks: [],
     schedulingHours: ctx.defaultSchedulingHours,
     quietHours: { start: 0, end: 0 },
-    energyPeak: { start: 0, end: 0 },
   })
   return initState(free)
 }

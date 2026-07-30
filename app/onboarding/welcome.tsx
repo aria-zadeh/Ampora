@@ -12,6 +12,24 @@ import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { ProgressDots } from "./ProgressDots";
 
+/**
+ * Onboarding step order (PRD §8.10, 7 steps total):
+ *   1. Welcome (this screen, dot index 0)
+ *   2. Sign in — NOT a screen inside app/onboarding/**. `app/_layout.tsx`'s
+ *      root gate already requires a session (Apple/Google/email magic link)
+ *      before it will ever route here, so by the time Welcome renders, sign-in
+ *      is already done. That screen (`app/auth.tsx`) is owned by another
+ *      worker — this flow leaves a clean numbering slot for it (dot index 1
+ *      is deliberately never shown by any screen in this folder) rather than
+ *      re-wiring the auth gate.
+ *   3. Name (dot index 2)
+ *   4. Scheduling hours / availability (dot index 3)
+ *   5. Notifications permission (dot index 4)
+ *   6. First task, guided (dot index 5)
+ *   7. The aha: stake apps + one locked session (dot index 6)
+ * Every ProgressDots below uses total=7 with the index matching this list.
+ */
+
 const VALUE_LINES = [
   {
     icon: "flash-outline" as const,
@@ -52,7 +70,7 @@ export default function WelcomeScreen() {
         {/* Hero */}
         <View className="mt-16">
           <Animated.View entering={enter(0)} className="mb-6">
-            <ProgressDots total={4} current={0} />
+            <ProgressDots total={7} current={0} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
             <Text className="text-overline text-primary-600 uppercase tracking-wide mb-3">

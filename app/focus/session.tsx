@@ -340,20 +340,7 @@ export default function FocusSessionScreen() {
       if (!task || !projectId) return;
       const resolved: CheckInAnswer = answer ?? (isTaskComplete(task) ? "done" : "stop_here");
       try {
-        // PENDING DEPENDENCY (Projects rebuild, doc `06` §9): this action is
-        // owned by the Projects worker and had not landed when this shipped.
-        // The call is already written against its final signature — delete the
-        // cast below (and nothing else) once `projectStore.applyCheckIn`
-        // exists. No local fallback on purpose: a shim here would be a second,
-        // silently-diverging copy of the progress rules.
-        const store = useProjectStore.getState() as unknown as {
-          applyCheckIn?: (
-            projectId: string,
-            answer: CheckInAnswer,
-            currentPhaseFraction?: number
-          ) => void;
-        };
-        store.applyCheckIn?.(projectId, resolved, taskCompletionFraction(task));
+        useProjectStore.getState().applyCheckIn(projectId, resolved, taskCompletionFraction(task));
       } catch {
         // Progress bookkeeping must never break the end of a session.
       }

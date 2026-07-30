@@ -41,6 +41,9 @@ import {
   isNeverLockCategory,
 } from '@/core/blocking/limits'
 import { newId } from '@/core/id'
+import { nextOccurrenceOnOrAfter } from '@/core/recurrence'
+import { decideAutoArm } from '@/core/stakeAutoArm'
+import { cancelStakeCueNotifications, scheduleStakeCueNotifications } from '@/services/stakeScheduling'
 import { mmkv, mmkvStateStorage } from '@/store/mmkv'
 import { STAKES_PERSIST_VERSION, migrateStakes } from '@/store/migrations/stakes'
 import { normalizeSettings } from '@/store/migrations/settings'
@@ -429,6 +432,92 @@ export const useStakesStore = create<StakesState>()(
         void Promise.resolve(strategy.scheduleAutoExpiry(at)).catch(() => {
           // A backstop we could not cancel is harmless — release is idempotent.
         })
+        // FR-41d: a recurring task's scheduled stake repeats with each
+        // occurrence. No-ops for a manual stake or a non-recurring task.
+        maybeRescheduleRecurringStake(ended, at)
+      }
+
+      /**
+       * End a SCHEDULED (not-yet-armed) stake without ever having applied a
+       * shield — used by `autoArmDueStakes` when a scheduled stake times out
+       * or its target task is already done/gone before the arm moment ever
+       * arrives (`core/stakeAutoArm.ts#decideAutoArm`'s `'drop'` action).
+       * Cancels its cue notifications (nothing left to fire for) and, for a
+       * recurring task, schedules the next occurrence (FR-41d). Never a
+       * `LockEvent` here (no shield lifecycle ever happened, so `shield_off`
+       * would be dishonest) — the row moves straight to `sessions` history
+       * with the outcome as its only record, exactly like a real session.
+       */
+      const endScheduled = (
+        s: StakeSession,
+        outcome: NonNullable<StakeSession['outcome']>,
+        at: number
+      ): void => {
+        const ended: StakeSession = { ...s, endedAt: at, outcome }
+        set((state) => {
+          const scheduledStakes = { ...state.scheduledStakes }
+          delete scheduledStakes[s.id]
+          return {
+            scheduledStakes,
+            sessions: { ...state.sessions, [ended.id]: ended },
+          }
+        })
+        void cancelStakeCueNotifications(s.id).catch(() => {
+          // Nothing left to cancel is harmless; a genuine failure just leaves
+          // an inert notification that will fire and no-op (the row is gone).
+        })
+        maybeRescheduleRecurringStake(ended, at)
+      }
+
+      /**
+       * FR-41d: "a recurring task's scheduled stake repeats with each
+       * occurrence." Called from BOTH `endActive` and `endScheduled` so every
+       * terminal outcome re-triggers the chain — deliberately including the
+       * "bad" outcomes (`timed_out`, `expired`, `panic_valve`): the recurring
+       * config is a standing preference the user set up once, not a one-shot,
+       * so a single missed or panicked-out occurrence must not silently
+       * cancel tomorrow's. No-ops for a manual stake (`trigger !== 'scheduled'`)
+       * or a task with no `recurrence`. Guards against double-scheduling the
+       * same next occurrence. Never throws.
+       *
+       * Coupling note: this reads `task.recurrence` from `useTaskStore`
+       * (read-only, mirroring `isUntilDoneEligible` below) and walks it
+       * forward with `core/recurrence.ts#nextOccurrenceOnOrAfter`, anchored on
+       * THIS stake's own previous `scheduledAt` rather than the task's `due`.
+       * That is a deliberate, independent schedule: the stake's `scheduledAt`
+       * is "when the lock starts" (e.g. "every day at 3pm"), which is a
+       * different concept from `due` ("the real deadline", doc `07`/PRD §9.4),
+       * and this module never mutates `task.recurrence` (only the task
+       * store's own `rollToNextOccurrence`/`advanceMissedOccurrence` do,
+       * which is orthogonal to and unaffected by this chain).
+       */
+      const maybeRescheduleRecurringStake = (ended: StakeSession, now: number): void => {
+        try {
+          if (ended.trigger !== 'scheduled' || ended.scheduledAt == null) return
+          const task = useTaskStore.getState().tasks[ended.taskId]
+          if (!task || !task.recurrence) return
+
+          const next = nextOccurrenceOnOrAfter(task.recurrence, ended.scheduledAt, ended.scheduledAt + 1)
+          if (!next) return // the series has ended (until/count exhausted)
+
+          const alreadyScheduled = Object.values(get().scheduledStakes).some(
+            (s) => s.taskId === ended.taskId && s.scheduledAt === next.at
+          )
+          if (alreadyScheduled) return
+
+          get().scheduleStake({
+            taskId: ended.taskId,
+            hold: ended.hold,
+            trigger: 'scheduled',
+            sessionMin: ended.sessionMin,
+            scheduledAt: next.at,
+            startWindowMin: ended.startWindowMin,
+            verification: ended.verification,
+            strength: ended.strength,
+          })
+        } catch (err) {
+          console.warn('maybeRescheduleRecurringStake failed (this occurrence still ended cleanly):', err)
+        }
       }
 
       /** Remaining daily-cap minutes, never negative. */
@@ -667,21 +756,93 @@ export const useStakesStore = create<StakesState>()(
         },
 
         // -------------------------------------------------------------------
-        // Scheduled-trigger driver — STUBBED ON PURPOSE.
-        //
-        // These three land with the notification plumbing they depend on:
-        // selective cancellation in `services/notifications.ts` (which today
-        // calls `cancelAllScheduledNotificationsAsync()` on every task edit and
-        // would destroy any stake cue), a `services/stakeScheduling.ts` that
-        // posts `stake-cue-<id>` / `stake-arm-<id>`, and a notification response
-        // listener (the app has none at all today, so tapping a cue does
-        // nothing). Shipping the driver without them would schedule stakes that
-        // silently never fire, which is worse than not offering them.
+        // Scheduled-trigger driver (ARCH_PLAN A4; PRD FR-41a, FR-41d).
         // -------------------------------------------------------------------
 
-        scheduleStake: (_config) => {
-          console.warn('scheduleStake: scheduled triggers are not wired yet (needs stake cue notifications).')
-          return { ok: false, reason: 'error' }
+        scheduleStake: (config) => {
+          // Wrapped exactly like `startStake`: no unhandled error may reach
+          // the UI while scheduling a stake. A caller (`StakeSetupSheet`)
+          // treats any refusal as "nothing was persisted," which is safe.
+          try {
+            const settings = currentSettings()
+            const state = get()
+
+            if (!hasSelection(state.selection)) return { ok: false, reason: 'no_selection' }
+
+            if (config.scheduledAt == null || !Number.isFinite(config.scheduledAt)) {
+              return { ok: false, reason: 'error' }
+            }
+
+            if (config.hold === 'until_done') {
+              // Same gate as `startStake`: an image-backed method AND an
+              // estimate that fits one capped session (doc `04` §2).
+              const imageBacked = config.verification === 'photo' || config.verification === 'screenshot'
+              if (!imageBacked || !isUntilDoneEligible(config.taskId)) {
+                return { ok: false, reason: 'not_eligible' }
+              }
+            }
+
+            const startWindowMin =
+              config.startWindowMin != null && Number.isFinite(config.startWindowMin)
+                ? Math.max(0, config.startWindowMin)
+                : 0
+            const armAt = config.scheduledAt + startWindowMin * 60_000
+
+            // FR-41a: never arms inside quiet hours. Refused up front rather
+            // than persisting a schedule that could only ever resolve to
+            // `timed_out` later. Note this checks the ARM MOMENT, not "now" —
+            // `StakeSetupSheet`'s own pre-flight (`canStartStake()`) already
+            // checks quiet hours at "now", which is the wrong instant for a
+            // future-dated stake; this is the check that actually matters
+            // here.
+            if (isQuietHours(settings, armAt)) {
+              return { ok: false, reason: 'quiet_hours' }
+            }
+
+            const strength = clampTo(
+              config.strength ?? settings.stakeStrength,
+              STAKE_STRENGTH_BOUNDS,
+              settings.stakeStrength
+            )
+            // The REQUESTED length, sanity-clamped now. `startStake` (called
+            // by `autoArmDueStakes` at the real arm moment) re-derives
+            // `effectiveSessionMin` again then, against whatever the daily
+            // cap actually has left AT THAT TIME — this value is a starting
+            // point, not the final word.
+            const sessionMin = effectiveSessionMin(config.sessionMin)
+
+            const session: StakeSession = {
+              id: newId(),
+              taskId: config.taskId,
+              deviceId: getDeviceId(),
+              hold: config.hold,
+              trigger: 'scheduled',
+              verification: config.verification,
+              strength,
+              sessionMin,
+              scheduledAt: config.scheduledAt,
+              startWindowMin,
+            }
+
+            set((prev) => ({
+              scheduledStakes: { ...prev.scheduledStakes, [session.id]: session },
+            }))
+
+            // Post the cue notifications, fire-and-forget, fail-safe: a
+            // notification failure must never block the schedule from being
+            // saved — the in-app auto-arm driver is the source of truth
+            // regardless (ARCH_PLAN A4), the notification is only the
+            // behavioural cue.
+            const task = useTaskStore.getState().tasks[config.taskId]
+            void scheduleStakeCueNotifications(session, task, settings).catch((err) => {
+              console.warn('scheduleStake: posting cue notifications failed (schedule still saved):', err)
+            })
+
+            return { ok: true, session }
+          } catch (err) {
+            console.warn('scheduleStake failed:', err)
+            return { ok: false, reason: 'error' }
+          }
         },
 
         cancelScheduledStake: (id) => {
@@ -691,11 +852,72 @@ export const useStakesStore = create<StakesState>()(
             delete next[id]
             return { scheduledStakes: next }
           })
+          // Fire-and-forget, fail-safe, matching every other enforcement
+          // side-effect in this store (NFR-7). Cancelling here also means
+          // this occurrence's `maybeRescheduleRecurringStake` chain never
+          // fires, so a cancelled recurring occurrence stops the whole
+          // recurring series rather than skipping just the one instance —
+          // documented in `services/stakeScheduling.ts`.
+          void cancelStakeCueNotifications(id).catch((err) => {
+            console.warn('cancelScheduledStake: cancelling cues failed (row already removed):', err)
+          })
         },
 
-        autoArmDueStakes: (_atMs) => {
-          // No-op until `scheduleStake` can actually create a row. Safe to call
-          // on every foreground and tick, which is how it will be driven.
+        autoArmDueStakes: (atMs) => {
+          try {
+            const now = atMs ?? Date.now()
+            ensureToday(now)
+            const settings = currentSettings()
+            const quiet = isQuietHours(settings, now)
+
+            for (const s of Object.values(get().scheduledStakes)) {
+              if (s.scheduledAt == null) continue
+              const task = useTaskStore.getState().tasks[s.taskId]
+
+              const decision = decideAutoArm({
+                scheduledAt: s.scheduledAt,
+                startWindowMin: s.startWindowMin ?? 0,
+                now,
+                lateArmGraceMs: LATE_ARM_GRACE_MS,
+                isQuietHours: quiet,
+                taskExists: task != null,
+                taskDone: task?.status === 'done',
+                hasActiveSession: get().activeSession != null,
+              })
+
+              if (decision.action === 'wait' || decision.action === 'retry') continue
+
+              if (decision.action === 'drop') {
+                endScheduled(s, decision.outcome, now)
+                continue
+              }
+
+              // decision.action === 'arm'
+              const result = get().startStake(
+                {
+                  taskId: s.taskId,
+                  hold: s.hold,
+                  trigger: s.trigger,
+                  sessionMin: s.sessionMin,
+                  scheduledAt: s.scheduledAt,
+                  startWindowMin: s.startWindowMin,
+                  verification: s.verification,
+                  strength: s.strength,
+                },
+                { fromScheduledId: s.id }
+              )
+              if (result.ok) {
+                logEvent(result.session.id, 'auto_arm', now)
+              }
+              // A refusal (e.g. paused, cap_reached, another session that
+              // raced in between the check above and this call) just leaves
+              // the row in place — retried next tick until the grace window
+              // in `decideAutoArm` eventually drops it. Never throws, never
+              // surfaces to the UI.
+            }
+          } catch (err) {
+            console.warn('autoArmDueStakes failed (no stake armed this tick):', err)
+          }
         },
 
         serveSession: (sessionId) => {

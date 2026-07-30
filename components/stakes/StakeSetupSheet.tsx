@@ -65,6 +65,7 @@ import { useReduceMotion } from "@/hooks/useReduceMotion";
 import {
   useStakesStore,
   selectStakeSelection,
+  isQuietHours,
   type StartStakeRefusal,
 } from "@/store/stakesStore";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -106,9 +107,24 @@ const REFUSAL_COPY: Record<StartStakeRefusal, string> = {
   error: "Something didn't go through. Give it another try.",
 };
 
-function refusalMessage(reason: StartStakeRefusal, scheduled: boolean): string {
-  if (reason === "error" && scheduled) {
-    return "Scheduled locks aren't ready yet — try starting this one now instead.";
+/**
+ * `scheduleStake` is fully implemented (it persists the row and posts the cue
+ * notifications for real), so the old "not ready yet" stub fallback is gone —
+ * a scheduled arm now either succeeds or fails for one of the real
+ * `StartStakeRefusal` reasons below.
+ *
+ * `quiet_hours` gets its own scheduled-specific wording: `scheduleStake`
+ * checks quiet hours at the ARM MOMENT (`scheduledAt + startWindowMin`), not
+ * at "now" — so "it's quiet hours right now" would be misleading for a stake
+ * armed hours or days out. `scheduledConflictMoment` is only passed when that
+ * arm-moment check is actually what produced the refusal (see
+ * `scheduledQuietHoursConflict` below); the rarer case where the generic
+ * "now" pre-flight gate is what refused still falls through to the plain
+ * `REFUSAL_COPY.quiet_hours` text, which is honest for that case too.
+ */
+function refusalMessage(reason: StartStakeRefusal, scheduled: boolean, scheduledConflictMoment?: Date): string {
+  if (reason === "quiet_hours" && scheduled && scheduledConflictMoment) {
+    return `${formatTime(scheduledConflictMoment)} falls in quiet hours, so it won't lock then. Choose a different time.`;
   }
   return REFUSAL_COPY[reason];
 }
@@ -142,6 +158,12 @@ function nextOccurrenceMs(time: Date, fromMs: number): number {
   return next.getTime();
 }
 
+/** The instant a scheduled stake would actually arm — mirrors `scheduleStake`'s own `armAt` derivation exactly, so the refusal copy can name the true conflicting moment. */
+function computeArmMoment(scheduledAt: Date, startWindowOn: boolean, startWindowMin: number): Date {
+  const base = nextOccurrenceMs(scheduledAt, Date.now());
+  return new Date(startWindowOn ? base + startWindowMin * 60_000 : base);
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -165,6 +187,10 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
 
   const defaultSessionMin = useSettingsStore((s) => s.settings.defaultSessionMin);
   const stakeStrength = useSettingsStore((s) => s.settings.stakeStrength);
+  // Raw-select the whole settings object (a single stable field, not a
+  // derived one) so `isQuietHours` can be evaluated against the actual arm
+  // moment for the scheduled quiet-hours refusal copy below.
+  const settings = useSettingsStore((s) => s.settings);
 
   const selection = useStakesStore(selectStakeSelection);
   const canStartStake = useStakesStore((s) => s.canStartStake);
@@ -189,6 +215,13 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
   const untilDoneEligible = isUntilDoneEligible(task.id);
   const hasSelection = useMemo(() => hasStakeSelection(selection), [selection]);
   const selectionCount = selection?.count ?? 0;
+
+  // The instant a scheduled stake would actually arm, and whether THAT
+  // instant (not "now") is what's in quiet hours — only cheap to compute and
+  // only read while a refusal is visible, so no memoization needed.
+  const scheduledArmMoment = scheduledOn ? computeArmMoment(scheduledAt, startWindowOn, startWindowMin) : null;
+  const scheduledQuietHoursConflict =
+    scheduledArmMoment && isQuietHours(settings, scheduledArmMoment.getTime()) ? scheduledArmMoment : null;
 
   // Re-seed local state when the sheet (re)opens for a task.
   useEffect(() => {
@@ -586,7 +619,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                     >
                       <Ionicons name="information-circle-outline" size={16} color="#C2410C" />
                       <Text className="flex-1 text-caption font-medium text-warning-700">
-                        {refusalMessage(refusal, scheduledOn)}
+                        {refusalMessage(refusal, scheduledOn, scheduledQuietHoursConflict ?? undefined)}
                       </Text>
                     </View>
                   ) : null}

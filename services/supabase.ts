@@ -221,7 +221,6 @@ export function onAuthStateChange(
 //     buffer_before_min integer,
 //     buffer_after_min  integer,
 //     color        text,
-//     energy_required text,        -- 'low'|'normal'|'high'
 //     scheduling_hours jsonb,
 //     created_at   bigint not null,
 //     updated_at   bigint not null
@@ -256,7 +255,6 @@ export function onAuthStateChange(
 //     subscription            jsonb   not null,   -- { status, plan?, trialEndsAt? }
 //     scheduling_hours        jsonb   not null,   -- SchedulingHours
 //     max_notifications_per_hour integer not null default 1,
-//     energy_peak             jsonb   not null,   -- { start, end }
 //     display_name            text,
 //     theme_preference        text    not null default 'system',
 //     onboarding_complete     boolean not null default false,
@@ -278,7 +276,6 @@ import type {
   SourceRef,
   SchedulingHours,
   TimeWindow,
-  EnergyLevel,
   TaskStatus,
 } from "@/types";
 
@@ -313,7 +310,6 @@ export interface TaskRow {
   buffer_before_min: number | null;
   buffer_after_min: number | null;
   color: string | null;
-  energy_required: EnergyLevel | null;
   scheduling_hours: SchedulingHours | null;
   created_at: number;
   updated_at: number;
@@ -338,7 +334,6 @@ export interface SettingsRow {
   subscription: Settings["subscription"];
   scheduling_hours: SchedulingHours;
   max_notifications_per_hour: number;
-  energy_peak: TimeWindow;
   display_name: string | null;
   theme_preference: Settings["themePreference"];
   onboarding_complete: boolean;
@@ -380,7 +375,6 @@ export function taskToRow(task: Task, userId: string): TaskRow {
     buffer_before_min: task.bufferBeforeMin ?? null,
     buffer_after_min: task.bufferAfterMin ?? null,
     color: task.color ?? null,
-    energy_required: task.energyRequired ?? null,
     scheduling_hours: task.schedulingHours ?? null,
     created_at: task.createdAt,
     updated_at: task.updatedAt,
@@ -420,7 +414,6 @@ export function taskFromRow(row: TaskRow, subtaskRows: SubtaskRow[] = []): Task 
     bufferBeforeMin: row.buffer_before_min ?? undefined,
     bufferAfterMin: row.buffer_after_min ?? undefined,
     color: row.color ?? undefined,
-    energyRequired: row.energy_required ?? undefined,
     schedulingHours: row.scheduling_hours ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -473,7 +466,6 @@ export function settingsToRow(settings: Settings, userId: string): SettingsRow {
     subscription: settings.subscription,
     scheduling_hours: settings.schedulingHours,
     max_notifications_per_hour: settings.maxNotificationsPerHour,
-    energy_peak: settings.energyPeak,
     display_name: settings.displayName ?? null,
     theme_preference: settings.themePreference,
     onboarding_complete: settings.onboardingComplete,
@@ -501,7 +493,6 @@ export function settingsFromRow(row: SettingsRow): Settings {
     subscription: row.subscription,
     schedulingHours: row.scheduling_hours,
     maxNotificationsPerHour: row.max_notifications_per_hour,
-    energyPeak: row.energy_peak,
     displayName: row.display_name ?? undefined,
     themePreference: row.theme_preference,
     onboardingComplete: row.onboarding_complete,

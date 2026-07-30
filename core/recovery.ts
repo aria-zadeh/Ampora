@@ -134,6 +134,19 @@ export interface RecurringAdvance {
   carryForward: boolean
   /** True when the rule has no occurrence left to advance to (until/count exhausted) — apply this drop exactly like `moot_past_due` (delete the task) instead. */
   seriesEnded: boolean
+  /**
+   * What `RecurrenceRule.count` should become after this advance is applied —
+   * threaded straight through from `core/recurrence.ts#MissedAdvance.nextCount`
+   * (a drop catch-up may consume several occurrences in one call, so this can
+   * decrease by more than 1; a carry-forward advance always decrements by
+   * exactly 1). The caller should persist `{ ...task.recurrence, count:
+   * nextCount }` alongside `due` — skipping this is what lets a count-limited
+   * series ("repeat 10 times") outlive its rule after a Recovery catch-up.
+   * Undefined when the rule has no `count` (unbounded, or ended by `until`
+   * instead) or when `seriesEnded` is true, since there is nothing to persist
+   * either way.
+   */
+  nextCount?: number
 }
 
 /** A task proposed to drop, with a human-readable reason. */
@@ -177,8 +190,9 @@ export interface RecoveryPreview {
  *     unless the task opts into carry-forward (`RecurrenceRule.carryForward`).
  *     Either way we only ever advance the recurring series past the missed
  *     instance (`core/recurrence.ts#advanceMissedOccurrence`, surfaced on the
- *     drop as `recurringAdvance`), we never delete the rule itself — deleting
- *     the whole task is reserved for `moot_past_due` (non-recurring) drops.
+ *     drop as `recurringAdvance`, including the decremented `nextCount` for a
+ *     count-limited rule), we never delete the rule itself — deleting the
+ *     whole task is reserved for `moot_past_due` (non-recurring) drops.
  *
  *  2. BUMP — tasks that are now-urgent: not done, not being dropped, with a
  *     slackRatio < 0.2 (§9.5.9 "bump now-urgent tasks to front-load").
@@ -219,7 +233,12 @@ export function buildRecoveryPreview(
         task,
         reason: 'missed_occurrence',
         recurringAdvance: advance
-          ? { due: advance.due, carryForward: advance.carryForward, seriesEnded: false }
+          ? {
+              due: advance.due,
+              carryForward: advance.carryForward,
+              seriesEnded: false,
+              nextCount: advance.nextCount,
+            }
           : { due: task.due, carryForward: false, seriesEnded: true },
       })
     } else {

@@ -124,7 +124,6 @@ describe('scheduler/freeTime', () => {
         prevBlocks: [],
         schedulingHours: hours,
         quietHours: { start: 0, end: 0 },
-        energyPeak: { start: 0, end: 0 },
       })
       // Expect two intervals: [now(8:00 already inside 9-17? no, now=8:00 is
       // before the 9:00 window start) -> really the window is 9-17 clamped].
@@ -154,7 +153,6 @@ describe('scheduler/freeTime', () => {
         prevBlocks: [],
         schedulingHours: hours,
         quietHours: { start: 20 * 60, end: 21 * 60 }, // last hour of the window is quiet
-        energyPeak: { start: 0, end: 0 },
       })
       // Free should exclude [11:30,12:00) (fixed task) and [20:00,21:00) (quiet).
       const hasFixedGap = free.every((f) => !(f.start < fixedDue && f.end > fixedDue - 30 * MS_PER_MIN))
@@ -175,7 +173,6 @@ describe('scheduler/freeTime', () => {
         prevBlocks: [pinned],
         schedulingHours: hours,
         quietHours: { start: 0, end: 0 },
-        energyPeak: { start: 0, end: 0 },
       })
       expect(free.some((f) => f.start < pinned.end && f.end > pinned.start)).toBe(false)
     })
@@ -193,7 +190,6 @@ describe('scheduler/freeTime', () => {
         prevBlocks: [],
         schedulingHours: hours,
         quietHours: { start: 0, end: 0 },
-        energyPeak: { start: 0, end: 0 },
       })
       // No free interval should overlap the busy event's span at all.
       for (const f of free) {
@@ -214,7 +210,6 @@ describe('scheduler/freeTime', () => {
         prevBlocks: [],
         schedulingHours: allDaySchedulingHours(),
         quietHours: { start: 0, end: 0 },
-        energyPeak: { start: 0, end: 0 },
       })
       expect(free).toEqual([])
     })
@@ -228,26 +223,8 @@ describe('scheduler/freeTime', () => {
         prevBlocks: [],
         schedulingHours: { perDay: [] },
         quietHours: { start: 0, end: 0 },
-        energyPeak: { start: 0, end: 0 },
       })
       expect(free).toEqual([])
-    })
-
-    it('every returned interval carries an energyScore in [0,1]', () => {
-      const free = buildFreeIntervals({
-        now,
-        cutoff: now + MS_PER_DAY,
-        tasks: [],
-        calEvents: [],
-        prevBlocks: [],
-        schedulingHours: allDaySchedulingHours({ start: 9 * 60, end: 17 * 60 }),
-        quietHours: { start: 0, end: 0 },
-        energyPeak: { start: 9 * 60, end: 12 * 60 },
-      })
-      for (const f of free) {
-        expect(f.energyScore).toBeGreaterThanOrEqual(0)
-        expect(f.energyScore).toBeLessThanOrEqual(1)
-      }
     })
   })
 })

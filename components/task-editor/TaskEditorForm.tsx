@@ -30,7 +30,7 @@ import {
 } from "@/services/ai";
 import { useTaskStore } from "@/store/taskStore";
 import { useListStore, selectListById } from "@/store/listStore";
-import type { EnergyLevel, RecurrenceRule, Subtask, Task } from "@/types";
+import type { RecurrenceRule, Subtask, Task } from "@/types";
 
 import {
   Stepper,
@@ -91,12 +91,6 @@ export function asTaskView(draft: Partial<Task>): Task {
     ...draft,
   };
 }
-
-const ENERGY_OPTIONS: { value: EnergyLevel; label: string }[] = [
-  { value: "low", label: "Low" },
-  { value: "normal", label: "Normal" },
-  { value: "high", label: "High" },
-];
 
 const COLOR_SWATCHES = [
   "#2563EB",
@@ -611,6 +605,15 @@ export function TaskEditorForm({
   // Track focus so inputs can lift their border to primary-500 while active.
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
+  // Whether the user actually touched the auto-schedule control THIS edit
+  // (vs. `draft.autoSchedule` merely echoing the value the task already had).
+  // The form always resubmits a full draft, so `store/taskStore.ts#updateTask`
+  // cannot otherwise tell a deliberate choice apart from a stale echo when it
+  // decides whether to force-promote an Inbox item's auto-schedule to true
+  // (FR-5). See `handleSave` below for how this rides along on the submitted
+  // draft.
+  const [autoScheduleTouched, setAutoScheduleTouched] = useState(false);
+
   // In edit mode subtasks live in the store (they persist without Save). Read
   // them live so toggles/adds reflect immediately. In create mode they live on
   // the draft.
@@ -827,7 +830,6 @@ export function TaskEditorForm({
         notes: draft.notes,
         durationMin: draft.durationMin,
         due: draft.due,
-        energyRequired: draft.energyRequired,
       });
       applyBreakdown(result);
     } catch {
@@ -908,8 +910,18 @@ export function TaskEditorForm({
   const titleValid = (draft.title ?? "").trim().length > 0;
   const handleSave = () => {
     if (!titleValid) return;
-    // Ensure title is trimmed on the way out.
-    onSubmit({ ...draft, title: (draft.title ?? "").trim() });
+    // Ensure title is trimmed on the way out. `autoScheduleTouched` rides
+    // along on the submitted draft as a non-Task marker (stripped by
+    // `taskStore.updateTask` before it ever reaches persisted state) so the
+    // store can tell a deliberate auto-schedule choice apart from a stale
+    // echo of whatever the task already had — an explicit off must always
+    // win over the FR-5 inbox-promotion default.
+    const finalDraft: Partial<Task> & { autoScheduleTouched?: boolean } = {
+      ...draft,
+      title: (draft.title ?? "").trim(),
+    };
+    if (autoScheduleTouched) finalDraft.autoScheduleTouched = true;
+    onSubmit(finalDraft);
   };
 
   // --- Effective color chip preview --------------------------------------
@@ -1210,11 +1222,13 @@ export function TaskEditorForm({
                 Let Ampora find time for this task.
               </Text>
             </View>
-            <Switch
+            <Toggle
               value={draft.autoSchedule ?? true}
-              onValueChange={(autoSchedule) => patch({ autoSchedule })}
-              trackColor={{ true: "#2563EB", false: "#D7D3CC" }}
-              accessibilityLabel="Auto-schedule"
+              onChange={(autoSchedule) => {
+                setAutoScheduleTouched(true);
+                patch({ autoSchedule });
+              }}
+              a11yLabel="Auto-schedule"
             />
           </View>
 
@@ -1462,43 +1476,6 @@ export function TaskEditorForm({
               onChange={(dependsOn) => patch({ dependsOn })}
               selfId={taskId}
             />
-          </Field>
-
-          {/* Energy needed */}
-          <Field label="Energy needed">
-            <View className="flex-row gap-2">
-              {ENERGY_OPTIONS.map((opt) => {
-                const active = draft.energyRequired === opt.value;
-                return (
-                  <Pressable
-                    key={opt.value}
-                    onPress={() =>
-                      patch({
-                        energyRequired: active ? undefined : opt.value,
-                      })
-                    }
-                    className={
-                      active
-                        ? "flex-1 items-center rounded-md border border-accent-500 bg-accent-100 py-2.5"
-                        : "flex-1 items-center rounded-md border border-neutral-200 bg-white py-2.5"
-                    }
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
-                    accessibilityLabel={`Energy ${opt.label}`}
-                  >
-                    <Text
-                      className={
-                        active
-                          ? "text-label font-semibold text-accent-700"
-                          : "text-label font-medium text-neutral-500"
-                      }
-                    >
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
           </Field>
 
           {/* Color */}

@@ -8,8 +8,7 @@
  *   4. quiet hours,
  *   5. pinned ScheduledBlocks.
  *
- * Output: sorted, non-overlapping FreeInterval[] with an `energyScore` derived
- * from Settings.energyPeak overlap (0.5 default when no overlap).
+ * Output: sorted, non-overlapping FreeInterval[].
  *
  * Pure: no clock reads, inputs never mutated.
  */
@@ -24,7 +23,6 @@ import {
 import {
   clampSpans,
   dayWindowsToSpans,
-  minutesOfDay,
   startOfDay,
   subtractSpans,
   unionSpans,
@@ -38,7 +36,6 @@ export interface FreeTimeInput {
   prevBlocks: ScheduledBlock[]
   schedulingHours: SchedulingHours
   quietHours: { start: number; end: number }
-  energyPeak: { start: number; end: number }
 }
 
 /**
@@ -143,41 +140,9 @@ export function pinnedBlockSpans(blocks: ScheduledBlock[], now: number, cutoff: 
   return clampSpans(unionSpans(spans), now, cutoff)
 }
 
-/** Energy score in 0..1 for a span, from `energyPeak` overlap (0.5 default). */
-export function energyScoreForSpan(
-  span: Span,
-  energyPeak: { start: number; end: number }
-): number {
-  if (energyPeak.start >= energyPeak.end) return 0.5
-  const peakLen = energyPeak.end - energyPeak.start
-  if (peakLen <= 0) return 0.5
-  // Measure the fraction of THIS span's minutes that fall inside the daily
-  // energy-peak window (summed across the day(s) the span touches).
-  let overlapMin = 0
-  let totalMin = 0
-  const stepEnd = span.end
-  let cursor = span.start
-  // Walk day boundaries so a multi-day span scores correctly.
-  while (cursor < stepEnd) {
-    const dayStart = startOfDay(cursor)
-    const dayEnd = Math.min(stepEnd, dayStart + MS_PER_DAY)
-    const segStartMin = minutesOfDay(cursor)
-    const segEndMin = minutesOfDay(cursor) + (dayEnd - cursor) / MS_PER_MIN
-    totalMin += segEndMin - segStartMin
-    const oStart = Math.max(segStartMin, energyPeak.start)
-    const oEnd = Math.min(segEndMin, energyPeak.end)
-    if (oEnd > oStart) overlapMin += oEnd - oStart
-    cursor = dayEnd
-  }
-  if (totalMin <= 0) return 0.5
-  // Blend: a fully-in-peak span scores 1.0, none scores the 0.5 default floor.
-  const frac = overlapMin / totalMin
-  return 0.5 + 0.5 * frac
-}
-
 /**
- * The public builder. Composes the subtractions in PRD order and returns
- * sorted, non-overlapping FreeIntervals with energy scores.
+ * The public builder. Composes the subtractions in PRD order and returns a
+ * sorted, non-overlapping FreeInterval[].
  */
 export function buildFreeIntervals(input: FreeTimeInput): FreeInterval[] {
   const { now, cutoff } = input
@@ -199,9 +164,5 @@ export function buildFreeIntervals(input: FreeTimeInput): FreeInterval[] {
 
   free = subtractSpans(free, busy)
 
-  return free.map((s) => ({
-    start: s.start,
-    end: s.end,
-    energyScore: energyScoreForSpan(s, input.energyPeak),
-  }))
+  return free.map((s) => ({ start: s.start, end: s.end }))
 }

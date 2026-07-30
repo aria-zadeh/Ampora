@@ -9,13 +9,12 @@
  * testable in plain Node.
  *
  * All absolute instants are epoch milliseconds. All clock-time windows
- * (SchedulingHours / quiet hours / energy peak) are minutes-from-midnight,
+ * (SchedulingHours / quiet hours) are minutes-from-midnight,
  * matching `types/index.ts` conventions.
  */
 
 import type {
   CalEvent,
-  EnergyLevel,
   List,
   ScheduledBlock,
   SchedulingHours,
@@ -37,16 +36,12 @@ export type WorkloadMode = 'balanced' | 'frontload'
 
 /**
  * A contiguous span of usable time on the planning timeline (PRD §9.5.1).
- * `energyScore` in 0..1 comes from `Settings.energyPeak` overlap (0.5 when a
- * span has no overlap and no better signal — the PRD's "default 0.5").
  */
 export interface FreeInterval {
   /** Epoch ms, inclusive. */
   start: number
   /** Epoch ms, exclusive. */
   end: number
-  /** 0..1 energy suitability for this span's time-of-day. */
-  energyScore: number
 }
 
 /** A half-open span on the absolute timeline, in epoch ms. Internal helper shape. */
@@ -72,7 +67,7 @@ export interface ScheduleInput {
   prevBlocks: ScheduledBlock[]
   /** Fixed calendar events to subtract as busy time. May be empty. */
   calEvents: CalEvent[]
-  /** App settings (scheduling hours, quiet hours, energy peak, workload). */
+  /** App settings (scheduling hours, quiet hours, workload). */
   settings: Settings
   /** The instant "now" — the engine never reads a real clock itself. */
   now: number
@@ -99,7 +94,6 @@ export interface ScheduleResult {
 // can import them from one place.
 export type {
   CalEvent,
-  EnergyLevel,
   List,
   ScheduledBlock,
   SchedulingHours,
