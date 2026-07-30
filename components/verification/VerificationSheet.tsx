@@ -1,24 +1,31 @@
 /**
- * VerificationSheet — Ampora Phase 4 (FR-77/78, doc 09).
+ * VerificationSheet — Ampora Phase 4 (FR-77/77b/78, doc `04`).
  *
  * A bottom-sheet modal to COMPLETE a task with a chosen verification method.
- * It is the "unlock flow" of doc 09 §4, but standalone (no app-locking yet —
- * that is Phase 5). On confirm it records a `Proof` and completes the task.
+ * It is the "unlock flow" of doc `04` §6. It records a `Proof` and completes
+ * the task — and, when this task is the subject of the active Ignition stake
+ * session, it is also THE `until_done` unlock path: submitting proof (or the
+ * always-available override) calls `stakesStore.completeStake` so the shield
+ * actually lifts (doc `04` §6). A `hold: 'session'` stake is never unlocked
+ * from here — that hold is served by focus time only, and `completeStake` is
+ * a documented no-op for it, so this sheet does not try to work around that.
  *
- * Verification spectrum offered (doc 09 §2):
+ * Verification spectrum offered (doc `04` §2/§4 — launch keeps three tiers
+ * only, `V2_Changes.md` §3):
  * - honor       — "I did it", always available, zero friction (Tier 0).
- * - focus_time  — auto-passes if a completed focus session of enough minutes
- *                 exists for this task (Tier 1, the recommended backbone).
- * - word_count  — numeric threshold the user confirms they hit (Tier 3).
+ * - focus_time  — auto-passes once enough focused minutes are recorded (Tier
+ *                 1, the recommended backbone). Scoped to the active stake
+ *                 session's own focus time when one is active, else to every
+ *                 focus session recorded against the task.
  * - photo /     — pick an image via expo-image-picker IF installed; a lenient,
  *   screenshot     optional AI plausibility check runs and DEFAULTS TO PASS.
  *                 If the picker is missing (web / not installed) the option
  *                 degrades to "attach later" and still completes on honor.
  *
- * Lenient by design (FR-78, doc 09 §5): nothing ever traps the user. There is
- * always an explicit override ("Complete anyway"), the AI errs toward pass, and
- * a failed/uncertain check never blocks completion — it just records the
- * verdict on the Proof. No shame copy anywhere.
+ * Lenient by design (FR-78, doc `04` §7): nothing ever traps the user. There
+ * is always an explicit override ("Complete anyway"), the AI errs toward
+ * pass, and a failed/uncertain check never blocks completion — it just
+ * records the verdict on the Proof. No shame copy anywhere.
  *
  * Graceful degradation:
  * - No ANTHROPIC key  -> the plausibility check returns pass (services/ai is
@@ -41,12 +48,14 @@ import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { Badge } from "@/components/ui/Badge";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useTaskStore } from "@/store/taskStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { useProofStore } from "@/store/proofStore";
+import { useStakesStore, type CompleteVia } from "@/store/stakesStore";
+import { SESSION_MIN_BOUNDS } from "@/core/blocking/limits";
 import type { Proof, Task } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -81,7 +90,7 @@ function loadImagePicker(): PickerModule | null {
  * Optional AI plausibility check. `services/ai.ts` may or may not export a
  * `checkProofPlausibility` (it is a graceful add). We look it up defensively so
  * this file compiles and runs regardless, and ALWAYS default to "pass" on any
- * absence or error (doc 09 §5: a false reject is the worst outcome).
+ * absence or error (doc `04` §7: a false reject is the worst outcome).
  */
 async function plausibilityVerdict(uri: string, taskTitle: string): Promise<Proof["aiVerdict"]> {
   try {
@@ -104,7 +113,7 @@ async function plausibilityVerdict(uri: string, taskTitle: string): Promise<Proo
 // Method model
 // ---------------------------------------------------------------------------
 
-type Method = "honor" | "focus_time" | "word_count" | "photo" | "screenshot";
+type Method = "honor" | "focus_time" | "photo" | "screenshot";
 
 const METHOD_OPTIONS: {
   method: Method;
@@ -136,19 +145,19 @@ const METHOD_OPTIONS: {
     blurb: "A submitted assignment, a doc, a sent email.",
     icon: "phone-portrait-outline",
   },
-  {
-    method: "word_count",
-    title: "Word count",
-    blurb: "Confirm you hit a writing target.",
-    icon: "create-outline",
-  },
 ];
 
 // ---------------------------------------------------------------------------
-// Focus-time helper
+// Focus-time helpers
 // ---------------------------------------------------------------------------
 
-/** Total completed focused minutes recorded for a task across all sessions. */
+/**
+ * Total completed focused minutes recorded for a task across every session.
+ * Fallback used ONLY when there is no active Ignition stake session for this
+ * task — with a stake active, focused minutes are scoped tightly to that one
+ * `StakeSession` instead (doc `04` §6: proof/time belongs to the session it
+ * was served for, not the task's whole history).
+ */
 function focusedMinutesForTask(
   history: Record<string, { taskId: string; elapsedSec: number; completed: boolean }>,
   taskId: string
@@ -157,6 +166,26 @@ function focusedMinutesForTask(
   for (const s of Object.values(history)) {
     if (s.taskId === taskId) sec += s.elapsedSec;
   }
+  return Math.floor(sec / 60);
+}
+
+/**
+ * Focused minutes recorded specifically against one Ignition `StakeSession`
+ * (via `FocusSession.stakeSessionId`), including the in-progress active focus
+ * session if it belongs to the same stake session. This is the correct scope
+ * for a stake's own focus-time requirement — summing every focus session ever
+ * run against the task would credit unrelated, unstaked work.
+ */
+function focusedMinutesForStakeSession(
+  history: Record<string, { stakeSessionId?: string; elapsedSec: number }>,
+  active: { stakeSessionId?: string; elapsedSec: number } | null,
+  stakeSessionId: string
+): number {
+  let sec = 0;
+  for (const s of Object.values(history)) {
+    if (s.stakeSessionId === stakeSessionId) sec += s.elapsedSec;
+  }
+  if (active?.stakeSessionId === stakeSessionId) sec += active.elapsedSec;
   return Math.floor(sec / 60);
 }
 
@@ -230,8 +259,24 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
   const activeSession = useSessionStore((s) => s.active);
   const addProof = useProofStore((s) => s.addProof);
 
+  // The Ignition stake layer (doc `04`). `stakeForTask` is the live
+  // `StakeSession` this sheet's completion should unlock, when one is
+  // actually armed against this task — null otherwise, which keeps every
+  // stake-specific branch below a plain no-op for the common unstaked case.
+  const activeStakeSession = useStakesStore((s) => s.activeSession);
+  const completeStake = useStakesStore((s) => s.completeStake);
+  const stakeForTask = useMemo(
+    () => (activeStakeSession && activeStakeSession.taskId === task.id ? activeStakeSession : null),
+    [activeStakeSession, task.id]
+  );
+  // Only an `until_done` hold is ever released by proof/override from this
+  // sheet. A `session` hold unlocks by served focus time alone — `completeStake`
+  // is a documented no-op for it in the store, and this sheet must not imply
+  // otherwise (doc `04` §2/§7): no proof-based unlock is offered here for it.
+  const untilDoneStake = stakeForTask?.hold === "until_done" ? stakeForTask : null;
+  const sessionHoldStake = stakeForTask?.hold === "session" ? stakeForTask : null;
+
   const [method, setMethod] = useState<Method>("honor");
-  const [wordCount, setWordCount] = useState("");
   const [imageUri, setImageUri] = useState<string | undefined>(undefined);
   const [attachLater, setAttachLater] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -239,35 +284,42 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
   // Picker availability is fixed for the life of the sheet; compute once.
   const picker = useMemo(() => loadImagePicker(), []);
 
-  // Focus-time signal for this task (auto-pass basis).
-  const focusedMin = useMemo(
-    () => focusedMinutesForTask(sessionHistory, task.id),
-    [sessionHistory, task.id]
-  );
-  // A modest default requirement: the task's own duration, floored to something
-  // reachable so we never trap. This mirrors doc 09 §2 Tier 1 ("default = the
-  // scheduled block length, or a set number of minutes").
-  const requiredFocusMin = Math.max(1, Math.min(task.durationMin || 25, 25));
+  // Focus-time signal (auto-pass basis for the "Focus time" tier). Scoped to
+  // the active stake session's own focus time when one is active — never the
+  // task's whole history, which would credit unrelated, unstaked work and
+  // could pass a check the current stake never actually earned.
+  const focusedMin = useMemo(() => {
+    if (stakeForTask) {
+      return focusedMinutesForStakeSession(sessionHistory, activeSession, stakeForTask.id);
+    }
+    return focusedMinutesForTask(sessionHistory, task.id);
+  }, [stakeForTask, sessionHistory, activeSession, task.id]);
+  // The requirement is the active stake session's own `sessionMin` (doc `04`
+  // §8, the session's real unlock currency) when one is active. With no stake,
+  // fall back to the task's own duration, clamped to the documented session
+  // bounds (15..50) rather than an arbitrary fixed ceiling.
+  const requiredFocusMin =
+    stakeForTask?.sessionMin ??
+    Math.max(1, Math.min(task.durationMin || SESSION_MIN_BOUNDS.min, SESSION_MIN_BOUNDS.max));
   const focusPassed = focusedMin >= requiredFocusMin;
 
-  const wordTarget = useMemo(() => {
-    const parsed = parseInt(wordCount, 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-  }, [wordCount]);
-
-  /** The best sessionId to attribute a proof to: the active/last session for
-   *  this task, else the task id itself (honor completions have no session). */
+  /**
+   * The id a recorded `Proof` is attributed to. The Proof Log is per STAKE
+   * session (doc `04` §6/§8), so an active stake session's id always wins.
+   * Without one, fall back to the best focus session for this task, else the
+   * task id itself (honor completions with no session at all).
+   */
   const sessionIdForProof = useMemo(() => {
+    if (stakeForTask) return stakeForTask.id;
     if (activeSession?.taskId === task.id) return activeSession.id;
     const forTask = Object.values(sessionHistory)
       .filter((s) => s.taskId === task.id)
       .sort((a, b) => (b.endedAt ?? b.startedAt) - (a.endedAt ?? a.startedAt));
     return forTask[0]?.id ?? task.id;
-  }, [activeSession, sessionHistory, task.id]);
+  }, [stakeForTask, activeSession, sessionHistory, task.id]);
 
   const reset = () => {
     setMethod("honor");
-    setWordCount("");
     setImageUri(undefined);
     setAttachLater(false);
     setBusy(false);
@@ -304,16 +356,23 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
 
   /**
    * Complete the task + record a proof. `override` marks it as a deliberate
-   * "complete anyway" (logged, never blocked — doc 09 §5). Never throws to UI.
+   * "complete anyway" (logged, never blocked — doc `04` §7). Never throws to UI.
+   *
+   * When this task carries the active `until_done` stake, this is also the
+   * unlock (doc `04` §6): plausible or not, submitting proof — or using the
+   * override — always ends the lock, because verification never traps. A
+   * `session`-hold stake is never touched here; it unlocks by served focus
+   * time only, and `completeStake` is a no-op for it in the store.
    */
   const finish = async (override: boolean) => {
     setBusy(true);
     let aiVerdict: Proof["aiVerdict"] | undefined;
+    const submittedImage = (method === "photo" || method === "screenshot") && !!imageUri;
 
     // For image methods, run the lenient (optional) plausibility check. It
     // ALWAYS resolves — pass on any absence/error — and never blocks.
-    if ((method === "photo" || method === "screenshot") && imageUri) {
-      aiVerdict = await plausibilityVerdict(imageUri, task.title);
+    if (submittedImage) {
+      aiVerdict = await plausibilityVerdict(imageUri as string, task.title);
     }
 
     const proof = addProof({
@@ -325,6 +384,17 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
     });
 
     completeTask(task.id);
+
+    // THE until_done UNLOCK. `via` is 'override' for the explicit escape
+    // hatch, 'proof' when actual image proof was submitted (pass or
+    // uncertain — leniency means a submission always counts), and
+    // 'task_done' when the task was finished through another method while
+    // the stake was armed (still a legitimate release — doc `04` §8).
+    if (untilDoneStake) {
+      const via: CompleteVia = override ? "override" : submittedImage ? "proof" : "task_done";
+      completeStake(untilDoneStake.id, via);
+    }
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 
     setBusy(false);
@@ -344,7 +414,6 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
   if (method === "honor") primaryLabel = "I did it";
   else if (method === "focus_time") primaryLabel = focusPassed ? "Verified — mark done" : "Not enough focus yet";
   else if (imageMethod) primaryLabel = attachLater ? "Complete, attach later" : imageUri ? "Verify & complete" : "Add proof to complete";
-  else if (method === "word_count") primaryLabel = "Confirm & complete";
 
   const primaryDisabled = busy || needsImage || focusBlocked;
   const showOverride = focusBlocked || (needsImage && !attachLater);
@@ -403,6 +472,25 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                   </Pressable>
                 </View>
 
+                {/* Stake context — honest, non-shaming expectation-setting so
+                    the sheet never implies an unlock it can't deliver (doc `04`
+                    §2/§7). Shown once, above the method list. */}
+                {untilDoneStake ? (
+                  <View className="mx-5 mt-3 flex-row items-center gap-2.5 rounded-xl border border-primary-100 bg-primary-50 px-3.5 py-3">
+                    <Ionicons name="lock-open-outline" size={16} color={colors.light.primary} />
+                    <Text className="flex-1 text-caption font-medium text-primary-700">
+                      This task has apps on the line. Completing it here unlocks them.
+                    </Text>
+                  </View>
+                ) : sessionHoldStake ? (
+                  <View className="mx-5 mt-3 flex-row items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3.5 py-3">
+                    <Ionicons name="lock-closed-outline" size={16} color={colors.light.textMuted} />
+                    <Text className="flex-1 text-caption font-medium text-neutral-600">
+                      Your apps stay locked for this session. Completing the task here won&apos;t unlock them — the session timer does.
+                    </Text>
+                  </View>
+                ) : null}
+
                 <ScrollView
                   className="mt-4 max-h-[52vh]"
                   contentContainerClassName="px-5 pb-4 gap-2.5"
@@ -457,30 +545,6 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                           </Text>
                         </View>
                       )}
-                    </Animated.View>
-                  ) : null}
-
-                  {method === "word_count" ? (
-                    <Animated.View
-                      entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
-                      className="rounded-xl border border-neutral-200 bg-white p-4"
-                      style={shadows.xs}
-                    >
-                      <Text className="mb-2 text-label font-medium text-neutral-600">
-                        Words written
-                      </Text>
-                      <TextInput
-                        className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
-                        placeholder="e.g. 300"
-                        placeholderTextColor="#A8A29A"
-                        value={wordCount}
-                        onChangeText={setWordCount}
-                        keyboardType="number-pad"
-                        accessibilityLabel="Word count written"
-                      />
-                      <Text className="mt-2 text-caption text-neutral-500">
-                        {wordTarget > 0 ? `Great — logging ${wordTarget} words.` : "Optional. Log it for your own record."}
-                      </Text>
                     </Animated.View>
                   ) : null}
 
@@ -572,7 +636,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                     }
                   />
 
-                  {/* Lenient escape hatch — never trap the user (doc 09 §5). */}
+                  {/* Lenient escape hatch — never trap the user (doc `04` §7). */}
                   {showOverride ? (
                     <Pressable
                       onPress={() => finish(true)}

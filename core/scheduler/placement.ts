@@ -19,7 +19,7 @@
  */
 
 import type { EnergyLevel, List, ScheduledBlock, SchedulingHours, Task } from '@/types'
-import { newId } from '@/core/id'
+import { stableId } from '@/core/id'
 import {
   MS_PER_DAY,
   MS_PER_MIN,
@@ -275,7 +275,10 @@ function consume(state: PlacementState, start: number, end: number): void {
 /** Record placement bookkeeping (block + day load + dep finish). */
 function commit(state: PlacementState, task: Task, start: number, end: number, now: number): void {
   const block: ScheduledBlock = {
-    id: newId(),
+    // Deterministic, not random: a block is uniquely identified by its task
+    // + time slot, and recompute() must be byte-identical across runs on
+    // identical input (NFR-2). See core/id.ts#stableId.
+    id: stableId(task.id, start, end),
     taskId: task.id,
     start,
     end,

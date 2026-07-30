@@ -8,8 +8,9 @@
  *   - dependencies satisfiable (no missing / cyclic / done-blocking prereqs)
  *
  * Sort (FR-10 standard mode): priority DESC (Urgent=4 > High=3 > Med=2 > Low=1,
- * missing priority treated as Low=1), then earliest due ASC, ties by createdAt
- * ASC (deterministic).
+ * missing priority treated as Low=1), then earliest due ASC, ties broken by
+ * manual order ASC (undated-manualOrder tasks sort after ordered ones), then
+ * createdAt ASC (deterministic).
  *
  * Then a topological pass (FR-19) reorders so every task appears AFTER all of
  * its `dependsOn` prerequisites, without otherwise disturbing the FR-10 order
@@ -37,6 +38,11 @@ export function compareTasks(a: Task, b: Task): number {
   const da = a.due ?? Number.POSITIVE_INFINITY
   const db = b.due ?? Number.POSITIVE_INFINITY
   if (da !== db) return da - db
+  // FR-10: "Ties broken by manual order then creation time." Tasks without a
+  // manualOrder sort after tasks that have one.
+  const ma = a.manualOrder ?? Number.POSITIVE_INFINITY
+  const mb = b.manualOrder ?? Number.POSITIVE_INFINITY
+  if (ma !== mb) return ma - mb
   if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt
   // Final tiebreak on id for full determinism.
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0

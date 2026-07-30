@@ -8,6 +8,7 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { useTaskStore } from "@/store/taskStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useEventLogStore } from "@/store/eventLogStore";
 import {
   useScheduleStore,
   selectUpcomingBlocks,
@@ -22,7 +23,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { FAB } from "@/components/ui/FAB";
 import { Heading } from "@/components/ui/Heading";
 import { UpcomingList } from "@/components/schedule/UpcomingList";
-import { EnergyChip } from "@/components/home/EnergyChip";
 import { gradients, iconSizes } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
@@ -117,15 +117,21 @@ export default function HomeScreen() {
     [comingUp]
   );
 
+  const logEvent = useEventLogStore((s) => s.logEvent);
+
   const toggleFirstMove = useCallback(() => {
     if (!firstMoveTask || !firstMoveTask.firstMove) return;
+    const nextDone = !firstMoveTask.firstMove.done;
     updateTask(firstMoveTask.id, {
       firstMove: {
         ...firstMoveTask.firstMove,
-        done: !firstMoveTask.firstMove.done,
+        done: nextDone,
       },
     });
-  }, [firstMoveTask, updateTask]);
+    // The First move tap is the time-to-start signal (PRD §10); only log the
+    // transition to done, not an undo tap.
+    if (nextDone) logEvent("first_action");
+  }, [firstMoveTask, updateTask, logEvent]);
 
   const greeting = getGreeting();
 
@@ -195,18 +201,6 @@ export default function HomeScreen() {
         >
           <ProjectsEntryCard />
         </Animated.View>
-
-        {/* Energy chip — a subtle, additive "what can you handle now" cue that
-            re-sorts today's plan (FR-53). Only shown once there's something to
-            re-sort; hidden otherwise so it never clutters the empty state. */}
-        {incompleteTasks.length > 1 && (
-          <Animated.View
-            entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.base)}
-            className="mt-4"
-          >
-            <EnergyChip />
-          </Animated.View>
-        )}
 
         {/* First move — the ONE focal element; give it room. */}
         {firstMoveTask?.firstMove && (

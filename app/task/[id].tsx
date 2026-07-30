@@ -58,10 +58,10 @@ export default function TaskEditScreen() {
       pathname: "/focus/session",
       params: {
         taskId: id,
-        stakeMode: armed.mode,
-        stakeCondition: armed.completionCondition,
-        ...(armed.conditionRefId ? { stakeRefId: armed.conditionRefId } : {}),
-        ...(armed.timerMinutes != null ? { stakeTimer: String(armed.timerMinutes) } : {}),
+        stakeHold: armed.hold,
+        stakeTrigger: armed.trigger,
+        stakeVerification: armed.verification,
+        ...(armed.sessionMin != null ? { stakeSessionMin: String(armed.sessionMin) } : {}),
       },
     });
   };
@@ -226,14 +226,14 @@ export default function TaskEditScreen() {
               className="flex-row items-center gap-2.5 rounded-md border border-primary-200 bg-primary-50 px-3.5 py-3"
               accessibilityRole="button"
               accessibilityLabel="Put something on the line for this task"
-              accessibilityHint="Attach a focus lock that lifts when you make progress"
+              accessibilityHint="Attach a focus lock that lifts when your session is served"
             >
               <View className="h-7 w-7 items-center justify-center rounded-full bg-primary-100">
                 <Ionicons name="lock-closed-outline" size={15} color="#2563EB" />
               </View>
               <View className="flex-1">
                 <Text className="text-label font-semibold text-primary-700">Put something on the line</Text>
-                <Text className="text-caption text-primary-600/80">Lock your apps until you make progress</Text>
+                <Text className="text-caption text-primary-600/80">Lock your apps for a focus session</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="#2563EB" />
             </PressableScale>

@@ -370,18 +370,6 @@ export default function ProfileScreen() {
           />
         </SettingsGroup>
 
-        {/* Insights — Focus DNA / Learning Engine surface (FR-51..53). */}
-        <SettingsGroup title="Insights" index={4}>
-          <SettingsRow
-            icon="pulse-outline"
-            label="Focus DNA"
-            value="See your patterns"
-            onPress={() => router.push("/insights")}
-            isLast
-            accessibilityLabel="Focus DNA insights"
-          />
-        </SettingsGroup>
-
         {/* Focus stakes + wellbeing (§8.11). Embedded — StakesSettings renders
             its own grouped cards, so it sits under a section header rather than
             inside a SettingsGroup shell. */}
@@ -389,7 +377,7 @@ export default function ProfileScreen() {
           entering={
             reduceMotion
               ? undefined
-              : FadeInDown.delay(5 * 45).duration(DURATIONS.base)
+              : FadeInDown.delay(4 * 45).duration(DURATIONS.base)
           }
           className="mt-6"
         >
@@ -406,7 +394,7 @@ export default function ProfileScreen() {
           entering={
             reduceMotion
               ? undefined
-              : FadeInDown.delay(6 * 45).duration(DURATIONS.base)
+              : FadeInDown.delay(5 * 45).duration(DURATIONS.base)
           }
           className="mt-6"
         >

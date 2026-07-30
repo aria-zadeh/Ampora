@@ -6,6 +6,8 @@ import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "nativewind";
 import DotGridBackground from "@/components/ui/DotGridBackground";
+import { GlobalLockBanner } from "@/components/focus/GlobalLockBanner";
+import { useStakeTick } from "@/hooks/useStakeTick";
 import {
   useFonts,
   Inter_400Regular,
@@ -42,6 +44,14 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
+
+  // Drive `stakesStore.tick()` app-wide (~1/min while foregrounded, plus a
+  // catch-up on every return to foreground). Nothing else calls it on a
+  // schedule, and it is where the daily cap, the single-session cap, the
+  // quiet-hours release and the served-session release actually fire — so
+  // without this a lock armed and then walked away from has no clock running
+  // against it at all (NFR-7, doc `04` §7).
+  useStakeTick();
 
   // Short delay to let Zustand/MMKV hydrate before we gate routing.
   useEffect(() => {
@@ -255,6 +265,13 @@ export default function RootLayout() {
           options={{ presentation: "modal", animation: "slide_from_bottom" }}
         />
         </Stack>
+        {/* App-wide lock banner. A `hold: 'session'` lock deliberately survives
+            leaving the focus screen (doc `04` §6), so it must be visible and
+            escapable from ANYWHERE — what is on the line, the time left, a way
+            back into the session, and the panic valve. Floated over the routed
+            content near the top, clear of the tab bar; it hides itself on the
+            focus session and Blindfold, which show the lock in context. */}
+        <GlobalLockBanner />
       </View>
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
     </>

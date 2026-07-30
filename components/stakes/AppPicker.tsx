@@ -33,8 +33,9 @@ import { Heading } from "@/components/ui/Heading";
 import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { useStakesStore } from "@/store/stakesStore";
-import type { StakeApp } from "@/types";
+import { useStakesStore, isLockable } from "@/store/stakesStore";
+import { useSettingsStore } from "@/store/settingsStore";
+import type { StakeApp, StakeSelection } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Curated catalog of common leisure apps (web/dev stand-in for the system
@@ -74,6 +75,23 @@ function currentPlatform(): StakeApp["platform"] {
   return "desktop";
 }
 
+/** Which `platform` value the resulting `StakeSelection` carries. */
+function selectionPlatform(): StakeSelection["platform"] {
+  if (Platform.OS === "ios") return "ios";
+  if (Platform.OS === "android") return "android";
+  return "web";
+}
+
+/**
+ * `group.*` tokens stand for a CATEGORY of leisure activity (games, general web
+ * browsing) rather than one installed app, and the shield API treats the two
+ * differently. Splitting them here keeps the `StakeSelection` honest about what
+ * it is asking the platform to block.
+ */
+function isCategoryToken(token: string): boolean {
+  return token.startsWith("group.");
+}
+
 export interface AppPickerProps {
   visible: boolean;
   onClose: () => void;
@@ -91,19 +109,38 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
   const reduceMotion = useReduceMotion();
   const storedApps = useStakesStore((s) => s.apps);
   const setApps = useStakesStore((s) => s.setApps);
+  const setSelection = useStakesStore((s) => s.setSelection);
+  const neverLockCategories = useSettingsStore((s) => s.settings.neverLockCategories);
+
+  // NEVER-LOCK ENFORCEMENT (FR-40, §9.10, doc `05` §4), in code and not merely
+  // in the copy: the six protected categories are filtered out of the catalog
+  // before it is ever rendered, so a protected category cannot be tapped, let
+  // alone saved. `stakesStore.setSelection` re-checks on write (defence in
+  // depth) and the refusal is surfaced below rather than swallowed.
+  const catalog = useMemo(
+    () =>
+      CATALOG.filter(
+        (app) => isLockable(app.key, { neverLockCategories }) && isLockable(app.token, { neverLockCategories })
+      ),
+    [neverLockCategories]
+  );
 
   // Local selection set (catalog keys). Seeded from the store on open so the
   // sheet is a draft the user can cancel out of without mutating anything.
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // A calm inline note when a write is refused (e.g. a protected category slipped
+  // through from a stored selection). Never a shame message — it explains.
+  const [refusalNote, setRefusalNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
     // Seed from whichever stored apps map back onto the catalog (by id === key).
     const seed = new Set<string>();
     for (const app of storedApps) {
-      if (CATALOG.some((c) => c.key === app.id)) seed.add(app.id);
+      if (catalog.some((c) => c.key === app.id)) seed.add(app.id);
     }
     setSelected(seed);
+    setRefusalNote(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
@@ -121,7 +158,10 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
 
   const selectAll = () => {
     Haptics.selectionAsync().catch(() => {});
-    setSelected(new Set(CATALOG.map((c) => c.key)));
+    // Selecting every LEISURE app is fine; selecting an "all apps" CATEGORY is
+    // not, and never can be, because the catalog contains no such entry (doc
+    // `05` §4 — a blanket category would sweep phone/messages/maps in with it).
+    setSelected(new Set(catalog.map((c) => c.key)));
   };
   const clearAll = () => {
     Haptics.selectionAsync().catch(() => {});
@@ -131,18 +171,43 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
   const platform = useMemo(currentPlatform, []);
 
   const handleSave = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     // Preserve any previously-stored apps that AREN'T in our catalog (e.g. real
     // native tokens added elsewhere), and rebuild the catalog-backed entries
     // from the current selection. `id` === catalog key keeps this idempotent.
-    const nonCatalog = storedApps.filter((a) => !CATALOG.some((c) => c.key === a.id));
-    const chosen: StakeApp[] = CATALOG.filter((c) => selected.has(c.key)).map((c) => ({
+    const nonCatalog = storedApps.filter((a) => !catalog.some((c) => c.key === a.id));
+    const chosenCatalog = catalog.filter((c) => selected.has(c.key));
+    const chosen: StakeApp[] = chosenCatalog.map((c) => ({
       id: c.key,
       platform,
       tokenOrPackage: c.token,
       label: c.label,
       eligible: true,
     }));
+
+    // Write the `StakeSelection` the shield actually consumes (doc `05` §7).
+    // The store validates it against the never-lock list and refuses an
+    // "all apps" category; a refusal is SURFACED, never swallowed, so the user
+    // is told why nothing was saved instead of quietly getting no lock.
+    const result = setSelection({
+      platform: selectionPlatform(),
+      applicationTokens: chosenCatalog.filter((c) => !isCategoryToken(c.token)).map((c) => c.token),
+      categoryTokens: chosenCatalog.filter((c) => isCategoryToken(c.token)).map((c) => c.token),
+      webDomainTokens: [],
+      count: chosenCatalog.length,
+      pickedAt: Date.now(),
+    });
+
+    if (!result.ok) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      setRefusalNote(
+        result.reason === "all_apps"
+          ? "Pick specific apps rather than everything — that keeps phone, messages and maps reachable."
+          : "Some of those stay reachable no matter what, so they were left off the list."
+      );
+      return;
+    }
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setApps([...nonCatalog, ...chosen]);
     onSaved?.(chosen.length);
     onClose();
@@ -239,7 +304,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                   contentContainerClassName="px-5 pb-4 gap-2"
                   showsVerticalScrollIndicator={false}
                 >
-                  {CATALOG.map((app) => {
+                  {catalog.map((app) => {
                     const isSel = selected.has(app.key);
                     return (
                       <Pressable
@@ -287,6 +352,15 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
 
                 {/* Footer */}
                 <View className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3" style={shadows.md}>
+                  {refusalNote ? (
+                    <View
+                      className="mb-3 flex-row items-start gap-2 rounded-lg bg-warning-100 px-3 py-2.5"
+                      accessibilityRole="alert"
+                    >
+                      <Ionicons name="information-circle-outline" size={16} color="#C2410C" />
+                      <Text className="flex-1 text-caption font-medium text-warning-700">{refusalNote}</Text>
+                    </View>
+                  ) : null}
                   <Button
                     title={selectedCount > 0 ? `Save ${selectedCount} app${selectedCount === 1 ? "" : "s"}` : "Save"}
                     variant="primaryBlue"

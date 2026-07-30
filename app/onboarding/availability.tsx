@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -107,8 +108,14 @@ export default function AvailabilityScreen() {
         windows: [{ start: startHour * 60, end: endHour * 60 }],
       })),
     };
-    useSettingsStore.getState().updateSettings({ schedulingHours });
-    router.push("/onboarding/energy");
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+      () => {},
+    );
+    useSettingsStore.getState().updateSettings({
+      schedulingHours,
+      onboardingComplete: true,
+    });
+    router.replace("/(tabs)");
   };
 
   return (
@@ -130,7 +137,7 @@ export default function AvailabilityScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={enter(0)} className="mb-6">
-          <ProgressDots total={5} current={3} />
+          <ProgressDots total={4} current={3} />
         </Animated.View>
         <Animated.View entering={enter(0)}>
           <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
@@ -214,11 +221,11 @@ export default function AvailabilityScreen() {
 
       <View className="px-6 pt-2">
         <Button
-          title="Continue"
+          title="Finish setup"
           variant="primaryBlue"
           size="lg"
           onPress={handleContinue}
-          accessibilityLabel="Save focus window and continue to energy setup"
+          accessibilityLabel="Save focus window and complete setup"
         />
       </View>
     </View>

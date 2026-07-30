@@ -52,7 +52,7 @@ export default function WelcomeScreen() {
         {/* Hero */}
         <View className="mt-16">
           <Animated.View entering={enter(0)} className="mb-6">
-            <ProgressDots total={5} current={0} />
+            <ProgressDots total={4} current={0} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
             <Text className="text-overline text-primary-600 uppercase tracking-wide mb-3">

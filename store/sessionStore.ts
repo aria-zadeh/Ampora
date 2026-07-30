@@ -47,6 +47,19 @@ export interface FocusSession {
   completed: boolean;
   /** Subtask ids checked off during this session (for progress + proof). */
   subtaskIdsDone: string[];
+  /**
+   * The `StakeSession.id` whose lock this focus session is serving, when a
+   * stake is attached. Undefined for an unstaked session. Additive/optional, so
+   * no migration is needed for a persisted blob written before it existed.
+   */
+  stakeSessionId?: string;
+  /**
+   * The end check-in answer (FR-85). `undefined` means the sheet was skipped or
+   * dismissed, in which case progress is INFERRED from the subtask checkboxes
+   * rather than assumed — a skipped check-in must never stall project
+   * generation.
+   */
+  checkIn?: "done" | "keep_going" | "stop_here";
 }
 
 interface SessionState {
@@ -54,8 +67,12 @@ interface SessionState {
   /** Completed (and abandoned) sessions keyed by id. */
   history: Record<string, FocusSession>;
 
-  /** Start a new session, replacing any active one. Returns the new session id. */
-  startSession: (taskId: string, plannedMin: number) => string;
+  /**
+   * Start a new session, replacing any active one. Returns the new session id.
+   * `stakeSessionId` links this focus session to the Ignition stake whose lock
+   * it is serving (omit for an unstaked session).
+   */
+  startSession: (taskId: string, plannedMin: number, stakeSessionId?: string) => string;
   /** Add `sec` focused seconds to the active session (call ~once/second from a timer). */
   tick: (sec: number) => void;
   /** Record a break on the active session. Returns the break id (or "" if none active). */
@@ -64,8 +81,11 @@ interface SessionState {
   endBreak: (durationSec: number) => void;
   /** Mark a subtask done within the active session (idempotent). */
   markSubtaskDone: (subtaskId: string) => void;
-  /** End the active session, moving it to history. */
-  endSession: (completed: boolean) => void;
+  /**
+   * End the active session, moving it to history. `checkIn` records the FR-85
+   * end check-in answer; omit it when the sheet was skipped or dismissed.
+   */
+  endSession: (completed: boolean, checkIn?: FocusSession["checkIn"]) => void;
 
   /** Most recent sessions, newest first. */
   recentSessions: (limit?: number) => FocusSession[];
@@ -77,7 +97,7 @@ export const useSessionStore = create<SessionState>()(
       active: null,
       history: {},
 
-      startSession: (taskId, plannedMin) => {
+      startSession: (taskId, plannedMin, stakeSessionId) => {
         const id = newId();
         const session: FocusSession = {
           id,
@@ -88,6 +108,7 @@ export const useSessionStore = create<SessionState>()(
           breaks: [],
           completed: false,
           subtaskIdsDone: [],
+          ...(stakeSessionId ? { stakeSessionId } : {}),
         };
         set({ active: session });
         return id;
@@ -140,10 +161,15 @@ export const useSessionStore = create<SessionState>()(
         });
       },
 
-      endSession: (completed) => {
+      endSession: (completed, checkIn) => {
         const { active } = get();
         if (!active) return;
-        const ended: FocusSession = { ...active, endedAt: Date.now(), completed };
+        const ended: FocusSession = {
+          ...active,
+          endedAt: Date.now(),
+          completed,
+          ...(checkIn ? { checkIn } : {}),
+        };
         set((state) => ({
           active: null,
           history: { ...state.history, [ended.id]: ended },
@@ -159,6 +185,15 @@ export const useSessionStore = create<SessionState>()(
     {
       name: "ampora-sessions",
       storage: createJSONStorage(() => mmkvStateStorage),
+      // Defensive version stamp. The v0 -> v1 change to `FocusSession` is purely
+      // additive (`stakeSessionId`, `checkIn` are both optional), so the
+      // migration is an identity pass — but a persist `version` with NO
+      // `migrate` makes zustand DISCARD the whole blob on a future bump, which
+      // would silently erase the user's session history. Stamping the version
+      // now, with an explicit identity migration, gives later changes a real
+      // baseline to migrate from.
+      version: 1,
+      migrate: (persisted) => persisted as SessionState,
     }
   )
 );

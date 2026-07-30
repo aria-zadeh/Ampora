@@ -9,7 +9,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCalendarsUsageDescription": "Ampora reads your calendar so it never schedules study sessions over your classes or existing events. It only reads — Ampora never adds, changes, or deletes anything on your calendar.",
+        "NSCalendarsFullAccessUsageDescription": "Ampora reads your calendar so it never schedules study sessions over your classes or existing events. It only reads — Ampora never adds, changes, or deletes anything on your calendar.",
+        "NSMicrophoneUsageDescription": "Ampora uses your microphone for Brain dump, so you can speak your tasks instead of typing them. Recording only happens while you're actively using Brain dump.",
+        "NSSpeechRecognitionUsageDescription": "Ampora turns your speech into text on your device for Brain dump, so what you say can be split into tasks. Nothing is recorded outside of Brain dump."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +25,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["RECORD_AUDIO"]
     },
     "web": {
       "bundler": "metro",
@@ -41,7 +48,22 @@
         }
       ],
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Ampora reads your calendar so it never schedules study sessions over your classes or existing events. It only reads — Ampora never adds, changes, or deletes anything on your calendar.",
+          "remindersPermission": false
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Ampora uses your microphone for Brain dump, so you can speak your tasks instead of typing them. Recording only happens while you're actively using Brain dump.",
+          "speechRecognitionPermission": "Ampora turns your speech into text on your device for Brain dump, so what you say can be split into tasks. Nothing is recorded outside of Brain dump.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

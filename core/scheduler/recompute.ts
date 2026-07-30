@@ -27,6 +27,7 @@ import { buildFreeIntervals } from './freeTime'
 import { orderTasks, orderUndatedBackfill } from './ordering'
 import { initState, placeTask, type PlacementContext } from './placement'
 import { isMissedBlock } from '@/core/recovery'
+import { expandOccurrences } from '@/core/recurrence'
 
 /** Stable key for matching a placed block to a prior one (task + exact time). */
 function blockKey(taskId: string, start: number, end: number): string {
@@ -76,6 +77,68 @@ export function recompute(input: ScheduleInput): ScheduleResult {
   const ordered = orderTasks(tasks, now, cutoff)
   for (const task of ordered) {
     placeTask(task, ctx, state)
+  }
+
+  // --- 3a. Recurring occurrences (FR-15/FR-17): place additional FUTURE
+  //         occurrences of every recurring task within the auto-schedule
+  //         cutoff, beyond the single placement above (which already placed
+  //         the CURRENT occurrence using the task's own `due` — occurrence
+  //         #1). VIRTUAL expansion, never materialized `Task` rows (see
+  //         `core/recurrence.ts` module doc for why): every occurrence shares
+  //         the SAME real `taskId`, so it rides the exact mechanism a
+  //         splittable task's multiple session blocks already use —
+  //         `ScheduledBlock`'s (taskId,start,end) identity, the stability
+  //         reconciliation below, and the missed auto-marking pass all need
+  //         ZERO changes to support multiple blocks per task.
+  //
+  //         Anchor='completion' tasks are skipped here: a future occurrence's
+  //         date is only knowable once the current one is actually completed
+  //         (`core/recurrence.ts#rollToNextOccurrence`), so there is nothing
+  //         to pre-expand onto the calendar for them — they naturally only
+  //         ever show the one current/next occurrence, exactly like today.
+  //
+  //         Each occurrence gets a FRESH full-duration placement (progressMin
+  //         reset to 0) — only the CURRENT occurrence (placed above) ever
+  //         carries real progress, per the "each occurrence starts with a
+  //         fresh copy of the template" rule (doc 03 §2.9). Any pinned-block
+  //         minutes credit for this task is dropped from the per-occurrence
+  //         context (not just skipped): `pinnedMinutesByTask` is aggregated
+  //         per taskId across ALL of a task's blocks, so re-applying it to
+  //         every occurrence here would incorrectly shrink every occurrence's
+  //         placement by the same amount. This still leaves one narrow edge
+  //         un-hardened: if a user pins a FUTURE occurrence's block via
+  //         calendar drag, this pass has no way to know which specific
+  //         occurrence-day that credit belongs to (only the aggregate taskId
+  //         total), so it cannot yet avoid double-booking that day if it also
+  //         has generous spare free time. Left for whoever owns calendar
+  //         drag/pin (out of this workstream's touched files) to harden.
+  for (const task of ordered) {
+    if (!task.recurrence) continue
+    if (task.due == null) continue
+    if (task.recurrence.anchor === 'completion') continue
+    const occurrences = expandOccurrences(task.recurrence, task.due, task.due + 1, ctx.cutoff)
+    if (occurrences.length === 0) continue
+
+    const ctxForOccurrences: PlacementContext =
+      ctx.pinnedMinutesByTask && ctx.pinnedMinutesByTask.has(task.id)
+        ? {
+            ...ctx,
+            pinnedMinutesByTask: new Map(
+              [...ctx.pinnedMinutesByTask].filter(([id]) => id !== task.id)
+            ),
+          }
+        : ctx
+
+    for (const occ of occurrences) {
+      const lowerBound = Math.max(occ.windowStart ?? occ.date, ctx.now)
+      const occTask: Task = {
+        ...task,
+        due: occ.windowEnd ?? occ.at,
+        startAfter: lowerBound,
+        progressMin: 0,
+      }
+      placeTask(occTask, ctxForOccurrences, state)
+    }
   }
 
   // --- 3b. Undated auto-scheduled backfill, lowest priority, never displaces

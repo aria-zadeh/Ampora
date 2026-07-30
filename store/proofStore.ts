@@ -20,6 +20,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { newId } from "@/core/id";
 import { mmkvStateStorage } from "@/store/mmkv";
+import { PROOFS_PERSIST_VERSION, migrateProofs } from "@/store/migrations/proofs";
 import type { Proof } from "@/types";
 
 /**
@@ -70,6 +71,13 @@ export const useProofStore = create<ProofState>()(
     {
       name: "ampora-proofs",
       storage: createJSONStorage(() => mmkvStateStorage),
+      version: PROOFS_PERSIST_VERSION,
+      // v0 -> v1 drops the deferred `word_count` / `screen_aware` tiers. Rows
+      // are REMAPPED, never deleted: the Proof Log is the user's own record of
+      // work done, and erasing it during an upgrade is the worst outcome
+      // available (doc `04` §4). The assertion is safe — zustand merges this
+      // slice over the complete initial state, restoring the actions.
+      migrate: (persisted, version) => migrateProofs(persisted, version) as ProofState,
     }
   )
 );

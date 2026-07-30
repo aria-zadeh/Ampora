@@ -8,7 +8,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -23,6 +26,7 @@
     "@supabase/supabase-js": "^2.103.0",
     "expo": "~54.0.33",
     "expo-av": "~16.0.8",
+    "expo-calendar": "~15.0.8",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.21",
     "expo-document-picker": "~14.0.8",
@@ -35,6 +39,7 @@
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
     "expo-secure-store": "~15.0.8",
+    "expo-speech-recognition": "^56.0.1",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-symbols": "~1.0.8",
@@ -58,9 +63,11 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.10"
   },
   "private": true
 }

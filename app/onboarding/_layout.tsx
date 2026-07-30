@@ -7,7 +7,6 @@ export default function OnboardingLayout() {
       <Stack.Screen name="name" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="availability" />
-      <Stack.Screen name="energy" />
     </Stack>
   );
 }

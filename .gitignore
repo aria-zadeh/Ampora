@@ -30,6 +30,9 @@ yarn-error.*
 .DS_Store
 *.pem
 
+# Windows Explorer folder metadata
+desktop.ini
+
 # Environment files — NEVER commit these
 .env
 .env.local

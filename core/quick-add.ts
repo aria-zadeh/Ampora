@@ -17,12 +17,14 @@
 
 export interface QuickAddResult {
   title: string
-  /** Epoch ms deadline, when a date token was recognized. */
+  /** Epoch ms deadline, when a date and/or time-of-day token was recognized. */
   due?: number
   /** Duration in minutes, when a "2h" / "30m" style token was recognized. */
   durationMin?: number
   /** 1=Low, 2=Medium, 3=High, 4=Urgent, when a priority word was recognized. */
   priority?: number
+  /** List name, when a "#token" hashtag was recognized. */
+  list?: string
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -80,6 +82,19 @@ function stripMatch(input: string, match: RegExpExecArray): string {
   return `${before} ${after}`.replace(/\s+/g, ' ').trim()
 }
 
+/**
+ * Like `stripMatch`, but also absorbs a single directly-adjacent leading
+ * `sigil` character (no whitespace in between) so a punctuation marker like
+ * "!high" doesn't leave the "!" stranded in the title.
+ */
+function stripMatchWithSigil(input: string, match: RegExpExecArray, sigil: string): string {
+  let start = match.index
+  if (start > 0 && input[start - 1] === sigil) start -= 1
+  const before = input.slice(0, start)
+  const after = input.slice(match.index + match[0].length)
+  return `${before} ${after}`.replace(/\s+/g, ' ').trim()
+}
+
 // ---------------------------------------------------------------------------
 // Priority
 // ---------------------------------------------------------------------------
@@ -92,6 +107,12 @@ const PRIORITY_VALUE: Record<string, number> = {
   med: 2,
   low: 1,
 }
+
+// ---------------------------------------------------------------------------
+// List (#hashtag)
+// ---------------------------------------------------------------------------
+
+const LIST_RE = /#(\w+)/
 
 // ---------------------------------------------------------------------------
 // Duration
@@ -175,6 +196,47 @@ function matchDue(input: string, now: number): { due: number; rest: string } | n
 }
 
 // ---------------------------------------------------------------------------
+// Time of day
+// ---------------------------------------------------------------------------
+
+/**
+ * Try to match a clock-time-of-day token ("3pm", "3 pm", "3:30pm", "15:00",
+ * "at 3") anywhere in `input`. Returns the 24-hour hour/minute and the
+ * leftover text (token stripped), or null if none matched. Deliberately
+ * narrow — requires an explicit am/pm suffix, a colon, or a leading "at" — so
+ * an ordinary bare number in the title (e.g. "ch 11") is never mistaken for a
+ * time. Tried most-explicit-first so "3:30pm" isn't partially consumed by the
+ * bare-colon branch.
+ */
+function matchTimeOfDay(input: string): { hour: number; minute: number; rest: string } | null {
+  // "3pm" / "3 pm" / "3:30pm".
+  let m = /\b(\d{1,2})(?::([0-5]\d))?\s*(am|pm)\b/i.exec(input)
+  if (m) {
+    let hour = parseInt(m[1], 10) % 12
+    if (/pm/i.test(m[3])) hour += 12
+    const minute = m[2] ? parseInt(m[2], 10) : 0
+    if (hour > 23) return null
+    return { hour, minute, rest: stripMatch(input, m) }
+  }
+
+  // 24-hour "15:00".
+  m = /\b([01]?\d|2[0-3]):([0-5]\d)\b/.exec(input)
+  if (m) {
+    return { hour: parseInt(m[1], 10), minute: parseInt(m[2], 10), rest: stripMatch(input, m) }
+  }
+
+  // "at 3" — bare hour, no am/pm, taken as-is (24h).
+  m = /\bat\s+(\d{1,2})\b/i.exec(input)
+  if (m) {
+    const hour = parseInt(m[1], 10)
+    if (hour > 23) return null
+    return { hour, minute: 0, rest: stripMatch(input, m) }
+  }
+
+  return null
+}
+
+// ---------------------------------------------------------------------------
 // Title cleanup
 // ---------------------------------------------------------------------------
 
@@ -191,19 +253,28 @@ function cleanTitle(input: string): string {
 
 /**
  * Parse a quick-add line into a task draft. Deterministic given `now` (epoch
- * ms). Tokens are stripped in priority -> duration -> due -> "due" stopword
- * order; the remainder (cleaned of dangling stopwords) is the title.
+ * ms). Tokens are stripped in list -> priority -> duration -> due -> time-of-
+ * day -> "due" stopword order; the remainder (cleaned of dangling stopwords)
+ * is the title.
  */
 export function parseQuickAdd(input: string, now: number): QuickAddResult {
   let rest = input
 
   const result: QuickAddResult = { title: '' }
 
+  // List (#hashtag).
+  const listMatch = LIST_RE.exec(rest)
+  if (listMatch) {
+    result.list = listMatch[1]
+    rest = stripMatch(rest, listMatch)
+  }
+
   // Priority.
   const pMatch = PRIORITY_RE.exec(rest)
   if (pMatch) {
     result.priority = PRIORITY_VALUE[pMatch[1].toLowerCase()]
-    rest = stripMatch(rest, pMatch)
+    // Sigil-aware: "!high" strips the leading "!" along with the word.
+    rest = stripMatchWithSigil(rest, pMatch, '!')
   }
 
   // Duration.
@@ -218,6 +289,18 @@ export function parseQuickAdd(input: string, now: number): QuickAddResult {
   if (dueMatch) {
     result.due = dueMatch.due
     rest = dueMatch.rest
+  }
+
+  // Time of day — combines with the date just resolved above (overriding its
+  // default 23:59 with the parsed clock time) or, if no date token was
+  // present, applies to today.
+  const timeMatch = matchTimeOfDay(rest)
+  if (timeMatch) {
+    const base = result.due ?? now
+    const d = new Date(base)
+    d.setHours(timeMatch.hour, timeMatch.minute, 0, 0)
+    result.due = d.getTime()
+    rest = timeMatch.rest
   }
 
   // Strip a leftover standalone "due" stopword (e.g. "due fri" -> "fri" was

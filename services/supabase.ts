@@ -7,6 +7,12 @@
 import { createClient, type SupabaseClient, type User, type Session, type AuthChangeEvent } from "@supabase/supabase-js";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
+import {
+  DEFAULT_SESSION_MIN,
+  DEFAULT_SINGLE_SESSION_CAP_MIN,
+  DEFAULT_STAKE_STRENGTH,
+  STAKE_STRENGTH_BOUNDS,
+} from "@/core/blocking/limits";
 
 // ---------------------------------------------------------------------------
 // Env vars
@@ -457,7 +463,13 @@ export function settingsToRow(settings: Settings, userId: string): SettingsRow {
     daily_lock_cap_min: settings.dailyLockCapMin,
     quiet_hours: settings.quietHours,
     never_lock_categories: settings.neverLockCategories,
-    stake_strength_bounds: settings.stakeStrengthBounds,
+    // The `stake_strength_bounds` COLUMN still exists on the settings table, but
+    // the bounds stopped being user data in v1 (they are `STAKE_STRENGTH_BOUNDS`
+    // in `core/blocking/limits.ts`). Writing the constant keeps the row shape
+    // valid without a schema migration; the column can be dropped, and
+    // `stake_strength` / `single_session_cap_min` / `default_session_min` added,
+    // when the settings table is next migrated.
+    stake_strength_bounds: { ...STAKE_STRENGTH_BOUNDS },
     subscription: settings.subscription,
     scheduling_hours: settings.schedulingHours,
     max_notifications_per_hour: settings.maxNotificationsPerHour,
@@ -479,7 +491,13 @@ export function settingsFromRow(row: SettingsRow): Settings {
     dailyLockCapMin: row.daily_lock_cap_min,
     quietHours: row.quiet_hours,
     neverLockCategories: row.never_lock_categories ?? [],
-    stakeStrengthBounds: row.stake_strength_bounds,
+    // The v1 wellbeing fields have no columns yet (see `settingsToRow`), so a
+    // synced row falls back to the shipped defaults. The local blob is the
+    // source of truth for these until the table gains the columns; a sync merge
+    // therefore never silently widens a cap.
+    singleSessionCapMin: DEFAULT_SINGLE_SESSION_CAP_MIN,
+    defaultSessionMin: DEFAULT_SESSION_MIN,
+    stakeStrength: DEFAULT_STAKE_STRENGTH,
     subscription: row.subscription,
     schedulingHours: row.scheduling_hours,
     maxNotificationsPerHour: row.max_notifications_per_hour,

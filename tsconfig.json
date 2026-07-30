@@ -2,6 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "resolveJsonModule": true,
     "paths": {
       "@/*": [
         "./*"
@@ -20,5 +21,6 @@
     "Reference/**",
     "supabase/functions/**",
     "native/**"
-  ]
+  ],
+  "_comment": "`native/**` is excluded ON PURPOSE and permanently. It is the Windows quality gate: `npx tsc --noEmit` must never see iOS-only TypeScript, because that tree imports packages (ampora-ignition, react-native-device-activity) that are not installed here. To typecheck the native tree on a Mac after `npm run native:on`, use `tsconfig.native.json` (`npm run typecheck:native`)."
 }

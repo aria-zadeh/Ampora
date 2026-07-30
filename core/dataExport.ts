@@ -19,9 +19,8 @@ import { useProjectStore } from '@/store/projectStore'
 import { useScheduleStore } from '@/store/scheduleStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useSessionStore } from '@/store/sessionStore'
-import { useBehavioralStore } from '@/store/behavioralStore'
+import { useEventLogStore } from '@/store/eventLogStore'
 import { useProofStore } from '@/store/proofStore'
-import { useLearningStore } from '@/store/learningStore'
 
 /** Bumped if the export shape ever changes, so importers can branch on it. */
 export const EXPORT_SCHEMA_VERSION = 1
@@ -39,9 +38,8 @@ export interface AmporaExport {
     schedule: unknown
     settings: unknown
     sessions: { active: unknown; history: unknown }
-    behavioralSignals: unknown
+    events: unknown
     proofs: unknown
-    focusProfile: unknown
   }
 }
 
@@ -65,9 +63,8 @@ export function buildExport(now: number = Date.now()): AmporaExport {
         active: useSessionStore.getState().active,
         history: useSessionStore.getState().history,
       },
-      behavioralSignals: useBehavioralStore.getState().signals,
+      events: useEventLogStore.getState().events,
       proofs: useProofStore.getState().proofs,
-      focusProfile: useLearningStore.getState().profile,
     },
   }
 }
@@ -107,7 +104,6 @@ export function wipeAllData(): void {
   useListStore.setState({ lists: {}, tags: {} })
   useProjectStore.setState({ projects: {} })
   useScheduleStore.getState().clear()
-  useBehavioralStore.getState().clearSignals()
+  useEventLogStore.getState().clearEvents()
   useProofStore.getState().clear()
-  useLearningStore.getState().clear()
 }

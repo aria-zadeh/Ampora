@@ -14,22 +14,65 @@
 
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import type { ScheduledBlock } from '@/types'
-import { recompute as engineRecompute, type Unschedulable } from '@/core/scheduler'
+import { AppState, type AppStateStatus } from 'react-native'
+import type { CalEvent, ScheduledBlock } from '@/types'
+import { recompute as engineRecompute, DEFAULT_CUTOFF_DAYS, type Unschedulable } from '@/core/scheduler'
 import { mmkvStateStorage } from '@/store/mmkv'
 import { useTaskStore } from '@/store/taskStore'
 import { useListStore } from '@/store/listStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { startOfDay } from '@/core/scheduler/time'
 import type { List } from '@/types'
+import * as calendarSync from '@/services/calendarSync'
+
+const MS_PER_DAY = 86_400_000
+
+/**
+ * Minimum spacing between two external-calendar re-fetches (FR-22). Every
+ * `recompute()` call opportunistically refreshes when the cache is this
+ * stale (see `maybeKickExternalEventsRefresh` below), which is what makes
+ * "on the manual Rebuild schedule action" and "on a daily background pass"
+ * (both of which are plain `recompute()` calls per FR-21) also refresh the
+ * calendar without recompute() itself ever doing a blocking fetch — it stays
+ * synchronous and reads whatever is already cached. Short enough that a
+ * deliberate "Rebuild schedule" tap almost always picks up a real refetch;
+ * long enough that a burst of task edits (each debounced-recompute) does not
+ * hammer the device calendar database.
+ */
+const EXTERNAL_EVENTS_STALE_MS = 2 * 60 * 1000
 
 interface ScheduleState {
   blocks: Record<string, ScheduledBlock>
   unschedulable: Unschedulable[]
   lastComputedAt: number | null
+  /**
+   * Cached external (device-calendar) busy events, keyed into the engine as
+   * `calEvents` (FR-22). Cached rather than fetched inline so `recompute()`
+   * — debounced 300ms and budgeted <300ms — never itself awaits a native
+   * calendar query; the cache is refreshed out-of-band by
+   * `refreshExternalEvents()`.
+   */
+  externalEvents: CalEvent[]
+  /** `Date.now()` of the last successful (or intentionally-cleared) external-events fetch, or null before the first one. */
+  externalEventsSyncedAt: number | null
 
   /** Run the engine against current task + settings state and store results. */
   recompute: () => void
+  /**
+   * Re-fetch busy events from the device calendars selected in Settings
+   * (`settingsStore.calendarSyncCalendarIds`) and replace the cache, then
+   * recompute. Always a full replace, never a per-item merge: `fetchBusyEvents`
+   * already returns the COMPLETE set for the selected calendars over the full
+   * planning window, so replacing wholesale is what correctly keeps a refresh
+   * from duplicating or leaking a deleted/out-of-range event — a stale entry
+   * simply isn't in the fresh set and disappears from the cache too, rather
+   * than needing an explicit removal pass. No-ops (but still clears a
+   * previously-cached, now-orphaned set) when no calendar is selected or
+   * permission is no longer granted. Never throws — `services/calendarSync.ts`
+   * degrades to `[]` on any error, web, or a denied/undetermined permission
+   * (FR-64).
+   */
+  refreshExternalEvents: () => Promise<void>
   /** Toggle a block's pinned flag (pinned = immovable input to future recomputes). */
   setPinned: (blockId: string, pinned: boolean) => void
   /**
@@ -63,12 +106,35 @@ interface ScheduleState {
  */
 let isComputing = false
 
+/**
+ * The staleness gate described on `EXTERNAL_EVENTS_STALE_MS`. Defined at
+ * module scope (not inline in the store creator) purely for readability;
+ * `useScheduleStore` is only referenced inside the function body, which never
+ * runs before the module has finished evaluating, so the forward reference is
+ * safe.
+ */
+function maybeKickExternalEventsRefresh(): void {
+  const { calendarSyncCalendarIds } = useSettingsStore.getState()
+  if (!calendarSyncCalendarIds || calendarSyncCalendarIds.length === 0) return
+  const { externalEventsSyncedAt, refreshExternalEvents } = useScheduleStore.getState()
+  if (externalEventsSyncedAt != null && Date.now() - externalEventsSyncedAt < EXTERNAL_EVENTS_STALE_MS) {
+    return
+  }
+  refreshExternalEvents().catch(() => {
+    // refreshExternalEvents already swallows every internal error (its own
+    // calendarSync calls never throw); this catch only guards the exceedingly
+    // unlikely case of a synchronous throw before the first `await`.
+  })
+}
+
 export const useScheduleStore = create<ScheduleState>()(
   persist(
     (set, get) => ({
       blocks: {},
       unschedulable: [],
       lastComputedAt: null,
+      externalEvents: [],
+      externalEventsSyncedAt: null,
 
       recompute: () => {
         if (isComputing) return
@@ -85,9 +151,12 @@ export const useScheduleStore = create<ScheduleState>()(
           const result = engineRecompute({
             tasks,
             prevBlocks,
-            // No CalEvent store exists yet (calendar is Phase 3); pass empty
-            // until an events source is wired in. Engine handles [] cleanly.
-            calEvents: [],
+            // External busy events (FR-22, device calendar sync). Read from
+            // the cache below — never fetched inline, so recompute() stays
+            // synchronous and inside its <300ms budget. A future
+            // manually-created (local) CalEvent source would be concatenated
+            // in here too; only the external cache exists so far.
+            calEvents: get().externalEvents,
             settings,
             now: Date.now(),
             // Honour the user's workload preference (FR-14). Without this the
@@ -107,6 +176,51 @@ export const useScheduleStore = create<ScheduleState>()(
         } finally {
           isComputing = false
         }
+        // Fire-and-forget, staleness-gated (FR-22): every recompute() trigger
+        // (task edits, the manual "Rebuild schedule" button, the daily
+        // background pass, app open — FR-21) is also an opportunity to notice
+        // a stale external-events cache and refresh it. Never awaited — this
+        // must not push recompute() itself over its sync budget. When the
+        // fetch resolves it updates the cache and calls recompute() again, so
+        // the plan picks up calendar changes moments later. Outside the
+        // try/finally above so it can never affect `isComputing`.
+        maybeKickExternalEventsRefresh()
+      },
+
+      refreshExternalEvents: async () => {
+        const calendarIds = useSettingsStore.getState().calendarSyncCalendarIds
+        if (!calendarIds || calendarIds.length === 0) {
+          // Nothing selected (including "never selected anything yet") — clear
+          // any previously-cached events (e.g. the user disconnected every
+          // calendar) rather than keep planning around a stale set.
+          if (get().externalEvents.length > 0) {
+            set({ externalEvents: [], externalEventsSyncedAt: Date.now() })
+            get().recompute()
+          } else {
+            set({ externalEventsSyncedAt: Date.now() })
+          }
+          return
+        }
+
+        const status = await calendarSync.getPermissionStatus()
+        if (status !== 'granted') {
+          // Permission revoked/denied since calendars were selected — degrade
+          // silently (FR-64): drop the cache rather than keep planning around
+          // events we can no longer verify, but never surface an error.
+          if (get().externalEvents.length > 0) {
+            set({ externalEvents: [], externalEventsSyncedAt: Date.now() })
+            get().recompute()
+          } else {
+            set({ externalEventsSyncedAt: Date.now() })
+          }
+          return
+        }
+
+        const now = Date.now()
+        const rangeEnd = now + DEFAULT_CUTOFF_DAYS * MS_PER_DAY
+        const fresh = await calendarSync.fetchBusyEvents(calendarIds, now, rangeEnd)
+        set({ externalEvents: fresh, externalEventsSyncedAt: Date.now() })
+        get().recompute()
       },
 
       setPinned: (blockId, pinned) => {
@@ -284,9 +398,41 @@ export function wireScheduleTriggers(): () => void {
     }
   })
 
+  // Calendar selection changed (FR-22, CalendarSyncSettings): a real refetch,
+  // not just a recompute against the stale cache, so the newly (de)selected
+  // calendar's events actually show up or drop out promptly rather than
+  // waiting for the 2-minute staleness gate or the next app foreground.
+  const unsubCalendarIds = useSettingsStore.subscribe((state, prev) => {
+    if (state.calendarSyncCalendarIds !== prev.calendarSyncCalendarIds) {
+      useScheduleStore
+        .getState()
+        .refreshExternalEvents()
+        .catch(() => {})
+    }
+  })
+
+  // Refresh on app foreground (FR-22 "Refresh on app foreground and on manual
+  // Rebuild schedule"). "Rebuild schedule" and the other FR-21 triggers are
+  // covered by the staleness gate inside `recompute()` itself
+  // (`maybeKickExternalEventsRefresh`); returning from the background is not
+  // itself a recompute trigger anywhere else in the app, so it needs its own
+  // listener. Registered unconditionally — `AppState` is available under
+  // react-native-web too, and every downstream calendarSync call is already
+  // platform-guarded, so this is a harmless no-op on web.
+  const appStateSub = AppState.addEventListener('change', (next: AppStateStatus) => {
+    if (next === 'active') {
+      useScheduleStore
+        .getState()
+        .refreshExternalEvents()
+        .catch(() => {})
+    }
+  })
+
   return () => {
     unsubTasks()
     unsubSettings()
+    unsubCalendarIds()
+    appStateSub.remove()
     if (debounceTimer) clearTimeout(debounceTimer)
     debounceTimer = null
     triggersWired = false

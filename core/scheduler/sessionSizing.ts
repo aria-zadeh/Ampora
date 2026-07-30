@@ -4,7 +4,12 @@
  * Balanced: target = clamp(ceil(remaining / daysAvailable), minBlock, maxBlock);
  *   emit sessions of `target` until remaining is exhausted. A trailing
  *   remainder is emitted as its own session if it's >= minBlock, otherwise
- *   merged into the previous session.
+ *   merged into the previous session(s) — never in a way that would push a
+ *   session above maxBlock (FR-11: "never below Minimum block, never above
+ *   Maximum block"). When merging into just the last session would overflow
+ *   maxBlock (e.g. target was itself clamped to maxBlock), the pooled total
+ *   is redistributed evenly across as many trailing sessions as it takes to
+ *   keep every piece within [minBlock, maxBlock].
  *
  * Front-load: emit maxBlock sessions earliest-first until remaining is
  *   exhausted (last one is the remainder).
@@ -81,11 +86,11 @@ function balancedSizes(
   while (left > 0) {
     if (left <= target) {
       // Trailing remainder: keep as its own session if it clears minBlock,
-      // else merge into the previous session (PRD §9.5.4).
+      // else merge into the tail (PRD §9.5.4) — never above maxBlock (FR-11).
       if (left >= minB || sizes.length === 0) {
         sizes.push(left)
       } else {
-        sizes[sizes.length - 1] += left
+        mergeRemainderIntoTail(sizes, left, minB, maxB)
       }
       left = 0
     } else {
@@ -94,6 +99,40 @@ function balancedSizes(
     }
   }
   return sizes
+}
+
+/**
+ * Fold a sub-minBlock remainder into the tail of `sizes` without ever
+ * producing a session above maxBlock. A plain `sizes[last] += left` is only
+ * safe when the last session has room; when it doesn't (e.g. `target` was
+ * itself clamped to maxBlock, so the last session is already at the ceiling),
+ * pool the remainder with progressively more of the trailing sessions until
+ * an even split across `n` pieces fits within [minBlock, maxBlock], then
+ * replace those trailing sessions with the split. Mutates `sizes` in place.
+ */
+function mergeRemainderIntoTail(sizes: number[], left: number, minB: number, maxB: number): void {
+  let pool = left
+  let take = 0
+  while (take < sizes.length) {
+    pool += sizes[sizes.length - 1 - take]
+    take += 1
+    const n = Math.ceil(pool / maxB)
+    const base = Math.floor(pool / n)
+    if (base >= minB) {
+      const extra = pool % n
+      const parts: number[] = []
+      for (let i = 0; i < n; i++) parts.push(base + (i < extra ? 1 : 0))
+      sizes.splice(sizes.length - take, take, ...parts)
+      return
+    }
+  }
+  // Degenerate: even folding in every prior session can't produce a split
+  // that respects minBlock — only reachable if the task's own minBlock is
+  // close to its maxBlock. Fall back to a single combined session (still
+  // respects the "one session below minBlock is acceptable when there is no
+  // legal split" escape hatch, rather than silently dropping minutes).
+  sizes.length = 0
+  sizes.push(pool)
 }
 
 /**

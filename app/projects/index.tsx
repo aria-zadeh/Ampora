@@ -1,11 +1,12 @@
 /**
- * Projects hub (doc `10`). A premium list of the user's projects: each row is a
- * ProjectCard (name, kind badge, progress ring, file/task counts). A FAB + a
+ * Projects hub (doc `06`). A premium list of the user's projects: each row is a
+ * ProjectCard (title, kind badge, progress ring, task count). A FAB + a
  * "New project" affordance open the NewProjectSheet. When there are no projects,
  * a teaching EmptyState explains what a project is and how it differs from a task.
  *
- * Projects are the knowledge + chat + progress layer; tapping a card opens the
- * project detail (`/projects/[id]`), where the chat plans the next lockable Task.
+ * Projects are the thin structure-and-progress layer (doc `06` §2); tapping a
+ * card opens the project detail (`/projects/[id]`), where "Plan my next
+ * session" generates the next lockable Task.
  */
 
 import React, { useCallback, useMemo, useState } from "react";
@@ -17,6 +18,7 @@ import { FlashList } from "@shopify/flash-list";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 import { useProjectStore, selectAllProjects } from "@/store/projectStore";
+import { useTaskStore, selectAllTasks } from "@/store/taskStore";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { NewProjectSheet } from "@/components/projects/NewProjectSheet";
 import { PROJECT_ACCENT } from "@/components/projects/projectUtils";
@@ -34,6 +36,19 @@ export default function ProjectsHubScreen() {
   const projects = useProjectStore(useShallow(selectAllProjects));
   const createProject = useProjectStore((s) => s.createProject);
 
+  // Raw-select then derive (Zustand v5 selector discipline): count each
+  // project's tasks by `Task.projectId` once here, rather than each
+  // ProjectCard subscribing to the whole task list — Project no longer keeps
+  // its own task-id list (doc `06` §9).
+  const allTasks = useTaskStore(useShallow(selectAllTasks));
+  const taskCountByProject = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const t of allTasks) {
+      if (t.projectId) counts[t.projectId] = (counts[t.projectId] ?? 0) + 1;
+    }
+    return counts;
+  }, [allTasks]);
+
   const [sheetOpen, setSheetOpen] = useState(false);
 
   // Most-recently-updated first, so active projects surface to the top.
@@ -43,7 +58,7 @@ export default function ProjectsHubScreen() {
   );
 
   const handleCreate = useCallback(
-    (input: { name: string; kind: ProjectKind; description?: string }) => {
+    (input: { title: string; kind: ProjectKind; contextLine?: string }) => {
       const project = createProject(input);
       setSheetOpen(false);
       router.push(`/projects/${project.id}`);
@@ -58,11 +73,15 @@ export default function ProjectsHubScreen() {
         : FadeInDown.delay(staggerDelay(index)).duration(DURATIONS.base);
       return (
         <Animated.View entering={entering} className="px-5 py-1.5">
-          <ProjectCard project={item} onPress={() => router.push(`/projects/${item.id}`)} />
+          <ProjectCard
+            project={item}
+            taskCount={taskCountByProject[item.id] ?? 0}
+            onPress={() => router.push(`/projects/${item.id}`)}
+          />
         </Animated.View>
       );
     },
-    [reduceMotion]
+    [reduceMotion, taskCountByProject]
   );
 
   return (
@@ -96,7 +115,7 @@ export default function ProjectsHubScreen() {
           <EmptyState
             icon="rocket-outline"
             title="Projects are bigger than tasks"
-            subtitle="A project is a paper, an exam unit, an ongoing goal. Ampora tracks it, holds your files, and hands you the next session to actually start."
+            subtitle="A project is a paper, an exam unit, an ongoing goal. Ampora tracks its progress and hands you the next session to actually start."
             actionLabel="New project"
             onAction={() => setSheetOpen(true)}
           />

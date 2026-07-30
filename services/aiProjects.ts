@@ -1,35 +1,32 @@
 /**
- * Project AI client — Phase 7 (doc `10` §5 project chat, §7 next-task
- * generation).
+ * Project AI client (doc `06` §4 "Session generation", PRD FR-84).
  *
- * Two capabilities, each backed by a Supabase Edge Function with a LOCAL
- * FALLBACK so both work with no `GEMINI_API_KEY` and never throw to the UI:
- *  - `projectChat(project, userMessage)` → assistant reply text. This is the
- *    agentic study-plan planner chat (doc `10` §5): its job is to organize the
- *    plan and — in future — use tools to change tasks/schedule/memory, not to
- *    quiz the user.
- *  - `generateNextTask(project, sessionMin)` → the next schedulable session as a
- *    { title, firstMove, subtasks } shape (doc `10` §7: a normal Ampora Task
- *    whose First move is computed for the CURRENT position, not the whole
- *    project).
+ * `generateNextTask(project, options)` -> the next schedulable session as a
+ * { title, firstMove, subtasks } shape: a normal Ampora Task whose First move
+ * is computed for the CURRENT phase, not the whole project. Backed by a
+ * Supabase Edge Function with a LOCAL FALLBACK so it works with no
+ * `GEMINI_API_KEY` and never throws to the UI.
  *
- * AI is Google Gemini (`gemini-2.5-flash`) behind the edge functions; the key
+ * `generateNextTask` is the one capability this file keeps from the project's
+ * old, cut conversational assistant (`V2_Changes.md` §6) — it is also the
+ * function the nightly pre-built-tomorrow pass (FR-90, not yet built) will
+ * call once per active project.
+ *
+ * AI is Google Gemini (`gemini-2.5-flash`) behind the edge function; the key
  * lives server-side. Same defensive contract as `services/ai.ts`: the edge
- * functions return 200 + `{ error: "no_key" }` when the key is missing, so the
+ * function returns 200 + `{ error: "no_key" }` when the key is missing, so the
  * "no key" and "network failed" paths funnel into the same graceful fallback.
- * Fallbacks are grounded in the project's own name / kind / progress / files so
- * they read as helpful, not generic. This file mirrors — and intentionally does
- * NOT import — `services/ai.ts`, to keep that file untouched.
+ * The fallback is grounded in the project's own title/kind/current phase/
+ * context line so it reads as helpful, not generic. This file mirrors — and
+ * intentionally does NOT import — `services/ai.ts`, to keep that file untouched.
  *
- * Portable/web-safe: imports only the shared supabase client and types.
+ * Portable/web-safe: imports only the shared supabase client, `@/types`, and
+ * the pure `core/projects/progress` helpers. No react-native imports.
  */
 
 import { supabase } from "@/services/supabase";
-import { validateAndExecuteActions, type ActionDeps } from "@/core/ai-actions";
-import { extractTasks } from "@/services/ai";
-import { useProjectStore } from "@/store/projectStore";
-import { useTaskStore } from "@/store/taskStore";
-import type { Project, ProjectProgress, ToolAction } from "@/types";
+import { findCurrentPhase, type CheckInAnswer } from "@/core/projects/progress";
+import type { Project } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Public result shapes
@@ -40,10 +37,10 @@ export interface NextTaskSubtask {
   estimatedMin: number;
 }
 
-/** The next work session, shaped so a caller can create a normal Task from it (doc `10` §7). */
+/** The next work session, shaped so a caller can create a normal Task from it (doc `06` §4). */
 export interface NextTaskResult {
   title: string;
-  /** The 2-to-5-minute concrete first move for THIS session (doc 07 Part 1B.4). */
+  /** The 2-to-5-minute concrete first move for THIS session (doc `03`). */
   firstMove: string;
   subtasks: NextTaskSubtask[];
   /** True when this came from the local template, not live AI. */
@@ -52,19 +49,18 @@ export interface NextTaskResult {
   note?: string;
 }
 
-export interface ProjectChatResult {
-  /** The assistant's reply text (warm, grounded). Also aliased as `text` for callers. */
-  reply: string;
-  /** @deprecated alias of `reply` — kept so existing callers keep working. */
-  text: string;
-  /** The tool actions that were validated AND applied this turn (may be empty). */
-  actions: ToolAction[];
-  /** True when this came from the local templated reply / fallback path, not live AI. */
-  isFallback: boolean;
-  /** Reverts every action applied this turn, in one call. Null when no action ran. Idempotent. */
-  undo: (() => void) | null;
-  /** Short human summary of what changed, e.g. "Added 3 tasks". Empty when nothing changed. */
-  summary: string;
+/** Inputs for `generateNextTask` beyond the project itself (doc `06` §4's four inputs). */
+export interface GenerateNextTaskOptions {
+  /** Tomorrow's (or today's) available block length, in minutes. @default 45 */
+  sessionMin?: number;
+  /**
+   * The end-of-session check-in answer from the LAST session this project
+   * generated, so the copy can tell "starting a fresh phase" apart from
+   * "still finishing the same one". Undefined for a project's first-ever
+   * session, or when the last check-in was skipped and nothing could be
+   * inferred.
+   */
+  lastOutcome?: CheckInAnswer;
 }
 
 // ---------------------------------------------------------------------------
@@ -95,217 +91,36 @@ async function invokeEdge<T = unknown>(
 }
 
 // ---------------------------------------------------------------------------
-// Progress summarization (shared by the payload and the fallbacks)
+// Payload + fallback shared helpers
 // ---------------------------------------------------------------------------
 
-/** Overall percent-complete for any progress shape, 0..100 (rounded). */
-function overallPct(progress: ProjectProgress): number {
-  switch (progress.kind) {
-    case "general":
-      return clampPct(progress.pct);
-    case "deliverable": {
-      if (progress.phases.length === 0) return 0;
-      const sum = progress.phases.reduce((acc, p) => acc + clampPct(p.pct), 0);
-      return Math.round(sum / progress.phases.length);
-    }
-    case "study": {
-      if (progress.topics.length === 0) return 0;
-      // Mastery is 0..1; average it across topics and express as a percent.
-      const sum = progress.topics.reduce((acc, t) => acc + clamp01(t.mastery), 0);
-      return Math.round((sum / progress.topics.length) * 100);
-    }
-  }
-}
-
-function clampPct(n: number): number {
-  if (!Number.isFinite(n)) return 0;
-  return Math.min(100, Math.max(0, Math.round(n)));
-}
-
-function clamp01(n: number): number {
-  if (!Number.isFinite(n)) return 0;
-  return Math.min(1, Math.max(0, n));
-}
-
-/**
- * The most useful "where are you" focus for the next session, derived from
- * progress: the first unfinished phase (deliverable), the weakest topic
- * (study), or null (general). Drives both the payload hint and the fallback.
- */
-function nextFocus(progress: ProjectProgress): string | null {
-  switch (progress.kind) {
-    case "deliverable": {
-      const pending = progress.phases.find((p) => clampPct(p.pct) < 100);
-      return pending ? pending.title : null;
-    }
-    case "study": {
-      if (progress.topics.length === 0) return null;
-      const weakest = progress.topics.reduce((a, b) =>
-        clamp01(b.mastery) < clamp01(a.mastery) ? b : a
-      );
-      return weakest.title;
-    }
-    case "general":
-      return null;
-  }
-}
-
-/** A compact, wire-safe snapshot of the project for the edge functions. */
-function projectPayload(project: Project) {
+/** A compact, wire-safe snapshot of the project for the edge function (doc `06` §4's inputs, minus session length which travels separately). */
+function projectPayload(project: Project, lastOutcome: CheckInAnswer | undefined) {
+  const current = findCurrentPhase(project.phases);
   return {
-    name: project.name,
+    title: project.title,
     kind: project.kind,
-    description: project.description ?? "",
-    overallPct: overallPct(project.progress),
-    nextFocus: nextFocus(project.progress),
-    progress: project.progress,
-    memory: project.memory,
-    fileNames: project.files.map((f) => f.name),
-    // Real task ids so the planner can reference existing tasks (update/complete/
-    // subtasks). The client re-validates every id, so a stale id is harmless.
-    taskIds: project.taskIds,
-    // Trim to keep the payload bounded; the server retrieves the rest as needed.
-    recentChat: project.chat.slice(-8).map((m) => ({ role: m.role, text: m.text })),
+    contextLine: project.contextLine ?? "",
+    percent: project.percent,
+    currentPhase: current ? { title: current.title, order: current.order } : null,
+    phases: project.phases.map((p) => ({ title: p.title, done: p.done, order: p.order })),
+    lastOutcome: lastOutcome ?? null,
   };
 }
 
-// ---------------------------------------------------------------------------
-// Agentic action wiring (Phase 5 AI Round B)
-// ---------------------------------------------------------------------------
-
-/** Build the `ActionDeps` the executor needs from the live Zustand stores. */
-function liveActionDeps(): ActionDeps {
-  const task = useTaskStore.getState();
-  const project = useProjectStore.getState();
-  return {
-    getTask: (id) => useTaskStore.getState().tasks[id],
-    getProject: (id) => useProjectStore.getState().projects[id],
-    createTask: task.createTask,
-    updateTask: task.updateTask,
-    deleteTask: task.deleteTask,
-    completeTask: task.completeTask,
-    reopenTask: task.reopenTask,
-    addSubtask: task.addSubtask,
-    removeSubtask: task.removeSubtask,
-    updateProject: project.updateProject,
-    addPhase: project.addPhase,
-    updateMemory: project.updateMemory,
-  };
+/** Lead phrase for the fallback title/first-move, shaped by the last check-in (doc `06` §4). */
+function leadPhrase(kind: Project["kind"], lastOutcome: CheckInAnswer | undefined): string {
+  if (lastOutcome === "keep_going") return kind === "study" ? "Keep drilling" : "Keep going on";
+  if (lastOutcome === "stop_here") return "Pick back up on";
+  return kind === "study" ? "Study" : "Advance";
 }
 
-/**
- * Heuristic: does this message look like a "turn this into tasks / break it into
- * steps" request? Used only on the OFFLINE path to decide whether to run the
- * deterministic extractTasks parser so the confirmation chips + Undo still work
- * with no key (doc `08` local-first agentic fallback).
- */
-function looksLikeExtractRequest(message: string): boolean {
-  return /\b(add|make|create|turn|break|split|plan|schedule|steps?|tasks?|to[- ]?dos?|checklist)\b/i.test(
-    message
-  );
+function truncate(s: string, max: number): string {
+  return s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`;
 }
 
-/**
- * Offline agentic fallback: run the deterministic per-line quick-add parser
- * (extractTasks) over the user's message and materialize `create_task` actions
- * through the SAME validate+execute pipeline, so chips/Undo behave identically
- * to the live path. Returns applied actions (possibly none). Never throws.
- */
-async function fallbackActions(
-  project: Project,
-  userMessage: string,
-  deps: ActionDeps
-): Promise<{ actions: ToolAction[]; undo: (() => void) | null; summary: string }> {
-  if (!looksLikeExtractRequest(userMessage)) {
-    return { actions: [], undo: null, summary: "" };
-  }
-  const extracted = await extractTasks(userMessage);
-  if (extracted.length === 0) return { actions: [], undo: null, summary: "" };
-
-  const actions: ToolAction[] = extracted.slice(0, 8).map((t) => ({
-    type: "create_task",
-    title: t.title,
-    projectId: project.id,
-    ...(t.durationMin != null ? { durationMin: t.durationMin } : {}),
-    ...(t.due != null ? { due: t.due } : {}),
-  }));
-
-  const { executed, undo, summary } = validateAndExecuteActions(actions, deps);
-  return { actions: executed, undo, summary };
-}
-
-// ---------------------------------------------------------------------------
-// Public API — project chat
-// ---------------------------------------------------------------------------
-
-/**
- * Answer/act on a message in the project's scoped chat (doc `10` §5), AGENTIC.
- * Calls the `ai-project-chat` edge function, which returns `{ reply, actions }`.
- * The returned actions are re-validated and applied CLIENT-side via
- * `validateAndExecuteActions` (tools run on-device, local-first — no MCP server
- * this round); the applied set + a single `undo()` + a human `summary` come
- * back so the UI can show a confirmation chip with one-tap revert.
- *
- * On no_key / network failure it falls back locally: a warm grounded reply, plus
- * — when the message reads like "turn this into tasks / break it into steps" —
- * the deterministic extractTasks parser feeds `create_task` actions through the
- * SAME pipeline, so chips + Undo still work offline. The return shape is
- * identical on both paths, so the UI is agnostic. Never throws.
- */
-export async function projectChat(
-  project: Project,
-  userMessage: string
-): Promise<ProjectChatResult> {
-  const deps = liveActionDeps();
-
-  const raw = await invokeEdge<{ reply?: unknown; actions?: unknown }>("ai-project-chat", {
-    project: projectPayload(project),
-    message: userMessage,
-  });
-
-  const reply = raw && typeof raw.reply === "string" ? raw.reply.trim() : "";
-
-  if (reply) {
-    // Live path: validate + apply whatever actions the planner proposed.
-    const { executed, undo, summary } = validateAndExecuteActions(raw?.actions, deps);
-    return { reply, text: reply, actions: executed, isFallback: false, undo, summary };
-  }
-
-  // Offline path: grounded templated reply + deterministic action fallback.
-  const fallbackReply = fallbackChatReply(project, userMessage);
-  const { actions, undo, summary } = await fallbackActions(project, userMessage, deps);
-  return { reply: fallbackReply, text: fallbackReply, actions, isFallback: true, undo, summary };
-}
-
-/**
- * Templated, grounded reply used when live AI is unavailable. Reflects the
- * project's real state (name, percent complete, next focus, file count) and
- * points the user at the concrete next action, matching the "always hand you a
- * sensible next step" framing (doc `10` §1).
- */
-function fallbackChatReply(project: Project, userMessage: string): string {
-  const pct = overallPct(project.progress);
-  const focus = nextFocus(project.progress);
-  const fileCount = project.files.length;
-  const filePart =
-    fileCount > 0
-      ? ` I'm working from ${fileCount} file${fileCount === 1 ? "" : "s"} in this project.`
-      : " Add some files and I can ground my help in your real material.";
-
-  const focusPart =
-    focus != null
-      ? ` Right now the best next step looks like: ${focus}.`
-      : project.progress.kind === "study"
-        ? " Add the topics you need to cover and I'll steer you to the weakest one next."
-        : " Tell me what 'done' looks like and I'll lay out the phases.";
-
-  const asked = userMessage.trim();
-  const echo = asked ? ` You asked: "${truncate(asked, 120)}".` : "";
-
-  return (
-    `You're about ${pct}% through "${project.name}".${focusPart}${filePart}${echo}` +
-    ` (I'm offline right now, so this is a general answer — reconnect for a fuller, source-grounded reply.)`
-  );
+function clampBudget(n: number | undefined, fallback: number): number {
+  return n != null && Number.isFinite(n) && n > 0 ? Math.round(n) : fallback;
 }
 
 // ---------------------------------------------------------------------------
@@ -313,27 +128,28 @@ function fallbackChatReply(project: Project, userMessage: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Generate the next work session as a schedulable Task shape (doc `10` §7).
- * `sessionMin` is the time budget for the session (used to size subtasks). Calls
- * the `ai-project-task` edge function; on failure returns a sensible templated
- * next session derived from the current progress (first unfinished phase /
- * weakest topic / a general push). Never throws.
+ * Generate the next work session as a schedulable Task shape (doc `06` §4).
+ * `options.sessionMin` is the time budget for the session (used to size
+ * subtasks); `options.lastOutcome` is the prior session's check-in answer,
+ * used to flavor the fallback copy. Calls the `ai-project-task` edge
+ * function; on failure returns a sensible templated next session derived
+ * from the project's current phase and context line. Never throws.
  */
 export async function generateNextTask(
   project: Project,
-  sessionMin: number = 45
+  options: GenerateNextTaskOptions = {}
 ): Promise<NextTaskResult> {
-  const budget = Number.isFinite(sessionMin) && sessionMin > 0 ? Math.round(sessionMin) : 45;
+  const budget = clampBudget(options.sessionMin, 45);
 
   const raw = await invokeEdge("ai-project-task", {
-    project: projectPayload(project),
+    project: projectPayload(project, options.lastOutcome),
     sessionMin: budget,
   });
 
   const coerced = coerceNextTask(raw);
   if (coerced) return coerced;
 
-  return fallbackNextTask(project, budget);
+  return fallbackNextTask(project, budget, options.lastOutcome);
 }
 
 /** Validate a live edge result into a NextTaskResult, or null if unusable. */
@@ -355,81 +171,73 @@ function coerceNextTask(raw: unknown): NextTaskResult | null {
       return { title: t, estimatedMin: est };
     })
     .filter((s): s is NextTaskSubtask => s != null)
-    .slice(0, 8); // doc 07: max 8 subtasks
+    .slice(0, 8); // doc `03`: max 8 subtasks
 
   if (!title || !firstMove || subtasks.length === 0) return null;
   return { title, firstMove, subtasks, isFallback: false };
 }
 
 /**
- * A sensible templated next session, grounded in the project's current
- * position. Deliverable → advance the first unfinished phase; study → drill the
- * weakest topic; general → a focused push on the project itself. Subtasks are
- * sized to fit `sessionMin` (a short starter plus one or two work blocks), max 8,
- * and the First move is a 2-to-5-minute impossible-to-fail start (doc 07 / `10`
- * §7).
+ * A sensible templated next session, grounded in the project's current phase
+ * (doc `06` §4). Subtasks are sized to fit `sessionMin` (a short starter plus
+ * one or two work blocks), max 8, and the First move is a 2-to-5-minute
+ * impossible-to-fail start (doc `03`).
  */
-function fallbackNextTask(project: Project, sessionMin: number): NextTaskResult {
-  const focus = nextFocus(project.progress);
-  const name = project.name.trim() || "this project";
+function fallbackNextTask(
+  project: Project,
+  sessionMin: number,
+  lastOutcome: CheckInAnswer | undefined
+): NextTaskResult {
+  const title = project.title.trim() || "this project";
+  const current = findCurrentPhase(project.phases);
+  const contextSuffix = project.contextLine?.trim()
+    ? ` (${truncate(project.contextLine.trim(), 140)})`
+    : "";
 
   // Work-block budget after a ~5 min starter step.
   const workMin = Math.max(10, sessionMin - 5);
   const half = Math.max(10, Math.round(workMin / 2));
+  const note = "This is a template session, not grounded in your material.";
 
-  let title: string;
-  let firstMove: string;
-  let subtasks: NextTaskSubtask[];
-
-  switch (project.progress.kind) {
-    case "deliverable": {
-      const phase = focus ?? "the next section";
-      title = `Advance ${phase} (${sessionMin} min)`;
-      firstMove = `Open your ${name} draft and write the heading for ${phase}`;
-      subtasks = [
-        { title: `Re-read what "${phase}" needs and jot 2 bullet points`, estimatedMin: 5 },
-        { title: `Do the core of ${phase}`, estimatedMin: half },
-        { title: `Tidy it into something you could hand in`, estimatedMin: Math.max(10, workMin - half) },
-      ];
-      break;
-    }
-    case "study": {
-      const topic = focus ?? "your weakest topic";
-      title = `Study ${topic} (${sessionMin} min)`;
-      firstMove = `Open your ${name} notes and read the first line on ${topic}`;
-      subtasks = [
-        { title: `Review the basics of ${topic}`, estimatedMin: 5 },
-        { title: `Work through the key ideas / worked examples for ${topic}`, estimatedMin: half },
-        { title: `Do a few practice questions on ${topic} and mark them`, estimatedMin: Math.max(10, workMin - half) },
-      ];
-      break;
-    }
-    case "general":
-    default: {
-      title = `Push ${name} forward (${sessionMin} min)`;
-      firstMove = `Open ${name} and write one line on the single most useful next thing`;
-      subtasks = [
-        { title: `Decide the one outcome for this session`, estimatedMin: 5 },
-        { title: `Do the main chunk of work toward it`, estimatedMin: half },
-        { title: `Wrap up and note where to pick up next time`, estimatedMin: Math.max(10, workMin - half) },
-      ];
-      break;
-    }
+  if (!current) {
+    // No open phase — either nothing has been planned yet, or every phase is
+    // already done. Either way there's no specific phase/topic name to use.
+    return {
+      title: `Push ${title} forward (${sessionMin} min)`,
+      firstMove: `Open ${title} and write one line on the single most useful next thing${contextSuffix}`,
+      subtasks: [
+        { title: "Decide the one outcome for this session", estimatedMin: 5 },
+        { title: "Do the main chunk of work toward it", estimatedMin: half },
+        { title: "Wrap up and note where to pick up next time", estimatedMin: Math.max(10, workMin - half) },
+      ],
+      isFallback: true,
+      note,
+    };
   }
 
+  const focus = current.title;
+  const lead = leadPhrase(project.kind, lastOutcome);
+  const subtasks: NextTaskSubtask[] =
+    project.kind === "study"
+      ? [
+          { title: `Review the basics of ${focus}`, estimatedMin: 5 },
+          { title: `Work through the key ideas / worked examples for ${focus}`, estimatedMin: half },
+          { title: `Do a few practice questions on ${focus} and mark them`, estimatedMin: Math.max(10, workMin - half) },
+        ]
+      : [
+          { title: `Re-read what "${focus}" needs and jot 2 bullet points`, estimatedMin: 5 },
+          { title: `Do the core of ${focus}`, estimatedMin: half },
+          { title: "Tidy it into something you could hand in", estimatedMin: Math.max(10, workMin - half) },
+        ];
+
   return {
-    title,
-    firstMove,
+    title: `${lead} ${focus} (${sessionMin} min)`,
+    firstMove:
+      project.kind === "study"
+        ? `Open your ${title} notes and read the first line on ${focus}${contextSuffix}`
+        : `Open your ${title} draft and reread your last paragraph on ${focus}${contextSuffix}`,
     subtasks: subtasks.slice(0, 8),
     isFallback: true,
-    note: "Showing a general next session, not source-grounded.",
+    note,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Local utilities
-// ---------------------------------------------------------------------------
-
-function truncate(s: string, max: number): string {
-  return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
 }

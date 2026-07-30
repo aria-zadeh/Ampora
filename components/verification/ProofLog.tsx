@@ -1,16 +1,20 @@
 /**
- * ProofLog — Ampora Phase 4 (verification, doc 09 §2/§7).
+ * ProofLog — Ampora Phase 4 (verification, doc `04` §4/§7).
  *
  * A premium, private list of past verification proofs: each row shows the
  * method (icon), the task it belongs to, when it happened, and a verdict /
  * overridden badge. This is the user's own "record of work done", which is
- * itself motivating (doc 09 §2) — never a report to anyone else.
+ * itself motivating (doc `04` §4) — never a report to anyone else.
  *
- * A `Proof` references a focus `sessionId`, not a task directly, so we resolve
- * the task title through the session store's history when possible and fall
- * back to a neutral label otherwise (proofs must render even if the session
- * was pruned). Photo/screenshot proofs show a small thumbnail via `expo-image`
- * (already a dependency); everything degrades cleanly on web with no camera.
+ * A `Proof` is attributed by `sessionId`. Since `VerificationSheet` attributes
+ * every proof recorded against an active Ignition stake to that STAKE
+ * session's id (doc `04` §6/§8 — the Proof Log is per stake session, not per
+ * focus session), we resolve the task title through `stakesStore.sessions`
+ * first. Older/unstaked proofs may still carry a focus-session id or the task
+ * id directly (pre-existing fallback paths), so both are tried after, and a
+ * neutral label covers anything pruned — proofs must always render.
+ * Photo/screenshot proofs show a small thumbnail via `expo-image` (already a
+ * dependency); everything degrades cleanly on web with no camera.
  *
  * RN + NativeWind only, web-export safe.
  */
@@ -27,6 +31,7 @@ import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useProofStore } from "@/store/proofStore";
 import { useSessionStore } from "@/store/sessionStore";
+import { useStakesStore } from "@/store/stakesStore";
 import { useTaskStore } from "@/store/taskStore";
 import type { Proof } from "@/types";
 
@@ -41,8 +46,6 @@ const METHOD_META: Record<
   focus_time: { icon: "timer-outline", label: "Focus time", tint: "#2563EB", bg: "bg-primary-100" },
   photo: { icon: "camera-outline", label: "Photo", tint: "#7C3AED", bg: "bg-accent-100" },
   screenshot: { icon: "phone-portrait-outline", label: "Screenshot", tint: "#7C3AED", bg: "bg-accent-100" },
-  word_count: { icon: "create-outline", label: "Word count", tint: "#0891B2", bg: "bg-primary-100" },
-  screen_aware: { icon: "eye-outline", label: "Screen-aware", tint: "#16A34A", bg: "bg-success-100" },
   honor: { icon: "hand-left-outline", label: "Honor", tint: "#6F6862", bg: "bg-neutral-100" },
 };
 
@@ -146,7 +149,8 @@ export function ProofLog({
   emptySubtitle = "When you finish a task with verification on, it lands here as your private record of work done.",
 }: ProofLogProps) {
   const proofsRecord = useProofStore((s) => s.proofs);
-  const sessions = useSessionStore((s) => s.history);
+  const stakeSessions = useStakesStore((s) => s.sessions);
+  const focusSessions = useSessionStore((s) => s.history);
   const tasks = useTaskStore((s) => s.tasks);
 
   const proofs = useMemo(
@@ -157,14 +161,24 @@ export function ProofLog({
     [proofsRecord, limit]
   );
 
-  /** Resolve a readable task title for a proof via its session, then task. */
+  /**
+   * Resolve a readable task title for a proof. Tries, in order: the Ignition
+   * stake session it was attributed to (the primary path since the sheet
+   * started attributing proofs to `StakeSession.id`), then a focus session
+   * (older/unstaked proofs), then the taskId directly (honor completions with
+   * no session at all). Never throws — an unresolved proof still renders.
+   */
   const titleFor = (proof: Proof): string => {
-    const session = sessions[proof.sessionId];
-    if (session) {
-      const task = tasks[session.taskId];
+    const stakeSession = stakeSessions[proof.sessionId];
+    if (stakeSession) {
+      const task = tasks[stakeSession.taskId];
       if (task?.title) return task.title;
     }
-    // Some proofs use the taskId directly as the sessionId (honor / no session).
+    const focusSession = focusSessions[proof.sessionId];
+    if (focusSession) {
+      const task = tasks[focusSession.taskId];
+      if (task?.title) return task.title;
+    }
     const direct = tasks[proof.sessionId];
     if (direct?.title) return direct.title;
     return "Completed task";
