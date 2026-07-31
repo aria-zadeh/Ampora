@@ -11,13 +11,17 @@ import { GlobalLockBanner } from "@/components/focus/GlobalLockBanner";
 import { useStakeTick } from "@/hooks/useStakeTick";
 import { useStakeScheduler } from "@/hooks/useStakeScheduler";
 import { useNightlyPass } from "@/hooks/useNightlyPass";
+// Lexend, not Inter (docs/02 §2.1 binding convention: weight lives in the
+// family name, mirrored exactly from how Inter was wired here). Inter stays
+// installed in package.json — only the load site moved — since removing the
+// now-unused package is separate cleanup, not part of this pass.
 import {
   useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from "@expo-google-fonts/inter";
+  Lexend_400Regular,
+  Lexend_500Medium,
+  Lexend_600SemiBold,
+  Lexend_700Bold,
+} from "@expo-google-fonts/lexend";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useScheduleStore, selectAllBlocks } from "@/store/scheduleStore";
 import { useTaskStore, selectAllTasks } from "@/store/taskStore";
@@ -43,10 +47,10 @@ export default function RootLayout() {
   const [authLoading, setAuthLoading] = useState(true);
 
   const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    Lexend_400Regular,
+    Lexend_500Medium,
+    Lexend_600SemiBold,
+    Lexend_700Bold,
   });
 
   // Drive `stakesStore.tick()` app-wide (~1/min while foregrounded, plus a

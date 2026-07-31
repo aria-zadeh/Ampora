@@ -71,21 +71,29 @@ module.exports = {
         overline: ["11px", { lineHeight: "14px" }],
         tiny: ["11px", { lineHeight: "14px" }],
       },
+      // Radius hierarchy — mirrors utils/design-tokens.ts `borderRadius` exactly
+      // (see that file's doc comment for the per-tier rationale). `2xl`/`3xl`
+      // moved from 20/28 to 18/26 (feature cards / hero surfaces); every other
+      // key is unchanged.
       borderRadius: {
         xs: "6px",
         sm: "8px",
         md: "10px",
         lg: "12px",
         xl: "16px",
-        "2xl": "20px",
-        "3xl": "28px",
+        "2xl": "18px",
+        "3xl": "26px",
         full: "9999px",
       },
+      // Lexend, not Inter (docs/02 §2.1 binding convention: weight lives in the
+      // family name). Loaded in app/_layout.tsx via useFonts — these class names
+      // must match those exact exported identifiers from @expo-google-fonts/lexend.
+      // Inter stays installed (package.json) but is no longer loaded or referenced.
       fontFamily: {
-        sans: ["Inter_400Regular"],
-        medium: ["Inter_500Medium"],
-        semibold: ["Inter_600SemiBold"],
-        bold: ["Inter_700Bold"],
+        sans: ["Lexend_400Regular"],
+        medium: ["Lexend_500Medium"],
+        semibold: ["Lexend_600SemiBold"],
+        bold: ["Lexend_700Bold"],
       },
       spacing: {
         18: "72px",

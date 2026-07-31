@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { View } from "react-native";
-import Svg, { Circle } from "react-native-svg";
+import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import Animated, {
   useAnimatedProps,
   useSharedValue,
@@ -19,8 +19,22 @@ interface ProgressRingProps {
   size: number;
   /** Ring stroke width in px. @default 6 */
   strokeWidth?: number;
-  /** Filled-arc color. @default primary "#2563EB" */
+  /**
+   * Filled-arc color. @default primary "#2563EB" — when the resolved color
+   * is exactly `colors.light.primary` (the default, or an explicit pass),
+   * the ring renders as a same-hue tonal gradient sweep (`colorDeep` at the
+   * start to `color` further round) instead of a flat stroke. Any other
+   * color (e.g. the paused-state `colors.light.border` gray) renders flat,
+   * unchanged — a non-primary color has no "deep" pairing to assume.
+   */
   color?: string;
+  /**
+   * Deeper same-family stop for the tonal gradient. @default primaryDark
+   * "#1D4ED8". Only takes effect when `color` resolves to primary blue (see
+   * `color` above); pass both explicitly to force a custom tonal pair for
+   * any color.
+   */
+  colorDeep?: string;
   /** Unfilled track color. @default a faint neutral hairline */
   trackColor?: string;
   children?: React.ReactNode;
@@ -32,6 +46,13 @@ interface ProgressRingProps {
  * current phase (work/break) elapses; a plain SVG circle underneath is the
  * track. Driven by a single Reanimated shared value on `strokeDashoffset`, so
  * it stays smooth without re-rendering React on every tick.
+ *
+ * The filled arc is a single-hue tonal gradient (deep `#1D4ED8` to primary
+ * `#2563EB`) rather than a flat stroke — replacing what would otherwise be
+ * the generic move here (a multi-hue decorative gradient unrelated to the
+ * rest of the palette). One hue family, functional (it traces elapsed time),
+ * never a second accent. See `color`/`colorDeep` above for exactly when the
+ * gradient applies vs. a flat stroke (e.g. the paused gray state).
  *
  * `children` renders centered inside the ring (the timer digits) via absolute
  * positioning, so this component owns layout for both the ring and its
@@ -46,11 +67,25 @@ export function ProgressRing({
   progress,
   size,
   strokeWidth = 6,
-  color = colors.light.primary,
+  color,
+  colorDeep,
   trackColor = colors.light.border,
   children,
 }: ProgressRingProps) {
   const reduceMotion = useReduceMotion();
+  const gradientId = React.useId();
+
+  // Resolve the tonal pair. `colorDeep` only defaults to the deep blue when
+  // `color` itself resolves to primary blue (the default, or an explicit
+  // pass) — any other explicit `color` (the paused gray, or a future custom
+  // color) stays a flat stroke instead of pairing an unrelated hue with
+  // primaryDark. An explicit `colorDeep` always wins, for a deliberate
+  // custom tonal pair.
+  const resolvedColor = color ?? colors.light.primary;
+  const isPrimaryTone = resolvedColor === colors.light.primary;
+  const resolvedDeep = colorDeep ?? (isPrimaryTone ? colors.light.primaryDark : resolvedColor);
+  const showGradient = resolvedDeep !== resolvedColor;
+  const strokeColor = showGradient ? `url(#${gradientId})` : resolvedColor;
 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -75,6 +110,17 @@ export function ProgressRing({
       importantForAccessibility="no-hide-descendants"
     >
       <Svg width={size} height={size}>
+        {showGradient && (
+          <Defs>
+            {/* Same-hue tonal sweep: deep at the ring's start, primary further
+                round — not a second accent, not a multi-hue decorative
+                gradient, just elapsed time on the one accent color. */}
+            <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={resolvedDeep} />
+              <Stop offset="1" stopColor={resolvedColor} />
+            </LinearGradient>
+          </Defs>
+        )}
         {/* Track — the full unfilled ring. */}
         <Circle
           cx={size / 2}
@@ -89,7 +135,7 @@ export function ProgressRing({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={color}
+          stroke={strokeColor}
           strokeWidth={strokeWidth}
           fill="none"
           strokeLinecap="round"
