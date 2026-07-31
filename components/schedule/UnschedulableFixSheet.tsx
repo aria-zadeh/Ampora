@@ -1,11 +1,15 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useShallow } from "zustand/react/shallow";
 import { useTaskStore } from "@/store/taskStore";
-import { useScheduleStore } from "@/store/scheduleStore";
+import { useScheduleStore, selectAllCalEvents } from "@/store/scheduleStore";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
-import type { SchedulingHours, Task } from "@/types";
+import { colors, shadows } from "@/utils/design-tokens";
+import { getBlockingEventFix } from "./blockingEvent";
+import { SOURCE_LABEL } from "@/components/calendar/EventActionSheet";
+import type { CalEvent, SchedulingHours, Task } from "@/types";
 import type { Unschedulable } from "@/core/scheduler";
 
 /**
@@ -73,6 +77,19 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
   const updateTask = useTaskStore((s) => s.updateTask);
   const completeTask = useTaskStore((s) => s.completeTask);
   const recompute = useScheduleStore((s) => s.recompute);
+  const updateLocalEvent = useScheduleStore((s) => s.updateLocalEvent);
+  const deleteLocalEvent = useScheduleStore((s) => s.deleteLocalEvent);
+  // NEW array from the store -> MUST use useShallow (Zustand v5, project rule).
+  const calEvents = useScheduleStore(useShallow(selectAllCalEvents));
+
+  // Armed only while the user is confirming "Remove the blocking event"
+  // (destructive — doc 02 "confirm destructive actions"). Reset whenever the
+  // sheet is retargeted (a new at-risk task, or closed back to null) so a
+  // stale confirm panel never survives into the next task it's opened for.
+  const [confirmDeleteEvent, setConfirmDeleteEvent] = useState<CalEvent | null>(null);
+  useEffect(() => {
+    setConfirmDeleteEvent(null);
+  }, [task?.id]);
 
   const applyFix = useCallback(
     (patch: Partial<Task>) => {
@@ -91,17 +108,64 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
     onClose();
   }, [task, completeTask, recompute, onClose]);
 
+  // FR-20's fifth remedy: "remove a blocking all-day event" (now that event
+  // CRUD exists — `store/scheduleStore.ts#addLocalEvent/updateLocalEvent/
+  // deleteLocalEvent`). Only relevant to the "not enough free time" family of
+  // reasons; an all-day CalEvent sitting in the task's window is exactly that
+  // kind of obstacle (see `components/schedule/blockingEvent.ts`).
+  const blockingFix = useMemo(() => {
+    if (!task || !info) return undefined;
+    if (
+      info.kind !== "no_free_time" &&
+      info.kind !== "no_free_time_undated" &&
+      info.kind !== "partially_placed"
+    ) {
+      return undefined;
+    }
+    return getBlockingEventFix(task, calEvents, Date.now());
+  }, [task, info, calEvents]);
+
+  // Shortening trims ONE edge of the event via `updateLocalEvent` (which
+  // recomputes internally — see that action's own doc comment) — the "less
+  // damaging" option than deleting, since the rest of the event survives.
+  const handleShorten = useCallback(() => {
+    if (!blockingFix?.shortenPatch) return;
+    updateLocalEvent(blockingFix.event.id, blockingFix.shortenPatch);
+    onClose();
+  }, [blockingFix, updateLocalEvent, onClose]);
+
+  // Deleting is destructive, so this only ever runs after the user confirms
+  // via the panel below — never directly from a fix button.
+  const handleConfirmDeleteEvent = useCallback(() => {
+    if (!confirmDeleteEvent) return;
+    deleteLocalEvent(confirmDeleteEvent.id); // also recomputes internally
+    setConfirmDeleteEvent(null);
+    onClose();
+  }, [confirmDeleteEvent, deleteLocalEvent, onClose]);
+
   // One-tap fixes, chosen from the engine's own `kind` (never by re-parsing
   // the prose reason) — see `core/scheduler/types.ts#UnschedulableReasonKind`.
   // Each maps directly to one of the remedies FR-20 names in prose: relax
-  // scheduling hours, extend the deadline, make it splittable. ("Remove a
-  // blocking all-day event" is the fourth remedy FR-20 names; it is not
-  // offered here because there is no CalEvent create/edit/delete surface
-  // anywhere in the app yet to act on — see the PR notes.)
+  // scheduling hours, extend the deadline, make it splittable. The fifth
+  // remedy, "remove a blocking all-day event", is handled by `blockingFix`
+  // above: its SHORTEN half fits this same one-tap shape and is folded in
+  // below (led with, since it names the actual obstacle); its DELETE half
+  // needs a destructive confirm step first, so it's rendered separately, not
+  // as a plain FixAction.
   const fixes = useMemo<FixAction[]>(() => {
     if (!task || !info) return [];
     const now = Date.now();
     const out: FixAction[] = [];
+
+    if (blockingFix?.editable && blockingFix.shortenPatch) {
+      out.push({
+        key: "shorten-event",
+        label: "Shorten the blocking event",
+        icon: "calendar-clear-outline",
+        hint: `Trims "${blockingFix.event.title}" so it no longer covers ${task.title}'s window`,
+        onPress: handleShorten,
+      });
+    }
 
     const canExtendDeadline =
       info.kind === "past_deadline" || info.kind === "no_free_time" || info.kind === "partially_placed";
@@ -160,7 +224,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
     }
 
     return out;
-  }, [task, info, applyFix, handleMarkDone]);
+  }, [task, info, applyFix, handleMarkDone, blockingFix, handleShorten]);
 
   const visible = task != null && info != null;
 
@@ -191,32 +255,123 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
             <Text className="text-body text-neutral-700 mb-6">{info.reason}</Text>
           )}
 
-          {fixes.length > 0 ? (
-            <View className="gap-2 mb-2">
-              {fixes.map((fix) => (
-                <Button
-                  key={fix.key}
-                  title={fix.label}
-                  variant="secondary"
-                  icon={<Ionicons name={fix.icon} size={16} color="#2563EB" />}
-                  onPress={fix.onPress}
-                  accessibilityLabel={fix.label}
-                  accessibilityHint={fix.hint}
-                />
-              ))}
-            </View>
+          {confirmDeleteEvent ? (
+            <DeleteEventConfirm
+              event={confirmDeleteEvent}
+              onCancel={() => setConfirmDeleteEvent(null)}
+              onConfirm={handleConfirmDeleteEvent}
+            />
           ) : (
-            <Text className="text-caption text-neutral-500 mb-2">
-              This clears up on its own once the other task is scheduled or finished — nothing to
-              fix here.
-            </Text>
-          )}
+            <>
+              {fixes.length > 0 ? (
+                <View className="gap-2 mb-2">
+                  {fixes.map((fix) => (
+                    <Button
+                      key={fix.key}
+                      title={fix.label}
+                      variant="secondary"
+                      icon={<Ionicons name={fix.icon} size={16} color="#2563EB" />}
+                      onPress={fix.onPress}
+                      accessibilityLabel={fix.label}
+                      accessibilityHint={fix.hint}
+                    />
+                  ))}
+                </View>
+              ) : null}
 
-          <View className="mt-4">
-            <Button title="Close" variant="ghost" onPress={onClose} accessibilityLabel="Close" />
-          </View>
+              {/* FR-20's fifth remedy, delete half. Only `source: 'local'` events
+                  are ours to edit (FR-22) — a device-synced blocker says so
+                  honestly instead of offering an action that cannot work. */}
+              {blockingFix ? (
+                blockingFix.editable ? (
+                  <View className="mb-2">
+                    <Button
+                      title="Remove the blocking event"
+                      variant="secondary"
+                      icon={<Ionicons name="trash-outline" size={16} color={colors.light.dangerStrong} />}
+                      onPress={() => setConfirmDeleteEvent(blockingFix.event)}
+                      accessibilityLabel="Remove the blocking event"
+                      accessibilityHint={`Asks you to confirm, then deletes "${blockingFix.event.title}" from your calendar`}
+                    />
+                  </View>
+                ) : (
+                  <View
+                    className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 mb-2"
+                    style={shadows.xs}
+                    accessibilityLabel={`"${blockingFix.event.title}" is on your ${SOURCE_LABEL[blockingFix.event.source]} calendar and is in the way. Edit or remove it there to free this time.`}
+                  >
+                    <Ionicons name="link-outline" size={20} color={colors.light.textMuted} style={{ marginTop: 1 }} />
+                    <Text className="flex-1 text-body text-neutral-600">
+                      &quot;{blockingFix.event.title}&quot; on your {SOURCE_LABEL[blockingFix.event.source]}{" "}
+                      calendar is in the way. Ampora only reads it — edit or remove it there to free this
+                      time.
+                    </Text>
+                  </View>
+                )
+              ) : null}
+
+              {fixes.length === 0 && !blockingFix ? (
+                <Text className="text-caption text-neutral-500 mb-2">
+                  This clears up on its own once the other task is scheduled or finished — nothing to
+                  fix here.
+                </Text>
+              ) : null}
+
+              <View className="mt-4">
+                <Button title="Close" variant="ghost" onPress={onClose} accessibilityLabel="Close" />
+              </View>
+            </>
+          )}
         </Pressable>
       </Pressable>
     </Modal>
+  );
+}
+
+/**
+ * The destructive-confirm step for "Remove the blocking event" (doc 02
+ * "confirm destructive actions... never trap the user" — Cancel always backs
+ * out to the fixes list, never closes the whole sheet outright).
+ */
+function DeleteEventConfirm({
+  event,
+  onCancel,
+  onConfirm,
+}: {
+  event: CalEvent;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <View>
+      <View
+        className="flex-row items-start gap-3 rounded-xl border border-danger-100 bg-danger-100/50 px-4 py-3 mb-4"
+        style={shadows.xs}
+      >
+        <Ionicons name="warning-outline" size={20} color={colors.light.dangerStrong} style={{ marginTop: 1 }} />
+        <View className="flex-1">
+          <Text className="text-body font-semibold text-neutral-900">
+            Delete &quot;{event.title}&quot;?
+          </Text>
+          <Text className="mt-1 text-caption text-neutral-600">
+            This removes it from your calendar for good.
+          </Text>
+        </View>
+      </View>
+      <View className="flex-row gap-2">
+        <View className="flex-1">
+          <Button title="Cancel" variant="secondary" onPress={onCancel} accessibilityLabel="Cancel" />
+        </View>
+        <View className="flex-1">
+          <Button
+            title="Delete event"
+            variant="destructive"
+            onPress={onConfirm}
+            accessibilityLabel="Delete event"
+            accessibilityHint={`Permanently deletes "${event.title}" from your calendar`}
+          />
+        </View>
+      </View>
+    </View>
   );
 }

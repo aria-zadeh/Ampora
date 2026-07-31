@@ -26,6 +26,8 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 import { Heading } from "@/components/ui/Heading";
 import { Button } from "@/components/ui/Button";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
+import { Toggle } from "@/components/settings/SettingsPrimitives";
+import { allDaySpan, allDayDisplayEnd } from "@/components/calendar/allDayEvents";
 import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
@@ -47,7 +49,7 @@ export interface AddEventModalProps {
    */
   initialStart?: number;
   /** Fires once, with the committed fields; the caller decides create vs. edit. */
-  onSave: (input: { title: string; start: number; end: number }) => void;
+  onSave: (input: { title: string; start: number; end: number; allDay: boolean }) => void;
 }
 
 export function AddEventModal({
@@ -63,6 +65,7 @@ export function AddEventModal({
   const [title, setTitle] = useState("");
   const [start, setStart] = useState<Date>(() => new Date());
   const [end, setEnd] = useState<Date>(() => new Date());
+  const [allDay, setAllDay] = useState(false);
 
   // Re-seed every time the sheet opens for a (possibly different) target —
   // mirrors BlockActionSheet's own re-seed-on-open effect.
@@ -71,23 +74,40 @@ export function AddEventModal({
     if (event) {
       setTitle(event.title);
       setStart(new Date(event.start));
-      setEnd(new Date(event.end));
+      // Stored end is EXCLUSIVE (the next local midnight after the event's
+      // last active day, matching `services/calendarSync.ts`'s device-synced
+      // convention) — shift the DISPLAYED end back onto that last active day
+      // so the "Ends" picker shows it, not the day after (`allDayDisplayEnd`).
+      setEnd(new Date(event.allDay ? allDayDisplayEnd(event.end) : event.end));
+      setAllDay(!!event.allDay);
     } else {
       const s = initialStart ?? Date.now();
       setTitle("");
       setStart(new Date(s));
       setEnd(new Date(s + DEFAULT_DURATION_MIN * MS_PER_MIN));
+      setAllDay(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, event?.id, initialStart]);
 
   const handleSave = () => {
+    if (allDay) {
+      // Whole local days, exclusive-next-midnight end — matches
+      // `services/calendarSync.ts#toCalEvent`'s device-synced convention (see
+      // `allDaySpan`) so a local and a synced all-day event are shaped
+      // identically downstream. Only the DATE portion of the pickers matters;
+      // any time-of-day dialed in before toggling All-day on is discarded.
+      const { start: s, end: e } = allDaySpan(start.getTime(), end.getTime());
+      onSave({ title: title.trim(), start: s, end: e, allDay: true });
+      onClose();
+      return;
+    }
     const s = start.getTime();
     // Never trap the user behind a validation error — an end at/before start
     // silently bumps forward instead (mirrors BlockActionSheet's own
     // `Math.max(now, draft)` defensive clamp on its custom-time path).
     const e = end.getTime() > s ? end.getTime() : s + 5 * MS_PER_MIN;
-    onSave({ title: title.trim(), start: s, end: e });
+    onSave({ title: title.trim(), start: s, end: e, allDay: false });
     onClose();
   };
 
@@ -147,6 +167,14 @@ export function AddEventModal({
                     accessibilityLabel="Event title"
                   />
 
+                  {/* All day — collapses the time pickers below (an all-day
+                      event has no meaningful clock time) and shapes the saved
+                      span to whole local days on Save (see `allDaySpan`). */}
+                  <View className="mb-4 flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                    <Text className="text-body text-neutral-900">All day</Text>
+                    <Toggle value={allDay} onChange={setAllDay} a11yLabel="All-day event" />
+                  </View>
+
                   {/* Starts */}
                   <Text className="mb-1.5 px-1 text-caption font-medium text-neutral-500">Starts</Text>
                   <View className="mb-4 flex-row gap-2">
@@ -158,14 +186,16 @@ export function AddEventModal({
                         accessibilityLabel="Event start date"
                       />
                     </View>
-                    <View className="flex-1">
-                      <DateTimePickerCrossPlatform
-                        mode="time"
-                        value={start}
-                        onChange={setStart}
-                        accessibilityLabel="Event start time"
-                      />
-                    </View>
+                    {!allDay ? (
+                      <View className="flex-1">
+                        <DateTimePickerCrossPlatform
+                          mode="time"
+                          value={start}
+                          onChange={setStart}
+                          accessibilityLabel="Event start time"
+                        />
+                      </View>
+                    ) : null}
                   </View>
 
                   {/* Ends */}
@@ -180,14 +210,16 @@ export function AddEventModal({
                         accessibilityLabel="Event end date"
                       />
                     </View>
-                    <View className="flex-1">
-                      <DateTimePickerCrossPlatform
-                        mode="time"
-                        value={end}
-                        onChange={setEnd}
-                        accessibilityLabel="Event end time"
-                      />
-                    </View>
+                    {!allDay ? (
+                      <View className="flex-1">
+                        <DateTimePickerCrossPlatform
+                          mode="time"
+                          value={end}
+                          onChange={setEnd}
+                          accessibilityLabel="Event end time"
+                        />
+                      </View>
+                    ) : null}
                   </View>
 
                   <Button

@@ -1,16 +1,17 @@
 import React, { useMemo } from 'react'
 import { View, Text } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { FlashList } from '@shopify/flash-list'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useShallow } from 'zustand/react/shallow'
-import { useScheduleStore, selectAllBlocks } from '@/store/scheduleStore'
+import { useScheduleStore, selectAllBlocks, selectAllCalEvents } from '@/store/scheduleStore'
 import { useTaskStore } from '@/store/taskStore'
 import { slackColor } from '@/core/scheduler'
 import type { SlackColor } from '@/core/scheduler'
-import type { ScheduledBlock, Task } from '@/types'
+import type { CalEvent, ScheduledBlock, Task } from '@/types'
 import { PressableScale } from '@/components/ui/PressableScale'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { shadows } from '@/utils/design-tokens'
+import { colors, shadows } from '@/utils/design-tokens'
 import { DURATIONS, staggerDelay } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
 import { dayStart, formatBlockTimeRange } from './hours'
@@ -43,6 +44,8 @@ export interface AgendaViewProps {
   date: number
   /** Fired with the tapped block (opens the detail sheet). */
   onBlockPress?: (block: ScheduledBlock) => void
+  /** Fired with the tapped CalEvent. */
+  onEventPress?: (event: CalEvent) => void
   testID?: string
 }
 
@@ -52,10 +55,11 @@ interface AgendaRow {
   slack: SlackColor
 }
 
-/** A flattened list item: either a day header or a block row (for one FlashList). */
+/** A flattened list item: a day header, a task-block row, or an event row (for one FlashList). */
 type ListItem =
   | { type: 'header'; key: string; label: string }
   | { type: 'row'; key: string; row: AgendaRow; index: number }
+  | { type: 'event'; key: string; event: CalEvent; index: number }
 
 /**
  * Day header relative to today: "Today" / "Tomorrow" / weekday, then month/day
@@ -80,21 +84,32 @@ function remainingSteps(task: Task): number {
   return task.subtasks.filter((s) => s.completedAt == null).length
 }
 
+/** One not-yet-flattened entry: a task-block row or an event row, still carrying its day/sort keys. */
+type AgendaEntry =
+  | { dayKey: number; sortRank: 0 | 1; sortTime: number; node: { type: 'row'; key: string; row: AgendaRow } }
+  | { dayKey: number; sortRank: 0 | 1; sortTime: number; node: { type: 'event'; key: string; event: CalEvent } }
+
 /**
- * AgendaView (PRD FR-23): a premium grouped list of upcoming ScheduledBlocks,
- * sectioned by day (Today / Tomorrow / weekday, dates ascending). Each row shows
- * the block's time range, the task title, a deadline-slack dot, and an "N steps"
- * hint. Built on FlashList for performance with a stagger-enter on the first
- * screenful. Reuses the visual language of components/schedule/UpcomingList.
+ * AgendaView (PRD FR-23): a premium grouped list of upcoming ScheduledBlocks
+ * AND CalEvents, sectioned by day (Today / Tomorrow / weekday, dates
+ * ascending). Task rows show the block's time range, title, a deadline-slack
+ * dot, and an "N steps" hint. Event rows are visually distinct by shape (a
+ * dashed border + calendar glyph, matching `CalendarBlock`'s event treatment
+ * — reused, not reinvented) and show "All day" instead of a time range for
+ * all-day events. Within a day, all-day events sort first, then everything
+ * else by start time. Built on FlashList for performance with a stagger-enter
+ * on the first screenful. Reuses the visual language of
+ * components/schedule/UpcomingList.
  *
- * Data flows through the store selector with useShallow (project rule); rows for
- * tasks that were deleted since the last recompute are skipped.
+ * Data flows through the store selectors with useShallow (project rule); rows
+ * for tasks that were deleted since the last recompute are skipped.
  */
-export function AgendaView({ date, onBlockPress, testID }: AgendaViewProps) {
+export function AgendaView({ date, onBlockPress, onEventPress, testID }: AgendaViewProps) {
   const reduceMotion = useReduceMotion()
 
-  // NEW array from the store -> MUST use useShallow (Zustand v5, project rule).
+  // NEW arrays from the store -> MUST use useShallow (Zustand v5, project rule).
   const blocks = useScheduleStore(useShallow(selectAllBlocks))
+  const calEvents = useScheduleStore(useShallow(selectAllCalEvents))
   const tasks = useTaskStore((s) => s.tasks)
 
   const items = useMemo<ListItem[]>(() => {
@@ -104,34 +119,60 @@ export function AgendaView({ date, onBlockPress, testID }: AgendaViewProps) {
     // midnight, so navigating forward re-anchors the agenda.
     const floor = Math.min(dayStart(date), todayStart)
 
-    const rows: AgendaRow[] = []
+    const entries: AgendaEntry[] = []
+
     for (const block of blocks) {
       if (block.end < floor) continue
       const task = tasks[block.taskId]
       if (!task) continue // stale block; task deleted since last recompute
-      rows.push({ block, task, slack: slackColor(task, now) })
+      entries.push({
+        dayKey: dayStart(block.start),
+        sortRank: 1,
+        sortTime: block.start,
+        node: { type: 'row', key: block.id, row: { block, task, slack: slackColor(task, now) } },
+      })
     }
-    rows.sort((a, b) => a.block.start - b.block.start)
+
+    for (const event of calEvents) {
+      if (event.end < floor) continue
+      // An event already under way when the visible range starts (e.g. a
+      // multi-day all-day span that began before `floor`) is grouped under
+      // the FIRST visible day instead of growing a stray past-day header —
+      // presentational only, mirrors `scheduleStore#selectEventsByDay`'s
+      // per-day render clamp; the canonical event is untouched.
+      const groupStart = Math.max(event.start, floor)
+      entries.push({
+        dayKey: dayStart(groupStart),
+        sortRank: event.allDay ? 0 : 1, // all-day events lead their day section
+        sortTime: groupStart,
+        node: { type: 'event', key: event.id, event },
+      })
+    }
+
+    entries.sort((a, b) => a.dayKey - b.dayKey || a.sortRank - b.sortRank || a.sortTime - b.sortTime)
 
     // Flatten into headers + rows, one section per local day.
     const flat: ListItem[] = []
     let lastDay = -1
     let rowIndex = -1
-    for (const row of rows) {
-      const ds = dayStart(row.block.start)
-      if (ds !== lastDay) {
-        lastDay = ds
+    for (const entry of entries) {
+      if (entry.dayKey !== lastDay) {
+        lastDay = entry.dayKey
         flat.push({
           type: 'header',
-          key: `h-${ds}`,
-          label: formatDayHeader(ds, todayStart),
+          key: `h-${entry.dayKey}`,
+          label: formatDayHeader(entry.dayKey, todayStart),
         })
       }
       rowIndex += 1
-      flat.push({ type: 'row', key: row.block.id, row, index: rowIndex })
+      if (entry.node.type === 'row') {
+        flat.push({ type: 'row', key: entry.node.key, row: entry.node.row, index: rowIndex })
+      } else {
+        flat.push({ type: 'event', key: entry.node.key, event: entry.node.event, index: rowIndex })
+      }
     }
     return flat
-  }, [blocks, tasks, date])
+  }, [blocks, calEvents, tasks, date])
 
   if (items.length === 0) {
     return (
@@ -153,12 +194,25 @@ export function AgendaView({ date, onBlockPress, testID }: AgendaViewProps) {
         extraData={reduceMotion}
         contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 12 }}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) =>
-          item.type === 'header' ? (
-            <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500 mt-5 mb-3">
-              {item.label}
-            </Text>
-          ) : (
+        renderItem={({ item }) => {
+          if (item.type === 'header') {
+            return (
+              <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500 mt-5 mb-3">
+                {item.label}
+              </Text>
+            )
+          }
+          if (item.type === 'event') {
+            return (
+              <AgendaEventRow
+                event={item.event}
+                index={item.index}
+                reduceMotion={reduceMotion}
+                onPress={onEventPress}
+              />
+            )
+          }
+          return (
             <AgendaRowCard
               row={item.row}
               index={item.index}
@@ -166,7 +220,7 @@ export function AgendaView({ date, onBlockPress, testID }: AgendaViewProps) {
               onPress={onBlockPress}
             />
           )
-        }
+        }}
       />
     </View>
   )
@@ -248,6 +302,63 @@ function AgendaRowCard({
             {steps} {steps === 1 ? 'step' : 'steps'}
           </Text>
         ) : null}
+      </PressableScale>
+    </Animated.View>
+  )
+}
+
+/**
+ * A fixed CalEvent's row — same card shell as {@link AgendaRowCard} so the two
+ * read as one list, but visually distinct by SHAPE (a dashed border + a
+ * calendar glyph in place of the slack dot), never by hue alone, matching
+ * `CalendarBlock`'s own event treatment (reused, not reinvented). All-day
+ * events show "All day" instead of a formatted (and for a midnight-aligned
+ * span, nonsensical) time range.
+ */
+function AgendaEventRow({
+  event,
+  index,
+  reduceMotion,
+  onPress,
+}: {
+  event: CalEvent
+  index: number
+  reduceMotion: boolean
+  onPress?: (event: CalEvent) => void
+}) {
+  const timeRange = useMemo(
+    () => (event.allDay ? 'All day' : formatBlockTimeRange(event.start, event.end)),
+    [event.allDay, event.start, event.end]
+  )
+  const a11yLabel = `Event: ${event.title}, ${timeRange}`
+
+  // Stagger only the first screenful so scrolling deep doesn't re-animate.
+  const entering =
+    reduceMotion || index > 10
+      ? undefined
+      : FadeInDown.delay(staggerDelay(index)).duration(DURATIONS.base)
+
+  return (
+    <Animated.View entering={entering} className="mb-3">
+      <PressableScale
+        onPress={onPress ? () => onPress(event) : undefined}
+        haptic="light"
+        style={shadows.sm}
+        className="flex-row items-center gap-3 bg-white border border-dashed border-neutral-300 rounded-lg p-4 min-h-14"
+        accessibilityRole="button"
+        accessibilityLabel={a11yLabel}
+        accessibilityHint="Opens details"
+      >
+        {/* Calendar glyph — the event's shape-based signal, standing in for
+            the slack dot a task row carries. */}
+        <Ionicons name="calendar-clear-outline" size={18} color={colors.light.textMuted} />
+
+        <View className="flex-1">
+          <Text className="text-caption font-semibold text-neutral-500">{timeRange}</Text>
+          <Text className="text-body font-medium mt-0.5 text-neutral-900" numberOfLines={1}>
+            {event.title}
+          </Text>
+        </View>
       </PressableScale>
     </Animated.View>
   )

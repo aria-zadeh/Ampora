@@ -116,7 +116,13 @@ export function CalendarBlock({
   const dense = measuredWidth != null && measuredWidth < W_DENSE
   const showTime = !dense && height >= H_FULL
   const showTitle = !dense && height >= H_TITLE_ONLY
-  const timeRange = formatBlockTimeRange(start, end)
+  // All-day events have no meaningful clock time — their start/end are either
+  // a midnight-to-midnight marker or a per-day clip of a multi-day span
+  // (`selectEventsByDay`'s render-only clamp), so formatting them as a time
+  // range would show something like "12 – 12 AM". Every view (Day/3-Day/Week/
+  // Month/Agenda) renders events through this one component, so fixing the
+  // label here fixes it everywhere at once.
+  const timeRange = isEvent && event?.allDay ? 'All day' : formatBlockTimeRange(start, end)
 
   const a11yLabel = isEvent
     ? `Event: ${title}, ${timeRange}`

@@ -35,8 +35,13 @@ import { ActionRow } from './BlockActionSheet'
 import { formatBlockTimeRange } from './hours'
 import type { CalEvent } from '@/types'
 
-/** Human-readable provider name for the "synced from X" message. */
-const SOURCE_LABEL: Record<CalEvent['source'], string> = {
+/**
+ * Human-readable provider name for the "synced from X" message. Exported so
+ * `UnschedulableFixSheet` (FR-20's "remove a blocking all-day event" remedy)
+ * can name the same provider when a blocking event turns out to be
+ * device-synced rather than local, instead of duplicating this map.
+ */
+export const SOURCE_LABEL: Record<CalEvent['source'], string> = {
   local: 'Ampora',
   google: 'Google Calendar',
   apple: 'Apple Calendar',

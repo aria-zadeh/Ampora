@@ -43,6 +43,7 @@ import { TimeGrid } from './TimeGrid'
 import { CalendarBlock } from './CalendarBlock'
 import { BlockActionSheet } from './BlockActionSheet'
 import { EventActionSheet } from './EventActionSheet'
+import { AllDayStripRow } from './AllDayStrip'
 import { AddEventModal } from '@/components/ui/AddEventModal'
 import { isSameDay, HOURS_IN_DAY, formatClockTime } from './hours'
 import { AUTOSCROLL, autoscrollSpeed, type GridScrollController } from './gridScroll'
@@ -951,6 +952,12 @@ export function DayBlocksLayer({
       })
     }
     for (const event of events) {
+      // All-day events render in the AllDayStripRow above this grid instead
+      // (mounted by DayColumn/ThreeDayView, outside this gesture layer) — a
+      // midnight-to-midnight span has no sensible slot in a per-minute time
+      // grid (PRD §8.7), and without this filter one would render as a
+      // 24-hour block. Mirrors WeekView's own `if (event.allDay) continue`.
+      if (event.allDay) continue
       items.push({
         id: event.id,
         start: event.start,
@@ -1095,11 +1102,11 @@ export function DayBlocksLayer({
         event={eventModal?.mode === 'edit' ? eventModal.event : null}
         initialStart={eventModal?.mode === 'create' ? eventModal.initialStart : undefined}
         onClose={() => setEventModal(null)}
-        onSave={({ title, start, end }) => {
+        onSave={({ title, start, end, allDay }) => {
           if (eventModal?.mode === 'edit') {
-            useScheduleStore.getState().updateLocalEvent(eventModal.event.id, { title, start, end })
+            useScheduleStore.getState().updateLocalEvent(eventModal.event.id, { title, start, end, allDay })
           } else {
-            useScheduleStore.getState().addLocalEvent({ title, start, end })
+            useScheduleStore.getState().addLocalEvent({ title, start, end, allDay })
           }
         }}
       />
@@ -1129,26 +1136,70 @@ export function DayColumn({
   // so storing it in state is safe — it never triggers a stale-closure re-run.
   const [scrollController, setScrollController] = useState<GridScrollController>()
 
+  // All-day events render in a compact strip ABOVE the grid rather than as a
+  // 24-hour block inside it (DayBlocksLayer's own `laid` memo already skips
+  // `allDay` events for exactly that reason). The strip is a plain sibling of
+  // TimeGrid, not a child, so it can never intercept the grid's long-press-
+  // create / drag / resize gestures. This sheet pair is scoped to the strip
+  // ONLY — separate from DayBlocksLayer's own internal sheetTarget /
+  // eventSheetTarget / eventModal state, which is untouched, so nothing here
+  // can regress the grid's existing gesture/sheet wiring.
+  const dayStarts = useMemo(() => [dayStartMs], [dayStartMs])
+  const [stripEventTarget, setStripEventTarget] = useState<CalEvent | null>(null)
+  const [stripEditTarget, setStripEditTarget] = useState<CalEvent | null>(null)
+  const stripTestIDPrefix = testID ? `${testID}-allday` : 'day-allday'
+
   return (
-    <TimeGrid
-      pxPerHour={pxPerHour}
-      dayStartMs={dayStartMs}
-      showNow={showNow}
-      initialScrollHour={initialScrollHour}
-      onScrollController={setScrollController}
-      testID={testID}
-    >
-      <DayBlocksLayer
-        dayStartMs={dayStartMs}
-        pxPerHour={pxPerHour}
-        blocks={blocks}
+    <View style={{ flex: 1 }}>
+      <AllDayStripRow
+        dayStarts={dayStarts}
         events={events}
-        tasks={tasks}
-        now={now}
-        onBlockPress={onBlockPress}
-        scrollController={scrollController}
+        onEventPress={setStripEventTarget}
+        testIDPrefix={stripTestIDPrefix}
       />
-    </TimeGrid>
+
+      <TimeGrid
+        pxPerHour={pxPerHour}
+        dayStartMs={dayStartMs}
+        showNow={showNow}
+        initialScrollHour={initialScrollHour}
+        onScrollController={setScrollController}
+        testID={testID}
+      >
+        <DayBlocksLayer
+          dayStartMs={dayStartMs}
+          pxPerHour={pxPerHour}
+          blocks={blocks}
+          events={events}
+          tasks={tasks}
+          now={now}
+          onBlockPress={onBlockPress}
+          scrollController={scrollController}
+        />
+      </TimeGrid>
+
+      <EventActionSheet
+        visible={stripEventTarget != null}
+        event={stripEventTarget}
+        onClose={() => setStripEventTarget(null)}
+        onEdit={() => {
+          if (stripEventTarget) setStripEditTarget(stripEventTarget)
+        }}
+        onDelete={() => {
+          if (stripEventTarget) useScheduleStore.getState().deleteLocalEvent(stripEventTarget.id)
+        }}
+      />
+      <AddEventModal
+        visible={stripEditTarget != null}
+        event={stripEditTarget}
+        onClose={() => setStripEditTarget(null)}
+        onSave={({ title, start, end, allDay }) => {
+          if (stripEditTarget) {
+            useScheduleStore.getState().updateLocalEvent(stripEditTarget.id, { title, start, end, allDay })
+          }
+        }}
+      />
+    </View>
   )
 }
 

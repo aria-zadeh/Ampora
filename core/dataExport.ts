@@ -107,3 +107,30 @@ export function wipeAllData(): void {
   useEventLogStore.getState().clearEvents()
   useProofStore.getState().clear()
 }
+
+// ---------------------------------------------------------------------------
+// Account deletion confirmation (FR-87, PRD §8.11).
+//
+// `wipeAllData` above is DEVICE-ONLY and reversible (the cloud copy survives;
+// signing back in restores everything). Deleting the account itself
+// (`services/supabase.ts#deleteAccount`) is a different, strictly stronger
+// action — permanent, and removes the account from every device — so the
+// Settings UI must not let a single "are you sure" gate it the way the local
+// wipe above can be. It requires a deliberate, typed gesture instead: the
+// user must type this exact word before the delete button in
+// `components/settings/DataSettings.tsx` enables.
+// ---------------------------------------------------------------------------
+
+/** The word the user must type to confirm permanent account deletion. */
+export const DELETE_ACCOUNT_CONFIRM_PHRASE = 'DELETE'
+
+/**
+ * Whether `typed` counts as a confirmed request to delete the account.
+ * Trims surrounding whitespace and ignores case (autoCapitalize can't be
+ * relied on for pasted text, and a 13+ audience gains nothing from a
+ * case-sensitivity trap) but otherwise requires an exact match — not a
+ * prefix, not a superstring — so a stray keystroke never reads as consent.
+ */
+export function isDeleteAccountConfirmed(typed: string): boolean {
+  return typed.trim().toUpperCase() === DELETE_ACCOUNT_CONFIRM_PHRASE
+}

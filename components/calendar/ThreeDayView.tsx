@@ -8,9 +8,14 @@ import {
   useScheduleStore,
   selectBlocksByDay,
   selectEventsByDay,
+  selectAllCalEvents,
 } from '@/store/scheduleStore'
 import { useTaskStore } from '@/store/taskStore'
 import { DayBlocksLayer } from './DayView'
+import { AllDayStripRow } from './AllDayStrip'
+import { EventActionSheet } from './EventActionSheet'
+import { AddEventModal } from '@/components/ui/AddEventModal'
+import type { CalEvent } from '@/types'
 import { useGridScrollController, type GridScrollController } from './gridScroll'
 import {
   GUTTER_WIDTH,
@@ -193,6 +198,23 @@ export function ThreeDayView({
 
   const hours = useMemo(() => hoursToRender(0, HOURS_IN_DAY - 1), [])
 
+  // All-day events render in a compact strip ABOVE the shared grid rather
+  // than as a 24-hour block inside it (DayBlocksLayer's own `laid` memo,
+  // shared by every DayColumnBlocks below, already skips `allDay` events for
+  // exactly that reason). Needs its own top-level subscription (unlike each
+  // DayColumnBlocks' per-day `selectEventsByDay`) because a multi-day
+  // all-day event must be bucketed across all 3 visible days at once —
+  // mirrors WeekView's own top-level `selectAllCalEvents` + bucketing.
+  const calEvents = useScheduleStore(useShallow(selectAllCalEvents))
+
+  // This sheet pair is scoped to the strip ONLY — separate from each
+  // DayBlocksLayer instance's own internal sheetTarget / eventSheetTarget /
+  // eventModal state (one per day column), which is untouched, so nothing
+  // here can regress the grid's existing gesture/sheet wiring.
+  const [stripEventTarget, setStripEventTarget] = useState<CalEvent | null>(null)
+  const [stripEditTarget, setStripEditTarget] = useState<CalEvent | null>(null)
+  const stripTestIDPrefix = testID ? `${testID}-allday` : '3day-allday'
+
   // Scroll to the morning once, and again if the zoom changes.
   useEffect(() => {
     const y = Math.max(0, DEFAULT_SCROLL_HOUR * pxPerHour - pxPerHour / 2)
@@ -224,6 +246,17 @@ export function ThreeDayView({
           ))}
         </View>
       </View>
+
+      {/* All-day strip: a plain sibling ABOVE the scrolling grid, not a child
+          of it, so it can never intercept the grid's long-press-create /
+          drag / resize gestures. Present only when one of the 3 visible days
+          actually has an all-day event — otherwise renders nothing. */}
+      <AllDayStripRow
+        dayStarts={dayStarts}
+        events={calEvents}
+        onEventPress={setStripEventTarget}
+        testIDPrefix={stripTestIDPrefix}
+      />
 
       <View ref={viewportWrapRef} style={{ flex: 1 }} onLayout={measureViewport}>
         <ScrollView
@@ -324,6 +357,28 @@ export function ThreeDayView({
           </View>
         </ScrollView>
       </View>
+
+      <EventActionSheet
+        visible={stripEventTarget != null}
+        event={stripEventTarget}
+        onClose={() => setStripEventTarget(null)}
+        onEdit={() => {
+          if (stripEventTarget) setStripEditTarget(stripEventTarget)
+        }}
+        onDelete={() => {
+          if (stripEventTarget) useScheduleStore.getState().deleteLocalEvent(stripEventTarget.id)
+        }}
+      />
+      <AddEventModal
+        visible={stripEditTarget != null}
+        event={stripEditTarget}
+        onClose={() => setStripEditTarget(null)}
+        onSave={({ title, start, end, allDay }) => {
+          if (stripEditTarget) {
+            useScheduleStore.getState().updateLocalEvent(stripEditTarget.id, { title, start, end, allDay })
+          }
+        }}
+      />
     </View>
   )
 }

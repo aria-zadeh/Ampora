@@ -22,6 +22,7 @@ import { ThreeDayView } from "@/components/calendar/ThreeDayView";
 import { WeekView } from "@/components/calendar/WeekView";
 import { MonthView } from "@/components/calendar/MonthView";
 import { AgendaView } from "@/components/calendar/AgendaView";
+import { EventActionSheet } from "@/components/calendar/EventActionSheet";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { AddEventModal } from "@/components/ui/AddEventModal";
@@ -33,7 +34,7 @@ import {
   type ZoomPxPerHour,
 } from "@/core/calendar";
 import { dayStart } from "@/components/calendar/hours";
-import type { ScheduledBlock } from "@/types";
+import type { CalEvent, ScheduledBlock } from "@/types";
 import { iconSizes } from "@/utils/design-tokens";
 
 /** Views that render the vertical time grid — pinch-to-zoom applies to these. */
@@ -121,6 +122,16 @@ export default function CalendarScreen() {
     [openTask]
   );
 
+  // Tap a CalEvent block/chip/row (Week's grid + all-day strip, Agenda's event
+  // rows) -> open EventActionSheet, exactly like DayView/ThreeDayView's own
+  // DayBlocksLayer already does internally. Lifted to this screen level
+  // (rather than duplicated per view) because — unlike DayBlocksLayer, which
+  // owns one day's worth of gesture state locally — Week/Agenda are simpler,
+  // presentational views that already defer their task-block taps to this
+  // screen too (`openBlock` above), so this just extends that existing pattern.
+  const [eventSheetTarget, setEventSheetTarget] = useState<CalEvent | null>(null);
+  const openEvent = useCallback((event: CalEvent) => setEventSheetTarget(event), []);
+
   // Month/Week day tap -> drop into Day view anchored on that day.
   const openDay = useCallback(
     (dayMs: number) => {
@@ -136,13 +147,18 @@ export default function CalendarScreen() {
     useScheduleStore.getState().recompute();
   }, []);
 
-  // --- Add event (non-gesture path to AddEventModal) ---------------------
-  // The required non-gesture alternative to the time grid's long-press-to-
-  // create (FR-28): a plain button, always visible regardless of which
-  // calendar view is active, so Events stay reachable even from Month/Week/
-  // Agenda, which don't render a long-press-able time grid at all.
-  const [addEventVisible, setAddEventVisible] = useState(false);
-  const openAddEvent = useCallback(() => setAddEventVisible(true), []);
+  // --- Add / edit event (non-gesture path to AddEventModal) --------------
+  // Create is the required non-gesture alternative to the time grid's
+  // long-press-to-create (FR-28): a plain button, always visible regardless
+  // of which calendar view is active, so Events stay reachable even from
+  // Month/Week/Agenda, which don't render a long-press-able time grid at all.
+  // Edit is reached from EventActionSheet's "Edit event" row (local events
+  // only) — same `AddEventModal` instance, prefilled, matching how
+  // `DayBlocksLayer` reuses one modal for both create and edit.
+  const [eventModal, setEventModal] = useState<
+    { mode: "create" } | { mode: "edit"; event: CalEvent } | null
+  >(null);
+  const openAddEvent = useCallback(() => setEventModal({ mode: "create" }), []);
 
   // --- Pinch-to-zoom (time-grid views only) ------------------------------
   // A live scale accumulates during the gesture; on end it resolves to the
@@ -204,9 +220,18 @@ export default function CalendarScreen() {
         );
       case "week":
         return (
-          <WeekView date={date} pxPerHour={pxPerHour} onBlockPress={openBlock} />
+          <WeekView
+            date={date}
+            pxPerHour={pxPerHour}
+            onBlockPress={openBlock}
+            onEventPress={openEvent}
+          />
         );
       case "month":
+        // Day cells show an event indicator but aren't individually
+        // event-tappable, matching how their task-block dots aren't either —
+        // the whole cell already routes to Day view (`openDay`), where every
+        // event is fully visible and tappable.
         return (
           <MonthView
             date={date}
@@ -215,11 +240,11 @@ export default function CalendarScreen() {
           />
         );
       case "agenda":
-        return <AgendaView date={date} onBlockPress={openBlock} />;
+        return <AgendaView date={date} onBlockPress={openBlock} onEventPress={openEvent} />;
       default:
         return null;
     }
-  }, [view, anchorDate, date, pxPerHour, openTask, openBlock, openDay]);
+  }, [view, anchorDate, date, pxPerHour, openTask, openBlock, openDay, openEvent]);
 
   const showEmpty = !hasBlocks && view !== "agenda"; // AgendaView renders its own empty state.
 
@@ -284,16 +309,47 @@ export default function CalendarScreen() {
         </View>
       </GestureHandlerRootView>
 
-      {/* Non-gesture path to create an Event (see `openAddEvent` above). A
-          fresh instance from a long-press on the grid itself also exists,
-          scoped per day-column inside DayView/ThreeDayView — this one is the
-          screen-level fallback reachable from every view. */}
+      {/* Fixed-Event action sheet for Week's grid/all-day-strip taps and
+          Agenda's event rows (Month stays whole-cell-tap only — see the
+          comment on its case above). Mirrors DayBlocksLayer's own
+          EventActionSheet exactly: local events get Edit/Delete, device-synced
+          ones are shown as clearly external (FR-22, read-only). */}
+      <EventActionSheet
+        visible={eventSheetTarget != null}
+        event={eventSheetTarget}
+        onClose={() => setEventSheetTarget(null)}
+        onEdit={() => {
+          if (eventSheetTarget) setEventModal({ mode: "edit", event: eventSheetTarget });
+        }}
+        onDelete={() => {
+          if (eventSheetTarget) useScheduleStore.getState().deleteLocalEvent(eventSheetTarget.id);
+        }}
+      />
+
+      {/* Create (the "Add event" toolbar button above) or edit (EventActionSheet's
+          "Edit event" row). `onSave` branches on `eventModal.mode` to call the
+          right store action, exactly like `DayBlocksLayer`'s own AddEventModal
+          wiring — the modal itself stays store-agnostic. A fresh CREATE instance
+          from a long-press on the grid also exists, scoped per day-column inside
+          DayView/ThreeDayView; this one is the screen-level fallback (create) and
+          the only edit entry point for Week/Month/Agenda. */}
       <AddEventModal
-        visible={addEventVisible}
-        onClose={() => setAddEventVisible(false)}
-        onSave={({ title, start, end }) =>
-          useScheduleStore.getState().addLocalEvent({ title, start, end })
-        }
+        visible={eventModal != null}
+        event={eventModal?.mode === "edit" ? eventModal.event : null}
+        onClose={() => setEventModal(null)}
+        onSave={({ title, start, end, allDay }) => {
+          // `allDay` has to be threaded through here too, not just in the
+          // long-press-create path inside DayView/ThreeDayView. This is the only
+          // edit entry point for Week/Month/Agenda, so dropping it would make the
+          // All-day toggle silently do nothing from those views.
+          if (eventModal?.mode === "edit") {
+            useScheduleStore
+              .getState()
+              .updateLocalEvent(eventModal.event.id, { title, start, end, allDay });
+          } else {
+            useScheduleStore.getState().addLocalEvent({ title, start, end, allDay });
+          }
+        }}
       />
     </SafeAreaView>
   );
