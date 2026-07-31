@@ -40,13 +40,31 @@ export function recompute(input: ScheduleInput): ScheduleResult {
   const cutoff = now + cutoffDays * MS_PER_DAY
   const workload = input.workload ?? 'balanced'
 
+  // Task lookup, built FIRST so it can gate `livePrevBlocks` below. Reused
+  // later by the elapsed-block carry-forward and the missed auto-marking pass.
+  const taskById = new Map<string, Task>()
+  for (const t of tasks) taskById.set(t.id, t)
+
+  // A pinned block is an immovable input: subtracted from free time below and
+  // carried through untouched by the stability pass regardless of the fresh
+  // placement, because nothing ever re-places a pinned block to begin with. A
+  // NON-pinned block for a deleted task is already dropped by the elapsed-
+  // block carry-forward's own task-existence check further down — but that
+  // check never runs on a pinned block, so a pinned block whose task was
+  // deleted had no way to ever leave `prevBlocks` again: not part of
+  // `ordered`/`backfill` (no task left to place), immune to the carry-forward
+  // check, so it would silently consume scheduling capacity forever (every
+  // dragged block is auto-pinned — `store/scheduleStore.ts#moveBlock` — so
+  // this is not a rare shape). Dropped once, here, before either use.
+  const livePrevBlocks = prevBlocks.filter((b) => !b.pinned || taskById.has(b.taskId))
+
   // --- 1. Free intervals (pinned prev blocks subtracted as busy). ---
   const free = buildFreeIntervals({
     now,
     cutoff,
     tasks,
     calEvents,
-    prevBlocks,
+    prevBlocks: livePrevBlocks,
     schedulingHours: settings.schedulingHours,
     quietHours: settings.quietHours,
   })
@@ -56,7 +74,7 @@ export function recompute(input: ScheduleInput): ScheduleResult {
   // stability pass below); crediting their minutes here stops the placement loop
   // from scheduling that same work a second time.
   const pinnedMinutesByTask = new Map<string, number>()
-  for (const b of prevBlocks) {
+  for (const b of livePrevBlocks) {
     if (!b.pinned) continue
     const mins = (b.end - b.start) / (60 * 1000)
     pinnedMinutesByTask.set(b.taskId, (pinnedMinutesByTask.get(b.taskId) ?? 0) + mins)
@@ -150,16 +168,17 @@ export function recompute(input: ScheduleInput): ScheduleResult {
   // --- 4. Stability reconciliation (§9.5.10). ---
   const freshBlocks = state.blocks
 
-  // Task lookup, built once: used both by the elapsed-block carry-forward in the
-  // stability pass and by the missed auto-marking pass below.
-  const taskById = new Map<string, Task>()
-  for (const t of tasks) taskById.set(t.id, t)
+  // `taskById` was built at the top (it gated `livePrevBlocks`); reused here
+  // by the elapsed-block carry-forward and by the missed auto-marking pass
+  // below.
 
   // Index prev blocks by their stable (task,time) key. Pinned blocks are
   // carried through as immovable inputs regardless of the new placement.
+  // `livePrevBlocks` already excludes a pinned block whose task is gone, so
+  // this loop never re-admits the exact debris `livePrevBlocks` just dropped.
   const prevByKey = new Map<string, ScheduledBlock>()
   const pinned: ScheduledBlock[] = []
-  for (const b of prevBlocks) {
+  for (const b of livePrevBlocks) {
     if (b.pinned) {
       pinned.push(b)
       continue

@@ -27,6 +27,7 @@ import { useSyncStore } from "@/store/syncStore";
 import { scheduleTaskReminders } from "@/services/notifications";
 import { detectLapse } from "@/core/recovery";
 import { isActive } from "@/core/subscription";
+import { wipeAllData } from "@/core/dataExport";
 import { getCurrentUser, onAuthStateChange } from "@/services/supabase";
 import type { User } from "@supabase/supabase-js";
 
@@ -93,10 +94,41 @@ export default function RootLayout() {
         }
       });
 
-    const unsubscribe = onAuthStateChange((_event, session) => {
+    const unsubscribe = onAuthStateChange((event, session) => {
       if (!cancelled) {
         setAuthUser(session?.user ?? null);
         setAuthLoading(false);
+      }
+      // Shared-device data leak (FR-87, task report): without this, signing
+      // out leaves every local store exactly as it was. If a SECOND account
+      // signs in on this same device next, its first `syncNow()`
+      // (`store/syncStore.ts`) would find the FIRST user's local tasks,
+      // lists, proofs, etc. absent from the new account's cloud copy and
+      // adopt-then-push them via `upsertTask`/`upsertLists`/etc., stamping
+      // them with the new account's `user_id` — permanently copying one
+      // person's tasks and Proof Log into someone else's account.
+      // `services/supabase.ts#deleteAccount`'s own doc comment already
+      // described this exact hazard; it just was not guarded against for an
+      // ORDINARY sign-out until now. Reacting to the `SIGNED_OUT` event
+      // (rather than only the explicit "Sign out" button) covers every path
+      // that ends a session, including `deleteAccount`'s own internal
+      // `supabase.auth.signOut()`.
+      //
+      // This intentionally does not try to save the outgoing user's
+      // not-yet-pushed edits itself — discarding them here is the accepted
+      // tradeoff (see `store/syncStore.ts#flushBeforeSignOut`'s doc comment
+      // and `components/settings/DataSettings.tsx`'s sign-out handler,
+      // which already flushed BEFORE calling `signOut()`, well before this
+      // event fires). By the time `SIGNED_OUT` reaches us the session is
+      // already gone, so `wipeAllData()`'s own push-suppression
+      // (`resetPushBaselines()` + `useSyncStore#reset`) is redundant here —
+      // every cloud call in `services/supabase.ts` already independently
+      // no-ops with no signed-in user — but harmless, and keeps this one
+      // function doing the exact same safe thing everywhere it's called.
+      if (event === "SIGNED_OUT") {
+        wipeAllData();
+        useSyncStore.getState().reset();
+        useRecoveryStore.getState().reset();
       }
     });
 

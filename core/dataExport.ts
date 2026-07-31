@@ -3,13 +3,17 @@
  *
  * Pure-ish helpers that read/reset the local Zustand+MMKV stores. Kept out of
  * the UI so the serialization shape is stable, testable, and reused by any
- * future "download my data" surface. No network — this is purely the local
- * copy (which, being local-first, is the user's whole dataset today).
+ * future "download my data" surface. No network — this file makes no network
+ * calls itself; it just has to know about `store/syncStore.ts`'s background
+ * push pipeline well enough to stop the wipe below from triggering one (see
+ * `wipeAllData`'s own comment for exactly why that matters).
  *
  * `buildExport` snapshots every user-content store into one JSON-serializable
- * object. `wipeAllData` clears the persisted MMKV blob and resets every store's
- * in-memory collections so the running app reflects the wipe immediately
- * (without requiring a reload).
+ * object. `wipeAllData` clears the persisted MMKV blob and resets MOST
+ * stores' in-memory collections so the running app reflects the wipe
+ * immediately (without requiring a reload) — not literally every store; see
+ * the "Known gaps" note at the end of `wipeAllData` for exactly what it
+ * cannot reach today and why.
  */
 
 import { mmkv } from '@/store/mmkv'
@@ -21,6 +25,7 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useEventLogStore } from '@/store/eventLogStore'
 import { useProofStore } from '@/store/proofStore'
+import { useSyncStore, resetPushBaselines } from '@/store/syncStore'
 
 /** Bumped if the export shape ever changes, so importers can branch on it. */
 export const EXPORT_SCHEMA_VERSION = 1
@@ -84,9 +89,19 @@ export function exportFileName(now: number = Date.now()): string {
 }
 
 /**
+ * Raw MMKV key `store/stakesStore.ts#getDeviceId` reads/writes. Duplicated
+ * here as a literal rather than imported because it is a module-private
+ * `const` there (only the `getDeviceId()` function is exported), and
+ * `store/stakesStore.ts` is out of scope for this change to edit directly.
+ * If that key is ever renamed there, this must be updated too — see the
+ * device-id preservation step in `wipeAllData` below.
+ */
+const DEVICE_ID_MMKV_KEY = 'ampora-device-id'
+
+/**
  * Delete all local data. Clears the persisted MMKV blob (all stores share the
- * one `ampora` instance) then resets every in-memory store's collections so the
- * live app reflects the wipe without a reload.
+ * one `ampora` instance) then resets most in-memory stores' collections so
+ * the live app reflects the wipe without a reload.
  *
  * Settings are intentionally NOT reset to defaults here — the account-level
  * "delete all" is about user *content* (tasks/projects/history), and resetting
@@ -94,10 +109,46 @@ export function exportFileName(now: number = Date.now()): string {
  * removed the persisted settings key; the in-memory Settings stay as-is for
  * this session, and re-persist on next change. (A future "reset app" can wipe
  * settings too.)
+ *
+ * DEVICE-ONLY AND REVERSIBLE, not a cloud delete — this is the entire point
+ * of this action (`components/settings/DataSettings.tsx` promises exactly
+ * that: "Your Ampora account and cloud copy are not affected — sign back in
+ * ... to get it all back"). That promise depends on the two calls at the top
+ * below: every store this function clears is watched by a debounced
+ * push-on-mutation pusher in `store/syncStore.ts` that diffs against the
+ * last snapshot IT pushed and hard-deletes whatever disappeared
+ * (`deleteRowsById` in `services/supabase.ts`) — so without neutralizing
+ * that pipeline FIRST, clearing these stores would look, to that diff,
+ * exactly like the user deleting everything, and the very next debounce
+ * tick would permanently delete the signed-in user's cloud rows. See
+ * `resetPushBaselines`'s and `useSyncStore#reset`'s own doc comments
+ * (`store/syncStore.ts`) for the mechanics; `core/__tests__/dataExport.test.ts`
+ * and `core/__tests__/syncStore.test.ts` cover this directly.
  */
 export function wipeAllData(): void {
-  // 1. Nuke the persisted store.
+  // 0. Neutralize the cloud-sync push pipeline BEFORE touching any store —
+  // see the "DEVICE-ONLY AND REVERSIBLE" paragraph above for why this has to
+  // come first. `resetPushBaselines()` makes each pusher's next diff
+  // empty-vs-empty (nothing to delete); `reset()` additionally disables
+  // `enabled` as an independent second line of defense that blocks every
+  // pusher outright until the next real `syncNow()` re-authenticates it.
+  // Neither call blocks a LATER sync from pulling this user's cloud data
+  // back down onto this now-empty device — that is the intended, promised
+  // way this wipe is reversible (see `resetPushBaselines`'s own comment).
+  resetPushBaselines()
+  useSyncStore.getState().reset()
+
+  // 1. Nuke the persisted store — but first save off the per-install device
+  // id (`store/stakesStore.ts#getDeviceId`), which is deliberately stored
+  // outside the persisted Zustand blob specifically so it survives a store
+  // reset (see that file's own comment on `DEVICE_ID_KEY`). `clearAll()` is
+  // a blanket wipe of the whole MMKV instance and has no way to know that,
+  // so without this it would delete that key too despite the documented
+  // intent, and a later caller would silently mint and persist a brand-new
+  // random id in its place.
+  const preservedDeviceId = mmkv.getString(DEVICE_ID_MMKV_KEY)
   mmkv.clearAll()
+  if (preservedDeviceId) mmkv.set(DEVICE_ID_MMKV_KEY, preservedDeviceId)
 
   // 2. Reset in-memory collections so the running UI updates now.
   useTaskStore.setState({ tasks: {} })
@@ -106,6 +157,20 @@ export function wipeAllData(): void {
   useScheduleStore.getState().clear()
   useEventLogStore.getState().clearEvents()
   useProofStore.getState().clear()
+  useSessionStore.setState({ active: null, history: {} })
+
+  // Known gaps — present in memory (and will re-persist on their own next
+  // mutation) despite this call, because neither store exposes a reset/clear
+  // action that reaches them and both are out of scope for this change to
+  // edit directly:
+  //   - `store/stakesStore.ts`: `sessions`, `events`, `scheduledStakes`,
+  //     `selection`, `apps` (also `todayLockMin`/`todayLockDay`/
+  //     `stakesPausedUntil`/`recentPanics`). That store exposes no
+  //     reset/clear action at all today.
+  //   - `store/scheduleStore.ts`: `localEvents`/`externalEvents`/
+  //     `externalEventsSyncedAt`. Its `clear()` action (called above) only
+  //     resets `blocks`/`unschedulable`/`lastComputedAt`; no other exposed
+  //     action reaches the other three fields.
 }
 
 // ---------------------------------------------------------------------------

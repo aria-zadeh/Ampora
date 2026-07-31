@@ -97,6 +97,65 @@ describe('scheduler/recompute: stability (PRD 9.5.10)', () => {
   })
 })
 
+describe('scheduler/recompute: a deleted task leaves no pinned-block debris (safety review finding #4)', () => {
+  it('drops a pinned block once its task is no longer in the input (task deleted)', () => {
+    const due = now + 3 * MS_PER_DAY
+    const task = makeTask({ id: 'to-be-deleted', durationMin: 60, due })
+    const first = recompute(baseInput({ tasks: [task] }))
+    expect(first.blocks).toHaveLength(1)
+    const pinned = { ...first.blocks[0], pinned: true }
+
+    // The task is gone from `tasks` (deleteTask removed it) but the block it
+    // pinned is still sitting in prevBlocks — exactly what a real recompute
+    // triggered by the deletion (`store/scheduleStore.ts`'s task subscription)
+    // would see.
+    const second = recompute(baseInput({ tasks: [], prevBlocks: [pinned] }))
+    expect(second.blocks.find((b) => b.id === pinned.id)).toBeUndefined()
+    expect(second.blocks).toHaveLength(0)
+  })
+
+  it('a pinned block whose task still exists is NOT dropped (only a genuinely deleted task loses its pin)', () => {
+    const due = now + 3 * MS_PER_DAY
+    const task = makeTask({ id: 'still-here', durationMin: 60, due })
+    const first = recompute(baseInput({ tasks: [task] }))
+    const pinned = { ...first.blocks[0], pinned: true }
+
+    const second = recompute(baseInput({ tasks: [task], prevBlocks: [pinned] }))
+    const stillPinned = second.blocks.find((b) => b.id === pinned.id)
+    expect(stillPinned).toBeDefined()
+    expect(stillPinned!.pinned).toBe(true)
+  })
+
+  it('a dropped pinned block frees its time back up on the very next recompute, instead of silently consuming capacity forever', () => {
+    // 09:00-11:00 every day (120 min/day) so "today" has exactly enough room
+    // for a 120-minute task ONLY if nothing else is subtracted from it.
+    const settings = makeSettings({ schedulingHours: allDaySchedulingHours({ start: 9 * 60, end: 11 * 60 }) })
+    const deletedTask = makeTask({ id: 'deleted-task', durationMin: 60, due: now + 3 * MS_PER_DAY })
+    const first = recompute(baseInput({ tasks: [deletedTask], settings }))
+    expect(first.blocks).toHaveLength(1)
+    const pinned = { ...first.blocks[0], pinned: true }
+    expect(pinned.start).toBe(now)
+    expect(pinned.end - pinned.start).toBe(60 * MS_PER_MIN)
+
+    // `deletedTask` is gone; only the orphaned pinned block remains in
+    // prevBlocks. A new, non-splittable 120-minute task needs the FULL
+    // today's window to fit today at all — it can only land at `now` if the
+    // orphaned block's 60 minutes are no longer subtracted as busy. If the
+    // leak were still present, today would only offer a 60-minute gap (not
+    // enough), and the engine would push this task to tomorrow instead.
+    const newTask = makeTask({ id: 'new-task', durationMin: 120, due: now + 3 * MS_PER_DAY })
+    const second = recompute(baseInput({ tasks: [newTask], prevBlocks: [pinned], settings }))
+
+    const newBlock = second.blocks.find((b) => b.taskId === 'new-task')
+    expect(newBlock).toBeDefined()
+    expect(newBlock!.start).toBe(now) // placed TODAY, in the freed-up slot
+    expect(newBlock!.end - newBlock!.start).toBe(120 * MS_PER_MIN)
+    expect(second.unschedulable.some((u) => u.taskId === 'new-task')).toBe(false)
+    // And the orphaned pinned block itself is gone, not carried forward again.
+    expect(second.blocks.find((b) => b.id === pinned.id)).toBeUndefined()
+  })
+})
+
 describe('scheduler/recompute: missed auto-marking (PRD 9.5.7 / FR-16)', () => {
   it('flips an elapsed block of a still-open task to status "missed"', () => {
     // `now` is Monday 09:00; simulate a block that already ended in the past

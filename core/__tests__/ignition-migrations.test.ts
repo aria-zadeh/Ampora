@@ -13,7 +13,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   ALL_APPS_CATEGORY_TOKENS,
+  DAILY_LOCK_CAP_BOUNDS,
   NEVER_LOCK_CATEGORIES,
+  SINGLE_SESSION_CAP_BOUNDS,
   isAllAppsCategory,
   isNeverLockCategory,
 } from '@/core/blocking/limits'
@@ -174,6 +176,19 @@ describe('settings migration (v0 -> v1)', () => {
     expect(clamped.defaultSessionMin).toBe(20)
   })
 
+  it('clamps a cap pushed below its floor back up, not just above its ceiling', () => {
+    // `components/settings/StakesSettings.tsx`'s daily-cap and single-session-
+    // cap steppers are bounded directly by DAILY_LOCK_CAP_BOUNDS /
+    // SINGLE_SESSION_CAP_BOUNDS — this is the floor side of the same clamp
+    // the "someone tried to raise it" test above covers the ceiling side of.
+    // A past bug had the daily-cap stepper hand-roll its own 30-480 range
+    // against this real 15-180 enforced range (FR-65); pinning both ends here
+    // keeps the two from silently diverging again.
+    const clamped = clampWellbeing({ dailyLockCapMin: 1, singleSessionCapMin: 1 })
+    expect(clamped.dailyLockCapMin).toBe(DAILY_LOCK_CAP_BOUNDS.min)
+    expect(clamped.singleSessionCapMin).toBe(SINGLE_SESSION_CAP_BOUNDS.min)
+  })
+
   it('re-adds any protected never-lock category a blob lost', () => {
     const clamped = clampWellbeing({ neverLockCategories: ['games'] })
     for (const category of NEVER_LOCK_CATEGORIES) {
@@ -285,5 +300,16 @@ describe('never-lock enforcement helpers', () => {
     }
     expect(isAllAppsCategory('com.burbn.instagram')).toBe(false)
     expect(isAllAppsCategory(undefined)).toBe(false)
+  })
+
+  it('matches the six categories the server-side CHECK constraint hardcodes (FR-40)', () => {
+    // `supabase/migrations/20260730000008_settings_never_lock_categories_check.sql`
+    // adds a CHECK requiring `settings.never_lock_categories` to contain all
+    // six — SQL can't import this TS constant, so it hardcodes the same six
+    // strings as a literal jsonb array instead. This is the tripwire: if
+    // NEVER_LOCK_CATEGORIES ever changes, this test fails and says "go update
+    // the migration too," instead of the two silently drifting apart.
+    const migrationSix = ['phone', 'messages', 'maps', 'accessibility', 'os_settings', 'ampora']
+    expect([...NEVER_LOCK_CATEGORIES].sort()).toEqual([...migrationSix].sort())
   })
 })

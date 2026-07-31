@@ -23,6 +23,7 @@ import {
   selectMissedTaskIds,
   selectUnschedulable,
 } from "@/store/scheduleStore";
+import { useStakesStore } from "@/store/stakesStore";
 import { parseQuickAdd } from "@/core/quick-add";
 import type { Unschedulable } from "@/core/scheduler";
 import { TaskCard } from "@/components/ui/TaskCard";
@@ -204,6 +205,9 @@ export default function TasksScreen() {
   // the Inbox bucket (due == null). A dated task can still be unscheduled,
   // which is exactly the at-risk case worth surfacing.
   const [unscheduledFilter, setUnscheduledFilter] = useState(false);
+  // FR-6 "has-stake" / "Stakes active" filter — a task currently carrying a
+  // stake commitment (active or scheduled). See `stakedTaskIdSet` above.
+  const [hasStakeFilter, setHasStakeFilter] = useState(false);
   // FR-6 "due range" filter — a user-selectable window, separate from the
   // fixed Overdue/Today/This week/Later section buckets below.
   const [dueRangeFilter, setDueRangeFilter] = useState<DueRange | null>(null);
@@ -260,6 +264,23 @@ export default function TasksScreen() {
     for (const b of allBlocks) s.add(b.taskId);
     return s;
   }, [allBlocks]);
+
+  // FR-6 "has-stake" / "Stakes active" filter: a task currently carrying a
+  // stake commitment — either the one live session right now, or a stake
+  // that's scheduled but not yet armed. Raw selects only (a primitive and the
+  // store's own record field itself, matching this file's own selector rule
+  // above `unschedulable` — the Object.values walk happens below in
+  // useMemo, never inside the selector, so this can't become a React #185
+  // loop). Historical `sessions` deliberately do NOT count: a task that once
+  // had a stake and doesn't anymore isn't "active."
+  const activeStakeTaskId = useStakesStore((s) => s.activeSession?.taskId ?? null);
+  const scheduledStakesRecord = useStakesStore((s) => s.scheduledStakes);
+  const stakedTaskIdSet = useMemo(() => {
+    const s = new Set<string>();
+    if (activeStakeTaskId) s.add(activeStakeTaskId);
+    for (const stake of Object.values(scheduledStakesRecord)) s.add(stake.taskId);
+    return s;
+  }, [activeStakeTaskId, scheduledStakesRecord]);
 
   const listColorById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -363,9 +384,10 @@ export default function TasksScreen() {
       ) {
         return false;
       }
-      // TODO(stakes): FR-6 also calls for "has-stake" / "Stakes active"
-      // filters here. Deliberately not implemented in this pass — stakesStore
-      // is being rewritten by another workstream right now.
+      // Has-stake / "Stakes active" (FR-6): the task currently carries a
+      // stake commitment (active session or scheduled-but-not-armed). See
+      // `stakedTaskIdSet` above.
+      if (hasStakeFilter && !stakedTaskIdSet.has(t.id)) return false;
       if (statusFilter === "todo" && t.status === "done") return false;
       if (statusFilter === "done" && t.status !== "done") return false;
       return true;
@@ -478,6 +500,8 @@ export default function TasksScreen() {
     missedTaskIdSet,
     unscheduledFilter,
     scheduledTaskIdSet,
+    hasStakeFilter,
+    stakedTaskIdSet,
     atRiskFilter,
     unschedulableByTaskId,
     dueRangeFilter,
@@ -829,9 +853,15 @@ export default function TasksScreen() {
             selected={dueRangeFilter != null}
             onPress={() => setDueRangeModalOpen(true)}
           />
-          {/* TODO(stakes): FR-6's "has-stake" / "Stakes active" filter chip
-              belongs here. Not implemented in this pass — stakesStore's API
-              is being rewritten by another workstream right now. */}
+          {/* Stakes active (FR-6) — tasks currently carrying a stake
+              commitment. Always visible like Unscheduled/Due range above
+              (a normal browsing filter), not conditionally shown like
+              Missed/At risk (those are anomaly flags). */}
+          <Chip
+            label="Stakes active"
+            selected={hasStakeFilter}
+            onPress={() => setHasStakeFilter((v) => !v)}
+          />
           {/* Priority */}
           {([4, 3, 2, 1] as const).map((p) => (
             <Chip

@@ -32,7 +32,7 @@
 
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { getBlockingStrategy, getLockState, setLockSession } from '@/core/blocking'
+import { getBlockingStrategy, setLockSession } from '@/core/blocking'
 import {
   SESSION_MIN_BOUNDS,
   STAKE_STRENGTH_BOUNDS,
@@ -43,7 +43,11 @@ import {
 import { newId } from '@/core/id'
 import { nextOccurrenceOnOrAfter } from '@/core/recurrence'
 import { decideAutoArm } from '@/core/stakeAutoArm'
-import { cancelStakeCueNotifications, scheduleStakeCueNotifications } from '@/services/stakeScheduling'
+import {
+  cancelStakeCueNotifications,
+  cancelWeeklyStakeSummary,
+  scheduleStakeCueNotifications,
+} from '@/services/stakeScheduling'
 import { mmkv, mmkvStateStorage } from '@/store/mmkv'
 import { STAKES_PERSIST_VERSION, migrateStakes } from '@/store/migrations/stakes'
 import { normalizeSettings } from '@/store/migrations/settings'
@@ -327,18 +331,31 @@ interface StakesState {
   resumeStakes: () => void
 
   /**
-   * Launch reconciliation for a persisted `activeSession` (doc `05` §3.6). The
-   * soft in-app lock state is module-level and NOT persisted, so after a cold
-   * start a persisted `activeSession` is never backed by a live lock. This
-   * re-derives whether the session should still hold: it SERVES it when the
+   * Launch reconciliation for a persisted `activeSession` (doc `05` §3.6).
+   * Re-derives whether the session should still hold: it SERVES it when the
    * session length or the single-session cap has already elapsed, RELEASES it
-   * (never leaving the user trapped by a ghost lock) when there is no live lock,
-   * when it predates `now` beyond the recovery bound, during quiet hours, or
-   * when the daily cap is exhausted — otherwise it re-applies the shield and
-   * re-arms the auto-expiry so a genuine mid-session reload recovers cleanly.
-   * Safe to call once on app launch; a no-op with no active session. Never throws.
+   * (never leaving the user trapped by a ghost lock) when the active strategy
+   * reports no live shield, when it predates `now` beyond the recovery bound,
+   * during quiet hours, or when the daily cap is exhausted — otherwise it
+   * re-applies the shield and re-arms the auto-expiry so a genuine
+   * mid-session reload recovers cleanly.
+   *
+   * Liveness is read through `getBlockingStrategy().isShieldActive()`, never
+   * the soft strategy's emitter directly — that seam is what makes this
+   * correct for BOTH backends. Native's `isShieldActive()` queries the real
+   * OS shield, which genuinely survives a cold start, so a still-active
+   * Family Controls lock is now recognized and kept rather than silently torn
+   * down on every relaunch. Soft's in-app lock state cannot survive a cold
+   * start by design (nothing OS-level backs it), so it still reads not-live
+   * here every time regardless — the honest, fail-safe answer for that
+   * backend (NFR-7: under-lock beats a trap), not a defect.
+   *
+   * Async because `isShieldActive()` is. Callers do not need to await it —
+   * fire-and-forget from `app/_layout.tsx`, same as every other enforcement
+   * side-effect in this store. Safe to call once on app launch; a no-op with
+   * no active session. Never throws.
    */
-  reconcileActiveSession: (atMs?: number) => void
+  reconcileActiveSession: (atMs?: number) => Promise<void>
 
   /**
    * Accrual + auto-expiry tick. Call ~once/minute while a session is active.
@@ -1012,7 +1029,7 @@ export const useStakesStore = create<StakesState>()(
 
         resumeStakes: () => set({ stakesPausedUntil: null }),
 
-        reconcileActiveSession: (atMs) => {
+        reconcileActiveSession: async (atMs) => {
           try {
             const now = atMs ?? Date.now()
             const active = get().activeSession
@@ -1023,7 +1040,7 @@ export const useStakesStore = create<StakesState>()(
 
             // NOT-YET-STARTED EXEMPTION. A scheduled stake exists, persisted,
             // before it ever arms — so it has no live lock BY DESIGN, and the
-            // `!lockLive` release below would destroy it on every cold start.
+            // liveness release below would destroy it on every cold start.
             // Nothing is locked, so move it back to the scheduled set (where the
             // auto-arm driver owns it) instead of releasing it.
             if (active.startedAt == null) {
@@ -1053,12 +1070,28 @@ export const useStakesStore = create<StakesState>()(
 
             // Release (fail toward the user, never trap) when the session can no
             // longer legitimately hold:
-            //  - no live soft lock (module-level lock state doesn't survive a
-            //    cold start, so a started session with no live lock is stale),
+            //  - the ACTIVE STRATEGY reports no live shield,
             //  - it predates `now` beyond the sane recovery bound,
             //  - we're inside quiet hours (stakes always release here),
             //  - the daily cap is already exhausted.
-            const lockLive = getLockState().locked
+            //
+            // Liveness goes through the strategy, not the soft emitter directly
+            // (`getLockState()`), which used to make this check degenerate:
+            // that emitter is module-level and never persisted, so it always
+            // read `false` on a cold start no matter which backend was really
+            // enforcing the lock — every relaunch fell straight into
+            // `endActive('expired', ...)` below, even for a real native OS
+            // shield, since `getLockState` is re-exported from
+            // `SoftBlockingStrategy` only and `NativeBlockingStrategy` never
+            // touches it. `isShieldActive()` fixes both: native asks the OS
+            // directly, which genuinely survives a cold start, so a
+            // still-active Family Controls shield is now recognized and
+            // re-applied below instead of torn down. Soft's in-app state still
+            // cannot survive a cold start (nothing OS-level backs it, by
+            // design), so it still reads not-live every time — the honest,
+            // fail-safe answer for that backend, not a bug.
+            const strategy = getBlockingStrategy()
+            const lockLive = await strategy.isShieldActive()
             const tooOld = now - (active.startedAt as number) > STALE_ACTIVE_SESSION_MAX_AGE_MS
             const inQuiet = isQuietHours(settings, now)
             const capExhausted = remainingCap() <= 0
@@ -1070,11 +1103,11 @@ export const useStakesStore = create<StakesState>()(
               return
             }
 
-            // Legit still-active session within bounds: the persisted session is
-            // real but its in-app lock state was lost on reload — re-apply the
-            // shield so the focus/lock UI reflects it, and re-arm the auto-expiry
-            // backstop that died with the process. Fail-safe on rejection.
-            const strategy = getBlockingStrategy()
+            // Legit still-active session within bounds: re-apply the shield so
+            // the focus/lock UI reflects it (soft: re-flips the in-app state
+            // that died with the process; native: idempotent, since the OS
+            // shield is already up), and re-arm the auto-expiry backstop.
+            // Fail-safe on rejection.
             const selection = get().selection
             if (!selection) {
               // Nothing to shield any more (the user cleared their selection):
@@ -1210,3 +1243,81 @@ export function selectEligibleApps(state: StakesState): StakeApp[] {
 export function selectStakeSelection(state: StakesState): StakeSelection | null {
   return state.selection
 }
+
+// ---------------------------------------------------------------------------
+// Task-deletion cleanup — a deleted task must leave no live stake behind.
+// `deleteTask` (`store/taskStore.ts`) knows nothing about stakes and must
+// stay that way (this store already depends on taskStore, not the reverse),
+// so this reacts to the task map changing instead of taking a call from
+// `deleteTask` directly. Mirrors `store/scheduleStore.ts#wireScheduleTriggers`
+// — same subscribe-to-`useTaskStore`, auto-wire-on-import shape.
+//
+// Cleans up the two ways a deleted task's stake otherwise outlives it:
+//  - a not-yet-armed `scheduledStakes` row, whose cue/arm notifications would
+//    otherwise still fire for a task that no longer exists;
+//  - a recurring task's standing `stake-weekly-<taskId>` summary
+//    (`cancelWeeklyStakeSummary`, `services/stakeScheduling.ts`), which had no
+//    caller anywhere and so re-posted roughly every 7 days forever.
+//
+// Deliberately does NOT touch a currently-ACTIVE session even if it belongs to
+// a just-deleted task: the panic valve and the normal time-based release both
+// still work regardless, so leaving it running is not a trap, and
+// force-releasing mid-lock from a background subscription is a bigger
+// behavior change than this leak-fix calls for.
+// ---------------------------------------------------------------------------
+
+/** Ids present in `before` but missing from `after` — i.e. deleted this tick. */
+function removedTaskIds(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
+  const removed: string[] = []
+  for (const id in before) {
+    if (!(id in after)) removed.push(id)
+  }
+  return removed
+}
+
+let stakeTaskDeletionCleanupWired = false
+/**
+ * Wire the cleanup described above. Idempotent; called once at module import
+ * (below). Kept as a function (rather than a bare side effect) so tests can
+ * opt out / control it, matching `wireScheduleTriggers`.
+ */
+export function wireStakeTaskDeletionCleanup(): () => void {
+  if (stakeTaskDeletionCleanupWired) return () => undefined
+  stakeTaskDeletionCleanupWired = true
+
+  const unsub = useTaskStore.subscribe((state, prev) => {
+    if (state.tasks === prev.tasks) return
+    const deletedIds = removedTaskIds(prev.tasks, state.tasks)
+    if (deletedIds.length === 0) return
+
+    const deleted = new Set(deletedIds)
+    const scheduled = useStakesStore.getState().scheduledStakes
+    for (const stake of Object.values(scheduled)) {
+      if (!deleted.has(stake.taskId)) continue
+      // Reuses the store's own cancellation path (removes the row + cancels
+      // its cue/arm notifications) rather than duplicating that logic here.
+      // This also correctly stops a recurring series rather than skipping
+      // just this occurrence (see `cancelScheduledStake`'s own docstring) —
+      // the right outcome here, since the task itself is gone.
+      useStakesStore.getState().cancelScheduledStake(stake.id)
+    }
+    for (const taskId of deletedIds) {
+      // Safe even when nothing was ever scheduled for this id (its own
+      // docstring: "safe to call even if... never actually scheduled").
+      void cancelWeeklyStakeSummary(taskId).catch(() => {
+        // cancelWeeklyStakeSummary already swallows its own errors; this catch
+        // only guards an unexpected synchronous throw before its first await.
+      })
+    }
+  })
+
+  return () => {
+    unsub()
+    stakeTaskDeletionCleanupWired = false
+  }
+}
+
+// Auto-wire on import (app-side), matching scheduleStore's own trigger wiring.
+// Pure `core/` code never imports this store, so this side effect stays out
+// of anything that needs to run in a non-React-Native context.
+wireStakeTaskDeletionCleanup()

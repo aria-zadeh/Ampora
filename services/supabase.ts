@@ -15,7 +15,14 @@ import {
   DEFAULT_STAKE_STRENGTH,
   STAKE_STRENGTH_BOUNDS,
 } from "@/core/blocking/limits";
-import { wipeAllData } from "@/core/dataExport";
+// Deliberately NOT importing `core/dataExport#wipeAllData` here (it used to be
+// called inline from `deleteAccount` below) — `core/dataExport.ts` imports
+// `store/syncStore.ts`, which imports THIS file for its upsert/delete/pull
+// functions, so importing `wipeAllData` here would close a require cycle
+// (dataExport -> syncStore -> supabase -> dataExport). Local-state clearing
+// on account deletion now happens the same way it does for an ordinary
+// sign-out: reactively, off the `SIGNED_OUT` auth event, in
+// `app/_layout.tsx`. See `deleteAccount`'s doc comment below.
 
 // ---------------------------------------------------------------------------
 // Env vars
@@ -149,7 +156,22 @@ export async function signInWithMagicLink(email: string): Promise<{ error: Error
   return { error: error as Error | null };
 }
 
-/** Sign the current user out and clear the session. */
+/**
+ * Sign the current user out and clear the session. Deliberately just the raw
+ * auth call — it does NOT flush pending pushes or clear local Zustand state
+ * itself. Two other places pick up the rest of the work, both reacting to
+ * this call rather than being invoked by it, so every sign-out path (this
+ * function, and `deleteAccount`'s own internal `supabase.auth.signOut()`)
+ * behaves identically:
+ *   - a caller that wants unsynced edits to land in the OUTGOING account
+ *     before they become unreachable should `await
+ *     flushBeforeSignOut()` (`store/syncStore.ts`) first — see
+ *     `components/settings/DataSettings.tsx`'s "Sign out" handler;
+ *   - `app/_layout.tsx`'s `onAuthStateChange` listener reacts to the
+ *     resulting `SIGNED_OUT` event by wiping local state, so a second
+ *     account signing in on this device can never have the first account's
+ *     tasks/proofs/etc. pulled in and pushed back out under its own id.
+ */
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
 }
@@ -175,13 +197,20 @@ export async function signOut(): Promise<void> {
  * (see `supabase/functions/delete-account/index.ts`; it never trusts a
  * client-supplied user id).
  *
- * On success this ALSO wipes local state and signs out: a deleted account
- * must never be left signed in locally, and stale local data must never leak
+ * On success this signs out (`supabase.auth.signOut()`): a deleted account
+ * must never be left signed in locally. It deliberately does NOT call
+ * `wipeAllData()` itself (that used to live here, but importing
+ * `core/dataExport.ts` from this file closes a require cycle — see the note
+ * above the imports). Local state is cleared anyway, and just as reliably:
+ * `app/_layout.tsx`'s `onAuthStateChange` listener reacts to the resulting
+ * `SIGNED_OUT` event and calls `wipeAllData()` + resets the sync/recovery
+ * stores there, the same as it does for an ordinary sign-out — which is
+ * exactly what's needed here too, since stale local data must never leak
  * into whichever account signs in next on this device (the local-first sync
  * in `store/syncStore.ts` would otherwise happily push a dead account's old
- * tasks into a new one). Callers do not need to call `wipeAllData()` or
- * `signOut()` themselves. Returns `{ error }`; a null error means the
- * account and all its data are gone.
+ * tasks into a new one). Callers still do not need to call `wipeAllData()`
+ * themselves. Returns `{ error }`; a null error means the account and all
+ * its data are gone.
  */
 export async function deleteAccount(): Promise<{ error: Error | null }> {
   try {
@@ -190,7 +219,6 @@ export async function deleteAccount(): Promise<{ error: Error | null }> {
     if (data && typeof data === "object" && "error" in (data as Record<string, unknown>)) {
       return { error: new Error(String((data as Record<string, unknown>).error)) };
     }
-    wipeAllData();
     await supabase.auth.signOut();
     return { error: null };
   } catch (err) {
@@ -768,6 +796,21 @@ export async function deleteTask(taskId: string): Promise<void> {
   } catch (err) {
     console.warn("[Ampora] deleteTask exception:", err);
   }
+}
+
+/**
+ * Delete multiple tasks in one batch (subtasks cascade via FK). Fire-and-
+ * forget, scoped to the signed-in user (belt-and-suspenders alongside RLS,
+ * matching every other bulk delete below). No-ops with no signed-in user.
+ * This is what `store/syncStore.ts`'s per-mutation task pusher calls — see
+ * that file for why task deletion needs an explicit push path at all
+ * (`reconcileTasks` deliberately never infers a deletion from local absence).
+ */
+export async function deleteTasks(taskIds: string[]): Promise<void> {
+  if (taskIds.length === 0) return;
+  const userId = await currentUserId();
+  if (!userId) return;
+  await deleteRowsById("tasks", userId, taskIds);
 }
 
 /**

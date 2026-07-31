@@ -14,9 +14,17 @@
  * always-available panic valve. Mounted ONCE in `app/_layout.tsx`, above the
  * routed content and clear of the tab bar.
  *
- * It hides itself on the focus session and Blindfold, which render their own
- * in-context lock UI — two banners saying the same thing would be noise.
+ * It hides itself on the focus session and Blindfold. Both are presented as
+ * `fullScreenModal` (`app/_layout.tsx`), a native full-screen presentation
+ * that sits on top of everything else in the view hierarchy — including this
+ * banner, mounted as a plain sibling of the routed `Stack` — so it would never
+ * actually be visible there regardless of the suppression. Each renders its
+ * own in-context lock UI instead: the focus session's own `LockBanner` +
+ * `PanicValveSheet` (`app/focus/session.tsx`), and Blindfold's own
+ * (`app/blindfold.tsx`) — both wired so the panic valve stays reachable
+ * (FR-42) even though this banner cannot be.
  *
+
  * `LockBanner` (owned by the stakes package) supplies the "what is locked"
  * copy and the panic-valve entry; this composes the time remaining and the
  * route back around it.

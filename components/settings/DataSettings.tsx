@@ -14,15 +14,36 @@
  *   one button."
  * - Delete account: PERMANENT, cross-device, unrecoverable
  *   (`services/supabase.ts#deleteAccount`, which calls the `delete-account`
- *   edge function then wipes local data and signs out itself — this screen
- *   must not repeat either of those). Apple guideline 5.1.1(v) requires
- *   in-app account deletion for any app offering account creation; GDPR/CCPA
- *   erasure rights apply regardless. Gated behind a multi-step flow: an
- *   explanation with data export offered first, then a typed "DELETE"
- *   confirmation (`core/dataExport.isDeleteAccountConfirmed` — a single "are
- *   you sure" is not proportionate to an irreversible, every-device action),
- *   then the attempt itself. A failed attempt says plainly that nothing was
- *   deleted and nothing was lost, and offers a direct retry.
+ *   edge function then signs out itself on a CONFIRMED success — this screen
+ *   must not repeat that sign-out). Local data is wiped separately:
+ *   `app/_layout.tsx`'s `onAuthStateChange` listener reacts to the resulting
+ *   `SIGNED_OUT` event and calls `core/dataExport.wipeAllData` there, the
+ *   same as it does for an ordinary sign-out (`deleteAccount` used to call
+ *   `wipeAllData` inline, but that import closes a require cycle back
+ *   through `store/syncStore.ts` — see that function's doc comment). The one
+ *   exception is the "session check failed but the deletion likely went
+ *   through anyway" branch in `attemptAccountDeletion` below, which cannot
+ *   assume `deleteAccount`'s own sign-out landed and so wipes + signs out
+ *   itself defensively; a resulting duplicate `wipeAllData()` call is
+ *   harmless (idempotent). Apple guideline
+ *   5.1.1(v) requires in-app account deletion for any app offering account
+ *   creation; GDPR/CCPA erasure rights apply regardless. Gated behind a
+ *   multi-step flow: an explanation with data export offered first, then a
+ *   typed "DELETE" confirmation (`core/dataExport.isDeleteAccountConfirmed` —
+ *   a single "are you sure" is not proportionate to an irreversible,
+ *   every-device action), then the attempt itself.
+ *   A FAILED attempt does NOT assume nothing happened: the edge function
+ *   deletes the account before this client ever sees a reply, so a dropped
+ *   response can report failure after the deletion already committed.
+ *   `attemptAccountDeletion` re-checks the session with `getCurrentUser()`
+ *   (a real server round-trip, unlike a cached `getSession()`) to tell apart
+ *   the cases that are actually distinguishable: session now dead -> most
+ *   likely already succeeded, so finish the local cleanup here instead of
+ *   showing a false failure; session still valid -> genuinely didn't go
+ *   through, safe to say so and offer retry; couldn't check at all (e.g. no
+ *   connection) -> says exactly that, never guesses. This is also what stops
+ *   "Try again" from looping a 401 forever against an already-deleted user
+ *   under a copy that keeps claiming nothing was lost.
  * - Account: current email + sign out.
  * - About / Help / Legal: quiet affordances (Phase 4 polish audit). No
  *   invented external links — Ampora has no live support site or published
@@ -64,6 +85,7 @@ import {
   DELETE_ACCOUNT_CONFIRM_PHRASE,
 } from '@/core/dataExport'
 import { getCurrentUser, signOut, deleteAccount } from '@/services/supabase'
+import { flushBeforeSignOut } from '@/store/syncStore'
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0'
 
@@ -161,12 +183,37 @@ export function DataSettings() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleted, setDeleted] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [signingOut, setSigningOut] = useState(false)
 
   useEffect(() => {
     getCurrentUser()
       .then((u) => setUserEmail(u?.email ?? null))
       .catch(() => {})
   }, [])
+
+  // Sign out — flush this device's not-yet-synced edits to THIS account
+  // first (`flushBeforeSignOut`, time-bounded so a slow/offline network can
+  // never hang the button), then sign out. `app/_layout.tsx`'s
+  // `onAuthStateChange` listener does the local-state clearing once the
+  // resulting `SIGNED_OUT` event lands — see that file and
+  // `store/syncStore.ts#flushBeforeSignOut`'s doc comment for the full
+  // flush-then-clear design and why a shared-device sign-out needs both
+  // halves. Without the flush, a task edited in the last moment before
+  // tapping "Sign out" could be discarded rather than saved to this account;
+  // without the listener's clear, a second account signing in on this
+  // device could inherit this account's data (see that listener's comment).
+  const handleSignOut = async () => {
+    setSigningOut(true)
+    Haptics.selectionAsync().catch(() => {})
+    try {
+      await flushBeforeSignOut().catch(() => {})
+      await signOut()
+    } finally {
+      // Harmless if the auth-gate redirect (app/_layout.tsx) has already
+      // unmounted this screen by the time this runs.
+      setSigningOut(false)
+    }
+  }
 
   const handleExport = async () => {
     setExporting(true)
@@ -215,11 +262,16 @@ export function DataSettings() {
   >('closed')
   const [deleteAccountText, setDeleteAccountText] = useState('')
   const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null)
+  // The 'error' step's heading is no longer a single hard-coded claim (see
+  // `attemptAccountDeletion`) — it depends on which of the distinguishable
+  // failure cases actually happened.
+  const [deleteAccountHeading, setDeleteAccountHeading] = useState('Your account was not deleted')
 
   const openDeleteAccount = () => {
     Haptics.selectionAsync().catch(() => {})
     setDeleteAccountText('')
     setDeleteAccountError(null)
+    setDeleteAccountHeading('Your account was not deleted')
     setDeleteAccountStep('intro')
   }
 
@@ -230,25 +282,76 @@ export function DataSettings() {
     setDeleteAccountStep('closed')
     setDeleteAccountText('')
     setDeleteAccountError(null)
+    setDeleteAccountHeading('Your account was not deleted')
   }
 
   const attemptAccountDeletion = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {})
     setDeleteAccountStep('deleting')
     const { error } = await deleteAccount()
-    if (error) {
-      setDeleteAccountError('Nothing was deleted and nothing was lost. Check your connection and try again.')
-      setDeleteAccountStep('error')
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {})
+    if (!error) {
+      // Success: deleteAccount() already wiped local data and signed out, which
+      // flips the auth gate in app/_layout.tsx to redirect to /auth on its own.
+      // Just close and reset here in case that redirect hasn't landed yet.
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+      setDeleteAccountStep('closed')
+      setDeleteAccountText('')
+      setDeleteAccountError(null)
       return
     }
-    // Success: deleteAccount() already wiped local data and signed out, which
-    // flips the auth gate in app/_layout.tsx to redirect to /auth on its own.
-    // Just close and reset here in case that redirect hasn't landed yet.
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-    setDeleteAccountStep('closed')
-    setDeleteAccountText('')
-    setDeleteAccountError(null)
+
+    // A failed response does not prove nothing happened. `delete-account`
+    // deletes the account server-side before this client ever sees a reply
+    // (`supabase/functions/delete-account/index.ts`), so a dropped response, a
+    // backgrounded app, or a flaky connection can all report failure AFTER the
+    // deletion already committed — leaving the account gone, local data
+    // intact, and the app signed in on a dead session. "Try again" would then
+    // re-invoke with a JWT belonging to a deleted user: a guaranteed 401,
+    // forever, under the same false "nothing was deleted" copy.
+    //
+    // Check the one thing we actually can: `getCurrentUser()` asks the server
+    // to re-verify the session (unlike a cached getSession()), so if it now
+    // comes back empty, the account this token belonged to is genuinely gone
+    // — most likely because this very attempt (or an earlier retry) succeeded.
+    // A still-valid session means the account is still there. Neither branch
+    // is asserted unless we actually checked it.
+    let sessionCheckFailed = false
+    let stillSignedIn = true
+    try {
+      stillSignedIn = (await getCurrentUser()) != null
+    } catch {
+      sessionCheckFailed = true
+    }
+
+    if (!sessionCheckFailed && !stillSignedIn) {
+      // Session is dead: complete the same local cleanup a successful call
+      // would have done, rather than showing a false failure and looping
+      // "Try again" against an account that no longer exists.
+      wipeAllData()
+      await signOut().catch(() => {})
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+      setDeleteAccountStep('closed')
+      setDeleteAccountText('')
+      setDeleteAccountError(null)
+      return
+    }
+
+    if (sessionCheckFailed) {
+      // Could not even check (e.g. no connection to verify with) — say so
+      // rather than guessing either way.
+      setDeleteAccountHeading("We couldn't confirm what happened")
+      setDeleteAccountError(
+        "We can't check whether this went through without a connection. Try again once you're back online — if Ampora signs you out on its own, it worked."
+      )
+    } else {
+      // A real, still-valid session came back: the account is still there.
+      setDeleteAccountHeading('Your account was not deleted')
+      setDeleteAccountError(
+        'Your account still appears active, so this attempt did not go through. Check your connection and try again.'
+      )
+    }
+    setDeleteAccountStep('error')
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {})
   }
 
   return (
@@ -299,7 +402,8 @@ export function DataSettings() {
           iconTint={colors.light.dangerStrong}
           iconBg="bg-danger-100"
           label="Sign out"
-          onPress={() => signOut()}
+          onPress={handleSignOut}
+          busy={signingOut}
           danger
           isLast
           accessibilityHint="Signs you out of your account"
@@ -612,7 +716,7 @@ export function DataSettings() {
                   </View>
                   <View accessibilityLiveRegion="polite">
                     <Heading size="h3" className="mt-4">
-                      Your account was not deleted
+                      {deleteAccountHeading}
                     </Heading>
                     <Text className="mt-2 text-body text-neutral-600 leading-6">
                       {deleteAccountError}

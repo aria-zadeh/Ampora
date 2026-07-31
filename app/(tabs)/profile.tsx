@@ -20,6 +20,7 @@ import { PressableScale } from "@/components/ui/PressableScale";
 import { StakesSettings } from "@/components/settings/StakesSettings";
 import { CalendarSyncSettings } from "@/components/settings/CalendarSyncSettings";
 import { getCurrentUser, signOut } from "@/services/supabase";
+import { flushBeforeSignOut } from "@/store/syncStore";
 import { trialDaysLeft, isActive } from "@/core/subscription";
 import { shadows, gradients } from "@/utils/design-tokens";
 import { DURATIONS, SPRINGS } from "@/utils/motion";
@@ -419,7 +420,18 @@ export default function ProfileScreen() {
               </Text>
             </View>
             <PressableScale
-              onPress={() => signOut()}
+              onPress={async () => {
+                // Flush this device's not-yet-synced edits to THIS account
+                // before ending the session, mirroring the handler in
+                // `components/settings/DataSettings.tsx`. The `SIGNED_OUT`
+                // listener in `app/_layout.tsx` clears local state either way,
+                // so skipping the flush would not leak data across accounts,
+                // but it would silently discard an edit made moments before
+                // tapping this. `flushBeforeSignOut` is time-bounded, so a
+                // slow or offline network cannot hang the button.
+                await flushBeforeSignOut();
+                await signOut();
+              }}
               haptic="light"
               className="flex-row items-center py-3.5"
               accessibilityRole="button"

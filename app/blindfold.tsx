@@ -16,6 +16,17 @@
  * Task selection: an optional `?taskId=` param (when launched from a focus
  * session), otherwise the highest-priority incomplete task. When everything is
  * done it shows a brief, warm "you're clear" state and offers to leave.
+ *
+ * LOCK AFFORDANCE (FR-42). Blindfold is reachable with a stake lock live (it
+ * is one tap from the focus session's "I'm overwhelmed", and reachable
+ * independently too), and `GlobalLockBanner` (`app/_layout.tsx`) cannot cover
+ * this screen — Blindfold is presented as a native `fullScreenModal`, which
+ * sits on top of that banner regardless of pathname suppression, the same
+ * reason the focus session renders its own copy instead of relying on it. So
+ * when a stake is active this screen shows the same neutral `LockBanner` +
+ * `PanicValveSheet` used everywhere else, kept quiet at the top rather than
+ * competing with the one step below — the panic valve must always be
+ * reachable, but Blindfold's whole purpose is to strip everything else away.
  */
 
 import React, { useCallback, useMemo, useState } from "react";
@@ -28,12 +39,15 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import { useTaskStore } from "@/store/taskStore";
+import { useStakesStore } from "@/store/stakesStore";
 import { nextStep } from "@/core/task-logic";
 import { PressableScale } from "@/components/ui/PressableScale";
+import { LockBanner } from "@/components/stakes/LockBanner";
+import { PanicValveSheet } from "@/components/stakes/PanicValveSheet";
 import { DURATIONS, EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { colors } from "@/utils/design-tokens";
-import type { Task } from "@/types";
+import type { StakeSession, Task } from "@/types";
 import type { NextStep } from "@/core/task-logic";
 
 /** Same "top task" intent as the Focus hub: soonest due, then priority, then newest. */
@@ -69,6 +83,18 @@ export default function BlindfoldScreen() {
   const tasks = useTaskStore((s) => s.tasks);
   const updateTask = useTaskStore((s) => s.updateTask);
   const setSubtaskCompleted = useTaskStore((s) => s.setSubtaskCompleted);
+
+  // -- Lock affordance (FR-42) -- Raw field select (Zustand v5 discipline).
+  // Only one stake is ever active app-wide, so this is "the" lock, exactly
+  // like `GlobalLockBanner` reads it — Blindfold is a passive viewer here,
+  // never an arming surface.
+  const activeStake = useStakesStore((s) => s.activeSession);
+  // A separate copy, not derived from `activeStake`: releasing the lock nulls
+  // `activeSession`, and if the sheet's session prop went with it the user
+  // would watch their own escape hatch vanish mid-countdown instead of
+  // reading "your apps are back" (same defensive pattern as
+  // `GlobalLockBanner`).
+  const [panicSession, setPanicSession] = useState<StakeSession | null>(null);
 
   const task = useMemo(
     () => pickTopTask(tasks, params.taskId),
@@ -140,6 +166,16 @@ export default function BlindfoldScreen() {
           </PressableScale>
         </View>
 
+        {/* Lock banner — only while a stake is actually live (FR-42). Kept
+            quiet at the top, out of the way of the one centered step below.
+            `GlobalLockBanner` cannot reach this screen (see module doc), so
+            this is the only place the panic valve is reachable from here. */}
+        {activeStake && (
+          <View className="px-5 pt-3">
+            <LockBanner session={activeStake} onPanic={() => setPanicSession(activeStake)} />
+          </View>
+        )}
+
         {/* One thing, centered. */}
         <View className="flex-1 items-center justify-center px-8">
           {done ? (
@@ -207,6 +243,22 @@ export default function BlindfoldScreen() {
           )}
         </View>
       </SafeAreaView>
+
+      {/* Panic valve — always reachable, from anywhere in the app (FR-42).
+          Kept mounted on `panicSession` rather than `activeStake` so a
+          release mid-countdown does not tear the sheet down before it can
+          show "your apps are back" (see the comment on `panicSession`). */}
+      {panicSession && (
+        <PanicValveSheet
+          visible
+          session={panicSession}
+          onClose={() => setPanicSession(null)}
+          onReleased={() => {
+            // Leave the sheet mounted so it can show its "your apps are back"
+            // state; `onClose` from its Done button tears it down.
+          }}
+        />
+      )}
     </View>
   );
 }
