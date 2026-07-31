@@ -36,7 +36,7 @@ import { Button } from "@/components/ui/Button";
 import { GradientCard } from "@/components/ui/GradientCard";
 import { generateNextTask, type NextTaskResult } from "@/services/aiProjects";
 import { newId } from "@/core/id";
-import { iconSizes } from "@/utils/design-tokens";
+import { colors, iconSizes } from "@/utils/design-tokens";
 import type { Phase } from "@/types";
 
 const SESSION_MIN = 45;
@@ -107,7 +107,7 @@ export default function ProjectDetailScreen() {
     return (
       <SafeAreaView className="flex-1 bg-neutral-100 items-center justify-center px-8">
         <Stack.Screen options={{ headerShown: false }} />
-        <Ionicons name="folder-open-outline" size={iconSizes.hero} color="#A8A29A" />
+        <Ionicons name="folder-open-outline" size={iconSizes.hero} color={colors.light.textDisabled} />
         <Text className="text-body text-neutral-500 text-center mt-3">
           This project isn&apos;t available.
         </Text>
@@ -133,7 +133,7 @@ export default function ProjectDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Ionicons name="chevron-back" size={iconSizes.lg} color="#1C1917" />
+          <Ionicons name="chevron-back" size={iconSizes.lg} color={colors.light.text} />
         </Pressable>
         <View className="flex-1" />
         <Pressable
@@ -143,7 +143,7 @@ export default function ProjectDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Delete project"
         >
-          <Ionicons name="trash-outline" size={iconSizes.md} color="#A8A29A" />
+          <Ionicons name="trash-outline" size={iconSizes.md} color={colors.light.textDisabled} />
         </Pressable>
       </View>
 
@@ -200,7 +200,7 @@ export default function ProjectDetailScreen() {
               onPress={planNextSession}
               icon={
                 planning ? undefined : (
-                  <Ionicons name="sparkles" size={iconSizes.sm} color="#FFFFFF" />
+                  <Ionicons name="sparkles" size={iconSizes.sm} color={colors.light.primaryForeground} />
                 )
               }
             />
@@ -297,7 +297,7 @@ function PlannedSheet({
               className="w-8 h-8 rounded-full items-center justify-center"
               style={{ backgroundColor: accent }}
             >
-              <Ionicons name="checkmark" size={iconSizes.md} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={iconSizes.md} color={colors.light.primaryForeground} />
             </View>
             <Text className="text-overline font-semibold uppercase tracking-wide ml-2 text-neutral-500">
               Session ready
@@ -312,7 +312,7 @@ function PlannedSheet({
 
               {/* First move */}
               <View className="flex-row items-start mt-3 bg-primary-50 rounded-xl p-3">
-                <Ionicons name="footsteps-outline" size={iconSizes.md} color="#2563EB" />
+                <Ionicons name="footsteps-outline" size={iconSizes.md} color={colors.light.primary} />
                 <View className="flex-1 ml-2.5">
                   <Text className="text-caption font-semibold text-primary-700">First move</Text>
                   <Text className="text-body text-neutral-900 mt-0.5">{result.firstMove}</Text>
@@ -339,7 +339,7 @@ function PlannedSheet({
 
               {result.isFallback && result.note && (
                 <View className="flex-row items-center mt-3">
-                  <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color="#A8A29A" />
+                  <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color={colors.light.textDisabled} />
                   <Text className="text-tiny text-neutral-500 ml-1">{result.note}</Text>
                 </View>
               )}
@@ -353,7 +353,7 @@ function PlannedSheet({
                     title="Start focus"
                     variant="primaryBlue"
                     onPress={onStartFocus}
-                    icon={<Ionicons name="play" size={iconSizes.sm} color="#FFFFFF" />}
+                    icon={<Ionicons name="play" size={iconSizes.sm} color={colors.light.primaryForeground} />}
                   />
                 </View>
               </View>
@@ -427,7 +427,7 @@ function ConfirmDeleteSheet({
                   alsoDeleteTasks ? "bg-danger-600" : "border-2 border-neutral-300"
                 }`}
               >
-                {alsoDeleteTasks ? <Ionicons name="checkmark" size={13} color="#FFFFFF" /> : null}
+                {alsoDeleteTasks ? <Ionicons name="checkmark" size={13} color={colors.light.primaryForeground} /> : null}
               </View>
               <View className="flex-1">
                 <Text className="text-label font-medium text-neutral-800">

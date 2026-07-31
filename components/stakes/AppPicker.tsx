@@ -30,7 +30,7 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useStakesStore, isLockable } from "@/store/stakesStore";
@@ -261,7 +261,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#57534E" />
+                    <Ionicons name="close" size={20} color={colors.light.textSecondary} />
                   </Pressable>
                 </View>
 
@@ -334,7 +334,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                         <Ionicons
                           name={isSel ? "checkmark-circle" : "ellipse-outline"}
                           size={22}
-                          color={isSel ? "#2563EB" : "#D7D3CC"}
+                          color={isSel ? colors.light.primary : colors.light.borderStrong}
                         />
                       </Pressable>
                     );
@@ -342,7 +342,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
 
                   {/* Platform note — set expectations honestly. */}
                   <View className="mt-2 flex-row items-start gap-2.5 rounded-xl bg-neutral-100 p-3.5">
-                    <Ionicons name="phone-portrait-outline" size={16} color="#6F6862" />
+                    <Ionicons name="phone-portrait-outline" size={16} color={colors.light.textMuted} />
                     <Text className="flex-1 text-caption text-neutral-500">
                       On iPhone, you&apos;ll pick the real apps with Apple&apos;s Screen Time picker once app
                       locking is enabled. This list is a preview of what that feels like.
@@ -357,7 +357,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                       className="mb-3 flex-row items-start gap-2 rounded-lg bg-warning-100 px-3 py-2.5"
                       accessibilityRole="alert"
                     >
-                      <Ionicons name="information-circle-outline" size={16} color="#C2410C" />
+                      <Ionicons name="information-circle-outline" size={16} color={colors.light.warningStrong} />
                       <Text className="flex-1 text-caption font-medium text-warning-700">{refusalNote}</Text>
                     </View>
                   ) : null}

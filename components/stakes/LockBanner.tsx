@@ -41,7 +41,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 
 import { PressableScale } from "@/components/ui/PressableScale";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useStakesStore, selectEligibleApps, selectStakeSelection } from "@/store/stakesStore";
@@ -134,7 +134,7 @@ export function LockBanner({ session, onPanic }: LockBannerProps) {
     >
       <View className="flex-row items-start gap-3">
         <View className="h-9 w-9 items-center justify-center rounded-full bg-white">
-          <Ionicons name="lock-closed" size={18} color="#57534E" />
+          <Ionicons name="lock-closed" size={18} color={colors.light.textSecondary} />
         </View>
         <View className="flex-1">
           <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500">
@@ -155,7 +155,7 @@ export function LockBanner({ session, onPanic }: LockBannerProps) {
         accessibilityLabel="Unlock early"
         accessibilityHint="Opens a 60 second breather before your apps come back"
       >
-        <Ionicons name="leaf-outline" size={15} color="#57534E" />
+        <Ionicons name="leaf-outline" size={15} color={colors.light.textSecondary} />
         <Text className="text-caption font-medium text-neutral-700">Unlock early</Text>
       </PressableScale>
     </Animated.View>

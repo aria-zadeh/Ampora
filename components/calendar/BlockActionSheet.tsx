@@ -400,7 +400,12 @@ const TINT_STYLES: Record<Tint, { icon: string; iconBg: string; text: string }> 
   danger: { icon: '#DC2626', iconBg: 'bg-danger-100', text: 'text-danger-700' },
 }
 
-function ActionRow({
+/**
+ * Exported so `EventActionSheet` (the fixed-Event counterpart to this sheet)
+ * reuses the exact same row chrome instead of a near-duplicate copy — the two
+ * sheets share the same bottom-sheet visual language on purpose.
+ */
+export function ActionRow({
   icon,
   label,
   blurb,

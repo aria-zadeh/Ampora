@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { AppPicker } from "@/components/stakes/AppPicker";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useStakesStore } from "@/store/stakesStore";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 
 // ---------------------------------------------------------------------------
 // Bounds + copy for the protective caps. Framed as ceilings that keep the
@@ -74,7 +74,7 @@ function categoryLabel(key: string): string {
 /** A row inside the group: leading icon bubble, label + optional sublabel, trailing slot. */
 function Row({
   icon,
-  iconTint = "#57534E",
+  iconTint = colors.light.textSecondary,
   iconBg = "bg-neutral-100",
   label,
   sublabel,
@@ -150,7 +150,7 @@ function Stepper({
         accessibilityLabel={`Decrease ${a11yLabel}`}
         accessibilityState={{ disabled: atMin }}
       >
-        <Ionicons name="remove" size={18} color="#1C1917" />
+        <Ionicons name="remove" size={18} color={colors.light.text} />
       </Pressable>
       <Text
         className="mx-3 min-w-[56px] text-center text-body-lg font-semibold text-neutral-900"
@@ -169,7 +169,7 @@ function Stepper({
         accessibilityLabel={`Increase ${a11yLabel}`}
         accessibilityState={{ disabled: atMax }}
       >
-        <Ionicons name="add" size={18} color="#1C1917" />
+        <Ionicons name="add" size={18} color={colors.light.text} />
       </Pressable>
     </View>
   );
@@ -302,7 +302,7 @@ export function StakesSettings() {
       >
         <Row
           icon="shield-checkmark-outline"
-          iconTint="#2563EB"
+          iconTint={colors.light.primary}
           iconBg="bg-primary-50"
           label="Daily lock ceiling"
           sublabel="The most Ampora will ever lock in a day"
@@ -374,7 +374,7 @@ export function StakesSettings() {
           }
         >
           <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
-            <Ionicons name="apps-outline" size={18} color="#2563EB" />
+            <Ionicons name="apps-outline" size={18} color={colors.light.primary} />
           </View>
           <View className="ml-3 flex-1 pr-3">
             <Text className="text-body-lg text-neutral-900">Choose apps to lock</Text>
@@ -384,7 +384,7 @@ export function StakesSettings() {
                 : "The leisure apps a stake can lock"}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color="#A8A29A" />
+          <Ionicons name="chevron-forward" size={18} color={colors.light.textDisabled} />
         </Pressable>
       </View>
       <Text className="ml-1 mt-2 text-caption text-neutral-500">
@@ -403,7 +403,7 @@ export function StakesSettings() {
           accessibilityRole="button"
           accessibilityLabel="Why can't these be locked?"
         >
-          <Ionicons name="information-circle-outline" size={18} color="#6F6862" />
+          <Ionicons name="information-circle-outline" size={18} color={colors.light.textMuted} />
         </Pressable>
       </View>
       <View
@@ -415,7 +415,7 @@ export function StakesSettings() {
           <Row
             key={key}
             icon="lock-open-outline"
-            iconTint="#16A34A"
+            iconTint={colors.light.successAccent}
             iconBg="bg-success-100"
             label={categoryLabel(key)}
             trailing={
@@ -423,7 +423,7 @@ export function StakesSettings() {
                 <Text className="mr-1 text-caption font-medium text-success-700">
                   Protected
                 </Text>
-                <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+                <Ionicons name="checkmark-circle" size={16} color={colors.light.successAccent} />
               </View>
             }
           />
@@ -434,7 +434,7 @@ export function StakesSettings() {
           <Row
             key={key}
             icon="lock-open-outline"
-            iconTint="#57534E"
+            iconTint={colors.light.textSecondary}
             iconBg="bg-neutral-100"
             label={categoryLabel(key)}
             sublabel="Added by you"
@@ -446,7 +446,7 @@ export function StakesSettings() {
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${categoryLabel(key)} from always reachable`}
               >
-                <Ionicons name="close-circle" size={20} color="#A8A29A" />
+                <Ionicons name="close-circle" size={20} color={colors.light.textDisabled} />
               </Pressable>
             }
           />
@@ -465,7 +465,7 @@ export function StakesSettings() {
           accessibilityLabel="Add an always-reachable app"
         >
           <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
-            <Ionicons name="add" size={20} color="#2563EB" />
+            <Ionicons name="add" size={20} color={colors.light.primary} />
           </View>
           <Text className="ml-3 flex-1 text-body-lg font-medium text-primary-600">
             Add always-reachable app
@@ -490,7 +490,7 @@ export function StakesSettings() {
           <>
             <View className="mb-3 flex-row items-center">
               <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
-                <Ionicons name="pause-circle-outline" size={18} color="#2563EB" />
+                <Ionicons name="pause-circle-outline" size={18} color={colors.light.primary} />
               </View>
               <Text className="ml-3 flex-1 text-body text-neutral-600">
                 Stakes are paused for the rest of today. Nothing will lock until
@@ -586,7 +586,7 @@ export function StakesSettings() {
               }}
               onSubmitEditing={addUserApp}
               placeholder="e.g. Banking, Health, Duolingo"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               returnKeyType="done"
               autoFocus
               maxLength={40}

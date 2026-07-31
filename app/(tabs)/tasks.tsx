@@ -17,12 +17,19 @@ import Animated, {
 import { useShallow } from "zustand/react/shallow";
 import { useTaskStore } from "@/store/taskStore";
 import { useListStore, selectAllLists, selectAllTags } from "@/store/listStore";
-import { useScheduleStore, selectAllBlocks, selectMissedTaskIds } from "@/store/scheduleStore";
+import {
+  useScheduleStore,
+  selectAllBlocks,
+  selectMissedTaskIds,
+  selectUnschedulable,
+} from "@/store/scheduleStore";
 import { parseQuickAdd } from "@/core/quick-add";
+import type { Unschedulable } from "@/core/scheduler";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { TaskActionSheet } from "@/components/ui/TaskActionSheet";
 import { BrainDumpSheet } from "@/components/capture/BrainDumpSheet";
 import { ListEditorModal } from "@/components/settings/ListEditorModal";
+import { UnschedulableFixSheet } from "@/components/schedule/UnschedulableFixSheet";
 import { Input } from "@/components/ui/Input";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Chip } from "@/components/ui/Chip";
@@ -31,6 +38,7 @@ import { FAB } from "@/components/ui/FAB";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Heading } from "@/components/ui/Heading";
+import { PressableScale } from "@/components/ui/PressableScale";
 import { DURATIONS, SPRINGS, staggerDelay } from "@/utils/motion";
 import { listColors } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
@@ -218,6 +226,31 @@ export default function TasksScreen() {
     if (missedFilter && missedTaskIds.length === 0) setMissedFilter(false);
   }, [missedFilter, missedTaskIds.length]);
 
+  // FR-20: tasks the engine could not place, with why (never silently
+  // dropped — this is where that reason finally reaches the user). Raw
+  // select — `selectUnschedulable` returns the state field itself, not a
+  // derived array, so no useShallow is needed (project selector rule: raw
+  // fields don't need it, only .map/.filter/Object.values-style selectors do).
+  const unschedulable = useScheduleStore(selectUnschedulable);
+  // Keyed by taskId for O(1) per-row lookup. A recurring task can in
+  // principle collect more than one entry (one per failed future
+  // occurrence, `core/scheduler/recompute.ts`'s per-occurrence placement
+  // loop) — the first (earliest) one wins, since it's the soonest-actionable.
+  const unschedulableByTaskId = useMemo(() => {
+    const map = new Map<string, Unschedulable>();
+    for (const u of unschedulable) {
+      if (!map.has(u.taskId)) map.set(u.taskId, u);
+    }
+    return map;
+  }, [unschedulable]);
+  const [atRiskFilter, setAtRiskFilter] = useState(false);
+  const [atRiskFor, setAtRiskFor] = useState<Task | null>(null);
+  // Same auto-clear pattern as the Missed filter above: don't strand the
+  // user on an empty list once every at-risk task is resolved.
+  useEffect(() => {
+    if (atRiskFilter && unschedulableByTaskId.size === 0) setAtRiskFilter(false);
+  }, [atRiskFilter, unschedulableByTaskId]);
+
   // All scheduled blocks, purely to know WHICH tasks have at least one (FR-6
   // "Unscheduled" filter) — a task can be dated and still never placed by the
   // engine (see `core/scheduler`), which is different from having no due date.
@@ -317,6 +350,11 @@ export default function TasksScreen() {
       // from the Inbox bucket (due == null) — a dated task can still be
       // unschedulable/unplaced by the engine.
       if (unscheduledFilter && scheduledTaskIdSet.has(t.id)) return false;
+      // At risk (FR-20): the engine tried to place this task and explicitly
+      // could not, with a specific reason — a stronger signal than
+      // "Unscheduled" above (which also matches a brand-new task recompute
+      // simply hasn't reached yet).
+      if (atRiskFilter && !unschedulableByTaskId.has(t.id)) return false;
       // Due range (FR-6): a user-picked window, independent of the fixed
       // Overdue/Today/This week/Later section buckets.
       if (
@@ -440,6 +478,8 @@ export default function TasksScreen() {
     missedTaskIdSet,
     unscheduledFilter,
     scheduledTaskIdSet,
+    atRiskFilter,
+    unschedulableByTaskId,
     dueRangeFilter,
     listNameById,
     completedCollapsed,
@@ -539,6 +579,11 @@ export default function TasksScreen() {
     [updateTask],
   );
 
+  // FR-20: opens the reason + one-tap-fix sheet for an at-risk task.
+  const handleAtRiskTask = useCallback((task: Task) => {
+    setAtRiskFor(task);
+  }, []);
+
   // -------------------------------------------------------------------------
   // Row renderers.
   // -------------------------------------------------------------------------
@@ -591,6 +636,8 @@ export default function TasksScreen() {
             onDelete={handleDeleteTask}
             onSchedule={handleScheduleTask}
             onScheduleTomorrow={handleScheduleTomorrowTask}
+            atRisk={unschedulableByTaskId.get(item.task.id)}
+            onAtRisk={handleAtRiskTask}
           />
         </Animated.View>
       );
@@ -607,6 +654,8 @@ export default function TasksScreen() {
       handleDeleteTask,
       handleScheduleTask,
       handleScheduleTomorrowTask,
+      unschedulableByTaskId,
+      handleAtRiskTask,
       reduceMotion,
     ],
   );
@@ -753,6 +802,17 @@ export default function TasksScreen() {
               color="#EA580C"
               selected={missedFilter}
               onPress={() => setMissedFilter((m) => !m)}
+            />
+          )}
+          {/* At risk (FR-20) — same conditional-visibility pattern as Missed
+              above: only shown once the engine has actually flagged
+              something, never an always-there empty affordance. */}
+          {unschedulableByTaskId.size > 0 && (
+            <Chip
+              label="At risk"
+              color="#EA580C"
+              selected={atRiskFilter}
+              onPress={() => setAtRiskFilter((v) => !v)}
             />
           )}
           {/* Unscheduled (FR-6) — a dated task with zero ScheduledBlocks; the
@@ -920,6 +980,13 @@ export default function TasksScreen() {
 
       {/* Brain dump (FR-4) — record, transcribe, parse, preview, confirm. */}
       <BrainDumpSheet visible={brainDumpOpen} onClose={() => setBrainDumpOpen(false)} />
+
+      {/* FR-20: why a task couldn't be scheduled, plus one-tap fixes. */}
+      <UnschedulableFixSheet
+        task={atRiskFor}
+        info={atRiskFor ? unschedulableByTaskId.get(atRiskFor.id) : undefined}
+        onClose={() => setAtRiskFor(null)}
+      />
     </View>
   );
 }
@@ -945,6 +1012,39 @@ function ChevronSpring({ collapsed }: { collapsed: boolean }) {
     <Animated.View style={[{ marginRight: 6 }, style]}>
       <Ionicons name="chevron-forward" size={18} color="#6F6862" />
     </Animated.View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// At-risk pill (FR-20) — flags a task the engine could not place, with the
+// engine's own calm reason as the accessibility label so a screen-reader
+// user gets the full explanation without needing to open the sheet. Kept
+// deliberately small and non-alarming: icon + short label, warning (not
+// danger) tone, no red — this is the app explaining itself, not the user
+// having failed at anything.
+// ---------------------------------------------------------------------------
+
+function AtRiskPill({
+  task,
+  info,
+  onPress,
+}: {
+  task: Task;
+  info: Unschedulable;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      haptic="light"
+      className="mt-1.5 self-start flex-row items-center gap-1.5 rounded-full bg-warning-100 pl-2.5 pr-3 min-h-11"
+      accessibilityRole="button"
+      accessibilityLabel={`Couldn't schedule: ${task.title}. ${info.reason}`}
+      accessibilityHint="Opens ways to fix this so it can be scheduled"
+    >
+      <Ionicons name="alert-circle-outline" size={16} color="#C2410C" />
+      <Text className="text-caption font-medium text-warning-700">Couldn&apos;t schedule — fix it</Text>
+    </PressableScale>
   );
 }
 
@@ -975,6 +1075,9 @@ interface TaskRowProps {
   onDelete: (id: string) => void;
   onSchedule: (task: Task) => void;
   onScheduleTomorrow: (id: string) => void;
+  /** FR-20: present when the scheduler could not place this task this run. */
+  atRisk?: Unschedulable;
+  onAtRisk: (task: Task) => void;
 }
 
 function TaskRowImpl({
@@ -990,6 +1093,8 @@ function TaskRowImpl({
   onDelete,
   onSchedule,
   onScheduleTomorrow,
+  atRisk,
+  onAtRisk,
 }: TaskRowProps) {
   const swipeRef = useRef<Swipeable>(null);
   const isDone = task.status === "done";
@@ -1151,6 +1256,7 @@ function TaskRowImpl({
   const handleOpen = useCallback(() => onOpen(task.id), [onOpen, task.id]);
   const handleLongPress = useCallback(() => onLongPress(task), [onLongPress, task]);
   const handleToggle = useCallback(() => onToggle(task), [onToggle, task]);
+  const handleAtRisk = useCallback(() => onAtRisk(task), [onAtRisk, task]);
 
   return (
     <View className="px-5 py-1">
@@ -1185,6 +1291,11 @@ function TaskRowImpl({
           />
         )}
       </Swipeable>
+      {/* FR-20: at-risk flag + explanation, rendered as a sibling below the
+          card rather than inside it (TaskCard has no slot for this) — tap
+          opens the reason + one-tap-fix sheet. Icon + text label, never
+          color alone (design-system status rule). */}
+      {atRisk && !isDone && <AtRiskPill task={task} info={atRisk} onPress={handleAtRisk} />}
     </View>
   );
 }

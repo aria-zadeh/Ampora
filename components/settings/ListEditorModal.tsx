@@ -7,7 +7,7 @@ import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { Stepper } from "@/components/settings/SettingsPrimitives";
 import { useListStore, selectListById } from "@/store/listStore";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import type { List, SchedulingHours } from "@/types";
 
 // Shared swatch set, matching the task editor's palette.
@@ -152,7 +152,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
             <TextInput
               className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
               placeholder="List name"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               value={name}
               onChangeText={setName}
               returnKeyType="done"
@@ -179,7 +179,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
                     accessibilityState={{ selected }}
                   >
                     {selected ? (
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
                     ) : null}
                   </Pressable>
                 );

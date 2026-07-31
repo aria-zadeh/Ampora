@@ -145,16 +145,21 @@ describe('quick-add: combined / real-world lines', () => {
   })
 })
 
-describe('quick-add: PRD §9.6 gaps (documented, not fixed)', () => {
+describe('quick-add: PRD §9.6 coverage (previously-documented gaps, now implemented)', () => {
   // PRD §9.6: "Parse a typed line into {title, duration, due, list, priority,
-  // recurrence}". The following are real gaps between that spec and the
-  // current parser (core/quick-add.ts). Per task instructions these are left
-  // FAILING rather than weakened, so they surface as findings.
+  // recurrence}". These three cases were once real gaps between that spec and
+  // the parser (core/quick-add.ts), deliberately left FAILING as findings
+  // rather than weakened or deleted. All three have since been implemented —
+  // time-of-day parsing (`matchTimeOfDay`), "#list" hashtag extraction
+  // (`LIST_RE` + the `list` field on `QuickAddResult`), and sigil-aware
+  // stripping for punctuation markers like "!high" (`stripMatchWithSigil`) —
+  // so these now pass and are kept as regression coverage. Assertions
+  // unchanged from when they were written as failing findings.
 
-  it('a clock time alongside a relative day ("tomorrow 3pm") should set a specific due time and not leak into the title — currently unsupported: no time-of-day parsing exists at all, so "3pm" is left as literal title text', () => {
+  it('a clock time alongside a relative day ("tomorrow 3pm") sets a specific due time and does not leak into the title — matchTimeOfDay combines with the date resolved from "tomorrow"', () => {
     const result = parseQuickAdd('tomorrow 3pm', now)
-    // What SHOULD happen per PRD §9.6 (a fully-parsed line leaves nothing
-    // behind for the title): title is empty and due carries the 15:00 time.
+    // Per PRD §9.6 (a fully-parsed line leaves nothing behind for the title):
+    // title is empty and due carries the 15:00 time.
     expect(result.title).toBe('')
     const tomorrow3pm = new Date(now)
     tomorrow3pm.setDate(tomorrow3pm.getDate() + 1)
@@ -162,18 +167,65 @@ describe('quick-add: PRD §9.6 gaps (documented, not fixed)', () => {
     expect(result.due).toBe(tomorrow3pm.getTime())
   })
 
-  it('a "#list" token should be extracted into a list field and stripped from the title — currently unsupported: no list/hashtag parsing exists, QuickAddResult has no `list` field, and the token is left verbatim in the title', () => {
+  it('a "#list" token is extracted into a list field and stripped from the title — LIST_RE plus the list field on QuickAddResult', () => {
     const result = parseQuickAdd('Read ch1 #biology', now) as unknown as { title: string; list?: string }
     expect(result.list).toBe('biology')
     expect(result.title).toBe('Read ch1')
   })
 
-  it('"!high"-style punctuation priority markers should not leave stray punctuation behind in the title', () => {
-    // The word-boundary regex DOES recognize "high" inside "!high" (a nice
-    // accident), but stripMatch only removes the word "high", leaving the
-    // leading "!" as dangling punctuation in the title.
+  it('"!high"-style punctuation priority markers do not leave stray punctuation behind in the title — stripMatchWithSigil absorbs the leading "!" along with the matched word', () => {
     const result = parseQuickAdd('read book !high', now)
-    expect(result.priority).toBe(3) // this part already works
-    expect(result.title).toBe('read book') // BUG: actually "read book !"
+    expect(result.priority).toBe(3)
+    expect(result.title).toBe('read book')
+  })
+})
+
+describe('quick-add: dangling separator cleanup', () => {
+  // A token stripped from the MIDDLE of the input (between two separators,
+  // or between a separator and the edge) used to leave the separator(s)
+  // behind: stripMatch only collapses whitespace, and the old DANGLING_RE
+  // only matched stopwords anchored at the very start/end of the whole
+  // string, so it could neither see punctuation nor reach mid-string.
+
+  it.each([
+    ['Read Chapter 11 for Bio, due Friday, 2h', 'Read Chapter 11 for Bio'],
+    ['Read ch 11, due Friday, 2h high', 'Read ch 11'],
+    ['Essay, 2h, !high', 'Essay'],
+    ['Lab report; due tomorrow; 90m', 'Lab report'],
+    ['Study #bio, due friday', 'Study'],
+  ] as const)('"%s" -> clean title "%s"', (input, expected) => {
+    expect(parseQuickAdd(input, now).title).toBe(expected)
+  })
+
+  it('a leading token (due-date at the very front) leaves no dangling comma either', () => {
+    // Same fields as the first case above, reordered so the removed token
+    // sits at the START instead of buried in the middle.
+    const result = parseQuickAdd('due Friday, Read ch 11, 2h', now)
+    expect(result.title).toBe('Read ch 11')
+  })
+
+  it('a token removed from the middle collapses a doubled separator back to ONE, not zero, when real text remains on both sides', () => {
+    // Distinct from the cases above: here the collapsed separator is not
+    // trailing garbage to delete, it is the join between two real clauses
+    // and must survive as a single comma.
+    const result = parseQuickAdd('Call mom, due tomorrow, then buy milk', now)
+    expect(result.title).toBe('Call mom, then buy milk')
+  })
+
+  it('reordering priority to the front still cleans up the trailing separator left by duration', () => {
+    const result = parseQuickAdd('high, Essay, 2h', now)
+    expect(result.priority).toBe(3)
+    expect(result.durationMin).toBe(120)
+    expect(result.title).toBe('Essay')
+  })
+
+  it('does not overreach: a legitimate internal comma with no stripped token nearby survives untouched', () => {
+    const result = parseQuickAdd('Read ch 11, then review notes', now)
+    expect(result.title).toBe('Read ch 11, then review notes')
+  })
+
+  it('does not overreach: a legitimate colon in the title survives untouched', () => {
+    const result = parseQuickAdd('Lab: write up results', now)
+    expect(result.title).toBe('Lab: write up results')
   })
 })

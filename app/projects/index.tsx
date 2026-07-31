@@ -27,7 +27,7 @@ import { FAB } from "@/components/ui/FAB";
 import { Heading } from "@/components/ui/Heading";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { iconSizes } from "@/utils/design-tokens";
+import { colors, iconSizes } from "@/utils/design-tokens";
 import type { Project, ProjectKind } from "@/types";
 
 export default function ProjectsHubScreen() {
@@ -97,7 +97,7 @@ export default function ProjectsHubScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Ionicons name="chevron-back" size={iconSizes.lg} color="#1C1917" />
+          <Ionicons name="chevron-back" size={iconSizes.lg} color={colors.light.text} />
         </Pressable>
         <View className="flex-1">
           <Heading size="h1">Projects</Heading>
@@ -106,7 +106,7 @@ export default function ProjectsHubScreen() {
           className="w-9 h-9 rounded-full items-center justify-center"
           style={{ backgroundColor: PROJECT_ACCENT }}
         >
-          <Ionicons name="rocket-outline" size={iconSizes.md} color="#FFFFFF" />
+          <Ionicons name="rocket-outline" size={iconSizes.md} color={colors.light.primaryForeground} />
         </View>
       </View>
 

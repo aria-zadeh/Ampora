@@ -1,7 +1,7 @@
 /**
  * ai-breakdown — Deno edge function.
  *
- * Input:  { task: { title, notes?, durationMin?, dueAt?, hoursUntilDue?, energyRequired? },
+ * Input:  { task: { title, notes?, durationMin?, dueAt?, hoursUntilDue? },
  *           source?: string }
  * Output: { firstMove: string, subtasks: { title, estimatedMin }[], taskTypeKey?: string }
  *
@@ -39,7 +39,6 @@ interface TaskInput {
   durationMin?: number;
   dueAt?: number;
   hoursUntilDue?: number;
-  energyRequired?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -61,7 +60,6 @@ TASK: ${JSON.stringify({
       durationMin: task.durationMin ?? null,
       dueAt: task.dueAt ?? null,
       hoursUntilDue: task.hoursUntilDue ?? null,
-      energyRequired: task.energyRequired ?? null,
     })}
 SOURCE: ${source}`;
 

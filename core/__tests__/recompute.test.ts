@@ -154,6 +154,53 @@ describe('scheduler/recompute: missed auto-marking (PRD 9.5.7 / FR-16)', () => {
   })
 })
 
+describe('scheduler/recompute: a fixed Event blocks placement end to end (FR-1, FR-28)', () => {
+  // This exercises the exact path `store/scheduleStore.ts#recompute` drives:
+  // a user-created local Event (`AddEventModal` -> `addLocalEvent`) is
+  // concatenated into `calEvents` alongside any external synced events, and
+  // handed to this same `recompute()` — not just `buildFreeIntervals` in
+  // isolation (see `core/__tests__/freeTime.test.ts`), but the FULL engine
+  // that actually places tasks, proving a local Event really does keep the
+  // scheduler from booking a task over it.
+  it('never places a task over a local busy CalEvent, even though there is otherwise room for it', () => {
+    // A single 09:00-11:00 scheduling-hours window today (120 min of capacity).
+    const settings = makeSettings({ schedulingHours: allDaySchedulingHours({ start: 9 * 60, end: 11 * 60 }) })
+    // The Event occupies the middle of the window: 09:30-10:00.
+    const event = makeCalEvent({
+      id: 'evt-local-1',
+      source: 'local',
+      busy: true,
+      start: now + 30 * MS_PER_MIN,
+      end: now + 60 * MS_PER_MIN,
+    })
+    const task = makeTask({ id: 'blocked-by-event', durationMin: 30, due: now + MS_PER_DAY })
+    const result = recompute(baseInput({ tasks: [task], calEvents: [event], settings }))
+
+    const block = result.blocks.find((b) => b.taskId === 'blocked-by-event')
+    expect(block).toBeDefined()
+    // The task must land SOMEWHERE, but never overlapping the event's span —
+    // proving the busy time was actually subtracted before placement, not
+    // just reported alongside a task that got booked over it anyway.
+    const overlapsEvent = block!.start < event.end && block!.end > event.start
+    expect(overlapsEvent).toBe(false)
+  })
+
+  it('reports the task unschedulable (never silently drops it) when a local Event consumes the ENTIRE window', () => {
+    const settings = makeSettings({ schedulingHours: allDaySchedulingHours({ start: 9 * 60, end: 9 * 60 + 30 }) }) // 30 min/day only
+    const event = makeCalEvent({
+      id: 'evt-local-2',
+      source: 'local',
+      busy: true,
+      start: now,
+      end: now + 30 * MS_PER_MIN,
+    })
+    const task = makeTask({ id: 'fully-blocked', durationMin: 30, due: now + MS_PER_DAY, splittable: false })
+    const result = recompute(baseInput({ tasks: [task], calEvents: [event], settings }))
+    expect(result.blocks.filter((b) => b.taskId === 'fully-blocked')).toHaveLength(0)
+    expect(result.unschedulable.some((u) => u.taskId === 'fully-blocked')).toBe(true)
+  })
+})
+
 describe('scheduler/recompute: undated backfill never displaces dated work (9.5.8)', () => {
   it('an undated auto-scheduled task only takes leftover free time, after dated tasks are placed', () => {
     // Scheduling hours 09:00-11:00 (120 min/day). A dated task needs all of

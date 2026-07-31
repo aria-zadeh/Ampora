@@ -28,7 +28,7 @@ import Constants from 'expo-constants'
 import { Heading } from '@/components/ui/Heading'
 import { Button } from '@/components/ui/Button'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { shadows } from '@/utils/design-tokens'
+import { colors, shadows } from '@/utils/design-tokens'
 import { SectionLabel, SectionFootnote, Group } from '@/components/settings/SettingsPrimitives'
 import { serializeExport, exportFileName, wipeAllData } from '@/core/dataExport'
 import { getCurrentUser, signOut } from '@/services/supabase'
@@ -65,7 +65,7 @@ function downloadOnWeb(json: string, filename: string): boolean {
 /** A tappable action row with a leading icon bubble + chevron/trailing slot. */
 function ActionRow({
   icon,
-  iconTint = '#57534E',
+  iconTint = colors.light.textSecondary,
   iconBg = 'bg-neutral-100',
   label,
   sublabel,
@@ -114,7 +114,7 @@ function ActionRow({
       <Ionicons
         name={busy ? 'hourglass-outline' : 'chevron-forward'}
         size={18}
-        color={danger ? '#DC2626' : '#C4C4CC'}
+        color={danger ? colors.light.dangerStrong : colors.light.textDisabled}
       />
     </PressableScale>
   )
@@ -180,7 +180,7 @@ export function DataSettings() {
       <Group>
         <ActionRow
           icon="download-outline"
-          iconTint="#2563EB"
+          iconTint={colors.light.primary}
           iconBg="bg-primary-50"
           label="Export data"
           sublabel="Save a JSON copy of everything"
@@ -204,7 +204,7 @@ export function DataSettings() {
         {userEmail ? (
           <View className="flex-row items-center border-b border-neutral-100 py-3.5">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-              <Ionicons name="mail-outline" size={18} color="#57534E" />
+              <Ionicons name="mail-outline" size={18} color={colors.light.textSecondary} />
             </View>
             <Text className="ml-3 flex-1 text-body-lg text-neutral-900" numberOfLines={1}>
               {userEmail}
@@ -213,7 +213,7 @@ export function DataSettings() {
         ) : null}
         <ActionRow
           icon="log-out-outline"
-          iconTint="#DC2626"
+          iconTint={colors.light.dangerStrong}
           iconBg="bg-danger-100"
           label="Sign out"
           onPress={() => signOut()}
@@ -232,7 +232,7 @@ export function DataSettings() {
       <Group>
         <ActionRow
           icon="help-circle-outline"
-          iconTint="#2563EB"
+          iconTint={colors.light.primary}
           iconBg="bg-primary-50"
           label="Help"
           sublabel="What Ampora does and how it's built to help"
@@ -248,7 +248,7 @@ export function DataSettings() {
         />
         <View className="flex-row items-center py-3.5">
           <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-            <Ionicons name="information-circle-outline" size={18} color="#57534E" />
+            <Ionicons name="information-circle-outline" size={18} color={colors.light.textSecondary} />
           </View>
           <Text className="ml-3 flex-1 text-body-lg text-neutral-900">Version</Text>
           <Text className="text-body text-neutral-500">{APP_VERSION}</Text>
@@ -263,7 +263,7 @@ export function DataSettings() {
         {deleted ? (
           <View className="flex-row items-center py-3.5">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-success-100">
-              <Ionicons name="checkmark-circle-outline" size={18} color="#16A34A" />
+              <Ionicons name="checkmark-circle-outline" size={18} color={colors.light.successAccent} />
             </View>
             <Text className="ml-3 flex-1 text-body-lg text-neutral-900">
               All local data cleared
@@ -272,7 +272,7 @@ export function DataSettings() {
         ) : (
           <ActionRow
             icon="trash-outline"
-            iconTint="#DC2626"
+            iconTint={colors.light.dangerStrong}
             iconBg="bg-danger-100"
             label="Delete all data"
             sublabel="Erase every task, project, and record"
@@ -308,7 +308,7 @@ export function DataSettings() {
             onPress={(e) => e.stopPropagation()}
           >
             <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-              <Ionicons name="trash-outline" size={24} color="#DC2626" />
+              <Ionicons name="trash-outline" size={24} color={colors.light.dangerStrong} />
             </View>
             <Heading size="h3" className="mt-4">
               Delete all data?
@@ -356,7 +356,7 @@ export function DataSettings() {
             {infoSheet === 'help' ? (
               <>
                 <View className="h-12 w-12 items-center justify-center rounded-full bg-primary-50">
-                  <Ionicons name="help-circle-outline" size={24} color="#2563EB" />
+                  <Ionicons name="help-circle-outline" size={24} color={colors.light.primary} />
                 </View>
                 <Heading size="h3" className="mt-4">
                   How Ampora helps
@@ -372,7 +372,7 @@ export function DataSettings() {
             ) : (
               <>
                 <View className="h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
-                  <Ionicons name="document-text-outline" size={24} color="#57534E" />
+                  <Ionicons name="document-text-outline" size={24} color={colors.light.textSecondary} />
                 </View>
                 <Heading size="h3" className="mt-4">
                   Privacy and terms

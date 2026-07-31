@@ -7,7 +7,7 @@ import { useTaskStore } from "@/store/taskStore";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { TaskEditorForm } from "@/components/task-editor/TaskEditorForm";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import type { Task } from "@/types";
 
 /**
@@ -48,7 +48,7 @@ export default function NewTaskScreen() {
             accessibilityRole="button"
             accessibilityLabel="Cancel"
           >
-            <Ionicons name="close" size={24} color="#1C1917" />
+            <Ionicons name="close" size={24} color={colors.light.text} />
           </PressableScale>
         </View>
         <Heading size="h3">New task</Heading>

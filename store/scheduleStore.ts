@@ -22,10 +22,12 @@ import { useTaskStore } from '@/store/taskStore'
 import { useListStore } from '@/store/listStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { startOfDay } from '@/core/scheduler/time'
+import { newId } from '@/core/id'
 import type { List } from '@/types'
 import * as calendarSync from '@/services/calendarSync'
 
 const MS_PER_DAY = 86_400_000
+const MS_PER_MIN = 60_000
 
 /**
  * Minimum spacing between two external-calendar re-fetches (FR-22). Every
@@ -56,6 +58,19 @@ interface ScheduleState {
   /** `Date.now()` of the last successful (or intentionally-cleared) external-events fetch, or null before the first one. */
   externalEventsSyncedAt: number | null
 
+  /**
+   * User-created fixed Events (PRD FR-1, FR-28), keyed by id — the "local"
+   * counterpart to `externalEvents`. Unlike the external cache (wholesale-
+   * replaced by a device-calendar refetch), these are the canonical record:
+   * created/edited/deleted directly by the user via `AddEventModal`, and
+   * persisted here through the same MMKV `persist()` wrapper as `blocks`
+   * (no separate storage needed — see the file header). Always
+   * `source: 'local'`, always `busy: true` (an Event the user adds exists
+   * specifically to keep the engine from booking over it — see
+   * `addLocalEvent`).
+   */
+  localEvents: Record<string, CalEvent>
+
   /** Run the engine against current task + settings state and store results. */
   recompute: () => void
   /**
@@ -85,6 +100,34 @@ interface ScheduleState {
    * (FR-64).
    */
   refreshExternalEvents: () => Promise<void>
+  /**
+   * Create a fixed local Event (PRD FR-1, FR-28 "long-press empty space to
+   * create") and recompute immediately so it takes effect as busy time on
+   * this same tick — not on the next debounced pass, since this is a
+   * deliberate one-off user action, not a rapid-fire edit stream. Falls back
+   * to "Busy" when left untitled (matches the device-sync fallback in
+   * `services/calendarSync.ts#toCalEvent`). `end` is clamped to be at least
+   * one minute after `start` so a mis-picked/equal time can never produce an
+   * inverted or zero-length busy span.
+   */
+  addLocalEvent: (input: { title: string; start: number; end: number; allDay?: boolean }) => CalEvent
+  /**
+   * Edit a local Event in place (title/time only — `source`/`id` are fixed).
+   * A no-op if `id` is not a local event (e.g. it was deleted from another
+   * device since the sheet opened). Recomputes immediately, same reasoning
+   * as `addLocalEvent`.
+   */
+  updateLocalEvent: (
+    id: string,
+    patch: Partial<Pick<CalEvent, 'title' | 'start' | 'end' | 'allDay'>>
+  ) => void
+  /**
+   * Delete a local Event outright (BlockActionSheet-style: no confirmation
+   * dialog, matching `deleteTask`'s bar). Device-synced events can never
+   * reach this — `EventActionSheet` only offers Delete for `source: 'local'`.
+   * Recomputes immediately so the freed time is available again right away.
+   */
+  deleteLocalEvent: (id: string) => void
   /** Toggle a block's pinned flag (pinned = immovable input to future recomputes). */
   setPinned: (blockId: string, pinned: boolean) => void
   /**
@@ -147,6 +190,7 @@ export const useScheduleStore = create<ScheduleState>()(
       lastComputedAt: null,
       externalEvents: [],
       externalEventsSyncedAt: null,
+      localEvents: {},
 
       recompute: () => {
         if (isComputing) return
@@ -163,12 +207,14 @@ export const useScheduleStore = create<ScheduleState>()(
           const result = engineRecompute({
             tasks,
             prevBlocks,
-            // External busy events (FR-22, device calendar sync). Read from
-            // the cache below — never fetched inline, so recompute() stays
-            // synchronous and inside its <300ms budget. A future
-            // manually-created (local) CalEvent source would be concatenated
-            // in here too; only the external cache exists so far.
-            calEvents: get().externalEvents,
+            // Busy calendar events: user-created LOCAL events (FR-1, FR-28 —
+            // the canonical record, persisted in this store) concatenated
+            // with the cached EXTERNAL device-sync events (FR-22). Local
+            // events need no staleness gate (they're already the source of
+            // truth in memory); external events are read from the cache
+            // below — never fetched inline, so recompute() stays synchronous
+            // and inside its <300ms budget.
+            calEvents: [...Object.values(get().localEvents), ...get().externalEvents],
             settings,
             now: Date.now(),
             // Honour the user's workload preference (FR-14). Without this the
@@ -236,6 +282,57 @@ export const useScheduleStore = create<ScheduleState>()(
         const rangeEnd = now + DEFAULT_CUTOFF_DAYS * MS_PER_DAY
         const fresh = await calendarSync.fetchBusyEvents(calendarIds, now, rangeEnd)
         set({ externalEvents: fresh, externalEventsSyncedAt: Date.now() })
+        get().recompute()
+      },
+
+      addLocalEvent: (input) => {
+        const now = Date.now()
+        const start = input.start
+        const end = Math.max(input.end, start + MS_PER_MIN)
+        const event: CalEvent = {
+          id: newId(),
+          createdAt: now,
+          updatedAt: now,
+          syncState: 'pending',
+          title: input.title.trim() || 'Busy',
+          start,
+          end,
+          allDay: input.allDay,
+          source: 'local',
+          busy: true,
+        }
+        set((state) => ({ localEvents: { ...state.localEvents, [event.id]: event } }))
+        get().recompute()
+        return event
+      },
+
+      updateLocalEvent: (id, patch) => {
+        set((state) => {
+          const existing = state.localEvents[id]
+          if (!existing) return state
+          const start = patch.start ?? existing.start
+          const end = Math.max(patch.end ?? existing.end, start + MS_PER_MIN)
+          const next: CalEvent = {
+            ...existing,
+            ...patch,
+            title: patch.title != null ? patch.title.trim() || 'Busy' : existing.title,
+            start,
+            end,
+            updatedAt: Date.now(),
+            syncState: 'pending',
+          }
+          return { localEvents: { ...state.localEvents, [id]: next } }
+        })
+        get().recompute()
+      },
+
+      deleteLocalEvent: (id) => {
+        set((state) => {
+          if (!(id in state.localEvents)) return state
+          const next = { ...state.localEvents }
+          delete next[id]
+          return { localEvents: next }
+        })
         get().recompute()
       },
 
@@ -337,6 +434,37 @@ export function selectBlocksByDay(dayStartMs: number) {
   return (state: ScheduleState): ScheduledBlock[] =>
     Object.values(state.blocks)
       .filter((b) => b.start < dayEnd && b.end > dayStart)
+      .sort((a, b) => a.start - b.start)
+}
+
+/** Every CalEvent (local + external), unfiltered. Callers MUST wrap with `useShallow`. */
+export function selectAllCalEvents(state: ScheduleState): CalEvent[] {
+  return [...Object.values(state.localEvents), ...state.externalEvents]
+}
+
+/**
+ * CalEvents (local + external) overlapping one calendar day, clipped to that
+ * day's [00:00, 24:00) boundary — mirrors `selectBlocksByDay`. An event that
+ * crosses midnight is deliberately NOT returned with its raw full-width span:
+ * per `docs/09_Decisions.md` ("an event crossing midnight splits at the day
+ * boundary"), each day's projection is clamped to its own grid so a
+ * DayView/ThreeDayView column never receives a span outside its own 24h
+ * geometry. The clamp is purely a per-day RENDER projection — the store still
+ * holds each event's canonical, un-clipped start/end; edit/delete always look
+ * it up by `id`, never by the clipped copy's times. Callers MUST wrap with
+ * `useShallow` (Zustand v5, per project rules).
+ */
+export function selectEventsByDay(dayStartMs: number) {
+  const dayStart = startOfDay(dayStartMs)
+  const dayEnd = dayStart + 86_400_000
+  return (state: ScheduleState): CalEvent[] =>
+    selectAllCalEvents(state)
+      .filter((e) => e.start < dayEnd && e.end > dayStart)
+      .map((e): CalEvent => {
+        const start = Math.max(e.start, dayStart)
+        const end = Math.min(e.end, dayEnd)
+        return start === e.start && end === e.end ? e : { ...e, start, end }
+      })
       .sort((a, b) => a.start - b.start)
 }
 

@@ -11,7 +11,7 @@ import { SkeletonLoader } from "@/components/ui/SkeletonLoader";
 import { TaskEditorForm } from "@/components/task-editor/TaskEditorForm";
 import { VerificationSheet } from "@/components/verification/VerificationSheet";
 import { StakeSetupSheet, type ArmedStake } from "@/components/stakes/StakeSetupSheet";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import type { Task } from "@/types";
 
 /**
@@ -104,7 +104,7 @@ export default function TaskEditScreen() {
               accessibilityRole="button"
               accessibilityLabel="Back"
             >
-              <Ionicons name="chevron-back" size={24} color="#1C1917" />
+              <Ionicons name="chevron-back" size={24} color={colors.light.text} />
             </PressableScale>
             <Heading size="h3" className="ml-1">
               Task
@@ -138,7 +138,7 @@ export default function TaskEditScreen() {
             accessibilityRole="button"
             accessibilityLabel="Back"
           >
-            <Ionicons name="chevron-back" size={24} color="#1C1917" />
+            <Ionicons name="chevron-back" size={24} color={colors.light.text} />
           </PressableScale>
           <Heading size="h3" className="ml-1">
             Task
@@ -172,7 +172,7 @@ export default function TaskEditScreen() {
             accessibilityRole="button"
             accessibilityLabel="Back"
           >
-            <Ionicons name="chevron-back" size={24} color="#1C1917" />
+            <Ionicons name="chevron-back" size={24} color={colors.light.text} />
           </PressableScale>
         </View>
         <Heading size="h3">Edit task</Heading>
@@ -188,7 +188,7 @@ export default function TaskEditScreen() {
       >
         {isDone ? (
           <View className="flex-row items-center justify-center gap-2 rounded-md bg-success-100 py-3">
-            <Ionicons name="checkmark-circle" size={18} color="#15803D" />
+            <Ionicons name="checkmark-circle" size={18} color={colors.light.successStrong} />
             <Text className="text-label font-semibold text-success-700">Completed</Text>
           </View>
         ) : (
@@ -202,7 +202,7 @@ export default function TaskEditScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Start focus session"
               >
-                <Ionicons name="play" size={16} color="#FFFFFF" />
+                <Ionicons name="play" size={16} color={colors.light.primaryForeground} />
                 <Text className="text-label font-semibold text-white">Start focus</Text>
               </PressableScale>
 
@@ -214,7 +214,7 @@ export default function TaskEditScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Mark task done"
               >
-                <Ionicons name="checkmark-done" size={16} color="#2563EB" />
+                <Ionicons name="checkmark-done" size={16} color={colors.light.primary} />
                 <Text className="text-label font-semibold text-primary-600">Mark done</Text>
               </PressableScale>
             </View>
@@ -229,13 +229,13 @@ export default function TaskEditScreen() {
               accessibilityHint="Attach a focus lock that lifts when your session is served"
             >
               <View className="h-7 w-7 items-center justify-center rounded-full bg-primary-100">
-                <Ionicons name="lock-closed-outline" size={15} color="#2563EB" />
+                <Ionicons name="lock-closed-outline" size={15} color={colors.light.primary} />
               </View>
               <View className="flex-1">
                 <Text className="text-label font-semibold text-primary-700">Put something on the line</Text>
                 <Text className="text-caption text-primary-600/80">Lock your apps for a focus session</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#2563EB" />
+              <Ionicons name="chevron-forward" size={16} color={colors.light.primary} />
             </PressableScale>
           </>
         )}

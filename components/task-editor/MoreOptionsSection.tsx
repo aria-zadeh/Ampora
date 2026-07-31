@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 
@@ -43,7 +43,7 @@ export function MoreOptionsSection({
         accessibilityLabel="More options"
       >
         <View className="flex-row items-center gap-2">
-          <Ionicons name="options-outline" size={18} color="#57534E" />
+          <Ionicons name="options-outline" size={18} color={colors.light.textSecondary} />
           <Text className="text-body-lg font-semibold text-neutral-900">
             More options
           </Text>
@@ -51,7 +51,7 @@ export function MoreOptionsSection({
         <Ionicons
           name={expanded ? "chevron-up" : "chevron-down"}
           size={18}
-          color="#A8A29A"
+          color={colors.light.textDisabled}
         />
       </PressableScale>
 

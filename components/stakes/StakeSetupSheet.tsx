@@ -59,7 +59,7 @@ import { Badge } from "@/components/ui/Badge";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
 import { Stepper, Toggle, InlineSegmented } from "@/components/settings/SettingsPrimitives";
 import { AppPicker } from "@/components/stakes/AppPicker";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import {
@@ -369,7 +369,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                       accessibilityRole="button"
                       accessibilityLabel="Close"
                     >
-                      <Ionicons name="close" size={20} color="#57534E" />
+                      <Ionicons name="close" size={20} color={colors.light.textSecondary} />
                     </Pressable>
                   </View>
 
@@ -585,7 +585,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                             }
                           >
                             <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-                              <Ionicons name="apps-outline" size={18} color="#57534E" />
+                              <Ionicons name="apps-outline" size={18} color={colors.light.textSecondary} />
                             </View>
                             <View className="flex-1">
                               <Text className="text-label font-medium text-neutral-900">Choose apps</Text>
@@ -595,7 +595,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                                   : "Name what pulls you away"}
                               </Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={18} color="#A8A29A" />
+                            <Ionicons name="chevron-forward" size={18} color={colors.light.textDisabled} />
                           </Pressable>
                         </View>
 
@@ -617,7 +617,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                       className="mx-5 mb-2 flex-row items-start gap-2 rounded-lg bg-warning-100 px-3 py-2.5"
                       accessibilityRole="alert"
                     >
-                      <Ionicons name="information-circle-outline" size={16} color="#C2410C" />
+                      <Ionicons name="information-circle-outline" size={16} color={colors.light.warningStrong} />
                       <Text className="flex-1 text-caption font-medium text-warning-700">
                         {refusalMessage(refusal, scheduledOn, scheduledQuietHoursConflict ?? undefined)}
                       </Text>
@@ -631,7 +631,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                       variant="primaryBlue"
                       size="lg"
                       onPress={handleConfirm}
-                      icon={<Ionicons name="lock-closed-outline" size={18} color="#FFFFFF" />}
+                      icon={<Ionicons name="lock-closed-outline" size={18} color={colors.light.primaryForeground} />}
                       accessibilityLabel={
                         stakeOn ? "Confirm and put something on the line" : "Continue without a lock"
                       }
@@ -698,7 +698,7 @@ function HoldOptionTile({
           active ? "bg-primary-100" : "bg-neutral-100"
         }`}
       >
-        <Ionicons name={icon} size={20} color={active ? "#2563EB" : "#6F6862"} />
+        <Ionicons name={icon} size={20} color={active ? colors.light.primary : colors.light.textMuted} />
       </View>
       <View className="flex-1">
         <Text className={`text-body-lg font-medium ${active ? "text-primary-700" : "text-neutral-900"}`}>
@@ -711,7 +711,7 @@ function HoldOptionTile({
       <Ionicons
         name={active ? "radio-button-on" : "radio-button-off"}
         size={20}
-        color={active ? "#2563EB" : "#D7D3CC"}
+        color={active ? colors.light.primary : colors.light.borderStrong}
       />
     </PressableScale>
   );

@@ -245,7 +245,7 @@ function ListPicker({
   onBack: () => void
 }) {
   const options = useMemo(
-    () => [{ id: undefined as string | undefined, name: 'No list', color: '#A8A29A' }, ...lists],
+    () => [{ id: undefined as string | undefined, name: 'No list', color: colors.light.textDisabled }, ...lists],
     [lists],
   )
 
@@ -302,10 +302,10 @@ function ListPicker({
 type Tint = 'neutral' | 'primary' | 'success' | 'danger'
 
 const TINT_STYLES: Record<Tint, { icon: string; iconBg: string; text: string }> = {
-  neutral: { icon: '#44403C', iconBg: 'bg-neutral-100', text: 'text-neutral-900' },
+  neutral: { icon: colors.light.textStrong, iconBg: 'bg-neutral-100', text: 'text-neutral-900' },
   primary: { icon: colors.light.primary, iconBg: 'bg-primary-100', text: 'text-neutral-900' },
-  success: { icon: '#15803D', iconBg: 'bg-success-100', text: 'text-neutral-900' },
-  danger: { icon: '#DC2626', iconBg: 'bg-danger-100', text: 'text-danger-700' },
+  success: { icon: colors.light.successStrong, iconBg: 'bg-success-100', text: 'text-neutral-900' },
+  danger: { icon: colors.light.dangerStrong, iconBg: 'bg-danger-100', text: 'text-danger-700' },
 }
 
 function ActionRow({

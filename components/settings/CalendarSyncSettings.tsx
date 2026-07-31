@@ -45,6 +45,7 @@ import {
   SectionFootnote,
   Toggle,
 } from '@/components/settings/SettingsPrimitives'
+import { colors } from '@/utils/design-tokens'
 
 /** "Synced just now" / "Synced 12m ago" / "Synced 3h ago" / a short date past a day. */
 function formatSyncedAt(ms: number | null): string {
@@ -192,7 +193,7 @@ export function CalendarSyncSettings() {
             <Row
               key={cal.id}
               icon="calendar-outline"
-              iconTint={cal.color || '#57534E'}
+              iconTint={cal.color || colors.light.textSecondary}
               iconBg="bg-neutral-100"
               label={cal.title}
               sublabel={cal.sourceName}

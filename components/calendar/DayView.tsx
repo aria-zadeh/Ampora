@@ -22,6 +22,7 @@ import {
   blockGeometry,
   pxPerMinFromHour,
   snapToGrid,
+  instantForY,
   layoutDay,
   MS_PER_MIN,
   MIN_BLOCK_HEIGHT,
@@ -32,6 +33,7 @@ import { startOfDay } from '@/core/scheduler/time'
 import {
   useScheduleStore,
   selectBlocksByDay,
+  selectEventsByDay,
 } from '@/store/scheduleStore'
 import { useTaskStore } from '@/store/taskStore'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
@@ -40,6 +42,8 @@ import { shadows, tabularNums } from '@/utils/design-tokens'
 import { TimeGrid } from './TimeGrid'
 import { CalendarBlock } from './CalendarBlock'
 import { BlockActionSheet } from './BlockActionSheet'
+import { EventActionSheet } from './EventActionSheet'
+import { AddEventModal } from '@/components/ui/AddEventModal'
 import { isSameDay, HOURS_IN_DAY, formatClockTime } from './hours'
 import { AUTOSCROLL, autoscrollSpeed, type GridScrollController } from './gridScroll'
 
@@ -81,6 +85,23 @@ interface SheetTarget {
   task: Task
 }
 
+/**
+ * What `AddEventModal` is currently open for, inside one {@link DayBlocksLayer}:
+ * a fresh create (long-press empty space, prefilled with the snapped press
+ * time) or an edit of an existing local Event (from `EventActionSheet`'s
+ * "Edit event" row).
+ */
+type EventModalState =
+  | { mode: 'create'; initialStart: number }
+  | { mode: 'edit'; event: CalEvent }
+
+/** Snap granularity for the long-press-to-create gesture — same 5-min grid as drag/resize (FR-28). */
+const CREATE_SNAP_MIN = 5
+/** How long a hold on empty grid space counts as "long press" before it creates an event — matches the block body's own long-press threshold. */
+const CREATE_LONG_PRESS_MS = 220
+/** Max finger drift (px) allowed during the hold before it's treated as a scroll/pan instead of a create — deliberately tight (unlike the block body's own long-press, which disables this check because ITS pan takes over after arming). */
+const CREATE_MAX_DISTANCE_PX = 10
+
 interface DayColumnProps {
   /** Local-midnight epoch ms of the day this column renders. */
   dayStartMs: number
@@ -88,7 +109,7 @@ interface DayColumnProps {
   pxPerHour: number
   /** Blocks already filtered to this day (caller reads them via the store selector). */
   blocks: ScheduledBlock[]
-  /** Fixed calendar events overlapping this day (optional; none exist yet). */
+  /** Fixed calendar events overlapping this day, already clipped to its boundary (caller reads them via `selectEventsByDay`). */
   events?: CalEvent[]
   /** taskId -> Task lookup for labels / "N steps" / slack color. */
   tasks: Record<string, Task>
@@ -178,6 +199,7 @@ function DraggableBlock({
   now,
   onBlockPress,
   onRequestSheet,
+  onRequestEventSheet,
   scrollController,
 }: {
   laid: LaidOutItem<GridItem>
@@ -190,6 +212,8 @@ function DraggableBlock({
   now?: number
   onBlockPress: (taskId: string) => void
   onRequestSheet: (target: SheetTarget) => void
+  /** Tap a fixed Event block -> open {@link EventActionSheet} for it. Events are never draggable/resizable/tappable-to-open-task (FR-1 "never auto-moved") — this is their ONLY interaction. */
+  onRequestEventSheet: (event: CalEvent) => void
   /** The hosting grid's scroll glue (fix #3 scroll-lock, fix #4 autoscroll). Optional — a grid with no scroll (none exist today) can omit it. */
   scrollController?: GridScrollController
 }) {
@@ -490,6 +514,31 @@ function DraggableBlock({
     [isTask, openSheet]
   )
 
+  const openEventSheet = useCallback(() => {
+    if (event) onRequestEventSheet(event)
+  }, [event, onRequestEventSheet])
+
+  // Fixed Events (FR-1 "never auto-moved") get exactly ONE interaction: a tap
+  // opens EventActionSheet. `.enabled(!isTask)` makes this mutually exclusive
+  // with every task-only gesture below (body drag, resize, ellipsis, tap-to-
+  // open) — an event item always has `isTask === false`, so nothing in the
+  // drag/resize path ever runs for one. `hitSlop` pads a short event's tap
+  // target up toward the 44px minimum without changing its visual height,
+  // matching how the resize edge-zones (EDGE_ZONE_PX) pad a thin visual grip.
+  const eventVerticalPad = Math.max(0, (44 - height) / 2)
+  const eventTapGesture = useMemo(
+    () =>
+      Gesture.Tap()
+        .enabled(!isTask && !!event)
+        .maxDistance(12)
+        .hitSlop({ vertical: eventVerticalPad, horizontal: 4 })
+        .onEnd(() => {
+          'worklet'
+          runOnJS(openEventSheet)()
+        }),
+    [isTask, event, eventVerticalPad, openEventSheet]
+  )
+
   // Fix #3: bind/unbind the hosting ScrollView's own scroll while a body drag
   // is live, so the two pan responders never fight (belt-and-suspenders
   // alongside `requireExternalGestureToFail` below — see the file-level note
@@ -653,7 +702,7 @@ function DraggableBlock({
         runOnJS(openTaskFromGesture)()
       })
 
-    return Gesture.Exclusive(Gesture.Simultaneous(longPress, pan), tap)
+    return Gesture.Exclusive(Gesture.Simultaneous(longPress, pan), tap, eventTapGesture)
   }, [
     isTask,
     dragging,
@@ -668,6 +717,7 @@ function DraggableBlock({
     topEdgeGesture,
     bottomEdgeGesture,
     ellipsisGesture,
+    eventTapGesture,
     totalHeight,
     top,
     height,
@@ -878,6 +928,15 @@ export function DayBlocksLayer({
 
   // The block the action sheet targets (null = closed).
   const [sheetTarget, setSheetTarget] = useState<SheetTarget | null>(null)
+  // The Event the event action sheet targets (null = closed).
+  const [eventSheetTarget, setEventSheetTarget] = useState<CalEvent | null>(null)
+  // AddEventModal: closed, creating (long-press below), or editing an
+  // existing local Event (from EventActionSheet's "Edit event" row). Owned
+  // per-layer, exactly like `sheetTarget` above — ThreeDayView mounts one
+  // DayBlocksLayer per column, each with its own independent sheet/modal
+  // state, matching the established pattern rather than inventing a shared
+  // one.
+  const [eventModal, setEventModal] = useState<EventModalState | null>(null)
 
   // Build the interval-graph layout for this day's tasks + events (PRD §9.8).
   const laid = useMemo(() => {
@@ -903,34 +962,88 @@ export function DayBlocksLayer({
     return layoutDay(items, { eventsFirst: true })
   }, [blocks, events])
 
+  // Long-press EMPTY grid space -> create an Event (FR-28), prefilled with
+  // the pressed time snapped to the 5-min grid (matches how drag/resize
+  // already snap). `e.y` is relative to this gesture's own view, which
+  // shares the exact same coordinate frame as every block's `top` (both are
+  // positioned against this same day column, y=0 == dayStartMs) — so it
+  // feeds straight into `instantForY` with no extra translation.
+  const openCreateAt = useCallback(
+    (y: number) => {
+      const raw = instantForY(y, dayStartMs, pxPerMin)
+      const snapped = snapToGrid(raw, dayStartMs, CREATE_SNAP_MIN)
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+      setEventModal({ mode: 'create', initialStart: snapped })
+    },
+    [dayStartMs, pxPerMin]
+  )
+
+  // Tight `maxDistance` (unlike the block body's own long-press, which
+  // disables its distance check because a Pan takes over once armed) so a
+  // real scroll/pan gesture cancels this recognizer immediately rather than
+  // racing it.
+  const createGesture = useMemo(
+    () =>
+      Gesture.LongPress()
+        .minDuration(CREATE_LONG_PRESS_MS)
+        .maxDistance(CREATE_MAX_DISTANCE_PX)
+        .onStart((e) => {
+          'worklet'
+          runOnJS(openCreateAt)(e.y)
+        }),
+    [openCreateAt]
+  )
+
   return (
     <View
       style={{ flex: 1 }}
       onLayout={(e) => setContentWidth(e.nativeEvent.layout.width)}
     >
-      {contentWidth > 0
-        ? laid.map((l) => {
-            const task =
-              l.item.kind === 'task' ? tasks[l.item.block.taskId] : undefined
-            const event = l.item.kind === 'event' ? l.item.event : undefined
-            return (
-              <DraggableBlock
-                key={l.item.id}
-                laid={l}
-                dayStartMs={dayStartMs}
-                pxPerMin={pxPerMin}
-                totalHeight={totalHeight}
-                task={task}
-                event={event}
-                contentWidth={contentWidth}
-                now={now}
-                onBlockPress={onBlockPress}
-                onRequestSheet={setSheetTarget}
-                scrollController={scrollController}
-              />
-            )
-          })
-        : null}
+      {/* Background: long-press empty space to create (FR-28). Painted
+          BEHIND the block layer below (earlier sibling = lower z-order) —
+          see the box-none note on that layer for why a long-press that lands
+          ON a block never also reaches this one. */}
+      <GestureDetector gesture={createGesture}>
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+      </GestureDetector>
+
+      {/* `pointerEvents="box-none"`: this wrapper is never itself a touch
+          target, so a touch on genuinely empty space passes straight through
+          to the create gesture behind it — but each block child (default
+          `auto`) stays fully touchable, and since it's the topmost view at
+          its own point, standard RN z-order hit-testing resolves a touch on
+          a block to THAT block's own GestureDetector only. This is what lets
+          long-press-to-create coexist with drag/resize/tap without either
+          gesture racing the other. */}
+      <View
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        pointerEvents="box-none"
+      >
+        {contentWidth > 0
+          ? laid.map((l) => {
+              const task =
+                l.item.kind === 'task' ? tasks[l.item.block.taskId] : undefined
+              const event = l.item.kind === 'event' ? l.item.event : undefined
+              return (
+                <DraggableBlock
+                  key={l.item.id}
+                  laid={l}
+                  dayStartMs={dayStartMs}
+                  pxPerMin={pxPerMin}
+                  totalHeight={totalHeight}
+                  task={task}
+                  event={event}
+                  contentWidth={contentWidth}
+                  now={now}
+                  onBlockPress={onBlockPress}
+                  onRequestSheet={setSheetTarget}
+                  onRequestEventSheet={setEventSheetTarget}
+                  scrollController={scrollController}
+                />
+              )
+            })
+          : null}
+      </View>
 
       <BlockActionSheet
         visible={sheetTarget != null}
@@ -956,6 +1069,38 @@ export function DayBlocksLayer({
         }}
         onDelete={() => {
           if (sheetTarget) useTaskStore.getState().deleteTask(sheetTarget.task.id)
+        }}
+      />
+
+      {/* Fixed-Event equivalent of BlockActionSheet above: local events get
+          Edit/Delete, device-synced events are shown as clearly external
+          (requirement 3 — see EventActionSheet's own header comment). */}
+      <EventActionSheet
+        visible={eventSheetTarget != null}
+        event={eventSheetTarget}
+        onClose={() => setEventSheetTarget(null)}
+        onEdit={() => {
+          if (eventSheetTarget) setEventModal({ mode: 'edit', event: eventSheetTarget })
+        }}
+        onDelete={() => {
+          if (eventSheetTarget) useScheduleStore.getState().deleteLocalEvent(eventSheetTarget.id)
+        }}
+      />
+
+      {/* Create (long-press above) or edit (EventActionSheet's Edit row).
+          `onSave` branches on `eventModal.mode` to call the right store
+          action — the modal itself stays store-agnostic. */}
+      <AddEventModal
+        visible={eventModal != null}
+        event={eventModal?.mode === 'edit' ? eventModal.event : null}
+        initialStart={eventModal?.mode === 'create' ? eventModal.initialStart : undefined}
+        onClose={() => setEventModal(null)}
+        onSave={({ title, start, end }) => {
+          if (eventModal?.mode === 'edit') {
+            useScheduleStore.getState().updateLocalEvent(eventModal.event.id, { title, start, end })
+          } else {
+            useScheduleStore.getState().addLocalEvent({ title, start, end })
+          }
         }}
       />
     </View>
@@ -1035,6 +1180,7 @@ export function DayView({ date, pxPerHour, onBlockPress, now, testID }: DayViewP
   const showNow = isSameDay(dayStartMs, nowMs)
 
   const blocks = useScheduleStore(useShallow(selectBlocksByDay(dayStartMs)))
+  const events = useScheduleStore(useShallow(selectEventsByDay(dayStartMs)))
   const tasks = useTaskStore((s) => s.tasks)
 
   return (
@@ -1043,6 +1189,7 @@ export function DayView({ date, pxPerHour, onBlockPress, now, testID }: DayViewP
         dayStartMs={dayStartMs}
         pxPerHour={pxPerHour}
         blocks={blocks}
+        events={events}
         tasks={tasks}
         now={nowMs}
         showNow={showNow}

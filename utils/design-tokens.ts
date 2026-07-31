@@ -19,17 +19,43 @@ export const colors = {
     text: "#1C1917",
     textSecondary: "#57534E",
     textMuted: "#6F6862",
+    // neutral.400 — placeholder/disabled only (doc 02 section 1.7 text.disabled).
+    // Intentionally low contrast (~2.5:1 on white), WCAG-exempt for disabled controls.
+    textDisabled: "#A8A29A",
+    // neutral.700 — strong body text / emphasized icon tint, one step above
+    // textSecondary (doc 02 section 1.1). 10.3:1 on white, clears body text AA.
+    textStrong: "#44403C",
 
     success: "#22C55E",
     successLight: "#DCFCE7",
+    // success.600 — icon-chip glyphs on a success.100 tint, clears the 3:1
+    // graphical-object bar (doc 02 section 6.3/12). Icons only, not body text.
+    successAccent: "#16A34A",
+    // success.700 — action.success: filled button/strong text, white label
+    // 5.02:1 (doc 02 section 1.7/14.6). NOT the same as the success.500 brand accent.
+    successStrong: "#15803D",
     warning: "#F97316",
     warningLight: "#FFEDD5",
+    // warning.600 — icon-chip glyphs on a warning.100 tint, clears the 3:1
+    // graphical-object bar. Icons only, not body text (3.6:1 on white).
+    warningAccent: "#EA580C",
+    // warning.700 — deep warning text / badge text on warning.100, 4.52:1
+    // (doc 02 section 12/14.6).
+    warningStrong: "#C2410C",
     danger: "#EF4444",
     dangerLight: "#FEE2E2",
+    // red.600 — action.destructive: filled button/strong text, white label
+    // 4.83:1 (doc 02 section 1.7/14.6). NOT the same as the danger.500 accent.
+    dangerStrong: "#DC2626",
 
     border: "#E8E6E0",
+    // neutral.300 — emphasized border (doc 02 section 1.7 border.strong).
+    // Decorative separator, exempt from the 3:1 UI bar like the default border.
+    borderStrong: "#D7D3CC",
     accent: "#8B5CF6",
     accentLight: "#EDE9FE",
+    // accent.600 — accent text / pressed state, 5.70:1 on white (doc 02 section 1.3).
+    accentStrong: "#7C3AED",
   },
   dark: {
     primary: "#3B82F6",
@@ -44,17 +70,33 @@ export const colors = {
     text: "#FAF9F7",
     textSecondary: "#A8A29A",
     textMuted: "#78716C",
+    // neutral.600 — dark disabled/placeholder, ~2.3-2.6:1 on dark surfaces.
+    // Mirrors the light-mode disabled ratio class (same reuse pattern as
+    // textSecondary above, which borrows light's neutral.400 hex). WCAG-exempt.
+    textDisabled: "#57534E",
+    // neutral.300 — dark strong text/icon tint, 11.7:1 on the dark card. One
+    // step brighter than textSecondary, mirroring the light textStrong gap.
+    textStrong: "#D7D3CC",
 
     success: "#22C55E",
     successLight: "#14361F",
+    successAccent: "#16A34A",
+    successStrong: "#15803D",
     warning: "#F97316",
     warningLight: "#3A230F",
+    warningAccent: "#EA580C",
+    warningStrong: "#C2410C",
     danger: "#EF4444",
     dangerLight: "#3A1616",
+    dangerStrong: "#DC2626",
 
     border: "#292524",
+    // neutral.700 — dark emphasized border, one step stronger than the dark
+    // default border, mirroring the light border/borderStrong gap. Decorative.
+    borderStrong: "#44403C",
     accent: "#8B5CF6",
     accentLight: "#241C3A",
+    accentStrong: "#7C3AED",
   },
 } as const;
 

@@ -8,7 +8,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { SubtaskRow } from "@/components/ui/SubtaskRow";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { staggerDelay, DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import * as taskLogic from "@/core/task-logic";
@@ -96,7 +96,7 @@ export function SubtaskChecklist({
                   <Ionicons
                     name="chevron-up"
                     size={16}
-                    color={index === 0 ? "#D7D3CC" : "#6F6862"}
+                    color={index === 0 ? colors.light.borderStrong : colors.light.textMuted}
                   />
                 </Pressable>
                 <Pressable
@@ -111,7 +111,7 @@ export function SubtaskChecklist({
                   <Ionicons
                     name="chevron-down"
                     size={16}
-                    color={index === subtasks.length - 1 ? "#D7D3CC" : "#6F6862"}
+                    color={index === subtasks.length - 1 ? colors.light.borderStrong : colors.light.textMuted}
                   />
                 </Pressable>
               </View>
@@ -131,7 +131,7 @@ export function SubtaskChecklist({
         <TextInput
           className="min-h-12 flex-1 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
           placeholder="Add a step"
-          placeholderTextColor="#A8A29A"
+          placeholderTextColor={colors.light.textDisabled}
           value={newTitle}
           onChangeText={setNewTitle}
           returnKeyType="done"
@@ -141,7 +141,7 @@ export function SubtaskChecklist({
         <TextInput
           className="min-h-12 w-16 rounded-md border border-neutral-200 bg-white px-2 text-center text-body-lg text-neutral-900"
           placeholder="min"
-          placeholderTextColor="#A8A29A"
+          placeholderTextColor={colors.light.textDisabled}
           value={newMin}
           onChangeText={setNewMin}
           keyboardType="number-pad"
@@ -161,7 +161,7 @@ export function SubtaskChecklist({
           accessibilityLabel="Add step"
           accessibilityState={{ disabled: !canAdd }}
         >
-          <Ionicons name="add" size={22} color="#FFFFFF" />
+          <Ionicons name="add" size={22} color={colors.light.primaryForeground} />
         </PressableScale>
       </View>
     </View>

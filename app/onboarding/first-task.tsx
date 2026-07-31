@@ -68,12 +68,7 @@ export default function FirstTaskScreen() {
   const handleBreakItDown = async () => {
     if (!trimmed || phase === "loading") return;
     const parsed = parseQuickAdd(trimmed, Date.now());
-    // parseQuickAdd strips recognized tokens (due/duration/priority) out of
-    // the middle of the string, which can leave a dangling separator behind
-    // (e.g. "Read ch 11, due Friday, 2h" -> "Read ch 11, ,"). Cosmetic
-    // cleanup local to this screen only — core/quick-add.ts itself is out of
-    // scope here and this same cleanup would want its own test coverage.
-    const title = (parsed.title || trimmed).replace(/[\s,;:]+$/, "").trim() || trimmed;
+    const title = parsed.title || trimmed;
     setPhase("loading");
     try {
       const result = await breakdownTask({ title, due: parsed.due, durationMin: parsed.durationMin });

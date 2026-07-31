@@ -32,6 +32,7 @@ import { nextStep } from "@/core/task-logic";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { DURATIONS, EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { colors } from "@/utils/design-tokens";
 import type { Task } from "@/types";
 import type { NextStep } from "@/core/task-logic";
 
@@ -135,7 +136,7 @@ export default function BlindfoldScreen() {
             accessibilityRole="button"
             accessibilityLabel="Leave Blindfold mode"
           >
-            <Ionicons name="chevron-down" size={24} color="#C2410C" />
+            <Ionicons name="chevron-down" size={24} color={colors.light.warningStrong} />
           </PressableScale>
         </View>
 
@@ -144,7 +145,7 @@ export default function BlindfoldScreen() {
           {done ? (
             <Animated.View key="done" entering={enter} className="items-center">
               <View className="w-16 h-16 rounded-full bg-warning-100 items-center justify-center mb-6">
-                <Ionicons name="checkmark" size={34} color="#C2410C" />
+                <Ionicons name="checkmark" size={34} color={colors.light.warningStrong} />
               </View>
               <Text className="text-h2 font-semibold text-warning-700 text-center">
                 {"You're clear."}
@@ -190,11 +191,11 @@ export default function BlindfoldScreen() {
                 onPress={markDone}
                 haptic="success"
                 className="h-16 flex-row items-center justify-center rounded-2xl bg-warning-500"
-                style={{ shadowColor: "#C2410C", shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 4 }}
+                style={{ shadowColor: colors.light.warningStrong, shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 4 }}
                 accessibilityRole="button"
                 accessibilityLabel="Mark this step done and reveal the next"
               >
-                <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+                <Ionicons name="checkmark-circle" size={24} color={colors.light.primaryForeground} />
                 <Text className="ml-2 text-h4 font-semibold text-white">
                   I did this
                 </Text>

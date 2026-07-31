@@ -18,7 +18,7 @@ import { PressableScale } from "@/components/ui/PressableScale";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PROJECT_ACCENT } from "./projectUtils";
 import { newId } from "@/core/id";
-import { iconSizes, TOUCH_TARGET_MIN } from "@/utils/design-tokens";
+import { colors, iconSizes, TOUCH_TARGET_MIN } from "@/utils/design-tokens";
 import type { Phase, Project } from "@/types";
 
 interface ProgressTrackerProps {
@@ -91,7 +91,7 @@ export function ProgressTracker({ project, onChange }: ProgressTrackerProps) {
                   phase.done ? "border-accent-600 bg-accent-600" : "border-neutral-300"
                 }`}
               >
-                {phase.done ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : null}
+                {phase.done ? <Ionicons name="checkmark" size={14} color={colors.light.primaryForeground} /> : null}
               </View>
               <Text
                 className={`flex-1 ml-3 text-body font-medium ${
@@ -108,7 +108,7 @@ export function ProgressTracker({ project, onChange }: ProgressTrackerProps) {
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${noun} ${phase.title}`}
               >
-                <Ionicons name="close-circle" size={iconSizes.sm} color="#D7D3CC" />
+                <Ionicons name="close-circle" size={iconSizes.sm} color={colors.light.borderStrong} />
               </Pressable>
             </PressableScale>
           ))
@@ -144,12 +144,12 @@ function AddRow({
   return (
     <View className="flex-row items-center gap-2">
       <View className="flex-1 flex-row items-center bg-white border border-neutral-200 rounded-md min-h-11 px-3">
-        <Ionicons name="add" size={iconSizes.md} color="#A8A29A" />
+        <Ionicons name="add" size={iconSizes.md} color={colors.light.textDisabled} />
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#A8A29A"
+          placeholderTextColor={colors.light.textDisabled}
           className="flex-1 ml-2 text-body text-neutral-900"
           returnKeyType="done"
           onSubmitEditing={onAdd}
@@ -162,9 +162,9 @@ function AddRow({
         onPress={onAdd}
         accessibilityLabel="Add"
         className="w-11 h-11 rounded-md items-center justify-center"
-        style={{ backgroundColor: canAdd ? PROJECT_ACCENT : "#E8E6E0" }}
+        style={{ backgroundColor: canAdd ? PROJECT_ACCENT : colors.light.border }}
       >
-        <Ionicons name="checkmark" size={iconSizes.md} color="#FFFFFF" />
+        <Ionicons name="checkmark" size={iconSizes.md} color={colors.light.primaryForeground} />
       </PressableScale>
     </View>
   );

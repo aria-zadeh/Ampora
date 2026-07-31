@@ -72,7 +72,7 @@ export function StarterActionCard({ action, onToggle }: StarterActionCardProps) 
                 <Ionicons
                   name={done ? "checkmark-circle" : "ellipse-outline"}
                   size={18}
-                  color={done ? "#15803D" : colors.light.primaryForeground}
+                  color={done ? colors.light.successStrong : colors.light.primaryForeground}
                 />
                 <Text
                   className={`ml-2 text-label font-semibold ${

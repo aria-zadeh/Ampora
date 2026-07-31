@@ -7,6 +7,7 @@ import { startOfDay } from '@/core/scheduler/time'
 import {
   useScheduleStore,
   selectBlocksByDay,
+  selectEventsByDay,
 } from '@/store/scheduleStore'
 import { useTaskStore } from '@/store/taskStore'
 import { DayBlocksLayer } from './DayView'
@@ -348,6 +349,7 @@ function DayColumnBlocks({
   scrollController?: GridScrollController
 }) {
   const blocks = useScheduleStore(useShallow(selectBlocksByDay(dayStartMs)))
+  const events = useScheduleStore(useShallow(selectEventsByDay(dayStartMs)))
   const tasks = useTaskStore((s) => s.tasks)
 
   return (
@@ -356,6 +358,7 @@ function DayColumnBlocks({
         dayStartMs={dayStartMs}
         pxPerHour={pxPerHour}
         blocks={blocks}
+        events={events}
         tasks={tasks}
         now={now}
         onBlockPress={onBlockPress}

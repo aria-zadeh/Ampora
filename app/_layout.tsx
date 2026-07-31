@@ -1,7 +1,7 @@
 import "../global.css";
 import "@/nativewind-reanimated";
 import React, { useEffect, useState } from "react";
-import { Platform, View } from "react-native";
+import { AppState, Platform, View, type AppStateStatus } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "nativewind";
@@ -23,6 +23,7 @@ import { useScheduleStore, selectAllBlocks } from "@/store/scheduleStore";
 import { useTaskStore, selectAllTasks } from "@/store/taskStore";
 import { useRecoveryStore } from "@/store/recoveryStore";
 import { useStakesStore } from "@/store/stakesStore";
+import { useSyncStore } from "@/store/syncStore";
 import { scheduleTaskReminders } from "@/services/notifications";
 import { detectLapse } from "@/core/recovery";
 import { isActive } from "@/core/subscription";
@@ -39,7 +40,6 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [guestMode, setGuestMode] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -106,27 +106,15 @@ export default function RootLayout() {
     };
   }, []);
 
-  // Poll for the guest-mode flag set by the auth screen.
-  useEffect(() => {
-    if (guestMode) return;
-    const check = setInterval(() => {
-      if ((globalThis as Record<string, unknown>).__AMPORA_GUEST_MODE__) {
-        setGuestMode(true);
-      }
-    }, 200);
-    return () => clearInterval(check);
-  }, [guestMode]);
-
   // Routing gate (in order): no session → auth; session but not onboarded →
   // onboarding; onboarded but not entitled (no active plan / no live trial) →
   // paywall. Once a trial is started or a plan chosen (or dev-bypassed), the
   // subscription becomes entitled, this effect re-runs and stops redirecting,
-  // and the paywall proceeds into the tabs. Soft gate — local data is untouched.
-  // Guest mode is intentionally exempt (it manages its own routing and stays
-  // usable without the paywall).
+  // and the paywall proceeds into the tabs. Soft gate — local data is
+  // untouched. FR-87: an account is required, no anonymous local-only mode —
+  // `authUser === null` always routes to `/auth`, with no bypass.
   useEffect(() => {
     if (authLoading || !ready) return;
-    if (guestMode) return; // guest mode handles its own routing
     if (authUser === null) {
       router.replace("/auth");
     } else if (!onboardingComplete) {
@@ -134,7 +122,7 @@ export default function RootLayout() {
     } else if (!isActive(subscription)) {
       router.replace("/paywall");
     }
-  }, [authLoading, ready, authUser, onboardingComplete, subscription, guestMode, router]);
+  }, [authLoading, ready, authUser, onboardingComplete, subscription, router]);
 
   // Sync app color scheme with the user's theme preference.
   useEffect(() => {
@@ -163,6 +151,28 @@ export default function RootLayout() {
     if (!ready) return;
     useStakesStore.getState().reconcileActiveSession();
   }, [ready]);
+
+  // Cloud sync (FR-87 "cloud is the source of truth"). `useSyncStore.syncNow()`
+  // is a full two-way reconcile (pull + push) across every synced entity —
+  // see `store/syncStore.ts`. It already no-ops cleanly with nothing signed
+  // in, so it is safe to call speculatively; this effect just decides WHEN:
+  // once right after a real session appears (covers both "just signed in" and
+  // "cold launch with an existing session"), and again on every return to the
+  // foreground, so a device that was closed for a while catches up on
+  // whatever changed elsewhere. Per-mutation pushes (list/tag/project/stake/
+  // proof/event edits) are wired separately, as module-level store
+  // subscriptions inside `store/syncStore.ts` itself.
+  useEffect(() => {
+    if (authLoading || !ready || authUser === null) return;
+
+    useSyncStore.getState().syncNow();
+
+    const onAppStateChange = (next: AppStateStatus) => {
+      if (next === "active") useSyncStore.getState().syncNow();
+    };
+    const sub = AppState.addEventListener("change", onAppStateChange);
+    return () => sub.remove();
+  }, [authLoading, ready, authUser]);
 
   // Reschedule notification reminders whenever tasks, the notification-
   // relevant settings, or the SCHEDULED BLOCKS change (FR-63, §8.9). Blocks

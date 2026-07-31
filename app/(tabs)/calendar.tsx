@@ -24,6 +24,7 @@ import { MonthView } from "@/components/calendar/MonthView";
 import { AgendaView } from "@/components/calendar/AgendaView";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PressableScale } from "@/components/ui/PressableScale";
+import { AddEventModal } from "@/components/ui/AddEventModal";
 import {
   DEFAULT_PX_PER_HOUR,
   nearestZoomStop,
@@ -135,6 +136,14 @@ export default function CalendarScreen() {
     useScheduleStore.getState().recompute();
   }, []);
 
+  // --- Add event (non-gesture path to AddEventModal) ---------------------
+  // The required non-gesture alternative to the time grid's long-press-to-
+  // create (FR-28): a plain button, always visible regardless of which
+  // calendar view is active, so Events stay reachable even from Month/Week/
+  // Agenda, which don't render a long-press-able time grid at all.
+  const [addEventVisible, setAddEventVisible] = useState(false);
+  const openAddEvent = useCallback(() => setAddEventVisible(true), []);
+
   // --- Pinch-to-zoom (time-grid views only) ------------------------------
   // A live scale accumulates during the gesture; on end it resolves to the
   // nearest defined zoom stop (FR-24 is discrete 40/60/80/120, not continuous).
@@ -224,15 +233,24 @@ export default function CalendarScreen() {
           onDateChange={setDate}
         />
 
-        {/* Action bar: Rebuild schedule (always) + zoom stepper (time-grid views). */}
+        {/* Action bar: Rebuild schedule + Add event (always) + zoom stepper (time-grid views). */}
         <View className="flex-row items-center justify-between px-5 pb-2">
-          <ActionButton
-            icon="sparkles-outline"
-            label="Rebuild"
-            accessibilityLabel="Rebuild schedule"
-            accessibilityHint="Recomputes your scheduled times"
-            onPress={rebuildSchedule}
-          />
+          <View className="flex-row items-center gap-2">
+            <ActionButton
+              icon="sparkles-outline"
+              label="Rebuild"
+              accessibilityLabel="Rebuild schedule"
+              accessibilityHint="Recomputes your scheduled times"
+              onPress={rebuildSchedule}
+            />
+            <ActionButton
+              icon="add-circle-outline"
+              label="Add event"
+              accessibilityLabel="Add event"
+              accessibilityHint="Create a fixed event on your calendar"
+              onPress={openAddEvent}
+            />
+          </View>
 
           {isTimeGrid ? (
             <ZoomStepper pxPerHour={pxPerHour} onZoom={zoomBy} />
@@ -265,6 +283,18 @@ export default function CalendarScreen() {
           )}
         </View>
       </GestureHandlerRootView>
+
+      {/* Non-gesture path to create an Event (see `openAddEvent` above). A
+          fresh instance from a long-press on the grid itself also exists,
+          scoped per day-column inside DayView/ThreeDayView — this one is the
+          screen-level fallback reachable from every view. */}
+      <AddEventModal
+        visible={addEventVisible}
+        onClose={() => setAddEventVisible(false)}
+        onSave={({ title, start, end }) =>
+          useScheduleStore.getState().addLocalEvent({ title, start, end })
+        }
+      />
     </SafeAreaView>
   );
 }

@@ -17,7 +17,7 @@ import { StarterActionCard } from "@/components/ui/StarterActionCard";
 import { SkeletonLoader } from "@/components/ui/SkeletonLoader";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { newId } from "@/core/id";
@@ -377,7 +377,7 @@ function RepeatControl({
             <Text className="text-label font-medium text-primary-600">
               {customOpen ? "Hide details" : "Edit details"}
             </Text>
-            <Ionicons name={customOpen ? "chevron-up" : "chevron-down"} size={14} color="#2563EB" />
+            <Ionicons name={customOpen ? "chevron-up" : "chevron-down"} size={14} color={colors.light.primary} />
           </PressableScale>
 
           {customOpen ? (
@@ -944,7 +944,7 @@ export function TaskEditorForm({
                 "title"
               )} bg-white px-4 text-body-lg text-neutral-900`}
               placeholder="What needs doing?"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               value={draft.title ?? ""}
               onChangeText={(title) => patch({ title })}
               onFocus={() => setFocusedField("title")}
@@ -964,7 +964,7 @@ export function TaskEditorForm({
                 "notes"
               )} bg-white px-4 py-3 text-body-lg text-neutral-900`}
               placeholder="Add details (optional)"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               value={draft.notes ?? ""}
               onChangeText={(notes) => patch({ notes })}
               onFocus={() => setFocusedField("notes")}
@@ -1029,7 +1029,7 @@ export function TaskEditorForm({
               accessibilityLabel="Break it down with AI"
               accessibilityState={{ disabled: !canBreakDown || breakingDown, busy: breakingDown }}
             >
-              <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+              <Ionicons name="sparkles" size={16} color={colors.light.primaryForeground} />
               <Text className="text-label font-semibold text-white">
                 {breakingDown
                   ? "Breaking it down…"
@@ -1058,7 +1058,7 @@ export function TaskEditorForm({
                 entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
                 className="flex-row items-start gap-2 rounded-lg border border-warning-100 bg-warning-100/50 p-3"
               >
-                <Ionicons name="cloud-offline-outline" size={16} color="#C2410C" />
+                <Ionicons name="cloud-offline-outline" size={16} color={colors.light.warningStrong} />
                 <Text className="flex-1 text-caption text-warning-700">{aiNote}</Text>
               </Animated.View>
             ) : null}
@@ -1072,7 +1072,7 @@ export function TaskEditorForm({
                 "firstMove"
               )} bg-white px-4 text-body-lg text-neutral-900`}
               placeholder="e.g. Open the doc and write one line"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               value={firstMoveText}
               onChangeText={setFirstMoveText}
               onFocus={() => setFocusedField("firstMove")}
@@ -1134,7 +1134,7 @@ export function TaskEditorForm({
                         <Ionicons
                           name={loading ? "hourglass-outline" : "cut-outline"}
                           size={13}
-                          color="#2563EB"
+                          color={colors.light.primary}
                         />
                         <Text
                           className="max-w-[180px] text-caption font-medium text-neutral-700"
@@ -1160,7 +1160,7 @@ export function TaskEditorForm({
                   <TextInput
                     className="min-h-12 rounded-md border border-primary-500 bg-white px-4 text-body-lg text-neutral-900"
                     placeholder='e.g. "break it down by function" or "step 2 is too big"'
-                    placeholderTextColor="#A8A29A"
+                    placeholderTextColor={colors.light.textDisabled}
                     value={refineText}
                     onChangeText={setRefineText}
                     returnKeyType="done"
@@ -1200,7 +1200,7 @@ export function TaskEditorForm({
                   accessibilityRole="button"
                   accessibilityLabel="Refine the steps with an instruction"
                 >
-                  <Ionicons name="color-wand-outline" size={16} color="#2563EB" />
+                  <Ionicons name="color-wand-outline" size={16} color={colors.light.primary} />
                   <Text className="text-label font-medium text-primary-600">
                     Refine with an instruction
                   </Text>
@@ -1252,7 +1252,7 @@ export function TaskEditorForm({
                   "duration"
                 )} bg-white px-4 text-body-lg text-neutral-900`}
                 placeholder="e.g. 30"
-                placeholderTextColor="#A8A29A"
+                placeholderTextColor={colors.light.textDisabled}
                 value={
                   draft.durationMin != null && draft.durationMin > 0
                     ? String(draft.durationMin)
@@ -1306,7 +1306,7 @@ export function TaskEditorForm({
                 accessibilityRole="button"
                 accessibilityLabel="Set a due date"
               >
-                <Ionicons name="calendar-outline" size={18} color="#6F6862" />
+                <Ionicons name="calendar-outline" size={18} color={colors.light.textMuted} />
                 <Text className="ml-2 text-body-lg text-neutral-500">
                   Set a deadline
                 </Text>
@@ -1348,7 +1348,7 @@ export function TaskEditorForm({
                 accessibilityRole="button"
                 accessibilityLabel="Set a start-after date"
               >
-                <Ionicons name="time-outline" size={18} color="#6F6862" />
+                <Ionicons name="time-outline" size={18} color={colors.light.textMuted} />
                 <Text className="ml-2 text-body-lg text-neutral-500">
                   Set a start date
                 </Text>
@@ -1369,7 +1369,7 @@ export function TaskEditorForm({
             <Switch
               value={draft.splittable ?? false}
               onValueChange={(splittable) => patch({ splittable })}
-              trackColor={{ true: "#2563EB", false: "#D7D3CC" }}
+              trackColor={{ true: colors.light.primary, false: colors.light.borderStrong }}
               accessibilityLabel="Split into sessions"
             />
           </View>
@@ -1382,7 +1382,7 @@ export function TaskEditorForm({
                   <TextInput
                     className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 30"
-                    placeholderTextColor="#A8A29A"
+                    placeholderTextColor={colors.light.textDisabled}
                     value={draft.minBlockMin != null ? String(draft.minBlockMin) : ""}
                     onChangeText={(text) => {
                       const parsed = parseInt(text, 10);
@@ -1398,7 +1398,7 @@ export function TaskEditorForm({
                   <TextInput
                     className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 90"
-                    placeholderTextColor="#A8A29A"
+                    placeholderTextColor={colors.light.textDisabled}
                     value={draft.maxBlockMin != null ? String(draft.maxBlockMin) : ""}
                     onChangeText={(text) => {
                       const parsed = parseInt(text, 10);
@@ -1502,7 +1502,7 @@ export function TaskEditorForm({
                     style={{ backgroundColor: effectiveColor }}
                   />
                 ) : (
-                  <Ionicons name="sparkles-outline" size={13} color="#2563EB" />
+                  <Ionicons name="sparkles-outline" size={13} color={colors.light.primary} />
                 )}
                 <Text
                   className={`text-caption ${
@@ -1528,7 +1528,7 @@ export function TaskEditorForm({
                     accessibilityState={{ selected }}
                   >
                     {selected ? (
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
                     ) : null}
                   </Pressable>
                 );

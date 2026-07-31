@@ -66,7 +66,7 @@ import { Chip } from "@/components/ui/Chip";
 import { Badge } from "@/components/ui/Badge";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { shadows, listColors, tabularNums } from "@/utils/design-tokens";
+import { colors, shadows, listColors, tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { List } from "@/types";
@@ -304,7 +304,7 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
               accessibilityRole="button"
               accessibilityLabel="Close Brain dump"
             >
-              <Ionicons name="close" size={24} color="#1C1917" />
+              <Ionicons name="close" size={24} color={colors.light.text} />
             </PressableScale>
           </View>
           <Heading size="h3">Brain dump</Heading>
@@ -353,7 +353,7 @@ function UnavailablePanel({ onClose }: { onClose: () => void }) {
   return (
     <View className="flex-1 items-center justify-center px-8">
       <View className="w-16 h-16 rounded-full bg-neutral-100 items-center justify-center mb-5">
-        <Ionicons name="mic-off-outline" size={32} color="#A8A29A" />
+        <Ionicons name="mic-off-outline" size={32} color={colors.light.textDisabled} />
       </View>
       <Heading size="h4" className="text-center">
         Voice capture isn't available here
@@ -433,7 +433,7 @@ function RecordPanel({
   if (processing) {
     return (
       <View className="flex-1 items-center justify-center px-8">
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color={colors.light.primary} />
         <Text className="text-body text-neutral-500 text-center mt-4">{statusLabel}</Text>
       </View>
     );
@@ -544,16 +544,16 @@ function MicButton({
             borderRadius: 44,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: recording ? "#1C1917" : "#2563EB",
+            backgroundColor: recording ? colors.light.text : colors.light.primary,
           },
           shadows.md,
           animatedStyle,
         ]}
       >
         {busy ? (
-          <ActivityIndicator color="#FFFFFF" />
+          <ActivityIndicator color={colors.light.primaryForeground} />
         ) : (
-          <Ionicons name={recording ? "stop" : "mic"} size={32} color="#FFFFFF" />
+          <Ionicons name={recording ? "stop" : "mic"} size={32} color={colors.light.primaryForeground} />
         )}
       </Animated.View>
     </PressableScale>
@@ -598,7 +598,7 @@ function LevelBar({
 
   const style = useAnimatedStyle(() => ({ height: height.value }));
 
-  return <Animated.View style={[{ width: 5, borderRadius: 3, backgroundColor: "#2563EB" }, style]} />;
+  return <Animated.View style={[{ width: 5, borderRadius: 3, backgroundColor: colors.light.primary }, style]} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -715,7 +715,7 @@ function DraftRowCard({
           accessibilityRole="button"
           accessibilityLabel={`Drop task: ${resolved.title || row.text || "untitled"}`}
         >
-          <Ionicons name="trash-outline" size={18} color="#A8A29A" />
+          <Ionicons name="trash-outline" size={18} color={colors.light.textDisabled} />
         </Pressable>
       </View>
       {hasChips && (

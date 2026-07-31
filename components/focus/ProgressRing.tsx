@@ -8,6 +8,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { colors } from "@/utils/design-tokens";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -45,8 +46,8 @@ export function ProgressRing({
   progress,
   size,
   strokeWidth = 6,
-  color = "#2563EB",
-  trackColor = "#E4E1DA",
+  color = colors.light.primary,
+  trackColor = colors.light.border,
   children,
 }: ProgressRingProps) {
   const reduceMotion = useReduceMotion();

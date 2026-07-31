@@ -6,10 +6,11 @@
 
 import type { Ionicons } from "@expo/vector-icons";
 import type { ProjectKind } from "@/types";
+import { colors } from "@/utils/design-tokens";
 
 /** The project theme accent (doc `02` — Projects use the "special/premium" accent, reserved exclusively for Projects). */
-export const PROJECT_ACCENT = "#7C3AED";
-export const PROJECT_ACCENT_LIGHT = "#EDE9FE";
+export const PROJECT_ACCENT = colors.light.accentStrong;
+export const PROJECT_ACCENT_LIGHT = colors.light.accentLight;
 
 interface KindMeta {
   label: string;

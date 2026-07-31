@@ -17,16 +17,29 @@
  * - Active: a calm "you're all set" confirmation.
  *
  * FR-88: "Subscription state gates app access." The screen is dismissible
- * only while genuinely entitled (an active plan, or a trial with time left);
- * on a lapsed trial or a lapsed subscription there is no close (X) button, no
- * swipe-to-dismiss, and no "Maybe later" — the paywall gate in
- * `app/_layout.tsx` would otherwise be pure theater (a user could dismiss
- * once and never be sent back, since that gate's effect does not re-run on
- * navigation alone). "Restore purchases" stays available in every
- * non-active state regardless of dismissibility — that is precisely the
- * recovery path for someone who already paid (e.g. reinstalled) but whose
- * local state does not know it yet, and it must never be blocked behind the
- * same gate that blocks a fresh purchase attempt.
+ * only while genuinely entitled (an active plan, or a trial with time left) —
+ * `core/subscription.ts#isPaywallDismissible`, unit-tested there. On a lapsed
+ * trial or a lapsed subscription there is no close (X) button, no
+ * swipe-to-dismiss (`gestureEnabled: false`), and no "Maybe later" — the
+ * paywall gate in `app/_layout.tsx` would otherwise be pure theater (a user
+ * could dismiss once and never be sent back, since that gate's effect does
+ * not re-run on navigation alone). A `BackHandler` listener additionally
+ * swallows the ANDROID HARDWARE back key while non-dismissible, since
+ * `gestureEnabled` only covers the swipe gesture — without it a lapsed
+ * Android user could still pop this screen with the physical/software back
+ * button. "Restore purchases" stays available in every non-active state
+ * regardless of dismissibility — that is precisely the recovery path for
+ * someone who already paid (e.g. reinstalled) but whose local state does not
+ * know it yet, and it must never be blocked behind the same gate that blocks
+ * a fresh purchase attempt.
+ *
+ * Closing every dismiss path must never trap anyone (too tight is worse than
+ * too loose): while non-dismissible, a quiet "More settings" link also stays
+ * available, routing to `/settings/all` where sign-out and data deletion
+ * already live (§8.11) — so a user who cannot or will not pay can still leave
+ * and delete their account, exactly as FR-88/NFR-6 require. Hidden when the
+ * screen IS dismissible, since the ordinary tab bar already reaches Settings
+ * in that case.
  *
  * No dark patterns: trial state and what happens at its end are stated
  * plainly, a cancelled purchase is a normal outcome (never a crash or an
@@ -36,7 +49,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, ScrollView, Platform } from 'react-native'
+import { View, Text, ScrollView, Platform, BackHandler } from 'react-native'
 import { router, useNavigation } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -56,7 +69,7 @@ import { Button } from '@/components/ui/Button'
 import { PressableScale } from '@/components/ui/PressableScale'
 import { FeatureShell } from '@/components/ui/FeatureShell'
 import { useSettingsStore } from '@/store/settingsStore'
-import { startTrial, trialDaysLeft, isActive } from '@/core/subscription'
+import { startTrial, trialDaysLeft, isActive, isPaywallDismissible } from '@/core/subscription'
 import { getPurchaseStrategy, PLACEHOLDER_OFFERINGS, type IapOffering, type IapPlan } from '@/core/iap'
 import { FEATURE_FLAGS } from '@/constants/featureFlags'
 import { shadows } from '@/utils/design-tokens'
@@ -196,7 +209,10 @@ export default function PaywallScreen() {
   // FR-88: subscription state gates app access. Dismissible only while
   // genuinely entitled (an active plan, or a trial with time left) — see the
   // file docstring for why a lapsed trial/subscription must not be closeable.
-  const dismissible = active
+  // Pure rule lives in core/subscription.ts so it is independently tested
+  // (core/__tests__/subscription.test.ts) rather than only verified by
+  // reading this screen's JSX.
+  const dismissible = useMemo(() => isPaywallDismissible(subscription), [subscription])
 
   // Trial countdown chip tick — a quiet dip+settle whenever the days-left
   // count changes, so the number reads as alive rather than a static label.
@@ -273,6 +289,25 @@ export default function PaywallScreen() {
       gestureEnabled: dismissible,
     })
   }, [navigation, dismissible])
+
+  // Swallow the Android hardware back button while non-dismissible.
+  // `gestureEnabled` above only covers the swipe-back gesture, not the
+  // physical/software back key, so without this a lapsed Android user could
+  // still pop this screen straight back into the app (FR-88). Android only:
+  // iOS has no hardware back button (its only back path is the swipe gesture,
+  // already covered above), and react-native-web's `BackHandler` shim logs a
+  // `console.error` on every `addEventListener` call, so registering there
+  // would just spam the console for a listener that can never fire. Re-adds
+  // whenever `dismissible` flips, via the dependency array, and always
+  // removes the listener on unmount or before re-adding — never leaks.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (dismissible) return false // not our concern — let default back proceed
+      return true // swallow: no way to pop this screen with the hardware key
+    })
+    return () => sub.remove()
+  }, [dismissible])
 
   // Dismiss (back if we can, else fall into the app). Only ever wired to a
   // visible control while `dismissible` is true; the internal guard is
@@ -585,6 +620,27 @@ export default function PaywallScreen() {
               {purchaseState === 'restoring' ? 'Restoring…' : 'Restore purchases'}
             </Text>
           </PressableScale>
+
+          {/* Escape hatch for the non-dismissible state (do not trap anyone —
+              NFR-6). Sign-out and account/data deletion live in Settings
+              (§8.11); this is the ONLY way to reach them once the header X,
+              swipe, and hardware back are all closed off. Hidden whenever the
+              screen is dismissible, since the ordinary tab bar already
+              reaches Settings from there — no need for a second path. */}
+          {!dismissible ? (
+            <PressableScale
+              onPress={() => router.push('/settings/all')}
+              haptic="light"
+              className="mt-3 min-h-[44px] items-center justify-center py-2"
+              accessibilityRole="button"
+              accessibilityLabel="More settings"
+              accessibilityHint="Opens settings, including sign out and deleting your data, without requiring a purchase"
+            >
+              <Text className="text-label font-medium text-neutral-500">
+                More settings
+              </Text>
+            </PressableScale>
+          ) : null}
         </Animated.View>
 
         {/* IAP honesty note */}

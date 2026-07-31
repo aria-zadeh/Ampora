@@ -26,14 +26,14 @@
  *    that are due right now); no-ops when unavailable.
  *
  * ANCHOR FIX: Start Reminder and Motivation Nudge used to fire at
- * `nextEnergyPeak(settings.energyPeak, now)`. Energy states are deferred
- * (`V2_Changes.md` §1) and FR-63 anchors reminders on the task's SCHEDULED
- * BLOCK, not an energy peak — so both now fire `START_REMINDER_LEAD_MIN`
- * minutes before the task's next upcoming `ScheduledBlock`, and simply don't
- * fire at all for a task with no block yet (there is nothing to anchor to).
- * `settings.energyPeak` itself is untouched — it still feeds the SCHEDULING
- * ENGINE's placement scoring (`core/scheduler/freeTime.ts`); only this file's
- * dependency on it for reminder timing is removed.
+ * `nextEnergyPeak(settings.energyPeak, now)`. Energy states are deferred in
+ * full (`V2_Changes.md` §1: "Energy-aware placement and the energy-peak
+ * onboarding step") and `Settings.energyPeak` no longer exists on the type at
+ * all (verified: no reference anywhere in `types/index.ts` or
+ * `core/scheduler/**` — this file was the only stale mention) — so both now
+ * fire `START_REMINDER_LEAD_MIN` minutes before the task's next upcoming
+ * `ScheduledBlock` (FR-63's replacement anchor), and simply don't fire at all
+ * for a task with no block yet (there is nothing to anchor to).
  */
 
 import * as Notifications from 'expo-notifications'

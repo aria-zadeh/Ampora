@@ -1,0 +1,31 @@
+-- PENDING REVIEW — DO NOT RUN until someone has confirmed these columns'
+-- actual current state on the LIVE project. This repo has no database
+-- access to check itself (the account-layer task that wrote this migration
+-- was explicitly forbidden from applying anything or running destructive
+-- operations against the live project).
+--
+-- `energy_required` and `energy_peak` belonged to the deleted Learning
+-- Engine (core/learning/**, the energy-peak onboarding step,
+-- V2_Changes.md §1). `energy_required` is confirmed dead in the CODE (no
+-- `Task.energyRequired` field remains in types/index.ts; the only surviving
+-- references were three call sites removed in this same change:
+-- components/task-editor/TaskEditorForm.tsx, services/ai.ts,
+-- supabase/functions/ai-breakdown/index.ts). Neither column appeared in the
+-- schema comment block that used to live in services/supabase.ts (see
+-- migration 0001's header for that history), so whether either one was EVER
+-- actually added to the live `tasks` or `settings` table — versus only ever
+-- existing in code/local state during the Learning Engine's lifetime — is
+-- UNVERIFIED.
+--
+-- Best guess, not confirmed: `energy_required` was a `tasks` column (it was
+-- per-task); `energy_peak` was a `settings` column (a per-user onboarding
+-- preference, analogous to `stake_strength`). Confirm both guesses against
+-- the real live schema before running this.
+--
+-- `if exists` makes this safe to run even if a guess above is wrong (a
+-- column that was never created is silently skipped) — the pending-review
+-- risk is data loss if a column DOES exist and still holds values someone
+-- cares about, not a syntax/existence failure.
+
+alter table public.tasks drop column if exists energy_required;
+alter table public.settings drop column if exists energy_peak;

@@ -225,6 +225,50 @@ describe('nightlyPass: buildGeneratedTaskDraft', () => {
   })
 })
 
+describe('nightlyPass: idempotency guard, composed (decideNightlyPass + taskAlreadyGeneratedForDay together)', () => {
+  // The orchestrator (services/nightlyPass.ts#runNightlyPassIfDue) is not
+  // unit-testable here — it pulls in the Zustand stores, which pull in
+  // react-native-mmkv, which cannot load under this plain-Node harness (see
+  // that file's doc comment, and vitest.config.ts's `core/**` only include).
+  // This simulates its exact call pattern using ONLY the pure pieces it
+  // composes, to directly demonstrate the two persisted-state guard layers
+  // (the third, in-memory `isRunning` re-entrancy flag, is trivially correct
+  // by construction: it is set synchronously before any `await`, so no two
+  // JS-single-threaded calls can ever race past it) each independently
+  // prevent a second project task for the same day, matching FR-90/FR-84.
+  it('two triggers in the same evening (e.g. mount + AppState) never yield a second generated task for the same project/day', () => {
+    let lastTarget: number | null = null
+    let tasks = [] as ReturnType<typeof makeTask>[]
+
+    function simulateOneTrigger(now: number, projectId: string): void {
+      const { shouldRun, targetDayStart } = decideNightlyPass(now, lastTarget)
+      if (!shouldRun) return // layer 2: persisted lastTargetDayStart already covers this evening
+      if (taskAlreadyGeneratedForDay(tasks, projectId, targetDayStart)) return // layer 3: belt-and-suspenders
+      tasks = [...tasks, makeTask({ projectId, due: targetDayStart + 3600_000 })]
+      lastTarget = targetDayStart
+    }
+
+    // First trigger at 7pm (e.g. app foregrounded, mount effect fires).
+    simulateOneTrigger(mondayAt(19), 'proj-1')
+    expect(tasks).toHaveLength(1)
+
+    // Second trigger at 7:01pm, same evening (e.g. the AppState listener also
+    // fires close behind the mount effect) — layer 2 alone already stops it
+    // before layer 3 is even consulted.
+    simulateOneTrigger(mondayAt(19, 1), 'proj-1')
+    expect(tasks).toHaveLength(1)
+
+    // Third trigger at 9pm, same evening (e.g. the 5-minute poll) — still one.
+    simulateOneTrigger(mondayAt(21), 'proj-1')
+    expect(tasks).toHaveLength(1)
+
+    // And even if layer 2 were somehow bypassed (marker failed to persist,
+    // per services/nightlyPass.ts's own "belt-and-suspenders" comment), layer
+    // 3 alone still refuses on its own — simulate that directly:
+    expect(taskAlreadyGeneratedForDay(tasks, 'proj-1', mondayAt(0) + MS_PER_DAY)).toBe(true)
+  })
+})
+
 describe('nightlyPass: readyForTomorrowNotificationId', () => {
   it('is stable for the same target day and distinct across days', () => {
     const a = readyForTomorrowNotificationId(mondayAt(0));

@@ -245,7 +245,7 @@ function TaskCardImpl({
             )}
             {hasProject && (
               <View className="w-4 h-4 rounded-full bg-accent-100 items-center justify-center">
-                <Ionicons name="rocket-outline" size={10} color="#7C3AED" />
+                <Ionicons name="rocket-outline" size={10} color={colors.light.accentStrong} />
               </View>
             )}
           </View>

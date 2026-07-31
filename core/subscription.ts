@@ -65,3 +65,22 @@ export function startTrial(now: number = Date.now()): Subscription {
     trialEndsAt: now + TRIAL_DURATION_DAYS * MS_PER_DAY,
   }
 }
+
+/**
+ * Whether the paywall (`app/paywall.tsx`) may be dismissed — header close,
+ * swipe gesture, or the Android hardware back button. FR-88: "Subscription
+ * state gates app access." A lapsed trial or subscription must never be
+ * dismissible, or the routing gate in `app/_layout.tsx` is theater (a user
+ * could dismiss once and never be sent back, since that gate's effect only
+ * re-runs when auth/onboarding/subscription STATE changes, not on
+ * navigation alone).
+ *
+ * Currently identical to `isActive` — dismissible exactly when entitled.
+ * Named and exported separately so the paywall's own reason for gating reads
+ * clearly at the call site, and so this rule is independently unit-tested
+ * (`core/__tests__/subscription.test.ts`) rather than only verified by
+ * reading the screen's JSX.
+ */
+export function isPaywallDismissible(subscription: Subscription, now: number = Date.now()): boolean {
+  return isActive(subscription, now)
+}

@@ -34,6 +34,11 @@ const OPTIONAL_NATIVE_PACKAGES = new Set([
   "react-native-purchases",
   "ampora-ignition",
   "ampora-purchases",
+  // Sign in with Apple (FR-87). Resolved by services/supabase.ts via a lazy
+  // require() call, same pattern as react-native-purchases above — never
+  // installed on Windows/web/Android, so it needs the same alias-to-stub
+  // treatment or `expo export --platform web` fails trying to resolve it.
+  "expo-apple-authentication",
 ]);
 
 const STUB = path.resolve(__dirname, "core/native/optionalStub.js");

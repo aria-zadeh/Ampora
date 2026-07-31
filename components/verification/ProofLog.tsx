@@ -26,7 +26,7 @@ import { Image } from "expo-image";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useProofStore } from "@/store/proofStore";
@@ -43,10 +43,10 @@ const METHOD_META: Record<
   Proof["method"],
   { icon: keyof typeof Ionicons.glyphMap; label: string; tint: string; bg: string }
 > = {
-  focus_time: { icon: "timer-outline", label: "Focus time", tint: "#2563EB", bg: "bg-primary-100" },
-  photo: { icon: "camera-outline", label: "Photo", tint: "#7C3AED", bg: "bg-accent-100" },
-  screenshot: { icon: "phone-portrait-outline", label: "Screenshot", tint: "#7C3AED", bg: "bg-accent-100" },
-  honor: { icon: "hand-left-outline", label: "Honor", tint: "#6F6862", bg: "bg-neutral-100" },
+  focus_time: { icon: "timer-outline", label: "Focus time", tint: colors.light.primary, bg: "bg-primary-100" },
+  photo: { icon: "camera-outline", label: "Photo", tint: colors.light.accentStrong, bg: "bg-accent-100" },
+  screenshot: { icon: "phone-portrait-outline", label: "Screenshot", tint: colors.light.accentStrong, bg: "bg-accent-100" },
+  honor: { icon: "hand-left-outline", label: "Honor", tint: colors.light.textMuted, bg: "bg-neutral-100" },
 };
 
 /** A short "3:40 PM · Jul 1" style stamp; locale-formatted, never crashes. */

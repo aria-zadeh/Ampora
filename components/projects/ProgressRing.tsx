@@ -10,6 +10,8 @@
 
 import React from "react";
 import { View, Text } from "react-native";
+import { colors } from "@/utils/design-tokens";
+import { PROJECT_ACCENT } from "./projectUtils";
 
 interface ProgressRingProps {
   /** 0..100. */
@@ -81,8 +83,8 @@ export function ProgressRing({
   pct,
   size = 54,
   stroke = 5,
-  color = "#7C3AED",
-  trackColor = "#E8E6E0",
+  color = PROJECT_ACCENT,
+  trackColor = colors.light.border,
 }: ProgressRingProps) {
   const value = clampPct(pct);
 
@@ -114,11 +116,11 @@ export function ProgressRing({
 
       {/* Centered percent label — the ring is never color-only. */}
       <Text
-        style={{ fontSize: size * 0.26, fontWeight: "700", color: "#1C1917" }}
+        style={{ fontSize: size * 0.26, fontWeight: "700", color: colors.light.text }}
         allowFontScaling={false}
       >
         {value}
-        <Text style={{ fontSize: size * 0.16, fontWeight: "600", color: "#6F6862" }}>%</Text>
+        <Text style={{ fontSize: size * 0.16, fontWeight: "600", color: colors.light.textMuted }}>%</Text>
       </Text>
     </View>
   );

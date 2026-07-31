@@ -21,7 +21,7 @@ import { Heading } from "@/components/ui/Heading";
 import { Button } from "@/components/ui/Button";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { kindMeta, PROJECT_ACCENT } from "./projectUtils";
-import { iconSizes } from "@/utils/design-tokens";
+import { colors, iconSizes } from "@/utils/design-tokens";
 import type { ProjectKind } from "@/types";
 
 const KINDS: ProjectKind[] = ["deliverable", "study"];
@@ -108,12 +108,12 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
             Name
           </Text>
           <View className="flex-row items-center bg-white border border-neutral-200 rounded-md min-h-12 px-3 mb-5">
-            <Ionicons name="bookmark-outline" size={iconSizes.md} color="#A8A29A" />
+            <Ionicons name="bookmark-outline" size={iconSizes.md} color={colors.light.textDisabled} />
             <TextInput
               value={title}
               onChangeText={setTitle}
               placeholder="e.g. Study for SciOly Remote Sensing"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               className="flex-1 ml-2 text-body-lg text-neutral-900"
               returnKeyType="next"
               autoFocus
@@ -143,12 +143,12 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
                 >
                   <View
                     className="w-9 h-9 rounded-full items-center justify-center"
-                    style={{ backgroundColor: active ? PROJECT_ACCENT : "#F7F6F3" }}
+                    style={{ backgroundColor: active ? PROJECT_ACCENT : colors.light.background }}
                   >
                     <Ionicons
                       name={meta.icon}
                       size={iconSizes.md}
-                      color={active ? "#FFFFFF" : "#6F6862"}
+                      color={active ? colors.light.primaryForeground : colors.light.textMuted}
                     />
                   </View>
                   <View className="flex-1 ml-3">
@@ -178,7 +178,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
               value={contextLine}
               onChangeText={setContextLine}
               placeholder="e.g. MLA format, topic is Cold War containment, 5 pages"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               className="text-body text-neutral-900 min-h-[44px]"
               multiline
               textAlignVertical="top"

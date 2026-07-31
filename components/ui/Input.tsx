@@ -15,6 +15,7 @@ import Animated, {
 import { EASINGS } from "@/utils/motion";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { colors } from "@/utils/design-tokens";
 
 export interface InputProps extends Omit<TextInputProps, "style" | "className"> {
   /** Label rendered above the field. Omit for a label-less field (e.g. inline search). */
@@ -85,10 +86,10 @@ export function Input({
 
   const animatedBorderStyle = useAnimatedStyle(() => ({
     borderColor: error
-      ? "#DC2626"
+      ? colors.light.dangerStrong
       : ring.value > 0.5
-        ? "#2563EB"
-        : "#E8E6E0",
+        ? colors.light.primary
+        : colors.light.border,
   }));
 
   const hasValue = typeof value === "string" && value.length > 0;
@@ -109,7 +110,7 @@ export function Input({
           <Ionicons
             name={icon}
             size={18}
-            color={focused ? "#2563EB" : "#A8A29A"}
+            color={focused ? colors.light.primary : colors.light.textDisabled}
             style={{ marginRight: 8 }}
           />
         ) : null}
@@ -119,7 +120,7 @@ export function Input({
           onChangeText={onChangeText}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholderTextColor="#6F6862"
+          placeholderTextColor={colors.light.textMuted}
           className="flex-1 py-2.5 text-body-lg text-neutral-900"
           accessibilityLabel={accessibilityLabel ?? label}
         />
@@ -131,7 +132,7 @@ export function Input({
             accessibilityRole="button"
             accessibilityLabel={`Clear ${label ?? "field"}`}
           >
-            <Ionicons name="close-circle" size={18} color="#D7D3CC" />
+            <Ionicons name="close-circle" size={18} color={colors.light.borderStrong} />
           </Pressable>
         ) : null}
       </Animated.View>

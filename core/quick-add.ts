@@ -12,7 +12,8 @@
  *
  * Parsing strategy: tokens are matched and STRIPPED from the input
  * sequentially (priority -> duration -> due -> "due" stopword). Whatever
- * remains, trimmed of dangling stopwords, is the title.
+ * remains, trimmed of dangling stopwords and separator punctuation, is the
+ * title.
  */
 
 export interface QuickAddResult {
@@ -240,11 +241,51 @@ function matchTimeOfDay(input: string): { hour: number; minute: number; rest: st
 // Title cleanup
 // ---------------------------------------------------------------------------
 
+/**
+ * Two or more separators — comma, semicolon, colon — in a row, with only
+ * whitespace between them, collapse to the first one. This is what a token
+ * removed from BETWEEN two separators leaves behind, and it can happen
+ * anywhere in the string, not just at the edges: "Bio, due Friday, 2h"
+ * strips "due Friday" and "2h" and leaves "Bio,  ," (the comma that was
+ * already after "Bio" plus the comma that was already after "Friday", with
+ * the removed text between them) — this collapses it back to the single
+ * "," it grew from. It fires just as well mid-string with real title text
+ * on both sides: "Call mom, due tomorrow, then buy milk" strips "tomorrow"
+ * to "Call mom,  , then buy milk", which collapses to "Call mom, then buy
+ * milk" — one separator still joining two real clauses. A single separator
+ * with real text on both sides never matches — nothing here to collapse.
+ */
+const DOUBLED_SEPARATOR_RE = /([,;:])(?:\s*[,;:])+/g
+
+/**
+ * A lone separator left dangling right at the start or end once nothing
+ * real remains on that side (e.g. a trailing "#list" tag strips to a bare
+ * trailing comma — never doubled, so DOUBLED_SEPARATOR_RE above doesn't
+ * touch it). Runs after DOUBLED_SEPARATOR_RE so a collapsed run is already
+ * down to one character by the time this checks the edges, and after
+ * DANGLING_RE so a stopword trimmed off the edge can expose a separator
+ * that was hiding behind it.
+ */
+const EDGE_SEPARATOR_RE = /^\s*[,;:]\s*|\s*[,;:]\s*$/g
+
 /** Trailing/leading dangling stopwords left over after tokens are stripped. */
 const DANGLING_RE = /^(?:\s*\b(?:due|at|for|by|on)\b\s*)+|(?:\s*\b(?:due|at|for|by|on)\b\s*)+$/gi
 
+/**
+ * Final cleanup of whatever text remains after every token has been
+ * stripped out of the input. Order matters: collapse doubled separators
+ * first (anywhere in the string), then trim dangling stopwords off the
+ * edges, then trim a lone separator off the edges (catches both the
+ * pre-existing lone-trailing-separator case and any separator a stopword
+ * trim just exposed), then normalize whitespace.
+ */
 function cleanTitle(input: string): string {
-  return input.replace(DANGLING_RE, '').replace(/\s+/g, ' ').trim()
+  return input
+    .replace(DOUBLED_SEPARATOR_RE, '$1')
+    .replace(DANGLING_RE, '')
+    .replace(EDGE_SEPARATOR_RE, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 // ---------------------------------------------------------------------------

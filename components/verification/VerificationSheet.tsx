@@ -232,7 +232,7 @@ function MethodTile({
           active ? "bg-primary-100" : "bg-neutral-100"
         }`}
       >
-        <Ionicons name={option.icon} size={20} color={active ? "#2563EB" : "#6F6862"} />
+        <Ionicons name={option.icon} size={20} color={active ? colors.light.primary : colors.light.textMuted} />
       </View>
       <View className="flex-1">
         <Text className={`text-body-lg font-medium ${active ? "text-primary-700" : "text-neutral-900"}`}>
@@ -244,7 +244,7 @@ function MethodTile({
         <Ionicons
           name={active ? "radio-button-on" : "radio-button-off"}
           size={20}
-          color={active ? "#2563EB" : "#D7D3CC"}
+          color={active ? colors.light.primary : colors.light.borderStrong}
         />
       )}
     </PressableScale>
@@ -468,7 +468,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#57534E" />
+                    <Ionicons name="close" size={20} color={colors.light.textSecondary} />
                   </Pressable>
                 </View>
 
@@ -532,14 +532,14 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                     >
                       {focusPassed ? (
                         <View className="flex-row items-center gap-2">
-                          <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
+                          <Ionicons name="checkmark-circle" size={18} color={colors.light.successAccent} />
                           <Text className="flex-1 text-caption text-neutral-600">
                             You focused {focusedMin}m — that clears the {requiredFocusMin}m needed. Nice.
                           </Text>
                         </View>
                       ) : (
                         <View className="flex-row items-center gap-2">
-                          <Ionicons name="time-outline" size={18} color="#6F6862" />
+                          <Ionicons name="time-outline" size={18} color={colors.light.textMuted} />
                           <Text className="flex-1 text-caption text-neutral-600">
                             {focusedMin}m focused so far. Start a focus session to reach {requiredFocusMin}m — or complete anyway below.
                           </Text>
@@ -584,7 +584,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                           accessibilityRole="button"
                           accessibilityLabel="Add a proof image"
                         >
-                          <Ionicons name="image-outline" size={26} color="#6F6862" />
+                          <Ionicons name="image-outline" size={26} color={colors.light.textMuted} />
                           <Text className="mt-2 text-label font-medium text-neutral-600">
                             Add an image
                           </Text>
@@ -592,7 +592,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                       ) : (
                         <View className="gap-2">
                           <View className="flex-row items-center gap-2">
-                            <Ionicons name="information-circle-outline" size={18} color="#6F6862" />
+                            <Ionicons name="information-circle-outline" size={18} color={colors.light.textMuted} />
                             <Text className="flex-1 text-caption text-neutral-600">
                               Image capture isn&apos;t available on this device. You can complete now and attach proof later.
                             </Text>
@@ -631,7 +631,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                     loading={busy}
                     icon={
                       busy ? undefined : (
-                        <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                        <Ionicons name="checkmark-circle" size={18} color={colors.light.primaryForeground} />
                       )
                     }
                   />

@@ -1,5 +1,6 @@
 /**
- * Auth screen — magic link sign-in
+ * Auth screen — Sign in with Apple, Sign in with Google, and email magic link
+ * (FR-87). An account is required; there is no anonymous/guest mode.
  */
 
 import React, { useEffect, useRef, useState } from "react";
@@ -10,22 +11,27 @@ import {
   Platform,
   ScrollView,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { Input } from "@/components/ui/Input";
-import { signInWithMagicLink } from "@/services/supabase";
-import { useSettingsStore } from "@/store/settingsStore";
+import {
+  signInWithMagicLink,
+  signInWithApple,
+  signInWithGoogle,
+  isAppleSignInAvailable,
+} from "@/services/supabase";
 import { shadows, gradients } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 
 type ScreenState = "idle" | "loading" | "success" | "error";
 type ErrorKind = "invalidEmail" | "network" | "generic";
+type SocialProvider = "apple" | "google";
 
 /** Seconds the user must wait before "Resend link" becomes tappable again. */
 const RESEND_COOLDOWN_SECONDS = 45;
@@ -61,9 +67,10 @@ export default function AuthScreen() {
   const [screenState, setScreenState] = useState<ScreenState>("idle");
   const [errorKind, setErrorKind] = useState<ErrorKind>("generic");
   const [cooldown, setCooldown] = useState(0);
-  const router = useRouter();
+  const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
+  const [socialError, setSocialError] = useState<string | null>(null);
+  const [appleAvailable, setAppleAvailable] = useState(false);
   const reduceMotion = useReduceMotion();
-  const onboardingComplete = useSettingsStore((s) => s.settings.onboardingComplete);
   const cooldownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isValidEmail = email.includes("@") && email.includes(".");
@@ -78,6 +85,41 @@ export default function AuthScreen() {
       if (cooldownTimer.current) clearInterval(cooldownTimer.current);
     };
   }, [cooldown]);
+
+  // Apple's button must only ever appear where it can actually work (FR-64
+  // "never block use behind a permission; degrade gracefully") — iOS, the
+  // native module resolved, and the device/account supports it. Android and
+  // web never even attempt the check (isAppleSignInAvailable short-circuits).
+  useEffect(() => {
+    let cancelled = false;
+    if (Platform.OS === "ios") {
+      isAppleSignInAvailable().then((available) => {
+        if (!cancelled) setAppleAvailable(available);
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleSocial(provider: SocialProvider) {
+    if (socialLoading) return;
+    setSocialError(null);
+    setSocialLoading(provider);
+    const { error } =
+      provider === "apple" ? await signInWithApple() : await signInWithGoogle();
+    setSocialLoading(null);
+    if (error) {
+      setSocialError(
+        provider === "apple"
+          ? "Couldn't sign in with Apple. Please try again."
+          : "Couldn't sign in with Google. Please try again."
+      );
+    }
+    // No manual navigation: a successful sign-in updates the Supabase auth
+    // session, which app/_layout.tsx's onAuthStateChange listener + routing
+    // gate picks up and routes onward, same as the magic-link path below.
+  }
 
   async function handleSend() {
     if (!isValidEmail || screenState === "loading") return;
@@ -158,6 +200,81 @@ export default function AuthScreen() {
               Built for brains that work differently. Sign in and pick up right
               where you left off.
             </Text>
+          </Animated.View>
+
+          {/* Sign in with Apple / Google (FR-87). Positioned above the email
+              form — Apple guideline 4.8 requires Apple's own button be at
+              least as prominent as any other third-party sign-in offered.
+              The Apple button only renders where it can actually work
+              (iOS + native module resolved + device/account supports it,
+              checked async above); Google renders everywhere (FR-64 "never
+              block use behind a permission; degrade gracefully"). */}
+          <Animated.View entering={enter(45)} className="gap-3 mb-6">
+            {socialError && (
+              <View accessibilityLiveRegion="polite">
+                <Text className="text-caption text-danger-600 text-center">
+                  {socialError}
+                </Text>
+              </View>
+            )}
+
+            {Platform.OS === "ios" && appleAvailable && (
+              <Pressable
+                onPress={() => handleSocial("apple")}
+                disabled={socialLoading !== null}
+                className={`min-h-[48px] flex-row items-center justify-center rounded-md bg-black px-5 ${
+                  socialLoading !== null ? "opacity-50" : ""
+                }`}
+                accessibilityRole="button"
+                accessibilityLabel="Sign in with Apple"
+                accessibilityState={{
+                  disabled: socialLoading !== null,
+                  busy: socialLoading === "apple",
+                }}
+              >
+                {socialLoading === "apple" ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="logo-apple" size={19} color="#FFFFFF" />
+                    <Text className="text-label font-medium text-white ml-2">
+                      Sign in with Apple
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            )}
+
+            <Pressable
+              onPress={() => handleSocial("google")}
+              disabled={socialLoading !== null}
+              className={`min-h-[48px] flex-row items-center justify-center rounded-md bg-white border border-neutral-200 px-5 ${
+                socialLoading !== null ? "opacity-50" : ""
+              }`}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in with Google"
+              accessibilityState={{
+                disabled: socialLoading !== null,
+                busy: socialLoading === "google",
+              }}
+            >
+              {socialLoading === "google" ? (
+                <ActivityIndicator color="#1C1917" />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={18} color="#4285F4" />
+                  <Text className="text-label font-medium text-neutral-900 ml-2">
+                    Sign in with Google
+                  </Text>
+                </>
+              )}
+            </Pressable>
+
+            <View className="flex-row items-center my-1">
+              <View className="flex-1 h-px bg-neutral-200" />
+              <Text className="text-caption text-neutral-500 mx-3">or</Text>
+              <View className="flex-1 h-px bg-neutral-200" />
+            </View>
           </Animated.View>
 
           {/* Success state */}
@@ -256,30 +373,6 @@ export default function AuthScreen() {
               </View>
             </Animated.View>
           )}
-
-          {/* Guest mode */}
-          <Animated.View entering={enter(160)} className="mt-12 items-center">
-            <Pressable
-              onPress={() => {
-                // Set a global flag so _layout.tsx treats us as "authenticated"
-                // without a real Supabase session.
-                (globalThis as Record<string, unknown>).__AMPORA_GUEST_MODE__ = true;
-                if (onboardingComplete) {
-                  router.replace("/(tabs)");
-                } else {
-                  router.replace("/onboarding/welcome");
-                }
-              }}
-              className="min-h-[44px] px-4 items-center justify-center"
-              accessibilityLabel="Continue as guest"
-              accessibilityRole="button"
-            >
-              <Text className="text-label text-neutral-500">
-                Just looking?{" "}
-                <Text className="text-primary-600 font-medium">Continue as guest</Text>
-              </Text>
-            </Pressable>
-          </Animated.View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
