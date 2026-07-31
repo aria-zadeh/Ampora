@@ -4,7 +4,18 @@ This folder is the complete, current set of operational instructions for everyth
 
 Written for someone who has never done any of this before. If a step says "click X," it means click the literal button named X. Where something might have moved since this was written (dashboards change over time), that is called out rather than stated as certain.
 
-## Start these two today, before anything else
+## What can be done alone, today, with no Apple account
+
+Most of it. The app itself does not need Apple for anything until it is time to build for a real iPhone.
+
+- **`02b-browser-setup-prompt.md`** and the non-Apple half of **`02-supabase.md`**: the database, the redirect URL, Google sign-in, and the two `.env` keys. No Apple account involved at any point.
+- **`03-mac-setup.md`**: getting a Mac ready. No Apple Developer account needed, just a Mac and the free Xcode.
+- **`04-test-the-lock.md`**: this is the one that eventually needs a developer account to sign a build for a phone. Everything up to that signing step can be done alone.
+- **`05-revenuecat.md`**: skip it. It only matters when there is a business taking money, which is not now.
+
+Two things in `01-apple.md` need someone else and take real calendar time, so start them whenever that person is available. Nothing above waits on them.
+
+## The two slow ones, whenever you get to them
 
 Two things in here take real calendar time and mostly just sit and wait once started. Everything else can happen in an afternoon.
 
@@ -21,7 +32,7 @@ Neither blocks building, testing, or working on the app today. Native locking an
 | 2 | `02-supabase.md` | The database, sign-in, AI, env keys | Today, alongside 1 | Under an hour of clicking, plus occasional waiting on a paused project |
 | 3 | `03-mac-setup.md` | Getting a Mac ready to build iOS at all | Whenever a Mac is available | 30-60 minutes |
 | 4 | `04-test-the-lock.md` | Building the real app lock and testing it on a real iPhone | After 1 (the free Development capability, not the Distribution approval) and 3 are done | An afternoon |
-| 5 | `05-revenuecat.md` | Real subscriptions instead of the placeholder paywall | Whenever, needs the paid Apple account from 1 first | An afternoon, not urgent |
+| 5 | `05-revenuecat.md` | Real subscriptions instead of the placeholder paywall | **Not yet.** Skip until there is a business to take money for | An afternoon, whenever |
 
 Read them in that order the first time. After that, each one stands alone, come back to whichever one is needed.
 

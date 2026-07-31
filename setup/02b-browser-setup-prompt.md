@@ -6,19 +6,26 @@ Open a new tab, start Claude in Chrome, paste the block below. Then paste its an
 
 ---
 
-## Before you paste it: what is and is not safe to hand back
+## Nothing here needs an Apple account
 
-This matters more than anything else on the page, so read it once.
+You can run all of this today, alone. No Apple Developer account, no second person, nothing paid. Apple sign-in is the only part of `02-supabase.md` that needs any of that, and it is deliberately left out of this prompt.
 
-Supabase gives you several keys and **they are not the same kind of thing**.
+## Yes, it gives you the API key
 
-- The **Project URL** and the **anon / publishable key** are designed to ship inside the app. They are already in the app binary that any user can inspect. Handing these back is safe, and they are what `.env` needs.
-- The **service_role key** is the opposite. It bypasses every security rule in the database, so anyone holding it can read and delete every user's data. It belongs only on a server. **It must never go in `.env`, never in the app, never in a chat window, and never in this file.**
-- The **database password** and any **OAuth client secret** are the same category. Secret, never surfaced.
+**The prompt copies the key you need and reports it back to you at the end.** That is the whole point of it.
 
-The prompt below tells the agent this explicitly and tells it to refuse if asked. Do not edit that part out.
+The confusing part is that Supabase shows **two different keys on the same screen**, and only one of them is yours to use:
 
-The Google client secret is a special case handled well: the agent copies it straight from one dashboard into another **without ever displaying it**. That way it never lands in a transcript.
+| Key | What it is | This prompt |
+|---|---|---|
+| **anon** / public / publishable | The app's key. Ships inside the app, readable by anyone who inspects a build. This is the one `.env` needs. | **Copies it and hands it to you** |
+| **service_role** / secret | An admin key that bypasses every security rule. Anyone holding it can read or delete every user's data. Ampora never uses it. | Ignores it |
+
+So "do not copy the key" only ever meant the second one. The first one is exactly what you are here for.
+
+Same idea for the **database password** and the **Google client secret**: the app does not need either, so neither gets surfaced. The client secret does get *used*, but the agent moves it straight from Google's dashboard into Supabase's without displaying it, so it never ends up in a chat log.
+
+**If the agent cannot copy the anon key for any reason**, the prompt tells it to stop on that exact screen and leave it visible so you can copy it yourself. Either way you end up with it.
 
 ---
 
@@ -59,19 +66,25 @@ If you see a "Restore project" or "Resume" button, click it and wait until the
 dashboard says the project is active and healthy. This takes a couple of
 minutes. If it is already active, say so and move on.
 
-## Step 2: get the two safe values
+## Step 2: get the two values I actually need
 
 Go to Project Settings, then the API section.
 
-Copy exactly these two, and only these two:
+Copy exactly these two, and report both to me at the end:
 - Project URL, which looks like https://pgqbwhksxqgnfdkmwlop.supabase.co
 - The anon / public / publishable key, a long string starting with "eyJ"
 
-Both are safe to show me, they are meant to ship inside the app. Hold them for
-your final report.
+**Both of these are safe to show me and I want them.** They ship inside the
+app and are readable by anyone who inspects a build, so telling me is not a
+leak. This is the main thing I am asking you for.
 
-While you are on that page you will also see a service_role key. Ignore it
-completely, per the ground rules.
+If for any reason you cannot read or copy the anon key, do not skip it and do
+not summarise it. Stop on that exact screen with the key visible, tell me it is
+on screen, and let me copy it myself. Then carry on.
+
+On that same page you will also see a service_role key, sometimes labelled
+"secret". That one is not mine to use and Ampora never touches it, so skip it
+entirely per the ground rules. Two keys, one screen, I only want the first.
 
 ## Step 3: add the app's redirect URL
 
@@ -125,8 +138,10 @@ from files on my machine, so I only need to know the current state.
 Give me, in this order:
 
 1. Whether the project was paused and is now active.
-2. The Project URL.
-3. The anon / public key.
+2. The Project URL, written out in full.
+3. The anon / public key, written out in full. Do not truncate it, do not
+   abbreviate it with an ellipsis, and do not describe it. I need to paste it
+   into a config file, so I need the actual string.
 4. Confirmation that ampora://auth/callback was added.
 5. Whether Google sign-in is now enabled, and confirmation that you pasted the
    client secret without displaying it.
@@ -134,8 +149,12 @@ Give me, in this order:
 7. Anything that did not work, or any page that looked different from what I
    described, with what you actually saw.
 
-Do not include the service_role key, the database password, or the Google
-client secret in that report. If you think you need to, you do not.
+Items 2 and 3 are the whole reason I asked you to do this, so do not leave them
+out or soften them.
+
+The only things to keep out of that report are the service_role key, the
+database password, and the Google client secret. None of those go anywhere
+near the app, so I have no use for them.
 ```
 
 ---
