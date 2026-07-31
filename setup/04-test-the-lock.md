@@ -116,6 +116,17 @@ Each item below is a real way this kind of feature breaks. Go through them in or
 - [ ] **11. Errors fail open, never fail locked.** Also hard to trigger by hand, ask Claude Code to force an error in the shield-apply code path for this one specifically. **Pass:** the result is unlocked and it gets logged somewhere, never stuck behind a lock screen because of an internal error.
 - [ ] **12. Protected apps can never be picked.** In the app picker, try to select "All Apps" as a category, or look specifically for Phone, Messages, Maps, Settings, or Ampora itself. **Pass:** an all-apps selection gets refused, and none of those specific ones are ever selectable.
 
+## While the phone is in hand: four typography spots to eyeball
+
+The app switched typeface from Inter to Lexend. Lexend is a wider face, so text that used to fit on one line may now wrap. Nothing can confirm this from a Windows machine, so check these four while a real device is in front of you. None of them is a crash, they are all "does this look broken".
+
+1. **A long task title on a task card.** `components/ui/TaskCard.tsx` allows two lines. A title that used to fit on one may now take two and push the card taller.
+2. **The dense week column on the calendar.** This is the most exposed of the four. `components/calendar/CalendarBlock.tsx` switches to a compressed treatment under 56px wide and shows roughly the first six characters. That is a fixed **character** count, and a wider typeface means six characters now measure wider, so they may not fit the space the number six was chosen for. Look at a full Week view and check nothing is clipped mid-letter.
+3. **The lock banner**, the "Instagram and 2 more are locked, 12 min left" line. It is one continuous sentence, so it either fits or wraps awkwardly.
+4. **The stake setup sheet**, where the option descriptions are the longest copy in the app.
+
+Also worth a look, and a judgement call rather than a bug: the smallest text in the app is 13px captions and 11px micro-labels, both at regular weight. The colour contrast is unchanged and still passes, but Lexend's letterforms at that size are a different reading experience from Inter's. If they feel thin on a real screen, the fix is bumping those two steps to medium weight, not changing the colour.
+
 ## When done for the session
 
 **Do this before committing anything, or the Windows machine breaks for everyone.** `native.config.json` must be all-false on every branch anyone else touches. If this step gets skipped and a flipped copy ends up committed, the Windows machine's typecheck and web build both break until someone notices and fixes it.
