@@ -37,6 +37,7 @@ Right now, on Windows, the app already works: it typechecks, the tests pass, and
 
 - **`01-apple.md`**: the Apple Developer account, the Family Controls entitlement (Development vs Distribution), and the honest answer to "should this be under the parent's account or an LLC."
 - **`02-supabase.md`**: the database, running migrations, where the `.env` keys come from, turning on Google and Apple sign-in, deploying the AI functions.
+- **`02b-browser-setup-prompt.md`**: a shortcut for most of `02`. A paste-able prompt for the Claude Chrome extension that wakes the project, adds the redirect URL, turns on Google sign-in, and hands back the two `.env` values. Read its warning about which keys are safe to share first, because they are not all the same. Use `02` directly if you would rather click through it yourself.
 - **`03-mac-setup.md`**: the one-time Mac setup, including the paste-able Claude Code prompt and the one manual file copy that can't be automated.
 - **`04-test-the-lock.md`**: building a real dev client and proving the app lock actually works on a real iPhone. The most concrete file here, read it end to end before starting.
 - **`05-revenuecat.md`**: turning on real subscriptions, and the one exact-string mistake that silently takes people's money without unlocking the app.
