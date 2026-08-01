@@ -47,16 +47,13 @@ export interface BaseEntity {
   syncState: SyncState
 }
 
-/** Soft energy classification used for task requirements and user energy state (PRD §9.5.8, §9.5.3). */
-export type EnergyLevel = 'low' | 'normal' | 'high'
-
 /** Task lifecycle status (PRD §9.4). Distinct from `ScheduledBlock['status']`, which tracks a placed session. */
 export type TaskStatus = 'todo' | 'doing' | 'done'
 
 /**
  * A clock-time window expressed as minutes-from-midnight (0-1439), NOT epoch ms.
- * Used for scheduling-hours windows, quiet hours, and energy-peak windows —
- * anything that repeats daily rather than pinning an absolute instant.
+ * Used for scheduling-hours windows and quiet hours — anything that repeats
+ * daily rather than pinning an absolute instant.
  */
 export interface TimeWindow {
   /** Minutes from midnight, inclusive. */
@@ -75,31 +72,88 @@ export interface SchedulingHours {
 }
 
 /**
- * Recurrence definition for repeating Tasks/Events (PRD §9.4, FR-15).
+ * Recurrence definition for repeating Tasks/Events (PRD §9.4, FR-15, FR-16).
  * Note: PRD §9.4's literal type omits 'yearly' though FR-15 prose mentions it;
  * implementing exactly the §9.4 literal here (daily/weekly/monthly) since
  * that is the authoritative schema section. Extend later if FR-15 is built
  * out with a 'yearly' freq.
+ *
+ * Occurrence expansion (daily/weekly/monthly, every-N, by-weekday, all three
+ * end conditions) lives in `core/recurrence.ts` — pure, portable, no I/O.
+ *
+ * IMPORTANT semantics of `count`: it is always "occurrences remaining
+ * starting at (and including) the task's CURRENT `due`", not a fixed lifetime
+ * total pinned to when the rule was first created. At creation the two are
+ * identical (nothing has happened yet); `core/recurrence.ts#rollToNextOccurrence`
+ * decrements it by exactly 1 on every genuine completion so it stays accurate
+ * across many rollovers without needing a separate stored "original anchor" or
+ * "occurrences so far" field on `Task`. `core/scheduler/recompute.ts` and
+ * `core/recovery.ts` both rely on this same interpretation.
  */
 export interface RecurrenceRule {
   freq: 'daily' | 'weekly' | 'monthly'
   /** Repeat every N units of `freq` (e.g. interval 2 + freq 'weekly' = biweekly). */
   interval: number
-  /** For weekly recurrence: which days of week (0-6, 0 = Sunday). */
+  /**
+   * For weekly recurrence: which days of week (0-6, 0 = Sunday) this repeats
+   * on (defaults to the anchor's own weekday when unset). For daily
+   * recurrence: an OPTIONAL restriction to only these weekdays — this is how
+   * "every weekday" is represented (`freq:'daily', interval:1,
+   * byWeekday:[1,2,3,4,5]`). Not meaningful for monthly recurrence (ignored).
+   */
   byWeekday?: number[]
   /** Epoch ms. Recurrence stops on/after this instant if set. */
   until?: number
-  /** Stops after this many occurrences if set. */
+  /** Stops after this many occurrences if set (see the `count` semantics note above). */
   count?: number
+  /**
+   * What the recurrence is anchored to (FR-15 "from-completion option"):
+   * - `'schedule'` (default when unset): the next occurrence's date comes
+   *   purely from the calendar rule (anchor date + N * interval),
+   *   independent of when the prior occurrence actually got done — "every
+   *   Monday" keeps landing on Monday even if you finish late.
+   * - `'completion'`: the next occurrence's date is computed from when the
+   *   CURRENT occurrence was actually completed (the chore case: "every 3
+   *   days after I finish it"). `byWeekday` is not meaningful in this mode
+   *   (there is no fixed weekday to align to when the cadence floats with
+   *   actual completion time) and is ignored.
+   */
+  anchor?: 'schedule' | 'completion'
+  /**
+   * Occurrence dates to skip without breaking the series (FR-15
+   * "exceptions"). Each entry is the epoch-ms LOCAL MIDNIGHT of the skipped
+   * occurrence's calendar date — matching `Occurrence.date` as produced by
+   * `core/recurrence.ts#expandOccurrences`, not the occurrence's final
+   * windowed start time.
+   */
+  exceptions?: number[]
+  /**
+   * A per-occurrence clock-time window (minutes-from-midnight, the same
+   * `TimeWindow` convention as scheduling hours / quiet hours) each
+   * occurrence should be scheduled within on its date — e.g. "every day
+   * between 17:00 and 18:00". Falls back to the task's own scheduling hours /
+   * due-date placement when unset.
+   */
+  startWindow?: TimeWindow
+  /**
+   * FR-16: missed repeating occurrences default to DROP (do not stack two on
+   * the next occurrence). Set true to opt into carrying a missed occurrence's
+   * checklist/progress forward into the next one instead of resetting it to a
+   * fresh template. Default false/undefined = drop-missed.
+   */
+  carryForward?: boolean
 }
 
 /**
  * Attached grounding material for source-grounded breakdown (PRD §9.4, §9.7).
- * `extractedText` holds OCR/PDF-extracted or transcribed text once resolved.
+ * `extractedText` holds OCR/PDF-extracted text once resolved. Launch supports
+ * simple source grounding only — paste text, or attach a single document
+ * (`V2_Changes.md` §5 "Multi-modal source attachment"); photo/voice sources
+ * are deferred.
  */
 export interface SourceRef {
   id: string
-  type: 'text' | 'file' | 'photo' | 'voice'
+  type: 'text' | 'file'
   uri?: string
   extractedText?: string
 }
@@ -189,6 +243,28 @@ export interface Task extends BaseEntity {
   /** Epoch ms hard deadline ("the real deadline", not a reminder — PRD FR-12). */
   due?: number
   autoSchedule: boolean
+  /**
+   * True for a detail-less quick/voice capture that is missing a duration
+   * and/or a due date (PRD FR-5 "Inbox for detail-less quick capture; Inbox
+   * items are not scheduled until given a duration and due date"). The
+   * scheduler (`core/scheduler/ordering.ts`) only ever looks at
+   * `autoSchedule`/`due`, so this flag is how the TASK MODEL — not the
+   * engine — keeps a bare capture out of the undated-backfill pass: while
+   * `isInbox` is true, `autoSchedule` is forced false at creation
+   * (`store/taskStore.ts#createTask`). The moment the task gains BOTH a
+   * duration and a due date — via the editor, the Tasks tab's "Schedule"
+   * swipe action, or quick-add/voice parsing that supplied both up front —
+   * `store/taskStore.ts#updateTask` promotes it: `autoSchedule` flips to
+   * true and `isInbox` clears, for good.
+   *
+   * This is deliberately distinct from a task the user explicitly marked
+   * fixed (`autoSchedule: false` chosen on purpose, e.g. in the full task
+   * editor) or explicitly opted into undated backfill (PRD §9.5.8:
+   * `autoSchedule: true` with no due, also chosen on purpose) — both of
+   * those set `autoSchedule` explicitly at creation, so `isInbox` is false
+   * for them from the start and this flag never touches them again.
+   */
+  isInbox?: boolean
   listId?: string
   /** Back-reference to a Project (doc `10`); Milestone-1 stores the field only, no Project entity/logic yet. */
   projectId?: string
@@ -247,8 +323,6 @@ export interface Task extends BaseEntity {
   bufferAfterMin?: number
   /** Optional per-task display color token/hex, overriding list/tag color for this task's blocks (doc `02`). */
   color?: string
-  /** Soft energy requirement used for energy-aware placement (PRD §9.5.3 energyMismatchPenalty). */
-  energyRequired?: EnergyLevel
   /** Per-task override of which scheduling-hours windows this task may occupy (PRD FR-13). Falls back to Settings.schedulingHours when unset. */
   schedulingHours?: SchedulingHours
 }
@@ -313,61 +387,105 @@ export interface StakeApp {
 }
 
 /**
- * A single Ignition (app-locking) session (PRD §9.4, FR-41, FR-41b).
- * Per-device and independent — a lock on one device never locks another.
+ * What `applyShield` actually shields (doc `05` §7). Deliberately opaque: on
+ * iOS these are ApplicationToken / ActivityCategoryToken / WebDomainToken
+ * strings that Ampora can shield but can never resolve back to an app
+ * identity, so the UI shows a COUNT, never names (FR-40, NFR-4).
+ */
+export interface StakeSelection {
+  platform: 'ios' | 'android' | 'web'
+  applicationTokens: string[]
+  categoryTokens: string[]
+  webDomainTokens: string[]
+  /**
+   * Shown as "3 apps on the line". STORED, not derived: a keyed native picker
+   * may report a count we cannot recompute from the opaque tokens.
+   */
+  count: number
+  /** Handle for the native keyed picker, so the selection can be re-read from the App Group. */
+  selectionId?: string
+  /** Epoch ms the selection was picked, for token-mismatch diagnostics (doc `05` §3.6). */
+  pickedAt: number
+}
+
+/**
+ * One Ignition session (PRD §9.4, §9.9, FR-41; doc `04` §8). Per-device and
+ * independent (FR-41b), and only ONE may be active at a time (FR-41c).
+ *
+ * The unit of the lock is a FOCUS SESSION, which is what fixes the two failure
+ * modes of the old model: lock-until-start leaked (doing the 2-minute first
+ * move handed the apps back), and lock-until-done trapped (a real task runs
+ * longer than the wellbeing caps allow anyone to be locked).
  */
 export interface StakeSession {
   id: string
   taskId: string
   deviceId: string
-  mode: 'lock_until_start' | 'lock_until_done' | 'beat_the_clock'
-  completionCondition: 'first_move' | 'subtask' | 'task'
-  conditionRefId?: string
-  /** Beat-the-clock: minutes the user has to start. */
-  timerMinutes?: number
-  /** Beat-the-clock: bounded lock duration if the timer lapses; ends early on completion (FR-41). */
-  cooldownMinutes?: number
-  /** Calibrated stake strength, 0..1 (PRD §9.10, FR-44). */
+
+  /**
+   * `session` (default): locked for the focus-session length, unlocked by focus
+   * time SERVED IN THE FOREGROUND (FR-77b). `until_done` (opt-in, short tasks
+   * only): locked until a photo/screenshot passes a lenient plausibility check;
+   * if the single-session cap is hit first the lock converts to a normal
+   * session release (`session_served`). Wellbeing always wins (doc `04` §2/§7).
+   */
+  hold: 'session' | 'until_done'
+
+  /** `manual` = the user taps Start. `scheduled` = auto-arms at `scheduledAt` (FR-41a). */
+  trigger: 'manual' | 'scheduled'
+
+  /** hold='session' only. Default 45, clamped 15..50 (FR-41, §9.10 single-session cap). */
+  sessionMin?: number
+  /** Scheduled only: arm anyway if not started within X minutes of the cue (FR-41a). */
+  startWindowMin?: number
+  /** Scheduled trigger time, epoch ms. */
+  scheduledAt?: number
+
+  /** How the unlock is confirmed (FR-77). The session hold uses `focus_time`. */
+  verification: 'honor' | 'focus_time' | 'photo' | 'screenshot'
+
+  /** 0..1. A fixed sensible default plus one user control — NEVER auto-calibrated (FR-44). */
   strength: number
-  /** Epoch ms. */
-  startedAt: number
+
+  /**
+   * Epoch ms the lock actually armed. OPTIONAL because a `scheduled` stake
+   * exists — persisted and cued — before it ever starts.
+   */
+  startedAt?: number
   /** Epoch ms. */
   endedAt?: number
-  outcome?: 'completed' | 'panic_valve' | 'timed_out' | 'expired'
+
+  /** Foreground focus seconds served. The unlock currency for hold='session' (FR-77b). */
+  focusSec?: number
+
+  outcome?:
+    /** until_done proof passed, or the task was completed during the session. */
+    | 'completed'
+    | 'panic_valve'
+    /** A scheduled cue lapsed and its arm window closed without arming. */
+    | 'timed_out'
+    /** Daily cap / quiet hours / fail-safe release. */
+    | 'expired'
+    /** The session timer completed, or an until_done hold hit the single-session cap. */
+    | 'session_served'
 }
 
 /** A discrete event in a stake session's lifecycle, for the Proof Log / analytics (PRD §9.4, §9.9). */
 export interface LockEvent {
   id: string
   sessionId: string
-  type: 'shield_on' | 'shield_off' | 'panic_valve' | 'cooldown_start' | 'cap_reached' | 'quiet_hours_release'
+  type:
+    | 'shield_on'
+    | 'shield_off'
+    | 'panic_valve'
+    /** The required focus time was served (hold='session' unlock, §9.9). */
+    | 'session_complete'
+    /** A scheduled trigger armed the lock (FR-41a). */
+    | 'auto_arm'
+    | 'cap_reached'
+    | 'quiet_hours_release'
   /** Epoch ms. */
   at: number
-}
-
-/**
- * One observed behavioral data point feeding the Learning Engine (PRD §9.4,
- * FR-50). Powers Focus DNA, Revealed Self, Energy/State, and stake
- * calibration.
- */
-export interface BehavioralSignal {
-  id: string
-  taskType?: string
-  /** Epoch ms. */
-  plannedStart?: number
-  /** Epoch ms. */
-  actualStart?: number
-  /** 0-23. */
-  hourOfDay: number
-  /** 0-6, 0 = Sunday. */
-  dayOfWeek: number
-  completed: boolean
-  context?: {
-    energy?: 'low' | 'normal' | 'hyper'
-    afterGym?: boolean
-    sleepHours?: number
-  }
-  stakeOutcome?: StakeSession['outcome']
 }
 
 /**
@@ -404,118 +522,99 @@ export interface BreakdownMemory {
 }
 
 /**
- * A verification artifact for a stake's start/completion condition (PRD
- * §9.4, doc `09`). `aiVerdict` errs toward accepting (FR-78).
+ * A verification artifact for a stake's unlock (PRD §9.4, FR-77, doc `04` §4).
+ *
+ * THREE tiers, four method values: honor, focus-time (the default and the
+ * backbone of the session hold), and image proof as photo or screenshot.
+ * Word-count and screen-activity verification are deferred (`V2_Changes.md`
+ * §3); a persisted `word_count` / `screen_aware` row is REMAPPED, never
+ * dropped, by `store/migrations/proofs.ts` — the Proof Log is the user's own
+ * record of work done. `aiVerdict` errs toward accepting (FR-78).
  */
 export interface Proof {
   id: string
   sessionId: string
-  method: 'focus_time' | 'photo' | 'screenshot' | 'word_count' | 'screen_aware' | 'honor'
+  method: 'honor' | 'focus_time' | 'photo' | 'screenshot'
   uri?: string
+  /** Lenient: only 'uncertain' is ever surfaced, and an error reads as 'pass' (FR-78). */
   aiVerdict?: 'pass' | 'uncertain'
   overridden?: boolean
   /** Epoch ms. */
   at: number
 }
 
-// ---------------------------------------------------------------------------
-// Projects (Phase 7 — doc `10` Projects, PRD FR-82..86). A Project is the
-// knowledge + chat + progress layer; it GENERATES the daily Tasks the
-// scheduler places and Ignition locks against (`Task.projectId` back-refs the
-// project). Additive to the model above — nothing here changes existing types.
-//
-// These shapes follow doc `10` §12 (kind naming, phases for deliverables,
-// topic coverage+mastery for study) with `progress` modeled as a discriminated
-// union keyed on `kind`, so a project's progress representation is always
-// exactly the one its type implies. `Project` extends `BaseEntity` (it is an
-// independently-synced top-level entity); its embedded value objects
-// (ProjectFile, ChatMessage, Phase/Topic entries) do not.
-// ---------------------------------------------------------------------------
-
-/** What kind of project this is — determines progress shape and next-task logic (doc `10` §3). */
-export type ProjectKind = 'deliverable' | 'study' | 'general'
-
 /**
- * One file in a project's persistent knowledge base (doc `10` §4). Uploaded
- * PDFs, slide decks, notes, images/screenshots that stay in the project and are
- * understood collectively. `extractedText` holds the OCR/extraction result once
- * ingested; retrieval/embeddings are a later increment (doc `10` §13).
- * Embedded value object — no `BaseEntity` sync fields (syncs with the Project).
+ * A single on-device analytics event (PRD §10 "On-device event log"). Powers
+ * the two headline launch metrics only: session completion rate and
+ * time-to-start (median reminder/First-move-tap to first action). `type` is a
+ * free-form string tag (e.g. `'first_action'`, `'session_completed'`) rather
+ * than a closed union, since this is a lightweight local log, not a typed
+ * domain model — deliberately NOT a revival of the Learning Engine's
+ * behavioral-signal model (no derived profiles, no learning).
  */
-export interface ProjectFile {
+export interface AppEvent {
   id: string
-  name: string
-  type: 'text' | 'pdf' | 'image' | 'note'
-  /** Stored file location (e.g. Supabase storage / local uri), when the file has bytes. */
-  uri?: string
-  /** OCR/extraction result used as grounding context and for retrieval. */
-  extractedText?: string
-  /** Epoch ms this file was added. */
-  addedAt: number
-}
-
-/** A deliverable project's phase (doc `10` §12): linear-ish, each with a percent-complete 0..100. */
-export interface ProjectPhase {
-  id: string
-  title: string
-  /** Percent complete for this phase, 0..100. */
-  pct: number
-}
-
-/** A study project's topic (doc `10` §12): coverage/mastery map entry. `mastery` is 0..1. */
-export interface ProjectTopic {
-  id: string
-  title: string
-  /** Mastery level, 0..1, updated from self-report and quiz performance (doc `10` §6). */
-  mastery: number
-}
-
-/**
- * Progress representation, discriminated on `kind` so it always matches the
- * project's type (doc `10` §6):
- * - deliverable → ordered phases, each with its own percent.
- * - study → a topic coverage/mastery map.
- * - general → a single overall percent.
- */
-export type ProjectProgress =
-  | { kind: 'deliverable'; phases: ProjectPhase[] }
-  | { kind: 'study'; topics: ProjectTopic[] }
-  | { kind: 'general'; pct: number }
-
-/**
- * One turn in a project's scoped chat (doc `10` §5). The chat is the primary
- * controller and universal repair mechanism for the project. Embedded value
- * object, ordered by array position in `Project.chat`.
- */
-export interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  text: string
-  /** Epoch ms the message was sent. */
+  type: string
+  /** Epoch ms. */
   at: number
 }
 
+// ---------------------------------------------------------------------------
+// Projects (doc `06` Projects, PRD FR-82..85, FR-90). Deliberately thin: a
+// Project is an ordered phase list, one optional context line, and a percent
+// bar. Its only job is to generate one normal, schedulable Task per active
+// day (FR-84, `Task.projectId` back-refs here) — no file library, no project
+// chat, no ToolAction pipeline, no per-topic mastery tracking (all deferred,
+// `V2_Changes.md` §6). `Project` extends `BaseEntity` (an independently-
+// synced top-level entity); `Phase` is an embedded value object with no sync
+// fields of its own — it syncs with the Project.
+// ---------------------------------------------------------------------------
+
+/** What kind of project this is — shapes what the phase list means (doc `06` §3). */
+export type ProjectKind = 'deliverable' | 'study'
+
 /**
- * A Project: an ongoing AI workspace for one academic endeavor (doc `10`).
- * Holds a file knowledge base, a scoped chat, progress, project memory, and the
- * ids of the Tasks it has generated (which are the schedulable/lockable units).
+ * One ordered step in a project's phase list (doc `06` §9). For a deliverable
+ * this is a stage (Research, Outline, Draft, Revise, Final); for a study
+ * project it is a topic on the coverage list. Study projects are done-or-not
+ * per topic at launch — per-topic mastery tracking is deferred.
+ */
+export interface Phase {
+  id: string
+  title: string
+  done: boolean
+  /** Position in the ordered list, ascending. */
+  order: number
+}
+
+/**
+ * A Project (doc `06`): the thin structure-and-progress layer over an ordered
+ * phase list. It generates one normal, schedulable Task per active day
+ * (FR-84); the generated Tasks are what the scheduler places and Ignition
+ * locks against — never the project itself (doc `06` §6).
  */
 export interface Project extends BaseEntity {
-  name: string
+  title: string
   kind: ProjectKind
-  description?: string
-  /** Optional display color token/hex; projects use the "special/premium" accent by default (doc `02`). */
-  color?: string
-  /** Persistent knowledge base (doc `10` §4). */
-  files: ProjectFile[]
-  /** Progress, shaped by `kind` (doc `10` §6). */
-  progress: ProjectProgress
-  /** Scoped conversational history (doc `10` §5). */
-  chat: ChatMessage[]
-  /** Project memory: decisions, style, weak spots — local-first, never shared-model training (doc `10` §8). */
-  memory: string[]
-  /** Ids of Tasks this project generated (each `Task.projectId` back-refs here — doc `10` §7). */
-  taskIds: string[]
+  /**
+   * Due date or target date, epoch ms. Present in doc `06` §9 but missing
+   * from the PRD §9.4 code snippet (`type Project = { id, title, kind,
+   * contextLine?, phases, percent }` — no `deadline`) — kept here per doc
+   * `06`, which is more detailed and more recent; the PRD snippet should be
+   * reconciled to include it.
+   */
+  deadline?: number
+  /**
+   * A single optional paragraph of grounding context (doc `06` §2), e.g. "MLA
+   * format, topic is Cold War containment, 5 pages" — carries roughly 90% of
+   * what the deferred project knowledge base was for. Not a file system, not
+   * a chat.
+   */
+  contextLine?: string
+  /** Ordered phase (or, for a study project, topic) list, drafted by AI at creation and editable at any time like a task breakdown. */
+  phases: Phase[]
+  /** Completed phases plus the fraction of the current phase, 0..100 (doc `06` §5). */
+  percent: number
 }
 
 // ---------------------------------------------------------------------------
@@ -526,7 +625,7 @@ export interface Project extends BaseEntity {
  * App-wide settings and safety-layer configuration. PRD §9.4 defines the
  * Ignition/wellbeing fields; this also folds in the Milestone-1
  * app-preference fields the app needs day one (scheduling hours,
- * notification cadence, energy peak, display/theme, onboarding), per the
+ * notification cadence, display/theme, onboarding), per the
  * confirmed decision. Caps/quiet-hours/never-lock/stake-strength-bounds are
  * enforced both client- and server-side (not implemented here — types only
  * for the Ignition-related fields; Milestone 1 only reads/writes the
@@ -535,13 +634,27 @@ export interface Project extends BaseEntity {
 export interface Settings {
   // -- PRD §9.4 Ignition / wellbeing fields (enforcement is a later milestone) --
 
-  /** Hard ceiling on total lock minutes per day. Default 180. */
+  /** Hard ceiling on total lock minutes per day. Default 180, user-lowerable (FR-46). */
   dailyLockCapMin: number
+  /**
+   * Hard ceiling on ONE session's lock minutes. Default 50 (§9.10), so the
+   * daily cap is hard to hit by accident and an `until_done` hold can never
+   * become a marathon — it converts to a normal session release at this cap.
+   */
+  singleSessionCapMin: number
+  /** Default focus-session length in minutes for a new stake. Default 45, clamped 15..`singleSessionCapMin` (FR-41). */
+  defaultSessionMin: number
   /** Minutes-from-midnight window; stakes auto-release during quiet hours. */
   quietHours: TimeWindow
   /** Categories that must never be lockable: phone, messages, maps, accessibility, OS settings, Ampora itself. */
   neverLockCategories: string[]
-  stakeStrengthBounds: { min: number; max: number }
+  /**
+   * The user's single stake-strength control, 0..1 (FR-44). Default 0.6.
+   * De-escalation lowers it; nothing ever auto-raises it. Replaces the old
+   * `stakeStrengthBounds` — the bounds are a code constant
+   * (`core/blocking/limits.ts#STAKE_STRENGTH_BOUNDS`), not user data.
+   */
+  stakeStrength: number
   subscription: {
     status: 'trial' | 'active' | 'lapsed'
     plan?: 'monthly' | 'annual'
@@ -581,8 +694,6 @@ export interface Settings {
    * nags again, even if permission stays denied (PRD §8.9 anti-nag rule).
    */
   notificationNudgeDismissed?: boolean
-  /** The user's self-reported or inferred best-focus window (PRD §3.1, §9.5.8, FR-55). */
-  energyPeak: TimeWindow
   displayName?: string
   themePreference: 'light' | 'dark' | 'system'
   /** Whether the user has completed the onboarding flow (PRD §8.10). */
@@ -632,25 +743,20 @@ export interface Settings {
 
 // ---------------------------------------------------------------------------
 // Agentic project-chat tool actions (Phase 5 AI Round B — doc `10` §5, doc
-// `08` portable engine). The project chat is an agentic PLANNER: it can
-// organize the study plan AND act on it via a small, closed vocabulary of
-// tool calls that the CLIENT validates and applies against the existing store
-// APIs (no MCP server this round — tools execute on-device, local-first).
-//
-// The wire contract is `ai-project-chat` -> { reply, actions: ToolAction[] };
-// each action is validated (shape + referenced ids must exist) and dropped
-// silently if invalid, then applied via taskStore / projectStore, with an
-// inverse captured so the whole turn is one-tap Undoable. Field names below
-// match the REAL entity fields (Subtask uses `estimatedMin`; the first move is
-// a `StarterAction` whose copy lives in `.text`; a task's earliest-start is
-// `Task.startAfter`; a deliverable phase is `ProjectPhase{title,pct}` with its
-// id assigned by the store).
+// `08` portable engine). CUT FOR LAUNCH (`V2_Changes.md` §6 "Project chat / AI
+// assistant with ToolActions") — the validator/executor (`core/ai-actions.ts`)
+// and the chat UI (`components/projects/ProjectChat.tsx`) are removed. The type
+// is kept, unused, as the shape to revive against if/when the project chat
+// returns; nothing in the app constructs or consumes a `ToolAction` today.
 // ---------------------------------------------------------------------------
 
 /**
- * A single agent action proposed by the project chat, applied client-side.
- * Discriminated on `type`. All ids reference existing entities; unknown or
- * malformed actions are dropped by the validator (`core/ai-actions.ts`).
+ * A single agent action the (currently cut) project chat could propose,
+ * applied client-side. Discriminated on `type`. Field names match the REAL
+ * entity fields (Subtask uses `estimatedMin`; the first move is a
+ * `StarterAction` whose copy lives in `.text`; a task's earliest-start is
+ * `Task.startAfter`; a deliverable phase is `ProjectPhase{title,pct}` with its
+ * id assigned by the store).
  */
 export type ToolAction =
   /** Create a new task, optionally linked to a project, with a duration/deadline. */

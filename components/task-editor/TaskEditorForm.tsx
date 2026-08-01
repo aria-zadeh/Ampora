@@ -17,7 +17,7 @@ import { StarterActionCard } from "@/components/ui/StarterActionCard";
 import { SkeletonLoader } from "@/components/ui/SkeletonLoader";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { newId } from "@/core/id";
@@ -30,9 +30,14 @@ import {
 } from "@/services/ai";
 import { useTaskStore } from "@/store/taskStore";
 import { useListStore, selectListById } from "@/store/listStore";
-import type { EnergyLevel, Subtask, Task } from "@/types";
+import type { RecurrenceRule, Subtask, Task } from "@/types";
 
-import { Stepper, formatMinutes } from "@/components/settings/SettingsPrimitives";
+import {
+  Stepper,
+  Toggle,
+  InlineSegmented,
+  formatMinutes,
+} from "@/components/settings/SettingsPrimitives";
 import { PrioritySelector } from "./PrioritySelector";
 import { ListTagPicker } from "./ListTagPicker";
 import { SubtaskChecklist } from "./SubtaskChecklist";
@@ -86,12 +91,6 @@ export function asTaskView(draft: Partial<Task>): Task {
     ...draft,
   };
 }
-
-const ENERGY_OPTIONS: { value: EnergyLevel; label: string }[] = [
-  { value: "low", label: "Low" },
-  { value: "normal", label: "Normal" },
-  { value: "high", label: "High" },
-];
 
 const COLOR_SWATCHES = [
   "#2563EB",
@@ -174,6 +173,421 @@ function Divider() {
 }
 
 // ---------------------------------------------------------------------------
+// Repeat (FR-15/FR-16, PRD §8.3 "Repeat", doc 03 §2.9)
+//
+// Leads with the presets most people actually want ("every weekday", "every
+// Monday") and keeps the full rule — interval, by-weekday, all three end
+// conditions, from-completion anchoring, a per-occurrence time window, and
+// the FR-16 carry-forward toggle — behind a single "Edit details" disclosure
+// so the common case stays a one-tap pill row. `exceptions` (skip a single
+// occurrence without breaking the series) is implemented end-to-end in
+// `core/recurrence.ts` and the scheduler, but is deliberately NOT exposed
+// here: skipping one occurrence is a calendar-block-level action ("skip this
+// one"), not a task-editor rule setting, and the calendar surface is owned by
+// another workstream.
+// ---------------------------------------------------------------------------
+
+type RepeatPresetKey = "never" | "daily" | "weekdays" | "weekly" | "monthly" | "custom";
+
+const REPEAT_PRESETS: { key: RepeatPresetKey; label: string }[] = [
+  { key: "never", label: "Never" },
+  { key: "daily", label: "Daily" },
+  { key: "weekdays", label: "Weekdays" },
+  { key: "weekly", label: "Weekly" },
+  { key: "monthly", label: "Monthly" },
+  { key: "custom", label: "Custom" },
+];
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
+
+function sameWeekdaySet(a: number[] | undefined, b: number[]): boolean {
+  if (!a || a.length !== b.length) return false;
+  const sa = [...a].sort((x, y) => x - y);
+  const sb = [...b].sort((x, y) => x - y);
+  return sa.every((v, i) => v === sb[i]);
+}
+
+/** Which preset pill (if any) the current rule matches, so the row reflects state correctly in edit mode. */
+function detectRepeatPreset(rule: RecurrenceRule | undefined, dueWeekday: number): RepeatPresetKey {
+  if (!rule) return "never";
+  const isPlain =
+    rule.until == null &&
+    rule.count == null &&
+    (rule.anchor == null || rule.anchor === "schedule") &&
+    (rule.exceptions == null || rule.exceptions.length === 0) &&
+    rule.startWindow == null &&
+    !rule.carryForward;
+  if (!isPlain) return "custom";
+  if (rule.freq === "daily" && rule.interval === 1 && !rule.byWeekday) return "daily";
+  if (rule.freq === "daily" && rule.interval === 1 && sameWeekdaySet(rule.byWeekday, [1, 2, 3, 4, 5])) {
+    return "weekdays";
+  }
+  if (rule.freq === "weekly" && rule.interval === 1 && sameWeekdaySet(rule.byWeekday, [dueWeekday])) {
+    return "weekly";
+  }
+  if (rule.freq === "monthly" && rule.interval === 1 && !rule.byWeekday) return "monthly";
+  return "custom";
+}
+
+function presetRule(
+  key: Exclude<RepeatPresetKey, "custom">,
+  dueWeekday: number
+): RecurrenceRule | undefined {
+  switch (key) {
+    case "never":
+      return undefined;
+    case "daily":
+      return { freq: "daily", interval: 1 };
+    case "weekdays":
+      return { freq: "daily", interval: 1, byWeekday: [1, 2, 3, 4, 5] };
+    case "weekly":
+      return { freq: "weekly", interval: 1, byWeekday: [dueWeekday] };
+    case "monthly":
+      return { freq: "monthly", interval: 1 };
+  }
+}
+
+function defaultCustomRule(dueWeekday: number): RecurrenceRule {
+  return { freq: "weekly", interval: 1, byWeekday: [dueWeekday] };
+}
+
+/** Plain-English one-liner shown under the preset row once repeat is on. */
+function describeRepeatRule(rule: RecurrenceRule): string {
+  const unit = rule.freq === "daily" ? "day" : rule.freq === "weekly" ? "week" : "month";
+  let text = rule.interval > 1 ? `Every ${rule.interval} ${unit}s` : `Every ${unit}`;
+  if (rule.freq !== "monthly" && rule.byWeekday && rule.byWeekday.length > 0) {
+    text += ` on ${[...rule.byWeekday]
+      .sort((a, b) => a - b)
+      .map((d) => WEEKDAY_SHORT[d])
+      .join(", ")}`;
+  }
+  if (rule.count != null) {
+    text += `, ${rule.count} time${rule.count === 1 ? "" : "s"} left`;
+  } else if (rule.until != null) {
+    text += `, until ${new Date(rule.until).toLocaleDateString()}`;
+  }
+  if (rule.anchor === "completion") text += " · counts from when you finish it";
+  if (rule.carryForward) text += " · missed ones carry forward";
+  return text;
+}
+
+/** Converts a minutes-from-midnight value to a today-dated Date, for the time-mode DateTimePicker. */
+function minutesToDate(minutes: number): Date {
+  const d = new Date();
+  d.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return d;
+}
+
+function RepeatControl({
+  value,
+  dueDate,
+  onChange,
+}: {
+  value: RecurrenceRule | undefined;
+  dueDate: number | undefined;
+  onChange: (next: RecurrenceRule | undefined) => void;
+}) {
+  const dueWeekday = dueDate ? new Date(dueDate).getDay() : new Date().getDay();
+  const preset = detectRepeatPreset(value, dueWeekday);
+  const [customOpen, setCustomOpen] = useState(preset === "custom");
+
+  const selectPreset = (key: RepeatPresetKey) => {
+    Haptics.selectionAsync().catch(() => {});
+    if (key === "custom") {
+      onChange(value ?? defaultCustomRule(dueWeekday));
+      setCustomOpen(true);
+      return;
+    }
+    setCustomOpen(false);
+    onChange(presetRule(key, dueWeekday));
+  };
+
+  const patchRule = (p: Partial<RecurrenceRule>) => {
+    const base = value ?? defaultCustomRule(dueWeekday);
+    onChange({ ...base, ...p });
+  };
+
+  const toggleWeekday = (day: number) => {
+    const base = value ?? defaultCustomRule(dueWeekday);
+    const current = base.byWeekday ?? [];
+    const next = current.includes(day)
+      ? current.filter((d) => d !== day)
+      : [...current, day].sort((a, b) => a - b);
+    patchRule({ byWeekday: next.length > 0 ? next : undefined });
+  };
+
+  const endMode: "never" | "count" | "until" =
+    value?.count != null ? "count" : value?.until != null ? "until" : "never";
+
+  return (
+    <View className="gap-3">
+      {/* Presets */}
+      <View
+        className="flex-row flex-wrap gap-2"
+        accessibilityRole="radiogroup"
+        accessibilityLabel="Repeat"
+      >
+        {REPEAT_PRESETS.map((opt) => {
+          const active = preset === opt.key;
+          return (
+            <Pressable
+              key={opt.key}
+              onPress={() => selectPreset(opt.key)}
+              className={
+                active
+                  ? "rounded-full border border-primary-300 bg-primary-100 px-3.5 py-2"
+                  : "rounded-full border border-neutral-200 bg-white px-3.5 py-2"
+              }
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={`Repeat ${opt.label}${active ? ", selected" : ""}`}
+            >
+              <Text
+                className={
+                  active
+                    ? "text-label font-semibold text-primary-700"
+                    : "text-label font-medium text-neutral-600"
+                }
+              >
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {value ? (
+        <>
+          <Text
+            className="text-caption text-neutral-500"
+            accessibilityLabel={`Repeat summary: ${describeRepeatRule(value)}`}
+          >
+            {describeRepeatRule(value)}
+          </Text>
+
+          <PressableScale
+            onPress={() => setCustomOpen((v) => !v)}
+            haptic="selection"
+            className="flex-row items-center gap-1.5 self-start"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: customOpen }}
+            accessibilityLabel={customOpen ? "Hide repeat details" : "Edit repeat details"}
+          >
+            <Text className="text-label font-medium text-primary-600">
+              {customOpen ? "Hide details" : "Edit details"}
+            </Text>
+            <Ionicons name={customOpen ? "chevron-up" : "chevron-down"} size={14} color={colors.light.primary} />
+          </PressableScale>
+
+          {customOpen ? (
+            <View className="gap-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+              {/* Frequency */}
+              <View className="flex-row items-center justify-between">
+                <Text className="text-label font-medium text-neutral-800">Frequency</Text>
+                <InlineSegmented
+                  value={value.freq}
+                  options={[
+                    { key: "daily", label: "Day" },
+                    { key: "weekly", label: "Week" },
+                    { key: "monthly", label: "Month" },
+                  ]}
+                  onChange={(freq) =>
+                    patchRule({ freq, byWeekday: freq === "monthly" ? undefined : value.byWeekday })
+                  }
+                  a11yLabel="Repeat frequency"
+                />
+              </View>
+
+              {/* Interval */}
+              <View className="flex-row items-center justify-between">
+                <Text className="text-label font-medium text-neutral-800">Every</Text>
+                <Stepper
+                  value={value.interval}
+                  min={1}
+                  max={30}
+                  step={1}
+                  onChange={(interval) => patchRule({ interval })}
+                  format={(v) =>
+                    `${v} ${value.freq === "daily" ? "day" : value.freq === "weekly" ? "week" : "month"}${
+                      v === 1 ? "" : "s"
+                    }`
+                  }
+                  a11yLabel="repeat interval"
+                />
+              </View>
+
+              {/* By weekday (daily/weekly only) */}
+              {value.freq !== "monthly" ? (
+                <View className="gap-2">
+                  <Text className="text-label font-medium text-neutral-800">
+                    {value.freq === "daily" ? "Only on these days (optional)" : "On these days"}
+                  </Text>
+                  <View className="flex-row gap-1.5">
+                    {WEEKDAY_LETTER.map((letter, day) => {
+                      const active = (value.byWeekday ?? []).includes(day);
+                      return (
+                        <Pressable
+                          key={day}
+                          onPress={() => toggleWeekday(day)}
+                          className={`h-9 w-9 items-center justify-center rounded-full border ${
+                            active ? "border-primary-500 bg-primary-600" : "border-neutral-200 bg-white"
+                          }`}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: active }}
+                          accessibilityLabel={WEEKDAY_SHORT[day]}
+                        >
+                          <Text
+                            className={
+                              active
+                                ? "text-label font-semibold text-white"
+                                : "text-label font-medium text-neutral-600"
+                            }
+                          >
+                            {letter}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+
+              {/* Ends */}
+              <View className="gap-2">
+                <Text className="text-label font-medium text-neutral-800">Ends</Text>
+                <InlineSegmented
+                  value={endMode}
+                  options={[
+                    { key: "never", label: "Never" },
+                    { key: "count", label: "After N" },
+                    { key: "until", label: "On date" },
+                  ]}
+                  onChange={(mode) => {
+                    if (mode === "never") patchRule({ count: undefined, until: undefined });
+                    else if (mode === "count") patchRule({ count: value.count ?? 10, until: undefined });
+                    else patchRule({ until: value.until ?? Date.now(), count: undefined });
+                  }}
+                  a11yLabel="Repeat end condition"
+                />
+                {endMode === "count" ? (
+                  <Stepper
+                    value={value.count ?? 10}
+                    min={1}
+                    max={365}
+                    step={1}
+                    onChange={(count) => patchRule({ count })}
+                    format={(v) => `${v} time${v === 1 ? "" : "s"}`}
+                    a11yLabel="number of occurrences"
+                  />
+                ) : null}
+                {endMode === "until" ? (
+                  <DateTimePickerCrossPlatform
+                    mode="date"
+                    value={value.until ? new Date(value.until) : new Date()}
+                    onChange={(d) => patchRule({ until: d.getTime() })}
+                    accessibilityLabel="Repeat end date"
+                  />
+                ) : null}
+              </View>
+
+              {/* From-completion anchor */}
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1 pr-3">
+                  <Text className="text-label font-medium text-neutral-800">
+                    Count from when I finish
+                  </Text>
+                  <Text className="mt-0.5 text-caption text-neutral-500">
+                    Off: always the same day. On: the clock starts once you complete it.
+                  </Text>
+                </View>
+                <Toggle
+                  value={value.anchor === "completion"}
+                  onChange={(on) => patchRule({ anchor: on ? "completion" : "schedule" })}
+                  a11yLabel="Count the repeat from when I finish it"
+                />
+              </View>
+
+              {/* Per-occurrence time window */}
+              <View className="gap-2">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1 pr-3">
+                    <Text className="text-label font-medium text-neutral-800">
+                      Only within a time window
+                    </Text>
+                    <Text className="mt-0.5 text-caption text-neutral-500">
+                      Keep every occurrence inside a set time of day.
+                    </Text>
+                  </View>
+                  <Toggle
+                    value={!!value.startWindow}
+                    onChange={(on) =>
+                      patchRule({
+                        startWindow: on
+                          ? { start: value.startWindow?.start ?? 9 * 60, end: value.startWindow?.end ?? 17 * 60 }
+                          : undefined,
+                      })
+                    }
+                    a11yLabel="Limit each occurrence to a time window"
+                  />
+                </View>
+                {value.startWindow ? (
+                  <View className="flex-row gap-3">
+                    <View className="flex-1">
+                      <Text className="mb-1 text-caption text-neutral-500">From</Text>
+                      <DateTimePickerCrossPlatform
+                        mode="time"
+                        value={minutesToDate(value.startWindow.start)}
+                        onChange={(d) =>
+                          patchRule({
+                            startWindow: { ...value.startWindow!, start: d.getHours() * 60 + d.getMinutes() },
+                          })
+                        }
+                        accessibilityLabel="Window start time"
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="mb-1 text-caption text-neutral-500">Until</Text>
+                      <DateTimePickerCrossPlatform
+                        mode="time"
+                        value={minutesToDate(value.startWindow.end)}
+                        onChange={(d) =>
+                          patchRule({
+                            startWindow: { ...value.startWindow!, end: d.getHours() * 60 + d.getMinutes() },
+                          })
+                        }
+                        accessibilityLabel="Window end time"
+                      />
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Carry forward (FR-16) */}
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1 pr-3">
+                  <Text className="text-label font-medium text-neutral-800">
+                    Carry forward if missed
+                  </Text>
+                  <Text className="mt-0.5 text-caption text-neutral-500">
+                    Off (default): a missed one is dropped, not stacked onto the next.
+                  </Text>
+                </View>
+                <Toggle
+                  value={!!value.carryForward}
+                  onChange={(on) => patchRule({ carryForward: on })}
+                  a11yLabel="Carry forward a missed occurrence"
+                />
+              </View>
+            </View>
+          ) : null}
+        </>
+      ) : null}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -190,6 +604,15 @@ export function TaskEditorForm({
 
   // Track focus so inputs can lift their border to primary-500 while active.
   const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  // Whether the user actually touched the auto-schedule control THIS edit
+  // (vs. `draft.autoSchedule` merely echoing the value the task already had).
+  // The form always resubmits a full draft, so `store/taskStore.ts#updateTask`
+  // cannot otherwise tell a deliberate choice apart from a stale echo when it
+  // decides whether to force-promote an Inbox item's auto-schedule to true
+  // (FR-5). See `handleSave` below for how this rides along on the submitted
+  // draft.
+  const [autoScheduleTouched, setAutoScheduleTouched] = useState(false);
 
   // In edit mode subtasks live in the store (they persist without Save). Read
   // them live so toggles/adds reflect immediately. In create mode they live on
@@ -407,7 +830,6 @@ export function TaskEditorForm({
         notes: draft.notes,
         durationMin: draft.durationMin,
         due: draft.due,
-        energyRequired: draft.energyRequired,
       });
       applyBreakdown(result);
     } catch {
@@ -488,8 +910,18 @@ export function TaskEditorForm({
   const titleValid = (draft.title ?? "").trim().length > 0;
   const handleSave = () => {
     if (!titleValid) return;
-    // Ensure title is trimmed on the way out.
-    onSubmit({ ...draft, title: (draft.title ?? "").trim() });
+    // Ensure title is trimmed on the way out. `autoScheduleTouched` rides
+    // along on the submitted draft as a non-Task marker (stripped by
+    // `taskStore.updateTask` before it ever reaches persisted state) so the
+    // store can tell a deliberate auto-schedule choice apart from a stale
+    // echo of whatever the task already had — an explicit off must always
+    // win over the FR-5 inbox-promotion default.
+    const finalDraft: Partial<Task> & { autoScheduleTouched?: boolean } = {
+      ...draft,
+      title: (draft.title ?? "").trim(),
+    };
+    if (autoScheduleTouched) finalDraft.autoScheduleTouched = true;
+    onSubmit(finalDraft);
   };
 
   // --- Effective color chip preview --------------------------------------
@@ -512,7 +944,7 @@ export function TaskEditorForm({
                 "title"
               )} bg-white px-4 text-body-lg text-neutral-900`}
               placeholder="What needs doing?"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               value={draft.title ?? ""}
               onChangeText={(title) => patch({ title })}
               onFocus={() => setFocusedField("title")}
@@ -532,7 +964,7 @@ export function TaskEditorForm({
                 "notes"
               )} bg-white px-4 py-3 text-body-lg text-neutral-900`}
               placeholder="Add details (optional)"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               value={draft.notes ?? ""}
               onChangeText={(notes) => patch({ notes })}
               onFocus={() => setFocusedField("notes")}
@@ -597,7 +1029,7 @@ export function TaskEditorForm({
               accessibilityLabel="Break it down with AI"
               accessibilityState={{ disabled: !canBreakDown || breakingDown, busy: breakingDown }}
             >
-              <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+              <Ionicons name="sparkles" size={16} color={colors.light.primaryForeground} />
               <Text className="text-label font-semibold text-white">
                 {breakingDown
                   ? "Breaking it down…"
@@ -626,7 +1058,7 @@ export function TaskEditorForm({
                 entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
                 className="flex-row items-start gap-2 rounded-lg border border-warning-100 bg-warning-100/50 p-3"
               >
-                <Ionicons name="cloud-offline-outline" size={16} color="#C2410C" />
+                <Ionicons name="cloud-offline-outline" size={16} color={colors.light.warningStrong} />
                 <Text className="flex-1 text-caption text-warning-700">{aiNote}</Text>
               </Animated.View>
             ) : null}
@@ -640,7 +1072,7 @@ export function TaskEditorForm({
                 "firstMove"
               )} bg-white px-4 text-body-lg text-neutral-900`}
               placeholder="e.g. Open the doc and write one line"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               value={firstMoveText}
               onChangeText={setFirstMoveText}
               onFocus={() => setFocusedField("firstMove")}
@@ -702,7 +1134,7 @@ export function TaskEditorForm({
                         <Ionicons
                           name={loading ? "hourglass-outline" : "cut-outline"}
                           size={13}
-                          color="#2563EB"
+                          color={colors.light.primary}
                         />
                         <Text
                           className="max-w-[180px] text-caption font-medium text-neutral-700"
@@ -728,7 +1160,7 @@ export function TaskEditorForm({
                   <TextInput
                     className="min-h-12 rounded-md border border-primary-500 bg-white px-4 text-body-lg text-neutral-900"
                     placeholder='e.g. "break it down by function" or "step 2 is too big"'
-                    placeholderTextColor="#A8A29A"
+                    placeholderTextColor={colors.light.textDisabled}
                     value={refineText}
                     onChangeText={setRefineText}
                     returnKeyType="done"
@@ -768,7 +1200,7 @@ export function TaskEditorForm({
                   accessibilityRole="button"
                   accessibilityLabel="Refine the steps with an instruction"
                 >
-                  <Ionicons name="color-wand-outline" size={16} color="#2563EB" />
+                  <Ionicons name="color-wand-outline" size={16} color={colors.light.primary} />
                   <Text className="text-label font-medium text-primary-600">
                     Refine with an instruction
                   </Text>
@@ -790,11 +1222,13 @@ export function TaskEditorForm({
                 Let Ampora find time for this task.
               </Text>
             </View>
-            <Switch
+            <Toggle
               value={draft.autoSchedule ?? true}
-              onValueChange={(autoSchedule) => patch({ autoSchedule })}
-              trackColor={{ true: "#2563EB", false: "#D7D3CC" }}
-              accessibilityLabel="Auto-schedule"
+              onChange={(autoSchedule) => {
+                setAutoScheduleTouched(true);
+                patch({ autoSchedule });
+              }}
+              a11yLabel="Auto-schedule"
             />
           </View>
 
@@ -818,7 +1252,7 @@ export function TaskEditorForm({
                   "duration"
                 )} bg-white px-4 text-body-lg text-neutral-900`}
                 placeholder="e.g. 30"
-                placeholderTextColor="#A8A29A"
+                placeholderTextColor={colors.light.textDisabled}
                 value={
                   draft.durationMin != null && draft.durationMin > 0
                     ? String(draft.durationMin)
@@ -872,7 +1306,7 @@ export function TaskEditorForm({
                 accessibilityRole="button"
                 accessibilityLabel="Set a due date"
               >
-                <Ionicons name="calendar-outline" size={18} color="#6F6862" />
+                <Ionicons name="calendar-outline" size={18} color={colors.light.textMuted} />
                 <Text className="ml-2 text-body-lg text-neutral-500">
                   Set a deadline
                 </Text>
@@ -914,7 +1348,7 @@ export function TaskEditorForm({
                 accessibilityRole="button"
                 accessibilityLabel="Set a start-after date"
               >
-                <Ionicons name="time-outline" size={18} color="#6F6862" />
+                <Ionicons name="time-outline" size={18} color={colors.light.textMuted} />
                 <Text className="ml-2 text-body-lg text-neutral-500">
                   Set a start date
                 </Text>
@@ -935,7 +1369,7 @@ export function TaskEditorForm({
             <Switch
               value={draft.splittable ?? false}
               onValueChange={(splittable) => patch({ splittable })}
-              trackColor={{ true: "#2563EB", false: "#D7D3CC" }}
+              trackColor={{ true: colors.light.primary, false: colors.light.borderStrong }}
               accessibilityLabel="Split into sessions"
             />
           </View>
@@ -948,7 +1382,7 @@ export function TaskEditorForm({
                   <TextInput
                     className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 30"
-                    placeholderTextColor="#A8A29A"
+                    placeholderTextColor={colors.light.textDisabled}
                     value={draft.minBlockMin != null ? String(draft.minBlockMin) : ""}
                     onChangeText={(text) => {
                       const parsed = parseInt(text, 10);
@@ -964,7 +1398,7 @@ export function TaskEditorForm({
                   <TextInput
                     className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 90"
-                    placeholderTextColor="#A8A29A"
+                    placeholderTextColor={colors.light.textDisabled}
                     value={draft.maxBlockMin != null ? String(draft.maxBlockMin) : ""}
                     onChangeText={(text) => {
                       const parsed = parseInt(text, 10);
@@ -1023,6 +1457,15 @@ export function TaskEditorForm({
             </View>
           </View>
 
+          {/* Repeat (FR-15/FR-16) */}
+          <Field label="Repeat" helper="Have this task come back on its own">
+            <RepeatControl
+              value={draft.recurrence}
+              dueDate={draft.due}
+              onChange={(recurrence) => patch({ recurrence })}
+            />
+          </Field>
+
           {/* Depends on */}
           <Field
             label="Depends on"
@@ -1033,43 +1476,6 @@ export function TaskEditorForm({
               onChange={(dependsOn) => patch({ dependsOn })}
               selfId={taskId}
             />
-          </Field>
-
-          {/* Energy needed */}
-          <Field label="Energy needed">
-            <View className="flex-row gap-2">
-              {ENERGY_OPTIONS.map((opt) => {
-                const active = draft.energyRequired === opt.value;
-                return (
-                  <Pressable
-                    key={opt.value}
-                    onPress={() =>
-                      patch({
-                        energyRequired: active ? undefined : opt.value,
-                      })
-                    }
-                    className={
-                      active
-                        ? "flex-1 items-center rounded-md border border-accent-500 bg-accent-100 py-2.5"
-                        : "flex-1 items-center rounded-md border border-neutral-200 bg-white py-2.5"
-                    }
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
-                    accessibilityLabel={`Energy ${opt.label}`}
-                  >
-                    <Text
-                      className={
-                        active
-                          ? "text-label font-semibold text-accent-700"
-                          : "text-label font-medium text-neutral-500"
-                      }
-                    >
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
           </Field>
 
           {/* Color */}
@@ -1096,7 +1502,7 @@ export function TaskEditorForm({
                     style={{ backgroundColor: effectiveColor }}
                   />
                 ) : (
-                  <Ionicons name="sparkles-outline" size={13} color="#2563EB" />
+                  <Ionicons name="sparkles-outline" size={13} color={colors.light.primary} />
                 )}
                 <Text
                   className={`text-caption ${
@@ -1122,7 +1528,7 @@ export function TaskEditorForm({
                     accessibilityState={{ selected }}
                   >
                     {selected ? (
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
                     ) : null}
                   </Pressable>
                 );

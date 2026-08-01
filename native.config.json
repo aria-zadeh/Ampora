@@ -1,0 +1,5 @@
+{
+  "$comment": "PERMANENT INVARIANT: this file is committed with EVERY flag false on every shared branch, always. See native/README.md. Native builds are produced by the `-native` EAS profiles (which set AMPORA_NATIVE=1), never by committing a flipped flag. Flip locally with `npm run native:on` and flip back before committing.",
+  "ignitionNative": false,
+  "purchases": false
+}

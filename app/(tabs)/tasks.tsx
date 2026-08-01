@@ -17,11 +17,20 @@ import Animated, {
 import { useShallow } from "zustand/react/shallow";
 import { useTaskStore } from "@/store/taskStore";
 import { useListStore, selectAllLists, selectAllTags } from "@/store/listStore";
-import { useScheduleStore, selectMissedTaskIds } from "@/store/scheduleStore";
+import {
+  useScheduleStore,
+  selectAllBlocks,
+  selectMissedTaskIds,
+  selectUnschedulable,
+} from "@/store/scheduleStore";
+import { useStakesStore } from "@/store/stakesStore";
 import { parseQuickAdd } from "@/core/quick-add";
+import type { Unschedulable } from "@/core/scheduler";
 import { TaskCard } from "@/components/ui/TaskCard";
 import { TaskActionSheet } from "@/components/ui/TaskActionSheet";
+import { BrainDumpSheet } from "@/components/capture/BrainDumpSheet";
 import { ListEditorModal } from "@/components/settings/ListEditorModal";
+import { UnschedulableFixSheet } from "@/components/schedule/UnschedulableFixSheet";
 import { Input } from "@/components/ui/Input";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Chip } from "@/components/ui/Chip";
@@ -30,7 +39,9 @@ import { FAB } from "@/components/ui/FAB";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Heading } from "@/components/ui/Heading";
+import { PressableScale } from "@/components/ui/PressableScale";
 import { DURATIONS, SPRINGS, staggerDelay } from "@/utils/motion";
+import { listColors } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { Task } from "@/types";
 
@@ -88,6 +99,24 @@ function formatDueShort(due: number): string {
   return new Date(due).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+/** "3:00 PM" style clock time, for surfacing a quick-add-parsed time-of-day. */
+function formatClockTime(due: number): string {
+  return new Date(due).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+/**
+ * Due chip label for the quick-add preview. `matchDue` (core/quick-add.ts)
+ * defaults every date-only token to 23:59 local, so a due that ISN'T exactly
+ * 23:59 means the user typed an explicit clock time — surface it alongside
+ * the date instead of silently dropping it from the chip.
+ */
+function formatDueChipLabel(due: number): string {
+  const base = formatDueShort(due);
+  const d = new Date(due);
+  const hasExplicitTime = !(d.getHours() === 23 && d.getMinutes() === 59);
+  return hasExplicitTime ? `${base}, ${formatClockTime(due)}` : base;
+}
+
 /** "Tomorrow" due target (23:59 local), used by both swipe-left and the action sheet. */
 function tomorrowDue(now: number): number {
   const d = new Date(now);
@@ -116,6 +145,22 @@ type Row =
 // NL-parse hint chips shown when the quick-add field is focused (item 5).
 const QUICK_ADD_HINTS = ["tomorrow 3pm", "#list", "!high"];
 
+// FR-6 "due range" filter — user-selectable presets (relative to today),
+// distinct from the fixed Overdue/Today/This week/Later section buckets.
+const DUE_RANGE_PRESETS: { label: string; days: number }[] = [
+  { label: "Next 3 days", days: 3 },
+  { label: "Next 7 days", days: 7 },
+  { label: "Next 14 days", days: 14 },
+  { label: "Next 30 days", days: 30 },
+];
+
+type DueRange = { label: string; start: number; end: number };
+
+/** [today 00:00, today+(days-1) 23:59] — an inclusive "next N days" window. */
+function dueRangeFromDays(days: number): { start: number; end: number } {
+  return { start: startOfDay(Date.now()), end: endOfDayOffset(days - 1) };
+}
+
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
@@ -142,6 +187,7 @@ export default function TasksScreen() {
 
   const lists = useListStore(useShallow(selectAllLists));
   const tags = useListStore(useShallow(selectAllTags));
+  const createList = useListStore((s) => s.createList);
 
   const allTasks = useMemo(() => Object.values(tasksRecord), [tasksRecord]);
 
@@ -155,10 +201,23 @@ export default function TasksScreen() {
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>(0);
   const [missedFilter, setMissedFilter] = useState(false);
+  // FR-6 filters (new): tasks with no ScheduledBlock at all — distinct from
+  // the Inbox bucket (due == null). A dated task can still be unscheduled,
+  // which is exactly the at-risk case worth surfacing.
+  const [unscheduledFilter, setUnscheduledFilter] = useState(false);
+  // FR-6 "has-stake" / "Stakes active" filter — a task currently carrying a
+  // stake commitment (active or scheduled). See `stakedTaskIdSet` above.
+  const [hasStakeFilter, setHasStakeFilter] = useState(false);
+  // FR-6 "due range" filter — a user-selectable window, separate from the
+  // fixed Overdue/Today/This week/Later section buckets below.
+  const [dueRangeFilter, setDueRangeFilter] = useState<DueRange | null>(null);
+  const [dueRangeModalOpen, setDueRangeModalOpen] = useState(false);
   const [completedCollapsed, setCompletedCollapsed] = useState(true);
   const [scheduleFor, setScheduleFor] = useState<Task | null>(null);
   const [menuFor, setMenuFor] = useState<Task | null>(null);
   const [editListId, setEditListId] = useState<string | null>(null);
+  // Brain dump (FR-4, §8.2) — the mic entry point next to the quick-add field.
+  const [brainDumpOpen, setBrainDumpOpen] = useState(false);
 
   // Task ids that currently have a missed block (FR-16 "Missed" filter). Fresh
   // array from the store -> useShallow (Zustand v5) to avoid a React #185 loop.
@@ -171,9 +230,69 @@ export default function TasksScreen() {
     if (missedFilter && missedTaskIds.length === 0) setMissedFilter(false);
   }, [missedFilter, missedTaskIds.length]);
 
+  // FR-20: tasks the engine could not place, with why (never silently
+  // dropped — this is where that reason finally reaches the user). Raw
+  // select — `selectUnschedulable` returns the state field itself, not a
+  // derived array, so no useShallow is needed (project selector rule: raw
+  // fields don't need it, only .map/.filter/Object.values-style selectors do).
+  const unschedulable = useScheduleStore(selectUnschedulable);
+  // Keyed by taskId for O(1) per-row lookup. A recurring task can in
+  // principle collect more than one entry (one per failed future
+  // occurrence, `core/scheduler/recompute.ts`'s per-occurrence placement
+  // loop) — the first (earliest) one wins, since it's the soonest-actionable.
+  const unschedulableByTaskId = useMemo(() => {
+    const map = new Map<string, Unschedulable>();
+    for (const u of unschedulable) {
+      if (!map.has(u.taskId)) map.set(u.taskId, u);
+    }
+    return map;
+  }, [unschedulable]);
+  const [atRiskFilter, setAtRiskFilter] = useState(false);
+  const [atRiskFor, setAtRiskFor] = useState<Task | null>(null);
+  // Same auto-clear pattern as the Missed filter above: don't strand the
+  // user on an empty list once every at-risk task is resolved.
+  useEffect(() => {
+    if (atRiskFilter && unschedulableByTaskId.size === 0) setAtRiskFilter(false);
+  }, [atRiskFilter, unschedulableByTaskId]);
+
+  // All scheduled blocks, purely to know WHICH tasks have at least one (FR-6
+  // "Unscheduled" filter) — a task can be dated and still never placed by the
+  // engine (see `core/scheduler`), which is different from having no due date.
+  const allBlocks = useScheduleStore(useShallow(selectAllBlocks));
+  const scheduledTaskIdSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const b of allBlocks) s.add(b.taskId);
+    return s;
+  }, [allBlocks]);
+
+  // FR-6 "has-stake" / "Stakes active" filter: a task currently carrying a
+  // stake commitment — either the one live session right now, or a stake
+  // that's scheduled but not yet armed. Raw selects only (a primitive and the
+  // store's own record field itself, matching this file's own selector rule
+  // above `unschedulable` — the Object.values walk happens below in
+  // useMemo, never inside the selector, so this can't become a React #185
+  // loop). Historical `sessions` deliberately do NOT count: a task that once
+  // had a stake and doesn't anymore isn't "active."
+  const activeStakeTaskId = useStakesStore((s) => s.activeSession?.taskId ?? null);
+  const scheduledStakesRecord = useStakesStore((s) => s.scheduledStakes);
+  const stakedTaskIdSet = useMemo(() => {
+    const s = new Set<string>();
+    if (activeStakeTaskId) s.add(activeStakeTaskId);
+    for (const stake of Object.values(scheduledStakesRecord)) s.add(stake.taskId);
+    return s;
+  }, [activeStakeTaskId, scheduledStakesRecord]);
+
   const listColorById = useMemo(() => {
     const map: Record<string, string> = {};
     for (const l of lists) map[l.id] = l.color;
+    return map;
+  }, [lists]);
+
+  // Name lookup for search (item 3: list name is now a full-text search hit)
+  // and quick-add's #list resolution.
+  const listNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const l of lists) map[l.id] = l.name;
     return map;
   }, [lists]);
 
@@ -186,16 +305,36 @@ export default function TasksScreen() {
 
   const canAdd = !!preview && preview.title.length > 0;
 
+  // Resolve the quick-add "#list" token against existing lists, case-
+  // insensitively. `null` means the preview has a #list token that matches no
+  // existing list — the "will create" case, surfaced explicitly below rather
+  // than silently dropped or silently auto-created.
+  const matchedList = useMemo(() => {
+    if (!preview?.list) return null;
+    const lower = preview.list.toLowerCase();
+    return lists.find((l) => l.name.toLowerCase() === lower) ?? null;
+  }, [preview?.list, lists]);
+
   const handleAdd = useCallback(() => {
     if (!preview || preview.title.length === 0) return;
+    // #list resolution (item 1): match an existing list case-insensitively;
+    // otherwise create it now, honoring the "will create list X" preview the
+    // user just saw rather than silently dropping the token.
+    let listId: string | undefined;
+    if (preview.list) {
+      const lower = preview.list.toLowerCase();
+      const existing = lists.find((l) => l.name.toLowerCase() === lower);
+      listId = existing ? existing.id : createList({ name: preview.list, color: listColors.slate.bar }).id;
+    }
     createTask({
       title: preview.title,
       due: preview.due,
       durationMin: preview.durationMin ?? 0,
       priority: preview.priority,
+      listId,
     });
     setQuickText("");
-  }, [preview, createTask]);
+  }, [preview, createTask, createList, lists]);
 
   const applyHint = useCallback((hint: string) => {
     setQuickText((cur) => (cur.trim().length > 0 ? `${cur.trim()} ${hint}` : hint));
@@ -213,14 +352,42 @@ export default function TasksScreen() {
     // Filter.
     const filtered = allTasks.filter((t) => {
       if (q) {
+        // Full-text search (item 3): title, notes, subtask titles, tag names,
+        // and the task's list name — so searching a class name or a step
+        // finds the task, not just its own title/notes.
         const inTitle = t.title.toLowerCase().includes(q);
         const inNotes = (t.notes ?? "").toLowerCase().includes(q);
-        if (!inTitle && !inNotes) return false;
+        const inSubtasks = t.subtasks.some((st) => st.title.toLowerCase().includes(q));
+        const inTags = t.tags.some((tag) => tag.toLowerCase().includes(q));
+        const listName = t.listId ? listNameById[t.listId] : undefined;
+        const inList = listName != null && listName.toLowerCase().includes(q);
+        if (!inTitle && !inNotes && !inSubtasks && !inTags && !inList) return false;
       }
       if (listFilter && t.listId !== listFilter) return false;
       if (tagFilter && !t.tags.includes(tagFilter)) return false;
       if (priorityFilter !== 0 && t.priority !== priorityFilter) return false;
       if (missedFilter && !missedTaskIdSet.has(t.id)) return false;
+      // Unscheduled (FR-6): the task has zero ScheduledBlock entries. Distinct
+      // from the Inbox bucket (due == null) — a dated task can still be
+      // unschedulable/unplaced by the engine.
+      if (unscheduledFilter && scheduledTaskIdSet.has(t.id)) return false;
+      // At risk (FR-20): the engine tried to place this task and explicitly
+      // could not, with a specific reason — a stronger signal than
+      // "Unscheduled" above (which also matches a brand-new task recompute
+      // simply hasn't reached yet).
+      if (atRiskFilter && !unschedulableByTaskId.has(t.id)) return false;
+      // Due range (FR-6): a user-picked window, independent of the fixed
+      // Overdue/Today/This week/Later section buckets.
+      if (
+        dueRangeFilter &&
+        (t.due == null || t.due < dueRangeFilter.start || t.due > dueRangeFilter.end)
+      ) {
+        return false;
+      }
+      // Has-stake / "Stakes active" (FR-6): the task currently carries a
+      // stake commitment (active session or scheduled-but-not-armed). See
+      // `stakedTaskIdSet` above.
+      if (hasStakeFilter && !stakedTaskIdSet.has(t.id)) return false;
       if (statusFilter === "todo" && t.status === "done") return false;
       if (statusFilter === "done" && t.status !== "done") return false;
       return true;
@@ -331,6 +498,14 @@ export default function TasksScreen() {
     priorityFilter,
     missedFilter,
     missedTaskIdSet,
+    unscheduledFilter,
+    scheduledTaskIdSet,
+    hasStakeFilter,
+    stakedTaskIdSet,
+    atRiskFilter,
+    unschedulableByTaskId,
+    dueRangeFilter,
+    listNameById,
     completedCollapsed,
   ]);
 
@@ -428,6 +603,11 @@ export default function TasksScreen() {
     [updateTask],
   );
 
+  // FR-20: opens the reason + one-tap-fix sheet for an at-risk task.
+  const handleAtRiskTask = useCallback((task: Task) => {
+    setAtRiskFor(task);
+  }, []);
+
   // -------------------------------------------------------------------------
   // Row renderers.
   // -------------------------------------------------------------------------
@@ -480,6 +660,8 @@ export default function TasksScreen() {
             onDelete={handleDeleteTask}
             onSchedule={handleScheduleTask}
             onScheduleTomorrow={handleScheduleTomorrowTask}
+            atRisk={unschedulableByTaskId.get(item.task.id)}
+            onAtRisk={handleAtRiskTask}
           />
         </Animated.View>
       );
@@ -496,6 +678,8 @@ export default function TasksScreen() {
       handleDeleteTask,
       handleScheduleTask,
       handleScheduleTomorrowTask,
+      unschedulableByTaskId,
+      handleAtRiskTask,
       reduceMotion,
     ],
   );
@@ -549,6 +733,20 @@ export default function TasksScreen() {
             disabled={!canAdd}
             onPress={handleAdd}
           />
+          {/* Brain dump (FR-4, §8.2) — voice capture: record, transcribe,
+              parse, preview, confirm. Always present; BrainDumpSheet itself
+              handles the case where voice capture isn't available and keeps
+              the typed field above as the fallback. */}
+          <Pressable
+            onPress={() => setBrainDumpOpen(true)}
+            hitSlop={8}
+            className="h-11 w-11 items-center justify-center rounded-full bg-primary-50 border border-primary-100"
+            accessibilityRole="button"
+            accessibilityLabel="Brain dump"
+            accessibilityHint="Speak your tasks out loud instead of typing them"
+          >
+            <Ionicons name="mic-outline" size={20} color="#2563EB" />
+          </Pressable>
         </View>
 
         {/* NL-parse hint chips — only while the field is focused and empty of
@@ -572,10 +770,20 @@ export default function TasksScreen() {
               {preview.title || "…"}
             </Text>
             {preview.due != null && (
-              <Chip label={formatDueShort(preview.due)} />
+              <Chip label={formatDueChipLabel(preview.due)} />
             )}
             {preview.durationMin != null && preview.durationMin > 0 && (
               <Chip label={formatDuration(preview.durationMin)} />
+            )}
+            {/* #list token preview (item 1): a matched list shows its own
+                name/color; an unmatched name is surfaced honestly as
+                "will create" rather than silently dropped or silently
+                auto-created — it's created for real on Add. */}
+            {preview.list != null && matchedList && (
+              <Chip label={matchedList.name} color={matchedList.color} />
+            )}
+            {preview.list != null && !matchedList && (
+              <Chip label={`Will create list "${preview.list}"`} />
             )}
             {preview.priority != null && (
               <Badge label={PRIORITY_LABEL[preview.priority]} tone={PRIORITY_TONE[preview.priority as 1 | 2 | 3 | 4]} />
@@ -620,6 +828,40 @@ export default function TasksScreen() {
               onPress={() => setMissedFilter((m) => !m)}
             />
           )}
+          {/* At risk (FR-20) — same conditional-visibility pattern as Missed
+              above: only shown once the engine has actually flagged
+              something, never an always-there empty affordance. */}
+          {unschedulableByTaskId.size > 0 && (
+            <Chip
+              label="At risk"
+              color="#EA580C"
+              selected={atRiskFilter}
+              onPress={() => setAtRiskFilter((v) => !v)}
+            />
+          )}
+          {/* Unscheduled (FR-6) — a dated task with zero ScheduledBlocks; the
+              at-risk case that "Inbox" (undated) doesn't cover. */}
+          <Chip
+            label="Unscheduled"
+            selected={unscheduledFilter}
+            onPress={() => setUnscheduledFilter((v) => !v)}
+          />
+          {/* Due range (FR-6) — a user-selectable window (opens a small
+              preset picker), distinct from the fixed section buckets below. */}
+          <Chip
+            label={dueRangeFilter ? `Due: ${dueRangeFilter.label}` : "Due range"}
+            selected={dueRangeFilter != null}
+            onPress={() => setDueRangeModalOpen(true)}
+          />
+          {/* Stakes active (FR-6) — tasks currently carrying a stake
+              commitment. Always visible like Unscheduled/Due range above
+              (a normal browsing filter), not conditionally shown like
+              Missed/At risk (those are anomaly flags). */}
+          <Chip
+            label="Stakes active"
+            selected={hasStakeFilter}
+            onPress={() => setHasStakeFilter((v) => !v)}
+          />
           {/* Priority */}
           {([4, 3, 2, 1] as const).map((p) => (
             <Chip
@@ -731,6 +973,21 @@ export default function TasksScreen() {
         }}
       />
 
+      {/* Due range filter picker (FR-6) */}
+      <DueRangeModal
+        visible={dueRangeModalOpen}
+        activeLabel={dueRangeFilter?.label ?? null}
+        onClose={() => setDueRangeModalOpen(false)}
+        onSelect={(range) => {
+          setDueRangeFilter(range);
+          setDueRangeModalOpen(false);
+        }}
+        onClear={() => {
+          setDueRangeFilter(null);
+          setDueRangeModalOpen(false);
+        }}
+      />
+
       {/* Long-press context menu (item 3) */}
       <TaskActionSheet
         visible={menuFor != null}
@@ -750,6 +1007,16 @@ export default function TasksScreen() {
 
       {/* List editor (name / color / scheduling-hours override) */}
       <ListEditorModal listId={editListId} onClose={() => setEditListId(null)} />
+
+      {/* Brain dump (FR-4) — record, transcribe, parse, preview, confirm. */}
+      <BrainDumpSheet visible={brainDumpOpen} onClose={() => setBrainDumpOpen(false)} />
+
+      {/* FR-20: why a task couldn't be scheduled, plus one-tap fixes. */}
+      <UnschedulableFixSheet
+        task={atRiskFor}
+        info={atRiskFor ? unschedulableByTaskId.get(atRiskFor.id) : undefined}
+        onClose={() => setAtRiskFor(null)}
+      />
     </View>
   );
 }
@@ -775,6 +1042,39 @@ function ChevronSpring({ collapsed }: { collapsed: boolean }) {
     <Animated.View style={[{ marginRight: 6 }, style]}>
       <Ionicons name="chevron-forward" size={18} color="#6F6862" />
     </Animated.View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// At-risk pill (FR-20) — flags a task the engine could not place, with the
+// engine's own calm reason as the accessibility label so a screen-reader
+// user gets the full explanation without needing to open the sheet. Kept
+// deliberately small and non-alarming: icon + short label, warning (not
+// danger) tone, no red — this is the app explaining itself, not the user
+// having failed at anything.
+// ---------------------------------------------------------------------------
+
+function AtRiskPill({
+  task,
+  info,
+  onPress,
+}: {
+  task: Task;
+  info: Unschedulable;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      haptic="light"
+      className="mt-1.5 self-start flex-row items-center gap-1.5 rounded-full bg-warning-100 pl-2.5 pr-3 min-h-11"
+      accessibilityRole="button"
+      accessibilityLabel={`Couldn't schedule: ${task.title}. ${info.reason}`}
+      accessibilityHint="Opens ways to fix this so it can be scheduled"
+    >
+      <Ionicons name="alert-circle-outline" size={16} color="#C2410C" />
+      <Text className="text-caption font-medium text-warning-700">Couldn&apos;t schedule — fix it</Text>
+    </PressableScale>
   );
 }
 
@@ -805,6 +1105,9 @@ interface TaskRowProps {
   onDelete: (id: string) => void;
   onSchedule: (task: Task) => void;
   onScheduleTomorrow: (id: string) => void;
+  /** FR-20: present when the scheduler could not place this task this run. */
+  atRisk?: Unschedulable;
+  onAtRisk: (task: Task) => void;
 }
 
 function TaskRowImpl({
@@ -820,6 +1123,8 @@ function TaskRowImpl({
   onDelete,
   onSchedule,
   onScheduleTomorrow,
+  atRisk,
+  onAtRisk,
 }: TaskRowProps) {
   const swipeRef = useRef<Swipeable>(null);
   const isDone = task.status === "done";
@@ -830,6 +1135,13 @@ function TaskRowImpl({
   // The right-swipe (Complete) is a single full-commitment action with no
   // progressive "arming" of its own, so it needs no tracker.
   const leftArmed = useRef(false);
+
+  // An Inbox row (no due date, FR-5) has nothing to push "to tomorrow" — it
+  // needs its first duration/due assignment. Its left-swipe primary action is
+  // "Schedule" (opens `ScheduleModal` via `onSchedule`), per §8.5 ("an Inbox
+  // section with swipe action Schedule"); every other row keeps the existing
+  // "Tomorrow" quick-reschedule.
+  const isInbox = task.due == null;
 
   const close = useCallback(() => swipeRef.current?.close(), []);
 
@@ -874,9 +1186,10 @@ function TaskRowImpl({
     [isDone, handleCompleteSwipe],
   );
 
-  // Left-swipe = Schedule tomorrow + Delete (item 1). Icons peek progressively
-  // with drag distance via the `progress` interpolation; each button arms
-  // (haptic fires) once its own reveal threshold is crossed.
+  // Left-swipe = Schedule (Inbox rows) or Schedule-tomorrow (dated rows), plus
+  // Delete (item 1). Icons peek progressively with drag distance via the
+  // `progress` interpolation; each button arms (haptic fires) once its own
+  // reveal threshold is crossed.
   const renderLeft = useCallback(
     (progress: RNAnimated.AnimatedInterpolation<number>) => {
       const tomorrowOpacity = progress.interpolate({
@@ -924,14 +1237,15 @@ function TaskRowImpl({
               onPress={() => {
                 close();
                 Haptics.selectionAsync().catch(() => {});
-                onScheduleTomorrow(task.id);
+                if (isInbox) onSchedule(task);
+                else onScheduleTomorrow(task.id);
               }}
               className="w-full h-full items-center justify-center"
               accessibilityRole="button"
-              accessibilityLabel="Schedule tomorrow"
+              accessibilityLabel={isInbox ? "Schedule task" : "Schedule tomorrow"}
             >
-              <Ionicons name="sunny-outline" size={20} color="#FFFFFF" />
-              <Text className="text-tiny text-white mt-1">Tomorrow</Text>
+              <Ionicons name={isInbox ? "calendar-outline" : "sunny-outline"} size={20} color="#FFFFFF" />
+              <Text className="text-tiny text-white mt-1">{isInbox ? "Schedule" : "Tomorrow"}</Text>
             </Pressable>
           </RNAnimated.View>
           <RNAnimated.View
@@ -955,7 +1269,7 @@ function TaskRowImpl({
         </View>
       );
     },
-    [close, onDelete, onScheduleTomorrow, task.id],
+    [close, onDelete, onSchedule, onScheduleTomorrow, task, isInbox],
   );
 
   // Reset the armed tracker whenever the row closes, so the NEXT open swipe
@@ -972,6 +1286,7 @@ function TaskRowImpl({
   const handleOpen = useCallback(() => onOpen(task.id), [onOpen, task.id]);
   const handleLongPress = useCallback(() => onLongPress(task), [onLongPress, task]);
   const handleToggle = useCallback(() => onToggle(task), [onToggle, task]);
+  const handleAtRisk = useCallback(() => onAtRisk(task), [onAtRisk, task]);
 
   return (
     <View className="px-5 py-1">
@@ -1006,6 +1321,11 @@ function TaskRowImpl({
           />
         )}
       </Swipeable>
+      {/* FR-20: at-risk flag + explanation, rendered as a sibling below the
+          card rather than inside it (TaskCard has no slot for this) — tap
+          opens the reason + one-tap-fix sheet. Icon + text label, never
+          color alone (design-system status rule). */}
+      {atRisk && !isDone && <AtRiskPill task={task} info={atRisk} onPress={handleAtRisk} />}
     </View>
   );
 }
@@ -1231,6 +1551,62 @@ function endOfDayOffset(offsetDays: number): number {
   d.setDate(d.getDate() + offsetDays);
   d.setHours(23, 59, 0, 0);
   return d.getTime();
+}
+
+// ---------------------------------------------------------------------------
+// Due range filter picker (FR-6). A small preset-window picker, distinct from
+// the fixed Overdue/Today/This week/Later section buckets — mirrors
+// `ScheduleModal`'s bottom-sheet shape for visual consistency.
+// ---------------------------------------------------------------------------
+
+interface DueRangeModalProps {
+  visible: boolean;
+  /** Label of the currently-active preset, or null if no due-range filter is set. */
+  activeLabel: string | null;
+  onClose: () => void;
+  onSelect: (range: DueRange) => void;
+  onClear: () => void;
+}
+
+function DueRangeModal({ visible, activeLabel, onClose, onSelect, onClear }: DueRangeModalProps) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable
+        className="flex-1 bg-black/40 justify-end"
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss"
+      >
+        <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+          <View className="items-center mb-4">
+            <View className="w-10 h-1 rounded-full bg-neutral-200" />
+          </View>
+          <Heading size="h3">Due range</Heading>
+          <Text className="text-body text-neutral-500 mt-1 mb-5">
+            Show only tasks due in this window.
+          </Text>
+
+          <View className="flex-row flex-wrap gap-2 mb-6">
+            {DUE_RANGE_PRESETS.map((p) => (
+              <Chip
+                key={p.label}
+                label={p.label}
+                selected={activeLabel === p.label}
+                onPress={() => {
+                  const { start, end } = dueRangeFromDays(p.days);
+                  onSelect({ label: p.label, start, end });
+                }}
+              />
+            ))}
+          </View>
+
+          {activeLabel && (
+            <Button title="Clear due range" variant="secondary" onPress={onClear} />
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
 }
 
 interface ScheduleModalProps {

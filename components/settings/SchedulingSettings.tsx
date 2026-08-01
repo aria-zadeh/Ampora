@@ -20,6 +20,7 @@ import React, { useMemo } from 'react'
 import { View, Text } from 'react-native'
 import { useSettingsStore } from '@/store/settingsStore'
 import type { Settings } from '@/types'
+import { colors } from '@/utils/design-tokens'
 import {
   SectionLabel,
   SectionFootnote,
@@ -143,7 +144,7 @@ export function SchedulingSettings() {
       <Group>
         <Row
           icon="chevron-back-outline"
-          iconTint="#2563EB"
+          iconTint={colors.light.primary}
           iconBg="bg-primary-50"
           label="Buffer before"
           sublabel="Quiet time held before each block"
@@ -161,7 +162,7 @@ export function SchedulingSettings() {
         />
         <Row
           icon="chevron-forward-outline"
-          iconTint="#2563EB"
+          iconTint={colors.light.primary}
           iconBg="bg-primary-50"
           label="Buffer after"
           sublabel="Quiet time held after each block"
@@ -306,7 +307,7 @@ export function SchedulingSettings() {
           <Row
             key={line}
             icon={i === 0 ? 'time-outline' : 'ellipse-outline'}
-            iconTint="#16A34A"
+            iconTint={colors.light.successAccent}
             iconBg="bg-success-100"
             label={line}
             isLast={i === hoursSummary.length - 1}

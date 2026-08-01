@@ -1,0 +1,21 @@
+{
+  "$comment": "Read by scripts/native-toggle.js's `printOnInstructions()`, grouped by native.config.json flag. Lists npm packages a native build needs, so a Windows `npm install` never sees them (they are deliberately absent from the root package.json). The toggle script only PRINTS `npx expo install ...` lines from this file; it never runs them.",
+  "groups": {
+    "appleAuth": {
+      "description": "Sign in with Apple (FR-87 / PRD §9.1, mandatory per Apple guideline 4.8 because Google sign-in is also offered). `services/supabase.ts`'s `signInWithApple`/`isAppleSignInAvailable` resolve this package via a lazy require() call (never a static import — see that file's `resolveAppleAuthModule` docstring), matching the `react-native-purchases` precedent below, so this group being empty-of-effect on Windows/web never breaks tsc or `expo export --platform web`. Needs the `com.apple.developer.applesignin` entitlement added once a real bundle ID exists — not wired into app.config.ts by this change (same category of manual follow-up as the Family Controls entitlement: needs a bundle ID + Apple Developer capability that only exist on the native path). iOS only; never installed for the Android/web build. UNLIKE the `purchases` group below, this repo's `scripts/native-toggle.js` does not yet know about this group (its target list is hardcoded to ignition/purchases) — install with plain `npx expo install expo-apple-authentication` (no version pin needed/given here: it is an official Expo SDK package, so `expo install`, unlike a bare `npm install`, auto-resolves the version that actually matches the installed Expo SDK — do not trust a version number typed by an agent that could not run that command itself).",
+      "dependencies": {
+        "expo-apple-authentication": "*"
+      }
+    },
+    "ignition": {
+      "description": "native/modules/ampora-ignition is a from-scratch Expo module written directly against Apple's FamilyControls / ManagedSettings / DeviceActivity / ManagedSettingsUI frameworks plus expo-modules-core, both already present once `expo` itself is installed (which it is, on every branch). It does NOT wrap react-native-device-activity or expo-app-blocker (docs/05 §2 names those as an alternative starting point; this build went with the homegrown module instead so the exact session/hold/trigger model in docs/04 maps 1:1 without fighting a third-party package's own opinions). There is therefore nothing third-party to install for ignition today.",
+      "dependencies": {}
+    },
+    "purchases": {
+      "description": "Owned by the RevenueCat purchases workstream (ARCH_PLAN Part B7 / owner override: react-native-purchases, not expo-iap). core/iap/NativePurchaseStrategy.ts wraps this package's default export (configure/getOfferings/purchasePackage/restorePurchases/getCustomerInfo), resolved via a lazy require() call, never a static import (see that file's docstring). Metro's optional-package alias in metro.config.js already reserves 'react-native-purchases' for it. Version 10.5.0 is the latest published as of this writing (verified via `npm view react-native-purchases version`); confirm compatibility with the installed Expo SDK before `npx expo install`-ing it, since this repo could not run that command itself (Windows, no native build).",
+      "dependencies": {
+        "react-native-purchases": "^10.5.0"
+      }
+    }
+  }
+}

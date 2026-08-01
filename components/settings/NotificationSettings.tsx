@@ -28,7 +28,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
 import { useSettingsStore } from '@/store/settingsStore'
 import { getNotificationPermissionStatus } from '@/services/notifications'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { shadows } from '@/utils/design-tokens'
+import { colors, shadows } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
 import {
@@ -99,7 +99,7 @@ function PermissionNudge() {
     >
       <View className="flex-row items-start">
         <View className="h-9 w-9 items-center justify-center rounded-full bg-warning-100">
-          <Ionicons name="notifications-off-outline" size={18} color="#C2410C" />
+          <Ionicons name="notifications-off-outline" size={18} color={colors.light.warningStrong} />
         </View>
         <View className="ml-3 flex-1">
           <Text className="text-body-lg font-medium text-neutral-900">
@@ -177,7 +177,7 @@ export function NotificationSettings() {
       <Group>
         <Row
           icon="flash-outline"
-          iconTint="#2563EB"
+          iconTint={colors.light.primary}
           iconBg="bg-primary-50"
           label="First-move nudge"
           sublabel="A gentle prompt at your best focus time"
@@ -191,7 +191,7 @@ export function NotificationSettings() {
         />
         <Row
           icon="alert-circle-outline"
-          iconTint="#EA580C"
+          iconTint={colors.light.warningAccent}
           iconBg="bg-warning-100"
           label="Deadline approaching"
           sublabel="A heads-up about 12 hours before it's due"
@@ -205,7 +205,7 @@ export function NotificationSettings() {
         />
         <Row
           icon="heart-outline"
-          iconTint="#7C3AED"
+          iconTint={colors.light.accentStrong}
           iconBg="bg-accent-100"
           label="Motivation nudge"
           sublabel="A warm check-in if a task sits untouched a day"
@@ -231,7 +231,7 @@ export function NotificationSettings() {
       <Group>
         <Row
           icon="notifications-outline"
-          iconTint="#2563EB"
+          iconTint={colors.light.primary}
           iconBg="bg-primary-50"
           label="Reminders per hour"
           sublabel={

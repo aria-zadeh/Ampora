@@ -11,7 +11,7 @@ import { PressableScale } from "./PressableScale";
 import { PulseScale } from "./PulseScale";
 import { ProgressBar } from "./ProgressBar";
 import { Badge } from "./Badge";
-import { shadows, listColors, tabularNums, type ListColorName } from "@/utils/design-tokens";
+import { shadows, listColors, tabularNums, colors, type ListColorName } from "@/utils/design-tokens";
 import { EASINGS, DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { Task } from "@/types";
@@ -160,7 +160,7 @@ function TaskCardImpl({
             }`}
           >
             <Animated.View style={checkAnimatedStyle}>
-              <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
             </Animated.View>
           </View>
         </Pressable>
@@ -245,7 +245,7 @@ function TaskCardImpl({
             )}
             {hasProject && (
               <View className="w-4 h-4 rounded-full bg-accent-100 items-center justify-center">
-                <Ionicons name="rocket-outline" size={10} color="#7C3AED" />
+                <Ionicons name="rocket-outline" size={10} color={colors.light.accentStrong} />
               </View>
             )}
           </View>

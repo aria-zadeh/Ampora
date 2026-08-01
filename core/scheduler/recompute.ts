@@ -27,6 +27,7 @@ import { buildFreeIntervals } from './freeTime'
 import { orderTasks, orderUndatedBackfill } from './ordering'
 import { initState, placeTask, type PlacementContext } from './placement'
 import { isMissedBlock } from '@/core/recovery'
+import { expandOccurrences } from '@/core/recurrence'
 
 /** Stable key for matching a placed block to a prior one (task + exact time). */
 function blockKey(taskId: string, start: number, end: number): string {
@@ -39,16 +40,33 @@ export function recompute(input: ScheduleInput): ScheduleResult {
   const cutoff = now + cutoffDays * MS_PER_DAY
   const workload = input.workload ?? 'balanced'
 
+  // Task lookup, built FIRST so it can gate `livePrevBlocks` below. Reused
+  // later by the elapsed-block carry-forward and the missed auto-marking pass.
+  const taskById = new Map<string, Task>()
+  for (const t of tasks) taskById.set(t.id, t)
+
+  // A pinned block is an immovable input: subtracted from free time below and
+  // carried through untouched by the stability pass regardless of the fresh
+  // placement, because nothing ever re-places a pinned block to begin with. A
+  // NON-pinned block for a deleted task is already dropped by the elapsed-
+  // block carry-forward's own task-existence check further down — but that
+  // check never runs on a pinned block, so a pinned block whose task was
+  // deleted had no way to ever leave `prevBlocks` again: not part of
+  // `ordered`/`backfill` (no task left to place), immune to the carry-forward
+  // check, so it would silently consume scheduling capacity forever (every
+  // dragged block is auto-pinned — `store/scheduleStore.ts#moveBlock` — so
+  // this is not a rare shape). Dropped once, here, before either use.
+  const livePrevBlocks = prevBlocks.filter((b) => !b.pinned || taskById.has(b.taskId))
+
   // --- 1. Free intervals (pinned prev blocks subtracted as busy). ---
   const free = buildFreeIntervals({
     now,
     cutoff,
     tasks,
     calEvents,
-    prevBlocks,
+    prevBlocks: livePrevBlocks,
     schedulingHours: settings.schedulingHours,
     quietHours: settings.quietHours,
-    energyPeak: settings.energyPeak,
   })
 
   // Sum minutes held by pinned prev blocks per task. These blocks are immovable
@@ -56,7 +74,7 @@ export function recompute(input: ScheduleInput): ScheduleResult {
   // stability pass below); crediting their minutes here stops the placement loop
   // from scheduling that same work a second time.
   const pinnedMinutesByTask = new Map<string, number>()
-  for (const b of prevBlocks) {
+  for (const b of livePrevBlocks) {
     if (!b.pinned) continue
     const mins = (b.end - b.start) / (60 * 1000)
     pinnedMinutesByTask.set(b.taskId, (pinnedMinutesByTask.get(b.taskId) ?? 0) + mins)
@@ -78,6 +96,68 @@ export function recompute(input: ScheduleInput): ScheduleResult {
     placeTask(task, ctx, state)
   }
 
+  // --- 3a. Recurring occurrences (FR-15/FR-17): place additional FUTURE
+  //         occurrences of every recurring task within the auto-schedule
+  //         cutoff, beyond the single placement above (which already placed
+  //         the CURRENT occurrence using the task's own `due` — occurrence
+  //         #1). VIRTUAL expansion, never materialized `Task` rows (see
+  //         `core/recurrence.ts` module doc for why): every occurrence shares
+  //         the SAME real `taskId`, so it rides the exact mechanism a
+  //         splittable task's multiple session blocks already use —
+  //         `ScheduledBlock`'s (taskId,start,end) identity, the stability
+  //         reconciliation below, and the missed auto-marking pass all need
+  //         ZERO changes to support multiple blocks per task.
+  //
+  //         Anchor='completion' tasks are skipped here: a future occurrence's
+  //         date is only knowable once the current one is actually completed
+  //         (`core/recurrence.ts#rollToNextOccurrence`), so there is nothing
+  //         to pre-expand onto the calendar for them — they naturally only
+  //         ever show the one current/next occurrence, exactly like today.
+  //
+  //         Each occurrence gets a FRESH full-duration placement (progressMin
+  //         reset to 0) — only the CURRENT occurrence (placed above) ever
+  //         carries real progress, per the "each occurrence starts with a
+  //         fresh copy of the template" rule (doc 03 §2.9). Any pinned-block
+  //         minutes credit for this task is dropped from the per-occurrence
+  //         context (not just skipped): `pinnedMinutesByTask` is aggregated
+  //         per taskId across ALL of a task's blocks, so re-applying it to
+  //         every occurrence here would incorrectly shrink every occurrence's
+  //         placement by the same amount. This still leaves one narrow edge
+  //         un-hardened: if a user pins a FUTURE occurrence's block via
+  //         calendar drag, this pass has no way to know which specific
+  //         occurrence-day that credit belongs to (only the aggregate taskId
+  //         total), so it cannot yet avoid double-booking that day if it also
+  //         has generous spare free time. Left for whoever owns calendar
+  //         drag/pin (out of this workstream's touched files) to harden.
+  for (const task of ordered) {
+    if (!task.recurrence) continue
+    if (task.due == null) continue
+    if (task.recurrence.anchor === 'completion') continue
+    const occurrences = expandOccurrences(task.recurrence, task.due, task.due + 1, ctx.cutoff)
+    if (occurrences.length === 0) continue
+
+    const ctxForOccurrences: PlacementContext =
+      ctx.pinnedMinutesByTask && ctx.pinnedMinutesByTask.has(task.id)
+        ? {
+            ...ctx,
+            pinnedMinutesByTask: new Map(
+              [...ctx.pinnedMinutesByTask].filter(([id]) => id !== task.id)
+            ),
+          }
+        : ctx
+
+    for (const occ of occurrences) {
+      const lowerBound = Math.max(occ.windowStart ?? occ.date, ctx.now)
+      const occTask: Task = {
+        ...task,
+        due: occ.windowEnd ?? occ.at,
+        startAfter: lowerBound,
+        progressMin: 0,
+      }
+      placeTask(occTask, ctxForOccurrences, state)
+    }
+  }
+
   // --- 3b. Undated auto-scheduled backfill, lowest priority, never displaces
   //         dated work (§9.5.11). They consume only leftover free time. ---
   const backfill = orderUndatedBackfill(tasks)
@@ -88,16 +168,17 @@ export function recompute(input: ScheduleInput): ScheduleResult {
   // --- 4. Stability reconciliation (§9.5.10). ---
   const freshBlocks = state.blocks
 
-  // Task lookup, built once: used both by the elapsed-block carry-forward in the
-  // stability pass and by the missed auto-marking pass below.
-  const taskById = new Map<string, Task>()
-  for (const t of tasks) taskById.set(t.id, t)
+  // `taskById` was built at the top (it gated `livePrevBlocks`); reused here
+  // by the elapsed-block carry-forward and by the missed auto-marking pass
+  // below.
 
   // Index prev blocks by their stable (task,time) key. Pinned blocks are
   // carried through as immovable inputs regardless of the new placement.
+  // `livePrevBlocks` already excludes a pinned block whose task is gone, so
+  // this loop never re-admits the exact debris `livePrevBlocks` just dropped.
   const prevByKey = new Map<string, ScheduledBlock>()
   const pinned: ScheduledBlock[] = []
-  for (const b of prevBlocks) {
+  for (const b of livePrevBlocks) {
     if (b.pinned) {
       pinned.push(b)
       continue

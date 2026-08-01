@@ -27,7 +27,7 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useStakesStore } from "@/store/stakesStore";
@@ -86,7 +86,7 @@ export function DeEscalationSheet({ visible, onClose, onPaused }: DeEscalationSh
                 <View className="items-center px-6 pt-6">
                   {/* Warm icon — a hand on the shoulder, not a warning. */}
                   <View className="h-16 w-16 items-center justify-center rounded-full bg-warning-100">
-                    <Ionicons name="heart-outline" size={30} color="#C2410C" />
+                    <Ionicons name="heart-outline" size={30} color={colors.light.warningStrong} />
                   </View>
 
                   <Heading size="h2" className="mt-5 text-center">
@@ -105,7 +105,7 @@ export function DeEscalationSheet({ visible, onClose, onPaused }: DeEscalationSh
                     variant="primaryBlue"
                     size="lg"
                     onPress={handlePause}
-                    icon={<Ionicons name="pause-circle-outline" size={18} color="#FFFFFF" />}
+                    icon={<Ionicons name="pause-circle-outline" size={18} color={colors.light.primaryForeground} />}
                     accessibilityLabel="Pause all stakes for the rest of today"
                   />
                   <Pressable

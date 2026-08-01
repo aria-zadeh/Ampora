@@ -1,48 +1,43 @@
 /**
- * Project detail (doc `10`). The workspace for one project:
- *  - Header: name, kind, overall progress ring, description.
+ * Project detail (doc `06`). The workspace for one project:
+ *  - Header: title, kind, overall progress ring, the one-line context field,
+ *    and a task count.
  *  - "Plan my next session" primary — the load-bearing action. Calls
  *    `aiProjects.generateNextTask` (graceful fallback), creates a REAL Ampora
  *    Task (createTask + subtasks + firstMove) back-referenced to the project
- *    (projectId + linkTask), then offers to open it or start a focus session.
- *    This is how a Project feeds the scheduler and Ignition (doc `10` §7, §9):
- *    you lock against the generated session task, never the whole project.
- *  - Tabs: Progress (ProgressTracker), Files (FileList), Chat (ProjectChat).
+ *    (`projectId`), then offers to open it or start a focus session. This is
+ *    how a Project feeds the scheduler and Ignition (doc `06` §6, §4): you
+ *    lock against the generated session task, never the whole project.
+ *  - Progress (ProgressTracker): the phase list plus the percent bar.
  *
- * All AI degrades gracefully; the screen never blocks on the network and never
- * surfaces a raw error.
+ * The project's old conversational assistant and any persistent knowledge
+ * base are cut for launch (`V2_Changes.md` §6) — this screen keeps the phase
+ * list, the context line, the percent bar, and the next-session action only.
+ *
+ * All AI degrades gracefully; the screen never blocks on the network and
+ * never surfaces a raw error.
  */
 
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, Pressable, ScrollView, ActivityIndicator, Modal } from "react-native";
+import { View, Text, Pressable, ScrollView, Modal } from "react-native";
 import { router, useLocalSearchParams, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useShallow } from "zustand/react/shallow";
 import { useProjectStore, selectProjectById } from "@/store/projectStore";
-import { useTaskStore } from "@/store/taskStore";
+import { useTaskStore, selectAllTasks } from "@/store/taskStore";
 import { ProgressRing } from "@/components/projects/ProgressRing";
 import { ProgressTracker } from "@/components/projects/ProgressTracker";
-import { FileList } from "@/components/projects/FileList";
-import { ProjectChat } from "@/components/projects/ProjectChat";
-import { kindMeta, overallPct, PROJECT_ACCENT } from "@/components/projects/projectUtils";
+import { kindMeta, PROJECT_ACCENT } from "@/components/projects/projectUtils";
 import { Heading } from "@/components/ui/Heading";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { GradientCard } from "@/components/ui/GradientCard";
-import { PressableScale } from "@/components/ui/PressableScale";
 import { generateNextTask, type NextTaskResult } from "@/services/aiProjects";
 import { newId } from "@/core/id";
-import { iconSizes } from "@/utils/design-tokens";
-import type { ChatMessage, ProjectProgress } from "@/types";
-
-type Tab = "progress" | "files" | "chat";
-
-const TABS: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: "progress", label: "Progress", icon: "stats-chart-outline" },
-  { key: "files", label: "Files", icon: "folder-outline" },
-  { key: "chat", label: "Chat", icon: "chatbubble-ellipses-outline" },
-];
+import { colors, iconSizes } from "@/utils/design-tokens";
+import type { Phase } from "@/types";
 
 const SESSION_MIN = 45;
 
@@ -50,56 +45,46 @@ export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProjectStore(useMemo(() => selectProjectById(id ?? ""), [id]));
 
-  const setProgress = useProjectStore((s) => s.setProgress);
-  const addFile = useProjectStore((s) => s.addFile);
-  const addChatMessage = useProjectStore((s) => s.addChatMessage);
-  const linkTask = useProjectStore((s) => s.linkTask);
+  const setPhases = useProjectStore((s) => s.setPhases);
   const deleteProject = useProjectStore((s) => s.deleteProject);
-  const updateProject = useProjectStore((s) => s.updateProject);
 
   const createTask = useTaskStore((s) => s.createTask);
   const addSubtask = useTaskStore((s) => s.addSubtask);
   const deleteTask = useTaskStore((s) => s.deleteTask);
   const updateTask = useTaskStore((s) => s.updateTask);
 
-  const [tab, setTab] = useState<Tab>("progress");
+  // All tasks, raw-selected with useShallow (Zustand v5 selector discipline —
+  // Object.values-style selectors need it or they infinite-loop), then
+  // filtered to this project's own tasks in a memo, never inline in the
+  // selector. Project no longer keeps its own task-id list (doc `06` §9) —
+  // `Task.projectId` is the only, one-way link.
+  const allTasks = useTaskStore(useShallow(selectAllTasks));
+  const projectTasks = useMemo(
+    () => (project ? allTasks.filter((t) => t.projectId === project.id) : []),
+    [allTasks, project]
+  );
+
   const [planning, setPlanning] = useState(false);
   const [planned, setPlanned] = useState<{ taskId: string; result: NextTaskResult } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const accent = project?.color ?? PROJECT_ACCENT;
-  const pct = project ? overallPct(project.progress) : 0;
+  const pct = project?.percent ?? 0;
 
-  const handleProgressChange = useCallback(
-    (next: ProjectProgress) => {
-      if (project) setProgress(project.id, next);
+  const handlePhasesChange = useCallback(
+    (phases: Phase[]) => {
+      if (project) setPhases(project.id, phases);
     },
-    [project, setProgress]
-  );
-
-  const handleRemoveFile = useCallback(
-    (fileId: string) => {
-      if (!project) return;
-      updateProject(project.id, { files: project.files.filter((f) => f.id !== fileId) });
-    },
-    [project, updateProject]
-  );
-
-  const handleAppendMessage = useCallback(
-    (msg: ChatMessage) => {
-      if (project) addChatMessage(project.id, msg);
-    },
-    [project, addChatMessage]
+    [project, setPhases]
   );
 
   // The load-bearing action: turn "where you are" into a real, schedulable,
-  // lockable Task (doc `10` §7). Never throws — generateNextTask always resolves.
+  // lockable Task (doc `06` §4). Never throws — generateNextTask always resolves.
   const planNextSession = useCallback(async () => {
     if (!project || planning) return;
     setPlanning(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 
-    const result = await generateNextTask(project, SESSION_MIN);
+    const result = await generateNextTask(project, { sessionMin: SESSION_MIN });
 
     const task = createTask({
       title: result.title,
@@ -111,21 +96,20 @@ export default function ProjectDetailScreen() {
     for (const sub of result.subtasks) {
       addSubtask(task.id, { title: sub.title, estimatedMin: sub.estimatedMin });
     }
-    linkTask(project.id, task.id);
 
     setPlanned({ taskId: task.id, result });
     setPlanning(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-  }, [project, planning, createTask, addSubtask, linkTask]);
+  }, [project, planning, createTask, addSubtask]);
 
   // Project was deleted (or bad id) — bail cleanly.
   if (!project) {
     return (
       <SafeAreaView className="flex-1 bg-neutral-100 items-center justify-center px-8">
         <Stack.Screen options={{ headerShown: false }} />
-        <Ionicons name="folder-open-outline" size={iconSizes.hero} color="#A8A29A" />
+        <Ionicons name="folder-open-outline" size={iconSizes.hero} color={colors.light.textDisabled} />
         <Text className="text-body text-neutral-500 text-center mt-3">
-          This project isn't available.
+          This project isn&apos;t available.
         </Text>
         <View className="mt-5">
           <Button title="Back to projects" variant="secondary" onPress={() => router.back()} />
@@ -149,7 +133,7 @@ export default function ProjectDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Ionicons name="chevron-back" size={iconSizes.lg} color="#1C1917" />
+          <Ionicons name="chevron-back" size={iconSizes.lg} color={colors.light.text} />
         </Pressable>
         <View className="flex-1" />
         <Pressable
@@ -159,7 +143,7 @@ export default function ProjectDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Delete project"
         >
-          <Ionicons name="trash-outline" size={iconSizes.md} color="#A8A29A" />
+          <Ionicons name="trash-outline" size={iconSizes.md} color={colors.light.textDisabled} />
         </Pressable>
       </View>
 
@@ -172,22 +156,21 @@ export default function ProjectDetailScreen() {
         {/* Header card */}
         <View className="px-5">
           <View className="flex-row items-center">
-            <ProgressRing pct={pct} size={64} stroke={6} color={accent} />
+            <ProgressRing pct={pct} size={64} stroke={6} color={PROJECT_ACCENT} />
             <View className="flex-1 ml-4">
               <Heading size="h2" numberOfLines={2}>
-                {project.name}
+                {project.title}
               </Heading>
               <View className="flex-row items-center gap-2 mt-2">
                 <Badge label={meta.label} tone="accent" />
                 <Text className="text-caption text-neutral-500">
-                  {project.files.length} {project.files.length === 1 ? "file" : "files"} ·{" "}
-                  {project.taskIds.length} {project.taskIds.length === 1 ? "task" : "tasks"}
+                  {projectTasks.length} {projectTasks.length === 1 ? "task" : "tasks"}
                 </Text>
               </View>
             </View>
           </View>
-          {project.description ? (
-            <Text className="text-body text-neutral-600 mt-3">{project.description}</Text>
+          {project.contextLine ? (
+            <Text className="text-body text-neutral-600 mt-3">{project.contextLine}</Text>
           ) : null}
         </View>
 
@@ -195,8 +178,11 @@ export default function ProjectDetailScreen() {
         <View className="px-5 mt-5">
           <GradientCard>
             <View className="flex-row items-center mb-1">
-              <Ionicons name="flash" size={iconSizes.md} color={accent} />
-              <Text className="text-overline font-semibold uppercase tracking-wide ml-1.5" style={{ color: accent }}>
+              <Ionicons name="flash" size={iconSizes.md} color={PROJECT_ACCENT} />
+              <Text
+                className="text-overline font-semibold uppercase tracking-wide ml-1.5"
+                style={{ color: PROJECT_ACCENT }}
+              >
                 Next session
               </Text>
             </View>
@@ -214,80 +200,26 @@ export default function ProjectDetailScreen() {
               onPress={planNextSession}
               icon={
                 planning ? undefined : (
-                  <Ionicons name="sparkles" size={iconSizes.sm} color="#FFFFFF" />
+                  <Ionicons name="sparkles" size={iconSizes.sm} color={colors.light.primaryForeground} />
                 )
               }
             />
           </GradientCard>
         </View>
 
-        {/* Tabs */}
+        {/* Progress — the phase list plus the percent bar (doc `06` §5). */}
         <View className="px-5 mt-6">
-          <View className="flex-row bg-neutral-100 rounded-full p-1 border border-neutral-200">
-            {TABS.map((t) => {
-              const active = tab === t.key;
-              return (
-                <Pressable
-                  key={t.key}
-                  onPress={() => {
-                    if (t.key !== tab) Haptics.selectionAsync().catch(() => {});
-                    setTab(t.key);
-                  }}
-                  className="flex-1 flex-row items-center justify-center rounded-full py-2"
-                  style={active ? { backgroundColor: "#FFFFFF" } : undefined}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={t.label}
-                >
-                  <Ionicons
-                    name={t.icon}
-                    size={iconSizes.sm}
-                    color={active ? "#1C1917" : "#6F6862"}
-                  />
-                  <Text
-                    className={
-                      active
-                        ? "text-label font-semibold text-neutral-900 ml-1.5"
-                        : "text-label text-neutral-500 ml-1.5"
-                    }
-                  >
-                    {t.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Tab content */}
-        <View className="px-5 mt-5">
-          {tab === "progress" && (
-            <ProgressTracker project={project} onChange={handleProgressChange} />
-          )}
-          {tab === "files" && (
-            <FileList
-              files={project.files}
-              onAddFile={(f) => addFile(project.id, f)}
-              onRemoveFile={handleRemoveFile}
-            />
-          )}
-          {tab === "chat" && (
-            // Fixed-height chat area inside the scroll view keeps the composer usable.
-            <View style={{ height: 460 }}>
-              <ProjectChat
-                key={project.id}
-                project={project}
-                onAppendMessage={handleAppendMessage}
-              />
-            </View>
-          )}
+          <Text className="mb-3 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+            Progress
+          </Text>
+          <ProgressTracker project={project} onChange={handlePhasesChange} />
         </View>
       </ScrollView>
 
       {/* Planned-session result sheet */}
       <PlannedSheet
         planned={planned}
-        accent={accent}
+        accent={PROJECT_ACCENT}
         onOpenTask={() => {
           const taskId = planned?.taskId;
           setPlanned(null);
@@ -305,18 +237,18 @@ export default function ProjectDetailScreen() {
           keep + unlink so a project delete never silently destroys task work. */}
       <ConfirmDeleteSheet
         visible={confirmDelete}
-        name={project.name}
-        taskCount={project.taskIds.length}
+        name={project.title}
+        taskCount={projectTasks.length}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={(alsoDeleteTasks) => {
           setConfirmDelete(false);
-          for (const taskId of project.taskIds) {
+          for (const t of projectTasks) {
             if (alsoDeleteTasks) {
-              deleteTask(taskId);
+              deleteTask(t.id);
             } else {
               // Keep + unlink (default): the task survives, just no longer
               // back-references a project that is about to be gone.
-              updateTask(taskId, { projectId: undefined });
+              updateTask(t.id, { projectId: undefined });
             }
           }
           deleteProject(project.id);
@@ -365,7 +297,7 @@ function PlannedSheet({
               className="w-8 h-8 rounded-full items-center justify-center"
               style={{ backgroundColor: accent }}
             >
-              <Ionicons name="checkmark" size={iconSizes.md} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={iconSizes.md} color={colors.light.primaryForeground} />
             </View>
             <Text className="text-overline font-semibold uppercase tracking-wide ml-2 text-neutral-500">
               Session ready
@@ -380,7 +312,7 @@ function PlannedSheet({
 
               {/* First move */}
               <View className="flex-row items-start mt-3 bg-primary-50 rounded-xl p-3">
-                <Ionicons name="footsteps-outline" size={iconSizes.md} color="#2563EB" />
+                <Ionicons name="footsteps-outline" size={iconSizes.md} color={colors.light.primary} />
                 <View className="flex-1 ml-2.5">
                   <Text className="text-caption font-semibold text-primary-700">First move</Text>
                   <Text className="text-body text-neutral-900 mt-0.5">{result.firstMove}</Text>
@@ -407,7 +339,7 @@ function PlannedSheet({
 
               {result.isFallback && result.note && (
                 <View className="flex-row items-center mt-3">
-                  <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color="#A8A29A" />
+                  <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color={colors.light.textDisabled} />
                   <Text className="text-tiny text-neutral-500 ml-1">{result.note}</Text>
                 </View>
               )}
@@ -421,7 +353,7 @@ function PlannedSheet({
                     title="Start focus"
                     variant="primaryBlue"
                     onPress={onStartFocus}
-                    icon={<Ionicons name="play" size={iconSizes.sm} color="#FFFFFF" />}
+                    icon={<Ionicons name="play" size={iconSizes.sm} color={colors.light.primaryForeground} />}
                   />
                 </View>
               </View>
@@ -446,7 +378,7 @@ function ConfirmDeleteSheet({
 }: {
   visible: boolean;
   name: string;
-  /** Number of tasks this project generated (`project.taskIds.length`). */
+  /** Number of tasks this project generated (`Task.projectId === project.id`, computed by the caller). */
   taskCount: number;
   onCancel: () => void;
   /** `alsoDeleteTasks` reflects the checkbox — false (keep + unlink) by default. */
@@ -475,7 +407,7 @@ function ConfirmDeleteSheet({
           </View>
           <Heading size="h3">Delete project?</Heading>
           <Text className="text-body text-neutral-500 mt-1.5 mb-5">
-            "{name}" and its files, chat, and progress will be removed.
+            &quot;{name}&quot; and its progress will be removed.
             {taskCount > 0
               ? ` It generated ${taskCount} ${taskLabel} — choose what happens to ${taskCount === 1 ? "it" : "them"} below.`
               : " It hasn't generated any tasks yet."}
@@ -495,7 +427,7 @@ function ConfirmDeleteSheet({
                   alsoDeleteTasks ? "bg-danger-600" : "border-2 border-neutral-300"
                 }`}
               >
-                {alsoDeleteTasks ? <Ionicons name="checkmark" size={13} color="#FFFFFF" /> : null}
+                {alsoDeleteTasks ? <Ionicons name="checkmark" size={13} color={colors.light.primaryForeground} /> : null}
               </View>
               <View className="flex-1">
                 <Text className="text-label font-medium text-neutral-800">

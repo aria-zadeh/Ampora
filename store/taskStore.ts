@@ -20,6 +20,8 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { newId } from '@/core/id'
 import * as taskLogic from '@/core/task-logic'
+import { rollToNextOccurrence } from '@/core/recurrence'
+import * as recovery from '@/core/recovery'
 import { mmkvStateStorage } from '@/store/mmkv'
 import { celebrateCompletion } from '@/services/notifications'
 import type { Subtask, Task } from '@/types'
@@ -30,12 +32,32 @@ import type { Subtask, Task } from '@/types'
  * already-done task, or a subtask edit that leaves status unchanged never
  * double-fires. Fire-and-forget: the service never throws and respects its own
  * quiet-hours / rate-limit conventions.
+ *
+ * `next` here is the intermediate "just completed" snapshot (status:'done'),
+ * captured BEFORE any recurrence rollover — see `withRecurrenceRollover` below
+ * — so a recurring task still celebrates even though the persisted state that
+ * follows immediately rolls back to `status:'todo'` for the next occurrence.
  */
 function maybeCelebrate(prev: Task | undefined, next: Task | undefined): void {
   if (!next) return
   if (prev?.status === 'done') return // was already done — no new beat
   if (next.status !== 'done') return // didn't just complete
   void celebrateCompletion(next)
+}
+
+/**
+ * FR-15/FR-16, doc 03 §2.9: after a task-logic transform completes a
+ * recurring task, roll it forward to its next occurrence in place — a fresh
+ * `due`, a fresh unchecked copy of the subtask template, `progressMin` reset
+ * to 0 — rather than leaving it sitting at `status:'done'` forever. Once the
+ * series has run out (`until`/`count`), `rollToNextOccurrence` returns null
+ * and the task is left completed, exactly like any one-off task. Non-
+ * recurring tasks, or a transform that didn't result in `status:'done'`, pass
+ * through unchanged.
+ */
+function withRecurrenceRollover(task: Task, now: number): Task {
+  if (task.status !== 'done' || !task.recurrence) return task
+  return rollToNextOccurrence(task, now) ?? task
 }
 
 interface TaskState {
@@ -47,6 +69,17 @@ interface TaskState {
   ) => Task
   updateTask: (id: string, patch: Partial<Omit<Task, 'id' | 'createdAt'>>) => void
   deleteTask: (id: string) => void
+  /**
+   * Apply one `RecoveryPreview` drop (`core/recovery.ts`) to the task it
+   * targets (FR-16, FR-60). A non-recurring moot task, or a recurring one
+   * whose series has ended, is removed exactly like `deleteTask`. A missed
+   * RECURRING occurrence is instead advanced past the miss — the series
+   * survives with its rule (and `count`, for a count-limited series) rolled
+   * forward; only the missed instance goes away. Delegates the decision to
+   * `core/recovery.ts#applyRecoveryDrop` (pure) so there is exactly one place
+   * that computes it — never call `deleteTask` directly for a Recovery drop.
+   */
+  applyRecoveryDrop: (drop: recovery.RecoveryDrop) => void
 
   addSubtask: (id: string, subtask: Omit<Subtask, 'id'> & { id?: string }) => void
   removeSubtask: (id: string, subtaskId: string) => void
@@ -76,13 +109,30 @@ export const useTaskStore = create<TaskState>()(
 
       createTask: (partial) => {
         const now = Date.now()
+
+        // FR-5 / doc `types#Task.isInbox`: a detail-less quick/voice capture
+        // (missing a duration, a due date, or both) must not enter the
+        // scheduler's undated-backfill pass, which keys off `autoSchedule`
+        // alone (core/scheduler/ordering.ts#orderUndatedBackfill treats ANY
+        // undated autoSchedule:true task as an opted-in backfill candidate).
+        // So: default autoSchedule to true only when the caller EXPLICITLY
+        // chose it (the full task editor always passes autoSchedule) or the
+        // task already carries a real duration AND a due date up front (e.g.
+        // quick-add/voice parsing that supplied both). Otherwise it lands as
+        // an Inbox item — autoSchedule false, isInbox true — until
+        // `updateTask` promotes it later.
+        const hasFullDetails = (partial.durationMin ?? 0) > 0 && partial.due != null
+        const autoSchedule = partial.autoSchedule ?? hasFullDetails
+        const isInbox = partial.autoSchedule === undefined && !hasFullDetails
+
         const task: Task = {
           // Defaults for everything not required by the caller.
           notes: undefined,
           durationMin: 0,
           progressMin: 0,
           due: undefined,
-          autoSchedule: true,
+          autoSchedule,
+          isInbox,
           listId: undefined,
           projectId: undefined,
           tags: [],
@@ -106,13 +156,45 @@ export const useTaskStore = create<TaskState>()(
       },
 
       updateTask: (id, patch) => {
+        // `autoScheduleTouched` is not a real Task field — it rides along on
+        // the patch object from `TaskEditorForm`'s Save handler (which always
+        // resubmits a full draft) purely so this store can tell a deliberate
+        // auto-schedule choice apart from a stale echo of whatever the task
+        // already had. Stripped out of `rest` so it never reaches persisted
+        // state.
+        const { autoScheduleTouched, ...rest } = patch as typeof patch & { autoScheduleTouched?: boolean }
+
         set((state) => {
           const existing = state.tasks[id]
           if (!existing) return state
+          let next: Task = { ...existing, ...rest }
+
+          // FR-5 promotion: an Inbox item (isInbox) becomes schedulable the
+          // moment it has BOTH a duration and a due date — through the full
+          // editor, the Tasks tab "Schedule" swipe action, or any other
+          // patch. Checked against the RESULT of the merge (not which keys
+          // `patch` happened to include) because the editor always submits
+          // its whole draft, so `patch.autoSchedule` is present but merely
+          // echoes back whatever the task already had UNLESS
+          // `autoScheduleTouched` says the user actually touched the control
+          // this edit — in which case their choice (on OR off) always wins:
+          // ignoring an explicit instruction is worse than the stale-echo
+          // case this promotion otherwise guards against. A task that was
+          // never flagged isInbox (created with an explicit autoSchedule
+          // choice, or with full details already) is untouched here — this
+          // only ever moves a task OUT of the Inbox, never re-derives
+          // autoSchedule for a task the user has already configured.
+          if (existing.isInbox) {
+            const hasFullDetails = next.durationMin > 0 && next.due != null
+            if (hasFullDetails) {
+              next = { ...next, autoSchedule: autoScheduleTouched ? next.autoSchedule : true, isInbox: false }
+            }
+          }
+
           return {
             tasks: {
               ...state.tasks,
-              [id]: { ...existing, ...patch, updatedAt: Date.now(), syncState: 'pending' },
+              [id]: { ...next, updatedAt: Date.now(), syncState: 'pending' },
             },
           }
         })
@@ -124,6 +206,26 @@ export const useTaskStore = create<TaskState>()(
           const next = { ...state.tasks }
           delete next[id]
           return { tasks: next }
+        })
+      },
+
+      applyRecoveryDrop: (drop) => {
+        set((state) => {
+          const task = state.tasks[drop.task.id]
+          if (!task) return state
+          const resolved = recovery.applyRecoveryDrop(task, drop, Date.now())
+          if (resolved == null) {
+            // moot_past_due, or a recurring series that has genuinely ended —
+            // both are finished-with, exactly like a manual delete.
+            const next = { ...state.tasks }
+            delete next[drop.task.id]
+            return { tasks: next }
+          }
+          // Recurring occurrence advanced past the miss — persist the rolled-
+          // forward task, never delete it.
+          return {
+            tasks: { ...state.tasks, [drop.task.id]: { ...resolved, syncState: 'pending' } },
+          }
         })
       },
 
@@ -150,30 +252,35 @@ export const useTaskStore = create<TaskState>()(
 
       setSubtaskCompleted: (id, subtaskId, completed) => {
         let prev: Task | undefined
-        let next: Task | undefined
+        let completedSnapshot: Task | undefined
         set((state) => {
           prev = state.tasks[id]
-          const tasks = applyToTask(state.tasks, id, (task, now) =>
-            taskLogic.setSubtaskCompleted(task, subtaskId, completed, now)
-          )
-          next = tasks[id]
+          const tasks = applyToTask(state.tasks, id, (task, now) => {
+            const result = taskLogic.setSubtaskCompleted(task, subtaskId, completed, now)
+            completedSnapshot = result
+            return withRecurrenceRollover(result, now)
+          })
           return { tasks }
         })
         // Completing the last subtask rolls the parent up to 'done' — celebrate
-        // that transition, but only if it genuinely just flipped.
-        maybeCelebrate(prev, next)
+        // that transition (using the pre-rollover snapshot, see
+        // `maybeCelebrate`'s doc), but only if it genuinely just flipped.
+        maybeCelebrate(prev, completedSnapshot)
       },
 
       completeTask: (id) => {
         let prev: Task | undefined
-        let next: Task | undefined
+        let completedSnapshot: Task | undefined
         set((state) => {
           prev = state.tasks[id]
-          const tasks = applyToTask(state.tasks, id, (task, now) => taskLogic.completeTask(task, now))
-          next = tasks[id]
+          const tasks = applyToTask(state.tasks, id, (task, now) => {
+            const result = taskLogic.completeTask(task, now)
+            completedSnapshot = result
+            return withRecurrenceRollover(result, now)
+          })
           return { tasks }
         })
-        maybeCelebrate(prev, next)
+        maybeCelebrate(prev, completedSnapshot)
       },
 
       reopenTask: (id) => {

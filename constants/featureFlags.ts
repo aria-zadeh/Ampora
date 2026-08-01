@@ -7,40 +7,56 @@
  *
  * IGNITION_NATIVE gates the real OS app-blocking implementation
  * (`core/blocking/NativeBlockingStrategy.ts`, backed by the isolated Swift +
- * config-plugin scaffolding in `native/ignition/`). It stays FALSE until:
- *   1. Apple grants the Family Controls (Distribution) entitlement for all
- *      four bundle IDs (main app + the three extensions), AND
- *   2. a native module (`react-native-device-activity` / `expo-app-blocker`
- *      or the in-repo config plugin) is installed and wired into
- *      NativeBlockingStrategy per `native/ignition/README.md`.
- * Flip it to `true` only once both are in place. Until then the app runs the
- * SoftBlockingStrategy (in-app focus lock), which works today on web and dev
- * builds with no entitlement.
+ * config-plugin package in `native/modules/ampora-ignition/`).
  *
- * BEAT_THE_CLOCK gates the third stake mode. OFF by default (PRD §C3 / doc 12
- * "Beat-the-clock is OFF by default, gated behind successful sessions"). It is
- * pure in-app timer logic and needs no native support, but because it is the
- * one punishment-style mode we never offer it unearned. Even if a future build
- * flips this flag on, `StakeSetupSheet` additionally requires the user to have
- * a track record of successful "lock until start" sessions before the mode is
- * shown.
+ * IT IS NOT EDITED BY HAND. It mirrors `native.config.json` (or the
+ * `AMPORA_NATIVE=1` EAS override) via `app.config.ts`, which republishes the
+ * flag as `EXPO_PUBLIC_AMPORA_NATIVE` — a variable `babel-preset-expo` inlines
+ * into the bundle at transform time, so the value below is a compile-time
+ * constant and the disabled branch is dead code Metro can drop. Change it with
+ * `npm run native:on` / `npm run native:off`, never by editing this file.
+ *
+ * It is true only when BOTH of these hold:
+ *   1. Apple has granted the Family Controls (Distribution) entitlement for all
+ *      four bundle IDs (main app + the three extensions), AND
+ *   2. the `ampora-ignition` native module is actually linked into the build.
+ * Even then `getBlockingStrategy()` re-checks (2) at runtime via
+ * `requireOptionalNativeModule`, so a flag-on/module-absent build still falls
+ * back to the SoftBlockingStrategy rather than a broken native one (NFR-7).
+ *
+ * On Windows and on web this is ALWAYS false: `native.config.json` is committed
+ * all-false on every shared branch (see `native/README.md`) and the web bundle
+ * never receives a native package regardless of the flag.
  */
 export const FEATURE_FLAGS = {
   /**
-   * Real OS-level app shielding via iOS Family Controls. FALSE until the
-   * Apple Family Controls entitlement + a native module are in place (see
-   * `native/ignition/README.md`). While false, `getBlockingStrategy()` always
-   * returns the SoftBlockingStrategy.
+   * Real OS-level app shielding via iOS Family Controls. Derived from
+   * `native.config.json` → `app.config.ts` → `EXPO_PUBLIC_AMPORA_NATIVE`.
+   * While false, `getBlockingStrategy()` always returns the
+   * SoftBlockingStrategy. Defaults to false when the variable is absent (plain
+   * Node/vitest, or any bundler that did not run through `app.config.ts`) —
+   * the fail-safe direction is "no native lock".
    */
-  IGNITION_NATIVE: false,
+  IGNITION_NATIVE: process.env.EXPO_PUBLIC_AMPORA_NATIVE === '1',
 
   /**
-   * The "Beat the clock" stake mode. OFF by default — it is the punishment-
-   * style mode, so it is never offered unearned. `StakeSetupSheet` also gates
-   * it behind a track record of successful "lock until start" sessions, so
-   * flipping this true is necessary but not sufficient to show the mode.
+   * Real billing via RevenueCat (`react-native-purchases`), wired through
+   * `core/iap/NativePurchaseStrategy.ts`. Derived exactly like
+   * IGNITION_NATIVE, just off the sibling flag: `native.config.json` →
+   * `app.config.ts` → `EXPO_PUBLIC_AMPORA_PURCHASES` (`app.config.ts` already
+   * republishes both flags side by side — see its docstring). While false,
+   * `getPurchaseStrategy()` (`core/iap/index.ts`) always returns the
+   * MockPurchaseStrategy, so `app/paywall.tsx` behaves exactly as it did
+   * before real purchasing existed. Defaults to false when the variable is
+   * absent (plain Node/vitest, or any bundler that did not run through
+   * `app.config.ts`) — the fail-safe direction is "no real purchasing",
+   * matching IGNITION_NATIVE.
+   *
+   * On Windows and on web this is ALWAYS false: `native.config.json` is
+   * committed all-false on every shared branch (see `native/README.md`) and
+   * the web bundle never receives a native package regardless of the flag.
    */
-  BEAT_THE_CLOCK: false,
+  IAP_NATIVE: process.env.EXPO_PUBLIC_AMPORA_PURCHASES === '1',
 
   /**
    * Dev-only paywall bypass. When true, the paywall renders a "Skip (dev)"

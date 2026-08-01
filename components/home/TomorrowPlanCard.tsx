@@ -13,8 +13,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { GradientCard } from "@/components/ui/GradientCard";
 import { PressableScale } from "@/components/ui/PressableScale";
+import { Badge } from "@/components/ui/Badge";
 import { useScheduleStore, selectBlocksByDay } from "@/store/scheduleStore";
 import { useTaskStore } from "@/store/taskStore";
+import { useProjectStore } from "@/store/projectStore";
 import { nextStep } from "@/core/task-logic";
 import { gradients, iconSizes } from "@/utils/design-tokens";
 import { EASINGS } from "@/utils/motion";
@@ -158,6 +160,15 @@ export function TomorrowPlanCard() {
 
   const hasPlan = plan.sessionCount > 0 && plan.firstTask != null;
 
+  // FR-84/FR-90 tie-in: when the opening task came from a Project's nightly
+  // session generation, say so with the Projects-only accent (docs/02 — the
+  // purple accent is reserved for Projects). Raw field select (no derived
+  // object), so no useShallow needed (Zustand v5 discipline).
+  const firstTaskProjectId = plan.firstTask?.projectId;
+  const project = useProjectStore((s) =>
+    firstTaskProjectId ? s.projects[firstTaskProjectId] : undefined
+  );
+
   const onPress = () => {
     if (plan.firstTask) {
       router.push(`/task/${plan.firstTask.id}`);
@@ -208,6 +219,7 @@ export function TomorrowPlanCard() {
     "Ready for tomorrow",
     `${sessionLabel}`,
     firstTask ? `first up ${firstTask.title}${timeLabel ? ` at ${timeLabel}` : ""}` : null,
+    project ? `part of the ${project.title} project` : null,
     firstStep ? `First move: ${firstStep}` : null,
   ]
     .filter(Boolean)
@@ -238,6 +250,16 @@ export function TomorrowPlanCard() {
             </Text>
           </View>
         </View>
+
+        {/* Project origin (FR-84/FR-90): the Projects-only accent, never used elsewhere. */}
+        {project ? (
+          <View className="mt-2 flex-row items-center gap-1.5">
+            <Badge label="Project" tone="accent" />
+            <Text className="flex-1 text-caption text-neutral-500" numberOfLines={1}>
+              {project.title}
+            </Text>
+          </View>
+        ) : null}
 
         {/* First up: task + start time. */}
         <View className="mt-2 flex-row items-baseline justify-between">

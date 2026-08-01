@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -107,8 +108,14 @@ export default function AvailabilityScreen() {
         windows: [{ start: startHour * 60, end: endHour * 60 }],
       })),
     };
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+      () => {},
+    );
     useSettingsStore.getState().updateSettings({ schedulingHours });
-    router.push("/onboarding/energy");
+    // Scheduling hours is step 4 of 7 (PRD §8.10), not the last step —
+    // Notifications, the guided First task, and the aha moment still follow.
+    // `onboardingComplete` is set at the very end of that chain, not here.
+    router.push("/onboarding/notifications");
   };
 
   return (
@@ -130,7 +137,7 @@ export default function AvailabilityScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={enter(0)} className="mb-6">
-          <ProgressDots total={5} current={3} />
+          <ProgressDots total={7} current={3} />
         </Animated.View>
         <Animated.View entering={enter(0)}>
           <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
@@ -218,7 +225,7 @@ export default function AvailabilityScreen() {
           variant="primaryBlue"
           size="lg"
           onPress={handleContinue}
-          accessibilityLabel="Save focus window and continue to energy setup"
+          accessibilityLabel="Save focus window and continue"
         />
       </View>
     </View>

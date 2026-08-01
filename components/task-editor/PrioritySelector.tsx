@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { View, Text } from "react-native";
 import * as Haptics from "expo-haptics";
 import { PressableScale } from "@/components/ui/PressableScale";
+import { colors } from "@/utils/design-tokens";
 
 /** Priority labels indexed to match PRIORITY_VALUES (1=Low … 4=Urgent). */
 export const PRIORITY_LABELS = ["Low", "Medium", "High", "Urgent"] as const;
@@ -10,10 +11,10 @@ export const PRIORITY_VALUES = [1, 2, 3, 4] as const;
 
 /** Selected-state accent per priority level (higher = warmer/more urgent). */
 const SELECTED_CLASSES: Record<number, { bg: string; text: string; dot: string }> = {
-  1: { bg: "bg-white", text: "text-neutral-800", dot: "#6F6862" },
-  2: { bg: "bg-white", text: "text-primary-700", dot: "#2563EB" },
-  3: { bg: "bg-white", text: "text-warning-700", dot: "#F97316" },
-  4: { bg: "bg-white", text: "text-danger-700", dot: "#DC2626" },
+  1: { bg: "bg-white", text: "text-neutral-800", dot: colors.light.textMuted },
+  2: { bg: "bg-white", text: "text-primary-700", dot: colors.light.primary },
+  3: { bg: "bg-white", text: "text-warning-700", dot: colors.light.warning },
+  4: { bg: "bg-white", text: "text-danger-700", dot: colors.light.dangerStrong },
 };
 
 interface PrioritySelectorProps {
@@ -81,7 +82,7 @@ export function PrioritySelector({ value, onChange }: PrioritySelectorProps) {
 
 /** Soft lift for the selected segment so it reads as raised above the track. */
 const SEGMENT_SHADOW = {
-  shadowColor: "#1C1917",
+  shadowColor: colors.light.text,
   shadowOffset: { width: 0, height: 1 },
   shadowOpacity: 0.06,
   shadowRadius: 3,

@@ -469,7 +469,7 @@ The `COMPLETED` / `IDLE` / `AI WORKER` pattern. These carry state and category a
 
 ### 6.5 Navigation
 
-The screenshots show a desktop sidebar of line icons. Translate this to mobile patterns:
+The reference shows a sidebar of line icons. Translate this to mobile patterns:
 
 **Bottom tab bar (primary navigation):**
 
@@ -1016,7 +1016,7 @@ The reference screenshots were a node/workflow UI (START, CLASSIFIER, ROUTER). I
 - **Blue (primary):** interactive actions that are not the black primary button, links, selection, focus rings.
 - **Black ink (`neutral.900`):** the single highest-emphasis primary button per screen, and titles.
 - **Orange (warning):** caution without alarm. A deadline getting close, a gentle "getting behind" nudge.
-- **Purple (accent):** smart and special affordances. The AI breakdown, the project chat, AI suggestions.
+- **Purple (accent):** smart and special affordances. The AI breakdown, the Refine chat, and Projects.
 - **Red (destructive):** delete and errors, and the "at risk / overdue" deadline status as a quiet dot, never a shaming banner.
 - **Supporting hues (amber, pink, teal):** categorical color-coding for lists, projects, and calendar event blocks only, never actions.
 
@@ -1033,7 +1033,7 @@ Comfortable, getting close, and at risk map to `success.500`, `warning.500`, `re
 - **Blindfold:** a full `<Screen>` with one `<Card>` (the single micro-step) and one primary action. Maximum whitespace, zero other UI.
 - **Calendar blocks:** list or project color as a soft tint fill (the supporting `.100` hues or the list color) with a stronger left edge, the deadline-status dot from 13.2, and dynamic typography per PRD 8.7.
 - **Verification proof screen:** an upload or `<Input>` control, a primary submit, and an "Unlock anyway" text button.
-- **Project chat:** chat bubbles (user in a `primary.100` or `neutral.100` tint, assistant in `neutral.0` with `border.default`), an `<Input>` pinned to the bottom, send is the primary action.
+- **Refine chat (breakdown):** chat bubbles (user in a `primary.100` or `neutral.100` tint, assistant in `neutral.0` with `border.default`), an `<Input>` pinned to the bottom, send is the primary action.
 - **Paywall / trial:** a `<Card>` with the monthly and annual options, the subscribe control is the black primary button, the trial state shown in `text.secondary`.
 - **Badges:** COMPLETED uses the success badge (`success.100` background, `success.700` text), at-risk uses the red badge, AI and smart features use the accent badge.
 

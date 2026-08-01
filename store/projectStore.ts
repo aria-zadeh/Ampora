@@ -1,85 +1,73 @@
 /**
- * Project store — Phase 7 (doc `10` Projects, PRD FR-82..86).
+ * Project store (doc `06` Projects, PRD FR-82..85).
  *
- * Owns the `Project` entity: a persistent knowledge base (files), a scoped
- * chat, progress (shaped by project kind), project memory, and back-references
- * to the Tasks the project has generated. Projects are the knowledge + chat +
- * progress layer; the Tasks they generate are what the scheduler places and
- * Ignition locks against (kept in `taskStore`, linked via `Task.projectId` and
- * `Project.taskIds`).
+ * Owns the `Project` entity: an ordered phase list, one optional context
+ * line, and a percent bar. Projects are deliberately thin — the structure +
+ * progress layer only. The Tasks a project generates are what the scheduler
+ * places and Ignition locks against (owned by `taskStore`, linked one-way via
+ * `Task.projectId` — a Project does not keep a list of its own task ids).
+ *
+ * The project's old conversational assistant, its ToolActions, and a
+ * persistent knowledge base are all cut for launch (`V2_Changes.md` §6) —
+ * this store keeps the Project/Phase model, progress, and CRUD only.
  *
  * Local-first via MMKV (persist key "ampora-projects"), identical pattern to
- * `store/taskStore.ts` / `store/listStore.ts`. Cloud sync is a later increment
- * (doc `10` §13); nothing here calls Supabase directly. State is keyed by id
+ * `store/taskStore.ts` / `store/listStore.ts`. Cloud sync is a later
+ * increment; nothing here calls Supabase directly. State is keyed by id
  * (`Record<string, Project>`) for O(1) single-project reads/writes. Components
- * should use the exported selectors and wrap the array selectors in `useShallow`
- * at the call site (Zustand v5 selector discipline — Object.values returns a new
- * array each call and will infinite-loop otherwise).
+ * should use the exported selectors and wrap the array selectors in
+ * `useShallow` at the call site (Zustand v5 selector discipline — Object.values
+ * returns a new array each call and will infinite-loop otherwise).
  */
 
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { newId } from '@/core/id'
 import { mmkvStateStorage } from '@/store/mmkv'
-import type { ChatMessage, Project, ProjectFile, ProjectKind, ProjectPhase, ProjectProgress } from '@/types'
-
-/** Clamp a percent into 0..100 (integer), tolerating NaN/±Infinity from the wire. */
-function clampPct(n: number): number {
-  if (!Number.isFinite(n)) return 0
-  return Math.min(100, Math.max(0, Math.round(n)))
-}
-
-/** The initial, empty progress representation for a freshly-created project of `kind`. */
-function initialProgress(kind: ProjectKind): ProjectProgress {
-  switch (kind) {
-    case 'deliverable':
-      return { kind: 'deliverable', phases: [] }
-    case 'study':
-      return { kind: 'study', topics: [] }
-    case 'general':
-    default:
-      return { kind: 'general', pct: 0 }
-  }
-}
+import { applyCheckIn as applyCheckInToPhases, computePercent, type CheckInAnswer } from '@/core/projects/progress'
+import type { Phase, Project } from '@/types'
 
 interface ProjectState {
   projects: Record<string, Project>
 
   /**
-   * Create a project. Only `name` + `kind` are required; everything else gets a
-   * sensible empty default (empty file library, chat, memory, taskIds, and a
-   * `progress` shape matching `kind`). Returns the created project.
+   * Create a project. Only `title` + `kind` are required; everything else
+   * gets a sensible empty default (no phases, no deadline, no context line,
+   * 0 percent). Returns the created project.
    */
   createProject: (
     partial: Partial<Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'syncState'>> &
-      Pick<Project, 'name' | 'kind'>
+      Pick<Project, 'title' | 'kind'>
   ) => Project
 
   updateProject: (id: string, patch: Partial<Omit<Project, 'id' | 'createdAt'>>) => void
   deleteProject: (id: string) => void
 
-  /** Append a file to the project's knowledge base (doc `10` §4). */
-  addFile: (id: string, file: ProjectFile) => void
-  /** Append a chat turn to the project's scoped conversation (doc `10` §5). */
-  addChatMessage: (id: string, msg: ChatMessage) => void
-  /** Replace the project's progress (e.g. after the chat recomputes phases/mastery — doc `10` §6). */
-  setProgress: (id: string, progress: ProjectProgress) => void
-  /** Link a generated Task to this project (doc `10` §7). Idempotent — no duplicate ids. */
-  linkTask: (id: string, taskId: string) => void
+  /**
+   * Replace a project's phase list (add/remove/edit/toggle from the
+   * ProgressTracker UI, doc `06` §7 "editable at any time"), keeping
+   * `percent` in sync via `core/projects/progress.ts#computePercent`.
+   */
+  setPhases: (id: string, phases: Phase[]) => void
 
   /**
-   * Append a phase to a DELIVERABLE project's progress (doc `10` §6, agentic
-   * chat action `add_project_phase`). The store assigns the phase id. No-op if
-   * the project is missing or its progress is not of kind 'deliverable' (a phase
-   * only makes sense there — the discriminated `ProjectProgress` union keeps the
-   * other kinds phase-free).
+   * Fold an end-of-session check-in into the project's progress (FR-85, doc
+   * `06` §5). `done` marks the current phase (first not-done, lowest
+   * `order`) complete and may advance to the next one; `keep_going` leaves it
+   * open (a fresh session follows after a break); `stop_here` leaves it open
+   * too (the remainder reflows into the schedule — that reflow is the
+   * caller's job, e.g. `scheduleStore.recompute()`, not this store's).
+   *
+   * `currentPhaseFraction` (0..1) is how much of the still-open current
+   * phase THIS session actually completed — partial credit for the percent
+   * bar when the answer isn't `done` (or was inferred from a skipped
+   * check-in). Ignored once every phase is already done.
    */
-  addPhase: (id: string, phase: { title: string; pct: number }) => void
-  /**
-   * Replace the project's memory list (doc `10` §8, agentic chat action
-   * `update_project_memory`). Local-first, never shared-model training.
-   */
-  updateMemory: (id: string, entries: string[]) => void
+  applyCheckIn: (
+    projectId: string,
+    answer: CheckInAnswer,
+    currentPhaseFraction?: number
+  ) => void
 }
 
 /** Apply a patch to one project (updating sync bookkeeping), or no-op if it is gone. */
@@ -103,16 +91,13 @@ export const useProjectStore = create<ProjectState>()(
 
       createProject: (partial) => {
         const now = Date.now()
+        const phases = partial.phases ?? []
         const project: Project = {
-          // Defaults for everything not supplied by the caller.
-          description: undefined,
-          color: undefined,
-          files: [],
-          chat: [],
-          memory: [],
-          taskIds: [],
-          progress: initialProgress(partial.kind),
+          deadline: undefined,
+          contextLine: undefined,
           ...partial,
+          phases,
+          percent: partial.percent ?? computePercent(phases),
           id: newId(),
           createdAt: now,
           updatedAt: now,
@@ -137,53 +122,22 @@ export const useProjectStore = create<ProjectState>()(
         })
       },
 
-      addFile: (id, file) => {
+      setPhases: (id, phases) => {
         set((state) => ({
-          projects: patchProject(state.projects, id, (p) => ({ ...p, files: [...p.files, file] })),
+          projects: patchProject(state.projects, id, (p) => ({
+            ...p,
+            phases,
+            percent: computePercent(phases),
+          })),
         }))
       },
 
-      addChatMessage: (id, msg) => {
+      applyCheckIn: (projectId, answer, currentPhaseFraction) => {
         set((state) => ({
-          projects: patchProject(state.projects, id, (p) => ({ ...p, chat: [...p.chat, msg] })),
-        }))
-      },
-
-      setProgress: (id, progress) => {
-        set((state) => ({
-          projects: patchProject(state.projects, id, (p) => ({ ...p, progress })),
-        }))
-      },
-
-      linkTask: (id, taskId) => {
-        set((state) => ({
-          projects: patchProject(state.projects, id, (p) =>
-            p.taskIds.includes(taskId) ? p : { ...p, taskIds: [...p.taskIds, taskId] }
-          ),
-        }))
-      },
-
-      addPhase: (id, phase) => {
-        set((state) => ({
-          projects: patchProject(state.projects, id, (p) => {
-            // Phases only exist on deliverable progress; leave other kinds untouched.
-            if (p.progress.kind !== 'deliverable') return p
-            const newPhase: ProjectPhase = {
-              id: newId(),
-              title: phase.title,
-              pct: clampPct(phase.pct),
-            }
-            return {
-              ...p,
-              progress: { kind: 'deliverable', phases: [...p.progress.phases, newPhase] },
-            }
+          projects: patchProject(state.projects, projectId, (p) => {
+            const { phases, percent } = applyCheckInToPhases(p.phases, answer, currentPhaseFraction)
+            return { ...p, phases, percent }
           }),
-        }))
-      },
-
-      updateMemory: (id, entries) => {
-        set((state) => ({
-          projects: patchProject(state.projects, id, (p) => ({ ...p, memory: entries })),
         }))
       },
     }),

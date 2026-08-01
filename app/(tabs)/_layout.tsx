@@ -40,32 +40,19 @@ export default function TabLayout() {
         },
       }}
     >
+      {/* Order and labels are fixed by PRD §8.1: Today · Calendar · Tasks · Focus · Profile. */}
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "Today",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "home" : "home-outline"}
+              name={focused ? "today" : "today-outline"}
               size={TAB_ICON_SIZE}
               color={color}
             />
           ),
-          tabBarAccessibilityLabel: "Home tab",
-        }}
-      />
-      <Tabs.Screen
-        name="tasks"
-        options={{
-          title: "Tasks",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "list" : "list-outline"}
-              size={TAB_ICON_SIZE}
-              color={color}
-            />
-          ),
-          tabBarAccessibilityLabel: "Tasks tab",
+          tabBarAccessibilityLabel: "Today tab",
         }}
       />
       <Tabs.Screen
@@ -80,6 +67,20 @@ export default function TabLayout() {
             />
           ),
           tabBarAccessibilityLabel: "Calendar tab",
+        }}
+      />
+      <Tabs.Screen
+        name="tasks"
+        options={{
+          title: "Tasks",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "list" : "list-outline"}
+              size={TAB_ICON_SIZE}
+              color={color}
+            />
+          ),
+          tabBarAccessibilityLabel: "Tasks tab",
         }}
       />
       <Tabs.Screen

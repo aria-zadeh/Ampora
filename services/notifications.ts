@@ -2,7 +2,7 @@
  * Ampora notification service — Phase 6 (PRD FR-63, §8.9), rebuilt on the NEW
  * data model (`Task` with epoch-ms `due` + `subtasks[].completedAt` + status
  * 'todo'|'doing'|'done'; `Settings` with `quietHours` as a minutes-from-
- * midnight `TimeWindow`, `maxNotificationsPerHour`, `energyPeak`).
+ * midnight `TimeWindow`, `maxNotificationsPerHour`).
  *
  * Design principles (binding):
  *  - Warm, encouraging, NEVER-shaming copy (§8.9). We nudge, we don't nag.
@@ -10,17 +10,35 @@
  *    Urgency raises the ceiling: due < 12h -> up to 1/30min; due < 2h -> up to
  *    1/20min. At most 3 START reminders per day per task.
  *  - Quiet hours respected (settings.quietHours, wraps midnight, auto-release).
- *  - Four kinds: Start Reminder, Deadline Approaching, Motivation Nudge,
- *    Completion Celebrate.
+ *  - Kinds: Start Reminder, Deadline Approaching, Motivation Nudge, Completion
+ *    Celebrate (this file), plus "Ready for tomorrow" (FR-90, `notify
+ *    ReadyForTomorrow` below) and the stake cue / arm / recurring-weekly-
+ *    summary kinds owned by `services/stakeScheduling.ts`. §8.9 names four of
+ *    these verbatim (Start Reminder, Scheduled-session cue, Ready for
+ *    tomorrow, Recurring-stake weekly summary); Deadline/Motivation/Completion
+ *    predate that shortened list and have no §8.9 line to reconcile against,
+ *    so only genuine drift against a documented line is fixed here (Start
+ *    Reminder's copy — it previously read "Ready for a first move? / ...try
+ *    just this... Two minutes" instead of the spec's "It takes 5 minutes").
  *  - Graceful degradation: no permission / unsupported platform -> no-op, never
  *    throws, never surfaces errors to the user.
  *  - Web: uses the Notifications API where available (immediate, for reminders
  *    that are due right now); no-ops when unavailable.
+ *
+ * ANCHOR FIX: Start Reminder and Motivation Nudge used to fire at
+ * `nextEnergyPeak(settings.energyPeak, now)`. Energy states are deferred in
+ * full (`V2_Changes.md` §1: "Energy-aware placement and the energy-peak
+ * onboarding step") and `Settings.energyPeak` no longer exists on the type at
+ * all (verified: no reference anywhere in `types/index.ts` or
+ * `core/scheduler/**` — this file was the only stale mention) — so both now
+ * fire `START_REMINDER_LEAD_MIN` minutes before the task's next upcoming
+ * `ScheduledBlock` (FR-63's replacement anchor), and simply don't fire at all
+ * for a task with no block yet (there is nothing to anchor to).
  */
 
 import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
-import type { Settings, Task, TimeWindow } from '@/types'
+import type { ScheduledBlock, Settings, Task, TimeWindow } from '@/types'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -41,6 +59,9 @@ const SPACING_BASELINE_MIN = 60
 const SPACING_DUE_SOON_MIN = 30 // due < 12h
 const SPACING_DUE_IMMINENT_MIN = 20 // due < 2h
 
+/** How long before a task's next scheduled block the Start/Motivation nudge fires. */
+const START_REMINDER_LEAD_MIN = 15
+
 // ---------------------------------------------------------------------------
 // Copy (§8.9) — warm, specific, never shaming.
 // ---------------------------------------------------------------------------
@@ -50,10 +71,11 @@ interface Copy {
   body: string
 }
 
-function startReminderCopy(task: Task, firstStep: string): Copy {
+/** §8.9 verbatim: "Hey, {task} is on your plate. Want to do the first move? It takes 5 minutes." */
+function startReminderCopy(task: Task): Copy {
   return {
-    title: 'Ready for a first move?',
-    body: `"${task.title}" — try just this: ${firstStep}. Two minutes, that's it.`,
+    title: 'First move?',
+    body: `Hey, "${task.title}" is on your plate. Want to do the first move? It takes 5 minutes.`,
   }
 }
 
@@ -75,6 +97,14 @@ function completionCopy(task: Task): Copy {
   return {
     title: 'Nice — that one is done',
     body: `You finished "${task.title}". That's a real win. Take the credit.`,
+  }
+}
+
+/** §8.9 verbatim: "Tomorrow's plan is ready. First up: {task}." (FR-90). */
+function readyForTomorrowCopy(firstTaskTitle: string): Copy {
+  return {
+    title: 'Ready for tomorrow',
+    body: `Tomorrow's plan is ready. First up: ${firstTaskTitle}.`,
   }
 }
 
@@ -165,8 +195,12 @@ export function isQuietTime(t: number, quiet: TimeWindow): boolean {
 /**
  * Push a candidate time out of quiet hours to the next moment quiet hours end.
  * Returns the adjusted epoch ms. If not in quiet hours, returns `t` unchanged.
+ *
+ * Exported for `services/stakeScheduling.ts`'s FR-41d weekly summary, which
+ * shifts like an ordinary reminder (it's informational only) rather than
+ * being dropped like a stake cue.
  */
-function shiftOutOfQuietHours(t: number, quiet: TimeWindow): number {
+export function shiftOutOfQuietHours(t: number, quiet: TimeWindow): number {
   if (!isQuietTime(t, quiet)) return t
   const d = new Date(t)
   const endHour = Math.floor(quiet.end / 60)
@@ -252,6 +286,23 @@ function startOfDay(t: number): number {
   return d.getTime()
 }
 
+/**
+ * The start of this task's next upcoming `ScheduledBlock` (epoch ms), or null
+ * if it has none — FR-63's anchor for the Start Reminder / Motivation Nudge,
+ * replacing the old energy-peak anchor. "Upcoming" means not yet ended, so a
+ * block that is currently in progress still counts (its start already
+ * passed, but the later `> now` filter in `scheduleTaskReminders` drops any
+ * resulting fire time that has already gone by).
+ */
+function nextBlockStart(taskId: string, blocks: ScheduledBlock[], now: number): number | null {
+  let best: number | null = null
+  for (const b of blocks) {
+    if (b.taskId !== taskId || b.end <= now) continue
+    if (best == null || b.start < best) best = b.start
+  }
+  return best
+}
+
 // ---------------------------------------------------------------------------
 // Spec building
 // ---------------------------------------------------------------------------
@@ -270,7 +321,7 @@ interface NotificationSpec {
 }
 
 /** Build candidate specs for a single task (pre-rate-limit, pre-quiet-shift). */
-function buildSpecsForTask(task: Task, settings: Settings, now: number): NotificationSpec[] {
+function buildSpecsForTask(task: Task, settings: Settings, now: number, blocks: ScheduledBlock[]): NotificationSpec[] {
   if (isDone(task) || task.due == null) return []
   const dueMs = task.due
   if (dueMs < now || dueMs > now + HORIZON_MS) return []
@@ -293,20 +344,25 @@ function buildSpecsForTask(task: Task, settings: Settings, now: number): Notific
   // which never falls back to the baseline spacing when the task is due soon.
   const cadenceMuted = settings.maxNotificationsPerHour <= 0
 
-  // Start reminder: at the user's energy-peak start, on the next day that peak
-  // occurs, when the deadline is comfortably far out (> 12h).
+  // Start reminder: a lead-time nudge before the task's next SCHEDULED BLOCK
+  // (FR-63 — not an energy peak, which is deferred), when the deadline is
+  // comfortably far out (> 12h). No block yet -> nothing to anchor to, so no
+  // start reminder fires for a not-yet-scheduled task.
   if (startEnabled && !cadenceMuted && hoursToDue > 12) {
-    const startAt = nextEnergyPeak(settings.energyPeak, now)
-    if (startAt < dueMs) {
-      const copy = startReminderCopy(task, firstStep)
-      specs.push({
-        identifier: `start-${task.id}`,
-        taskId: task.id,
-        kind: 'start',
-        fireAt: startAt,
-        dueMs,
-        content: notifContent(task, 'start_reminder', copy),
-      })
+    const blockStart = nextBlockStart(task.id, blocks, now)
+    if (blockStart != null) {
+      const startAt = blockStart - START_REMINDER_LEAD_MIN * MS_PER_MIN
+      if (startAt < dueMs) {
+        const copy = startReminderCopy(task)
+        specs.push({
+          identifier: `start-${task.id}`,
+          taskId: task.id,
+          kind: 'start',
+          fireAt: startAt,
+          dueMs,
+          content: notifContent(task, 'start_reminder', copy),
+        })
+      }
     }
   }
 
@@ -324,21 +380,26 @@ function buildSpecsForTask(task: Task, settings: Settings, now: number): Notific
     })
   }
 
-  // Motivation nudge: if the task hasn't been touched in 24h, gently nudge at
-  // the next energy peak (only for not-yet-started work). Also a non-urgent
-  // baseline nudge, so cadence "Off" silences it too.
+  // Motivation nudge: if the task hasn't been touched in 24h, gently nudge
+  // ahead of its next scheduled block (only for not-yet-started work). Also a
+  // non-urgent baseline nudge, so cadence "Off" silences it too. Same
+  // block-anchor as the start reminder (both used to share the energy-peak
+  // anchor; both now share the block anchor for the same reason).
   if (motivationEnabled && !cadenceMuted && task.status === 'todo' && now - task.updatedAt > 24 * MS_PER_HOUR) {
-    const nudgeAt = nextEnergyPeak(settings.energyPeak, now)
-    if (nudgeAt < dueMs) {
-      const copy = motivationCopy(task, firstStep)
-      specs.push({
-        identifier: `motivation-${task.id}`,
-        taskId: task.id,
-        kind: 'motivation',
-        fireAt: nudgeAt,
-        dueMs,
-        content: notifContent(task, 'motivation_nudge', copy),
-      })
+    const blockStart = nextBlockStart(task.id, blocks, now)
+    if (blockStart != null) {
+      const nudgeAt = blockStart - START_REMINDER_LEAD_MIN * MS_PER_MIN
+      if (nudgeAt < dueMs) {
+        const copy = motivationCopy(task, firstStep)
+        specs.push({
+          identifier: `motivation-${task.id}`,
+          taskId: task.id,
+          kind: 'motivation',
+          fireAt: nudgeAt,
+          dueMs,
+          content: notifContent(task, 'motivation_nudge', copy),
+        })
+      }
     }
   }
 
@@ -356,15 +417,6 @@ function notifContent(
     data: { taskId: task.id, type },
     sound: true,
   }
-}
-
-/** Next occurrence of the energy-peak start (epoch ms), today if still ahead, else tomorrow. */
-function nextEnergyPeak(peak: TimeWindow, now: number): number {
-  const d = new Date(now)
-  d.setHours(Math.floor(peak.start / 60), peak.start % 60, 0, 0)
-  let t = d.getTime()
-  if (t <= now) t += MS_PER_DAY
-  return t
 }
 
 // ---------------------------------------------------------------------------
@@ -390,14 +442,14 @@ function showWebNotification(title: string, body: string, tag: string): void {
  * short window of NOW. Call on an interval (e.g. every 60s) while the app is
  * open on web. Respects quiet hours. No-op if unsupported / not permitted.
  */
-export function checkAndFireWebReminders(tasks: Task[], settings: Settings): void {
+export function checkAndFireWebReminders(tasks: Task[], settings: Settings, blocks: ScheduledBlock[]): void {
   if (typeof window === 'undefined' || !('Notification' in window)) return
   if (Notification.permission !== 'granted') return
 
   const now = Date.now()
   const WINDOW_MS = 90 * 1000
   for (const task of tasks) {
-    const specs = buildSpecsForTask(task, settings, now)
+    const specs = buildSpecsForTask(task, settings, now, blocks)
     for (const spec of specs) {
       if (Math.abs(spec.fireAt - now) > WINDOW_MS) continue
       if (isQuietTime(spec.fireAt, settings.quietHours)) continue
@@ -419,20 +471,44 @@ export function checkAndFireWebReminders(tasks: Task[], settings: Settings): voi
  *
  * On web, delegates to the immediate `checkAndFireWebReminders` (OS scheduling
  * is unavailable in the browser).
+ *
+ * `blocks` is every current `ScheduledBlock` (`selectAllBlocks(scheduleStore)`)
+ * — the anchor for the Start Reminder / Motivation Nudge (FR-63).
  */
-export async function scheduleTaskReminders(tasks: Task[], settings: Settings): Promise<void> {
+export async function scheduleTaskReminders(
+  tasks: Task[],
+  settings: Settings,
+  blocks: ScheduledBlock[]
+): Promise<void> {
   if (Platform.OS === 'web') {
-    checkAndFireWebReminders(tasks, settings)
+    checkAndFireWebReminders(tasks, settings, blocks)
     return
   }
 
   try {
-    await Notifications.cancelAllScheduledNotificationsAsync()
+    // Selective cancellation, NOT `cancelAllScheduledNotificationsAsync()`.
+    // This runs on every task/settings edit (debounced, but still frequent),
+    // and a blanket cancel would silently destroy any stake-cue notification
+    // scheduled by `services/stakeScheduling.ts` (`stake-cue-`/`stake-arm-`/
+    // `stake-weekly-`) the next time the user so much as renames a task.
+    // Cancel only OUR OWN reminder kinds, matched by identifier prefix, so a
+    // stake cue is never in this set (verified: `buildSpecsForTask` below is
+    // the only place these three identifiers are minted, as `start-${task.id}`
+    // / `deadline-${task.id}` / `motivation-${task.id}`; `celebrateCompletion`'s
+    // `complete-${task.id}` and `notifyReadyForTomorrow`'s
+    // `ready-for-tomorrow-<day>` both fire immediately with `trigger: null` and
+    // are never present in the scheduled list either way).
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync()
+    await Promise.allSettled(
+      scheduled
+        .filter((n) => /^(start|deadline|motivation)-/.test(n.identifier))
+        .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier))
+    )
 
     const now = Date.now()
     let candidates: NotificationSpec[] = []
     for (const task of tasks) {
-      candidates = candidates.concat(buildSpecsForTask(task, settings, now))
+      candidates = candidates.concat(buildSpecsForTask(task, settings, now, blocks))
     }
 
     // Shift any candidate out of quiet hours, drop ones that would land past the
@@ -479,6 +555,34 @@ export async function celebrateCompletion(task: Task): Promise<void> {
     })
   } catch (err) {
     console.warn('[Notifications] celebrateCompletion failed silently:', err)
+  }
+}
+
+/**
+ * Fire the "Ready for tomorrow" notification (FR-90, §8.9) once the nightly
+ * pass (`services/nightlyPass.ts`) has confirmed tomorrow actually has a
+ * first task. Fires IMMEDIATELY (`trigger: null`), matching
+ * `celebrateCompletion`'s pattern — the pass itself only runs once the app is
+ * genuinely foregrounded, so "now" already IS the right moment to surface it.
+ * `identifier` is stable per TARGET DAY (`readyForTomorrowNotificationId`,
+ * `core/nightlyPass.ts`), so calling this twice for the same day overwrites
+ * rather than duplicates, on top of the pass's own once-per-day guard. Never
+ * throws.
+ */
+export async function notifyReadyForTomorrow(firstTaskTitle: string, identifier: string): Promise<void> {
+  const copy = readyForTomorrowCopy(firstTaskTitle)
+  if (Platform.OS === 'web') {
+    showWebNotification(copy.title, copy.body, identifier)
+    return
+  }
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier,
+      content: { title: copy.title, body: copy.body, data: { type: 'ready_for_tomorrow' }, sound: true },
+      trigger: null, // fire now
+    })
+  } catch (err) {
+    console.warn('[Notifications] notifyReadyForTomorrow failed silently:', err)
   }
 }
 

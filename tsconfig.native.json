@@ -1,0 +1,21 @@
+{
+  "//": "MAC-ONLY typecheck. Extends the app tsconfig and DROPS its `native/**` exclusion so the Expo native module's TypeScript (native/modules/*/src/**) is checked too. Run with `npm run typecheck:native` AFTER `npm run native:on && npm install` — it needs the optional native packages listed in native/package-additions.json to be present, so it WILL fail on a Windows checkout. That is expected and is not a regression: the shared quality gate is `npm run typecheck` (tsconfig.json), which never sees this tree.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "native/**/*.ts",
+    "native/**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "Reference/**",
+    "supabase/functions/**"
+  ]
+}

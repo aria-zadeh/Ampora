@@ -5,7 +5,7 @@ import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { useShallow } from "zustand/react/shallow";
 import {
   useListStore,
@@ -132,7 +132,7 @@ export function ListTagPicker(props: ListTagPickerProps) {
           accessibilityRole="button"
           accessibilityLabel={isSingle ? "New list" : "New tag"}
         >
-          <Ionicons name="add" size={14} color="#2563EB" />
+          <Ionicons name="add" size={14} color={colors.light.primary} />
           <Text className="ml-1 text-caption font-medium text-primary-600">
             {isSingle ? "New list" : "New tag"}
           </Text>
@@ -159,7 +159,7 @@ export function ListTagPicker(props: ListTagPickerProps) {
             <TextInput
               className="mt-5 min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
               placeholder={isSingle ? "List name" : "Tag name"}
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               value={draftName}
               onChangeText={setDraftName}
               autoFocus
@@ -187,7 +187,7 @@ export function ListTagPicker(props: ListTagPickerProps) {
                     style={{ backgroundColor: color }}
                   >
                     {selected ? (
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
                     ) : null}
                   </Pressable>
                 );

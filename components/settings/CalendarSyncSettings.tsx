@@ -1,191 +1,248 @@
 /**
- * CalendarSyncSettings — connect external (read-only) calendars (PRD FR-1,
- * §8.6, roadmap external-calendar sync). Ampora Phase 6.
+ * CalendarSyncSettings — read-only device calendar sync (PRD FR-22, §8.6).
  *
- * A premium settings group that lets the user connect Google, Outlook, or
- * iCloud calendars so their existing events show up as immovable BUSY blocks
- * the scheduler plans around (never auto-moved — CalEvent, FR-1). Read-only:
- * Ampora reads these calendars, it never writes to them.
+ * Ampora does not run its own Google/Outlook/iCloud OAuth. Instead it reads
+ * the calendars already synced onto the device: once the user has signed
+ * into a Google, Outlook, or iCloud account at the OS level, that account's
+ * calendars land in the same on-device calendar database, so one permission
+ * prompt covers all three providers. `services/calendarSync.ts` does the
+ * actual reading; this screen is the permission + per-calendar picker UI.
  *
- * OAuth for each provider needs per-app setup (client IDs, consent screens,
- * entitlements) that isn't wired yet, so each "Connect" row degrades
- * gracefully to a calm "coming soon / connect on device" explainer instead of
- * crashing or dead-ending. When the real connectors land, swap the
- * `onConnect` handler for the provider's auth flow — the row UI stays.
+ * States:
+ * - unsupported (web): calendar sync needs the phone app — calm explainer,
+ *   no dead-end (FR-64).
+ * - unrequested / denied: an honest explainer + a single primary action
+ *   (request permission, or open Settings if already denied).
+ * - granted: a per-calendar toggle list (never auto-select — a birthdays or
+ *   holidays calendar would block the whole schedule), a last-synced line
+ *   with a manual "Sync now", and a "Disconnect" action that clears the
+ *   selection (Ampora-side only; it cannot revoke the OS permission).
  *
- * Designed to embed under a section header on the Profile screen (it renders
- * its own grouped white card + shadow, like StakesSettings). Calm, accessible,
- * RN + NativeWind, web-export safe.
+ * Selecting/deselecting a calendar writes `settingsStore.calendarSyncCalendarIds`;
+ * `scheduleStore.ts` already reacts to that change (refetches + recomputes),
+ * so this screen only ever touches settings state, never the schedule store
+ * directly (aside from reading the last-synced timestamp and the manual sync
+ * button, both plain reads/calls of an existing action).
+ *
+ * Embeds under its own section header on the Profile screen (renders its own
+ * grouped white card, like StakesSettings/NotificationSettings). RN +
+ * NativeWind, web-export safe.
  */
 
-import React, { useState } from 'react'
-import { View, Text, Modal, Pressable, Platform } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import * as Haptics from 'expo-haptics'
+import React, { useCallback, useEffect, useState } from 'react'
+import { Linking, Platform, Text, View } from 'react-native'
 
-import { Heading } from '@/components/ui/Heading'
+import { useSettingsStore } from '@/store/settingsStore'
+import { useScheduleStore } from '@/store/scheduleStore'
+import * as calendarSync from '@/services/calendarSync'
+import type { CalendarPermissionStatus, DeviceCalendar } from '@/services/calendarSync'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { shadows } from '@/utils/design-tokens'
+import {
+  Group,
+  Row,
+  SectionFootnote,
+  Toggle,
+} from '@/components/settings/SettingsPrimitives'
+import { colors } from '@/utils/design-tokens'
 
-// ---------------------------------------------------------------------------
-// Providers
-// ---------------------------------------------------------------------------
-
-interface CalendarProvider {
-  key: 'google' | 'outlook' | 'apple'
-  label: string
-  icon: keyof typeof Ionicons.glyphMap
-  /** Tint for the leading icon bubble. */
-  tint: string
-  tintBg: string
+/** "Synced just now" / "Synced 12m ago" / "Synced 3h ago" / a short date past a day. */
+function formatSyncedAt(ms: number | null): string {
+  if (ms == null) return 'Not synced yet'
+  const diffMs = Date.now() - ms
+  const diffMin = Math.round(diffMs / 60_000)
+  if (diffMin < 1) return 'Synced just now'
+  if (diffMin < 60) return `Synced ${diffMin}m ago`
+  const diffHr = Math.round(diffMin / 60)
+  if (diffHr < 24) return `Synced ${diffHr}h ago`
+  const date = new Date(ms)
+  return `Synced ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
 }
-
-const PROVIDERS: CalendarProvider[] = [
-  {
-    key: 'google',
-    label: 'Google Calendar',
-    icon: 'logo-google',
-    tint: '#2563EB',
-    tintBg: 'bg-primary-50',
-  },
-  {
-    key: 'outlook',
-    label: 'Outlook',
-    icon: 'mail-outline',
-    tint: '#2563EB',
-    tintBg: 'bg-primary-50',
-  },
-  {
-    key: 'apple',
-    label: 'iCloud Calendar',
-    icon: 'logo-apple',
-    tint: '#1C1917',
-    tintBg: 'bg-neutral-100',
-  },
-]
-
-// ---------------------------------------------------------------------------
-// CalendarSyncSettings
-// ---------------------------------------------------------------------------
 
 export function CalendarSyncSettings() {
-  // Which provider's explainer is open (null = closed). No calendar is actually
-  // connectable yet, so nothing here persists a "connected" flag.
-  const [explainProvider, setExplainProvider] = useState<CalendarProvider | null>(null)
+  const calendarSyncCalendarIds = useSettingsStore((s) => s.calendarSyncCalendarIds)
+  const setCalendarSyncCalendarIds = useSettingsStore((s) => s.setCalendarSyncCalendarIds)
+  const externalEventsSyncedAt = useScheduleStore((s) => s.externalEventsSyncedAt)
 
-  const openExplainer = (provider: CalendarProvider) => {
-    Haptics.selectionAsync().catch(() => {})
-    setExplainProvider(provider)
-  }
+  const [status, setStatus] = useState<CalendarPermissionStatus | 'loading'>('loading')
+  const [calendars, setCalendars] = useState<DeviceCalendar[]>([])
+  const [calendarsLoading, setCalendarsLoading] = useState(false)
 
-  return (
-    <View>
-      {/* Intro — set expectations before the rows. */}
-      <Text className="mb-4 text-body text-neutral-500">
-        Connect a calendar and its events show up as busy time Ampora plans around. Read-only —
-        Ampora never changes your other calendars.
-      </Text>
+  const loadCalendars = useCallback(() => {
+    setCalendarsLoading(true)
+    calendarSync
+      .listCalendars()
+      .then(setCalendars)
+      .finally(() => setCalendarsLoading(false))
+  }, [])
 
-      <View className="rounded-2xl border border-neutral-200 bg-white px-4" style={shadows.sm}>
-        {PROVIDERS.map((provider, i) => (
-          <PressableScale
-            key={provider.key}
-            onPress={() => openExplainer(provider)}
-            haptic={false}
-            className={`flex-row items-center py-3.5 ${
-              i === PROVIDERS.length - 1 ? '' : 'border-b border-neutral-100'
-            }`}
-            accessibilityRole="button"
-            accessibilityLabel={`Connect ${provider.label}`}
-            accessibilityHint="Shows how to connect this calendar"
-          >
-            <View
-              className={`h-9 w-9 items-center justify-center rounded-full ${provider.tintBg}`}
-            >
-              <Ionicons name={provider.icon} size={18} color={provider.tint} />
-            </View>
-            <View className="ml-3 flex-1">
-              <Text className="text-body-lg text-neutral-900">{provider.label}</Text>
-              <Text className="mt-0.5 text-caption text-neutral-500">Not connected</Text>
-            </View>
-            <View className="flex-row items-center">
-              <Text className="mr-1.5 text-label font-medium text-primary-600">Connect</Text>
-              <Ionicons name="chevron-forward" size={18} color="#C4C4CC" />
-            </View>
-          </PressableScale>
-        ))}
-      </View>
+  // On mount: read current permission status, and if already granted from a
+  // prior visit, load the calendar list right away.
+  useEffect(() => {
+    let mounted = true
+    calendarSync.getPermissionStatus().then((s) => {
+      if (!mounted) return
+      setStatus(s)
+      if (s === 'granted') loadCalendars()
+    })
+    return () => {
+      mounted = false
+    }
+  }, [loadCalendars])
 
-      <Text className="ml-1 mt-2 text-caption text-neutral-500">
-        Events from connected calendars are shown as busy blocks and are never moved by the
-        scheduler.
-      </Text>
+  // `Button` (used for the request-access / open-settings CTA below) already
+  // fires its own press haptic, so these handlers don't fire a second one.
+  const requestAccess = useCallback(() => {
+    calendarSync.requestPermission().then((s) => {
+      setStatus(s)
+      if (s === 'granted') loadCalendars()
+    })
+  }, [loadCalendars])
 
-      {/* Graceful "coming soon" explainer — no crash, no dead-end. */}
-      <Modal
-        visible={explainProvider != null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setExplainProvider(null)}
-      >
-        <Pressable
-          className="flex-1 items-center justify-center bg-black/40 px-8"
-          onPress={() => setExplainProvider(null)}
-        >
-          <Pressable
-            className="w-full max-w-[360px] rounded-2xl bg-white p-6"
-            style={shadows.lg}
-            onPress={(e) => e.stopPropagation()}
-          >
-            {explainProvider && (
-              <>
-                <View
-                  className={`h-12 w-12 items-center justify-center rounded-full ${explainProvider.tintBg}`}
-                >
-                  <Ionicons
-                    name={explainProvider.icon}
-                    size={24}
-                    color={explainProvider.tint}
-                  />
-                </View>
-                <Heading size="h3" className="mt-4">
-                  {explainProvider.label}
-                </Heading>
-                <Text className="mt-2 text-body text-neutral-600 leading-6">
-                  {explainerCopy(explainProvider.key)}
-                </Text>
-                <View className="mt-6">
-                  <Button
-                    title="Got it"
-                    variant="primaryBlue"
-                    size="lg"
-                    onPress={() => setExplainProvider(null)}
-                    accessibilityLabel="Close"
-                  />
-                </View>
-              </>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </View>
+  const openSettings = useCallback(() => {
+    if (Platform.OS !== 'web') Linking.openSettings().catch(() => {})
+  }, [])
+
+  const toggleCalendar = useCallback(
+    (id: string) => {
+      // `Toggle` fires its own selection haptic.
+      const next = calendarSyncCalendarIds.includes(id)
+        ? calendarSyncCalendarIds.filter((c) => c !== id)
+        : [...calendarSyncCalendarIds, id]
+      setCalendarSyncCalendarIds(next)
+    },
+    [calendarSyncCalendarIds, setCalendarSyncCalendarIds]
   )
-}
 
-/**
- * Per-provider explainer copy. Honest about the current state (connecting isn't
- * live yet) while telling the user exactly what will happen when it is. Apple's
- * copy nods to on-device permission (EventKit) since that's the eventual path.
- */
-function explainerCopy(key: CalendarProvider['key']): string {
-  const soon =
-    'Connecting calendars is coming soon. When it lands, your events will appear here as busy time your plan works around — nothing on your calendar ever changes.'
-  if (key === 'apple' && Platform.OS === 'ios') {
+  // `PressableScale` (used below) already fires its own press haptic.
+  const disconnect = useCallback(() => {
+    setCalendarSyncCalendarIds([])
+  }, [setCalendarSyncCalendarIds])
+
+  const syncNow = useCallback(() => {
+    useScheduleStore.getState().refreshExternalEvents()
+  }, [])
+
+  // --- Web / unsupported: calm explainer, no dead end (FR-64). -------------
+  if (status === 'unsupported') {
     return (
-      'iCloud events sync through your device calendar, so you can grant read access right on this phone. ' +
-      soon
+      <Group>
+        <EmptyState
+          icon="calendar-outline"
+          title="Calendar sync needs the phone app"
+          subtitle="Ampora reads your device calendar to plan around your classes. Open Ampora on your iPhone or Android phone to connect one."
+        />
+      </Group>
     )
   }
-  return soon
+
+  // --- Still checking permission on mount. ---------------------------------
+  if (status === 'loading') {
+    return null
+  }
+
+  // --- Not yet granted (never asked, or previously denied). ----------------
+  if (status !== 'granted') {
+    const denied = status === 'denied'
+    return (
+      <View>
+        <EmptyState
+          icon="calendar-outline"
+          title="See your classes automatically"
+          subtitle="Ampora reads your calendar so it never schedules study sessions over your classes or existing events. It only reads — Ampora never adds, changes, or deletes anything on your calendar."
+        />
+        <View className="mt-2 items-center">
+          <Button
+            title={denied ? 'Open Settings' : 'Allow calendar access'}
+            variant="primaryBlue"
+            onPress={denied ? openSettings : requestAccess}
+            accessibilityLabel={
+              denied ? 'Open device settings to allow calendar access' : 'Allow calendar access'
+            }
+          />
+        </View>
+        {denied && (
+          <SectionFootnote>
+            Calendar access was turned off. Turn it back on in Settings to connect a calendar.
+          </SectionFootnote>
+        )}
+      </View>
+    )
+  }
+
+  // --- Granted: per-calendar picker. ----------------------------------------
+  return (
+    <View>
+      <Text className="mb-4 text-body text-neutral-500">
+        Choose which calendars count as busy time. Ampora only reads them — it
+        never changes anything on your device calendar.
+      </Text>
+
+      {calendarsLoading && calendars.length === 0 ? null : calendars.length === 0 ? (
+        <Group>
+          <EmptyState
+            icon="calendar-clear-outline"
+            title="No calendars found"
+            subtitle="This device doesn't have any calendars set up yet. Add a Google, Outlook, or iCloud account in your phone's Settings, then come back here."
+          />
+        </Group>
+      ) : (
+        <Group>
+          {calendars.map((cal, i) => (
+            <Row
+              key={cal.id}
+              icon="calendar-outline"
+              iconTint={cal.color || colors.light.textSecondary}
+              iconBg="bg-neutral-100"
+              label={cal.title}
+              sublabel={cal.sourceName}
+              isLast={i === calendars.length - 1}
+              trailing={
+                <Toggle
+                  value={calendarSyncCalendarIds.includes(cal.id)}
+                  onChange={() => toggleCalendar(cal.id)}
+                  a11yLabel={`Sync ${cal.title} calendar`}
+                />
+              }
+            />
+          ))}
+        </Group>
+      )}
+
+      <SectionFootnote>
+        Events from checked calendars are shown as busy blocks and are never
+        moved or edited by Ampora.
+      </SectionFootnote>
+
+      <View className="mt-4 flex-row items-center justify-between px-1">
+        <Text className="text-caption text-neutral-500">
+          {formatSyncedAt(externalEventsSyncedAt)}
+        </Text>
+        <View className="flex-row items-center">
+          {calendarSyncCalendarIds.length > 0 && (
+            <PressableScale
+              onPress={syncNow}
+              haptic="selection"
+              className="mr-2 min-h-11 justify-center px-2"
+              accessibilityRole="button"
+              accessibilityLabel="Sync calendars now"
+            >
+              <Text className="text-label font-medium text-primary-600">Sync now</Text>
+            </PressableScale>
+          )}
+          <PressableScale
+            onPress={disconnect}
+            haptic="light"
+            className="min-h-11 justify-center px-2"
+            accessibilityRole="button"
+            accessibilityLabel="Disconnect all calendars"
+            accessibilityHint="Stops syncing every calendar; you can reconnect any time"
+          >
+            <Text className="text-label font-medium text-neutral-500">Disconnect</Text>
+          </PressableScale>
+        </View>
+      </View>
+    </View>
+  )
 }

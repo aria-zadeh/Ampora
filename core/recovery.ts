@@ -20,6 +20,7 @@
  */
 
 import type { ScheduledBlock, Task } from '@/types'
+import { advanceMissedOccurrence } from '@/core/recurrence'
 
 const MS_PER_MIN = 60 * 1000
 const MS_PER_HOUR = 60 * MS_PER_MIN
@@ -119,10 +120,41 @@ export function countMissedBlocks(blocks: ScheduledBlock[], now: number): number
 /** Why a past-due item is being proposed for drop (drives preview copy). */
 export type DropReason = 'moot_past_due' | 'missed_occurrence'
 
+/**
+ * FR-16: how to actually APPLY a `missed_occurrence` drop to a recurring
+ * task. A "dropped" recurring occurrence must never delete the whole series —
+ * only advance past the missed instance — so this carries what the caller
+ * (whoever owns the Recovery apply step) should do instead of the
+ * non-recurring `moot_past_due` path's straightforward delete.
+ */
+export interface RecurringAdvance {
+  /** `Task.due` should become this epoch-ms instant. */
+  due: number
+  /** Preserve (true) vs reset-to-fresh-template (false) progress/subtasks when applying — the carry-forward vs drop-missed split (FR-16). */
+  carryForward: boolean
+  /** True when the rule has no occurrence left to advance to (until/count exhausted) — apply this drop exactly like `moot_past_due` (delete the task) instead. */
+  seriesEnded: boolean
+  /**
+   * What `RecurrenceRule.count` should become after this advance is applied —
+   * threaded straight through from `core/recurrence.ts#MissedAdvance.nextCount`
+   * (a drop catch-up may consume several occurrences in one call, so this can
+   * decrease by more than 1; a carry-forward advance always decrements by
+   * exactly 1). The caller should persist `{ ...task.recurrence, count:
+   * nextCount }` alongside `due` — skipping this is what lets a count-limited
+   * series ("repeat 10 times") outlive its rule after a Recovery catch-up.
+   * Undefined when the rule has no `count` (unbounded, or ended by `until`
+   * instead) or when `seriesEnded` is true, since there is nothing to persist
+   * either way.
+   */
+  nextCount?: number
+}
+
 /** A task proposed to drop, with a human-readable reason. */
 export interface RecoveryDrop {
   task: Task
   reason: DropReason
+  /** Present only for `reason === 'missed_occurrence'` — see `RecurringAdvance`. */
+  recurringAdvance?: RecurringAdvance
 }
 
 /** A task proposed to bump to the front because it just became urgent. */
@@ -155,8 +187,12 @@ export interface RecoveryPreview {
  *     the past, and it is NOT a repeating occurrence. Missed REPEATING
  *     occurrences are also dropped, but tagged `missed_occurrence` (FR-16
  *     default: drop the missed occurrence, do not stack it onto the next day) —
- *     unless the task opts into carry-forward via `recurrence` semantics the
- *     scheduler owns (we only drop the past-due instance here, never the rule).
+ *     unless the task opts into carry-forward (`RecurrenceRule.carryForward`).
+ *     Either way we only ever advance the recurring series past the missed
+ *     instance (`core/recurrence.ts#advanceMissedOccurrence`, surfaced on the
+ *     drop as `recurringAdvance`, including the decremented `nextCount` for a
+ *     count-limited rule), we never delete the rule itself — deleting the
+ *     whole task is reserved for `moot_past_due` (non-recurring) drops.
  *
  *  2. BUMP — tasks that are now-urgent: not done, not being dropped, with a
  *     slackRatio < 0.2 (§9.5.9 "bump now-urgent tasks to front-load").
@@ -189,9 +225,25 @@ export function buildRecoveryPreview(
   for (const task of byDueThenId) {
     if (task.status === 'done') continue
     if (task.due == null || task.due >= now) continue // not past-due
-    // Past-due and open. Non-recurring -> moot; recurring -> missed occurrence.
-    const reason: DropReason = isRepeating(task) ? 'missed_occurrence' : 'moot_past_due'
-    drops.push({ task, reason })
+    // Past-due and open. Non-recurring -> moot; recurring -> missed occurrence
+    // (advance the series past it, per FR-16 drop-vs-carry-forward).
+    if (isRepeating(task)) {
+      const advance = advanceMissedOccurrence(task.recurrence!, task.due, now)
+      drops.push({
+        task,
+        reason: 'missed_occurrence',
+        recurringAdvance: advance
+          ? {
+              due: advance.due,
+              carryForward: advance.carryForward,
+              seriesEnded: false,
+              nextCount: advance.nextCount,
+            }
+          : { due: task.due, carryForward: false, seriesEnded: true },
+      })
+    } else {
+      drops.push({ task, reason: 'moot_past_due' })
+    }
     droppedIds.add(task.id)
   }
 
@@ -260,6 +312,72 @@ function buildSummary(dropCount: number, bumpCount: number, rebuildCount: number
 
   // Capitalize the first letter.
   return `I'll ${joined}.`
+}
+
+// ---------------------------------------------------------------------------
+// Applying a drop (FR-60 "accepts in one tap" + the FR-16 apply step)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve ONE `RecoveryDrop` against its current, freshly-loaded task,
+ * producing the Task to persist — or `null` to mean "delete this task".
+ * `buildRecoveryPreview` only PREVIEWS; this is the piece that decides what
+ * applying a preview actually does, so the caller
+ * (`store/taskStore.ts#applyRecoveryDrop`) has exactly one place to call
+ * rather than a second hand-rolled path that can drift out of sync.
+ *
+ * - `moot_past_due` (always non-recurring): always `null`. The task is
+ *   genuinely done-with; nothing else depends on keeping it around.
+ * - `missed_occurrence` whose `recurringAdvance.seriesEnded` is true: also
+ *   `null` — the rule has no occurrence left to advance to (`until`/`count`
+ *   exhausted), so — per `core/recurrence.ts#advanceMissedOccurrence`'s own
+ *   contract — it is treated exactly like a finished one-off.
+ * - `missed_occurrence` otherwise: NEVER `null`. This is the data-loss fix:
+ *   the series continues. Returns `task` rolled to `recurringAdvance.due`,
+ *   with `recurrence.count` updated to `nextCount` when the rule tracks one
+ *   (an undefined `nextCount` means "nothing to persist" — the rule is
+ *   either unbounded or the series ended; see `RecurringAdvance`'s own
+ *   tsdoc). `carryForward` true PRESERVES progress and the subtask checklist
+ *   exactly as they stand (the missed work is due next, not discarded);
+ *   `carryForward` false (the FR-16 default) resets to a fresh occurrence —
+ *   every subtask's `completedAt` cleared, `progressMin` back to 0, the
+ *   First move reset to not-done, `status` back to `'todo'` — the same
+ *   "fresh copy of the template" contract a genuine completion rollover uses
+ *   (`core/recurrence.ts#rollToNextOccurrence`, doc `03` §2.9), because an
+ *   abandoned occurrence deserves the same fresh start as a finished one,
+ *   never a stale half-checked list bleeding into a new due date.
+ *
+ * Pure: never mutates `task`, never reads a clock — `now` only stamps
+ * `updatedAt`. Only `drop.reason` / `drop.recurringAdvance` are consulted;
+ * `drop.task` (a preview-time snapshot) is deliberately never read here —
+ * the caller passes the CURRENT task explicitly so a drop applied slightly
+ * after the preview was built still lands on live data, not a stale echo.
+ */
+export function applyRecoveryDrop(task: Task, drop: RecoveryDrop, now: number): Task | null {
+  if (drop.reason === 'moot_past_due') return null
+
+  const advance = drop.recurringAdvance
+  if (!advance || advance.seriesEnded) return null
+
+  const rule = task.recurrence
+  const nextRule = rule && advance.nextCount !== undefined ? { ...rule, count: advance.nextCount } : rule
+
+  if (advance.carryForward) {
+    return { ...task, due: advance.due, recurrence: nextRule, updatedAt: now }
+  }
+
+  // Drop (default): fresh occurrence, exactly like a genuine-completion rollover.
+  return {
+    ...task,
+    due: advance.due,
+    recurrence: nextRule,
+    status: 'todo',
+    completedAt: undefined,
+    progressMin: 0,
+    subtasks: task.subtasks.map((s) => ({ ...s, completedAt: undefined })),
+    firstMove: task.firstMove ? { ...task.firstMove, done: false } : task.firstMove,
+    updatedAt: now,
+  }
 }
 
 /** Exposed for tests / callers that need the same thresholds. */

@@ -27,7 +27,7 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useStakesStore } from "@/store/stakesStore";
@@ -54,6 +54,21 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
   // Guard so we release exactly once even if timers overlap on unmount.
   const releasedRef = useRef(false);
 
+  // Latest `onReleased`, read from the interval WITHOUT re-arming it every
+  // render. This is load-bearing, not tidiness: both call sites pass an inline
+  // arrow (`app/focus/session.tsx`, `components/focus/GlobalLockBanner.tsx`),
+  // so a raw `onReleased` dependency changes identity on every parent render.
+  // The focus screen re-renders once a second (`useForegroundTimer` advances
+  // `elapsedSec`), which tore down and re-armed this 1000ms interval on the
+  // same 1s cadence — racing the countdown against its own cleanup so it
+  // stalled instead of reaching 0, and `panicValve()` never fired. A panic
+  // valve that does not release is the one failure FR-42/NFR-7 forbid.
+  // Same ref pattern `useForegroundTimer` already uses for its callbacks.
+  const onReleasedRef = useRef(onReleased);
+  useEffect(() => {
+    onReleasedRef.current = onReleased;
+  }, [onReleased]);
+
   // Reset the countdown whenever the sheet opens.
   useEffect(() => {
     if (visible) {
@@ -74,7 +89,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
             // Store owns the release + de-escalation; UI just imposed the pause.
             panicValve(session.id);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-            onReleased?.();
+            onReleasedRef.current?.();
           }
           return 0;
         }
@@ -82,7 +97,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [visible, session.id, panicValve, onReleased]);
+  }, [visible, session.id, panicValve]);
 
   const handleBackToTask = () => {
     Haptics.selectionAsync().catch(() => {});
@@ -122,7 +137,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                 <View className="items-center px-6 pt-6">
                   {/* Calm icon — a breath, not an alarm. */}
                   <View className="h-16 w-16 items-center justify-center rounded-full bg-primary-100">
-                    <Ionicons name="leaf-outline" size={30} color="#2563EB" />
+                    <Ionicons name="leaf-outline" size={30} color={colors.light.primary} />
                   </View>
 
                   <Heading size="h2" className="mt-5 text-center">
@@ -152,7 +167,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                     </View>
                   ) : (
                     <View className="mt-7 h-14 items-center justify-center">
-                      <Ionicons name="checkmark-circle-outline" size={40} color="#2563EB" />
+                      <Ionicons name="checkmark-circle-outline" size={40} color={colors.light.primary} />
                     </View>
                   )}
                 </View>
@@ -175,7 +190,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                         variant="primaryBlue"
                         size="lg"
                         onPress={handleBackToTask}
-                        icon={<Ionicons name="arrow-back" size={18} color="#FFFFFF" />}
+                        icon={<Ionicons name="arrow-back" size={18} color={colors.light.primaryForeground} />}
                         accessibilityLabel="Cancel the unlock and go back to your task"
                       />
                       <Text className="pb-1 text-center text-caption text-neutral-500">

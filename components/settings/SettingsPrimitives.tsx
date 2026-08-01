@@ -19,7 +19,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated'
-import { shadows } from '@/utils/design-tokens'
+import { colors, shadows } from '@/utils/design-tokens'
 import { EASINGS, DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
 
@@ -62,7 +62,7 @@ export function Group({ children }: { children: React.ReactNode }) {
 /** A settings row: leading icon bubble, label + optional sublabel, trailing slot. */
 export function Row({
   icon,
-  iconTint = '#57534E',
+  iconTint = colors.light.textSecondary,
   iconBg = 'bg-neutral-100',
   label,
   sublabel,
@@ -146,7 +146,7 @@ export function Stepper({
         accessibilityLabel={`Decrease ${a11yLabel}`}
         accessibilityState={{ disabled: atMin }}
       >
-        <Ionicons name="remove" size={18} color="#1C1917" />
+        <Ionicons name="remove" size={18} color={colors.light.text} />
       </Pressable>
       <Text
         className="mx-3 min-w-[64px] text-center text-body-lg font-semibold text-neutral-900"
@@ -165,7 +165,7 @@ export function Stepper({
         accessibilityLabel={`Increase ${a11yLabel}`}
         accessibilityState={{ disabled: atMax }}
       >
-        <Ionicons name="add" size={18} color="#1C1917" />
+        <Ionicons name="add" size={18} color={colors.light.text} />
       </Pressable>
     </View>
   )
@@ -204,7 +204,7 @@ export function InlineSegmented<T extends string>({
             key={opt.key}
             onPress={() => select(opt.key)}
             className="min-h-9 items-center justify-center rounded-md px-3 py-1.5"
-            style={active ? [{ backgroundColor: '#FFFFFF' }, shadows.xs] : undefined}
+            style={active ? [{ backgroundColor: colors.light.card }, shadows.xs] : undefined}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             accessibilityLabel={`${opt.label}${active ? ', selected' : ''}`}
@@ -258,7 +258,7 @@ export function Toggle({
   }, [value, reduceMotion, progress])
 
   const trackStyle = useAnimatedStyle(() => ({
-    backgroundColor: progress.value > 0.5 ? '#2563EB' : '#E8E6E0',
+    backgroundColor: progress.value > 0.5 ? colors.light.primary : colors.light.border,
   }))
   const thumbStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: progress.value * 20 }],

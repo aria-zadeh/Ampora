@@ -1,9 +1,10 @@
 /**
- * NewProjectSheet — the create-project bottom sheet (doc `10` §3: kind is chosen
- * at creation and shapes progress + next-task logic). Name (required), a kind
- * chooser (deliverable / study / general, each with a one-line blurb), and an
- * optional description. Uses the design system's Modal-sheet pattern (matching
- * the Tasks tab schedule sheet): dimmed backdrop, rounded-2xl surface, grabber.
+ * NewProjectSheet — the create-project bottom sheet (doc `06` §3: kind is chosen
+ * at creation and shapes progress + next-session generation). Title (required),
+ * a kind chooser (deliverable / study, each with a one-line blurb), and an
+ * optional one-paragraph context line (doc `06` §2). Uses the design system's
+ * Modal-sheet pattern (matching the Tasks tab schedule sheet): dimmed backdrop,
+ * rounded-2xl surface, grabber.
  */
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -20,42 +21,42 @@ import { Heading } from "@/components/ui/Heading";
 import { Button } from "@/components/ui/Button";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { kindMeta, PROJECT_ACCENT } from "./projectUtils";
-import { iconSizes } from "@/utils/design-tokens";
+import { colors, iconSizes } from "@/utils/design-tokens";
 import type { ProjectKind } from "@/types";
 
-const KINDS: ProjectKind[] = ["deliverable", "study", "general"];
+const KINDS: ProjectKind[] = ["deliverable", "study"];
 
 interface NewProjectSheetProps {
   visible: boolean;
   onClose: () => void;
-  onCreate: (input: { name: string; kind: ProjectKind; description?: string }) => void;
+  onCreate: (input: { title: string; kind: ProjectKind; contextLine?: string }) => void;
 }
 
 export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetProps) {
-  const [name, setName] = useState("");
+  const [title, setTitle] = useState("");
   const [kind, setKind] = useState<ProjectKind>("deliverable");
-  const [description, setDescription] = useState("");
+  const [contextLine, setContextLine] = useState("");
 
   // Reset to a clean slate each time the sheet opens.
   useEffect(() => {
     if (visible) {
-      setName("");
+      setTitle("");
       setKind("deliverable");
-      setDescription("");
+      setContextLine("");
     }
   }, [visible]);
 
-  const trimmed = name.trim();
+  const trimmed = title.trim();
   const canCreate = trimmed.length > 0;
 
   const handleCreate = useCallback(() => {
     if (!canCreate) return;
     onCreate({
-      name: trimmed,
+      title: trimmed,
       kind,
-      description: description.trim() || undefined,
+      contextLine: contextLine.trim() || undefined,
     });
-  }, [canCreate, trimmed, kind, description, onCreate]);
+  }, [canCreate, trimmed, kind, contextLine, onCreate]);
 
   // Only dismiss when the press truly originates on the backdrop itself. On web,
   // a Space/Enter keypress inside the focused TextInput bubbles up as a synthetic
@@ -102,17 +103,17 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
             Bigger than a task — Ampora tracks it and hands you each next session.
           </Text>
 
-          {/* Name */}
+          {/* Title */}
           <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2">
             Name
           </Text>
           <View className="flex-row items-center bg-white border border-neutral-200 rounded-md min-h-12 px-3 mb-5">
-            <Ionicons name="bookmark-outline" size={iconSizes.md} color="#A8A29A" />
+            <Ionicons name="bookmark-outline" size={iconSizes.md} color={colors.light.textDisabled} />
             <TextInput
-              value={name}
-              onChangeText={setName}
+              value={title}
+              onChangeText={setTitle}
               placeholder="e.g. Study for SciOly Remote Sensing"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={colors.light.textDisabled}
               className="flex-1 ml-2 text-body-lg text-neutral-900"
               returnKeyType="next"
               autoFocus
@@ -142,12 +143,12 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
                 >
                   <View
                     className="w-9 h-9 rounded-full items-center justify-center"
-                    style={{ backgroundColor: active ? PROJECT_ACCENT : "#F7F6F3" }}
+                    style={{ backgroundColor: active ? PROJECT_ACCENT : colors.light.background }}
                   >
                     <Ionicons
                       name={meta.icon}
                       size={iconSizes.md}
-                      color={active ? "#FFFFFF" : "#6F6862"}
+                      color={active ? colors.light.primaryForeground : colors.light.textMuted}
                     />
                   </View>
                   <View className="flex-1 ml-3">
@@ -168,20 +169,21 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
             })}
           </View>
 
-          {/* Optional description */}
+          {/* Optional one-paragraph context line (doc `06` §2) */}
           <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2">
-            Description (optional)
+            Context (optional)
           </Text>
           <View className="bg-white border border-neutral-200 rounded-md px-3 py-2.5 mb-6">
             <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="What's the goal? Any context?"
-              placeholderTextColor="#A8A29A"
+              value={contextLine}
+              onChangeText={setContextLine}
+              placeholder="e.g. MLA format, topic is Cold War containment, 5 pages"
+              placeholderTextColor={colors.light.textDisabled}
               className="text-body text-neutral-900 min-h-[44px]"
               multiline
               textAlignVertical="top"
-              accessibilityLabel="Project description"
+              accessibilityLabel="Project context"
+              accessibilityHint="One paragraph, optional — the specifics a session needs to know"
             />
           </View>
 

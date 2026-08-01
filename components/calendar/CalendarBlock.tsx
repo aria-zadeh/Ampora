@@ -116,7 +116,13 @@ export function CalendarBlock({
   const dense = measuredWidth != null && measuredWidth < W_DENSE
   const showTime = !dense && height >= H_FULL
   const showTitle = !dense && height >= H_TITLE_ONLY
-  const timeRange = formatBlockTimeRange(start, end)
+  // All-day events have no meaningful clock time — their start/end are either
+  // a midnight-to-midnight marker or a per-day clip of a multi-day span
+  // (`selectEventsByDay`'s render-only clamp), so formatting them as a time
+  // range would show something like "12 – 12 AM". Every view (Day/3-Day/Week/
+  // Month/Agenda) renders events through this one component, so fixing the
+  // label here fixes it everywhere at once.
+  const timeRange = isEvent && event?.allDay ? 'All day' : formatBlockTimeRange(start, end)
 
   const a11yLabel = isEvent
     ? `Event: ${title}, ${timeRange}`
@@ -129,6 +135,12 @@ export function CalendarBlock({
           {
             backgroundColor: style.tint,
             borderWidth: 1,
+            // Events read as fixed/external by SHAPE, not just their neutral
+            // tint (FR-1, FR-12; doc 02 "never color alone") — a dashed
+            // border reads as "placed here, not scheduled by the engine"
+            // regardless of hue, on top of the distinct EVENT_STYLE tint and
+            // the calendar glyph below.
+            borderStyle: isEvent ? 'dashed' : 'solid',
             borderColor: isEvent ? '#E8E6E0' : `${style.accent}33`,
             opacity: done ? 0.6 : 1,
           },
@@ -204,6 +216,18 @@ export function CalendarBlock({
             style={{ position: 'absolute', top: 3, right: 3, opacity: 0.6 }}
           >
             <Ionicons name="lock-closed" size={12} color={style.dot} />
+          </View>
+        ) : null}
+
+        {/* Fixed-event glyph, same corner slot (mutually exclusive with the
+            pin glyph — a block is never both). One more non-color cue that
+            this is a fixed Event, not a scheduled Task block. */}
+        {isEvent && !dense ? (
+          <View
+            pointerEvents="none"
+            style={{ position: 'absolute', top: 3, right: 3, opacity: 0.55 }}
+          >
+            <Ionicons name="calendar-clear-outline" size={12} color={style.dot} />
           </View>
         ) : null}
       </View>

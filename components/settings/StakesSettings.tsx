@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, Modal, Pressable, TextInput } from "react-native";
+import { View, Text, Modal, Pressable, AccessibilityInfo } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Heading } from "@/components/ui/Heading";
@@ -7,17 +7,28 @@ import { Button } from "@/components/ui/Button";
 import { AppPicker } from "@/components/stakes/AppPicker";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useStakesStore } from "@/store/stakesStore";
-import { shadows } from "@/utils/design-tokens";
+import { colors, shadows } from "@/utils/design-tokens";
+import {
+  DAILY_LOCK_CAP_BOUNDS,
+  DEFAULT_STAKE_STRENGTH,
+  SINGLE_SESSION_CAP_BOUNDS,
+} from "@/core/blocking/limits";
 
 // ---------------------------------------------------------------------------
 // Bounds + copy for the protective caps. Framed as ceilings that keep the
 // user safe, never as punishment (§9.10 wellbeing stance).
+//
+// The BOUNDS themselves are never hand-rolled here — they come straight from
+// `core/blocking/limits.ts`, the exact constants `normalizeSettings` clamps
+// every write against. This file used to define its own local 30-480 minute
+// range for the daily cap against a real enforced ceiling of 15-180 — the
+// stepper could be pushed well past where every write actually landed, a
+// drift a conformance audit caught (FR-65). Sourcing the bounds from one
+// place makes that class of drift impossible to reintroduce.
 // ---------------------------------------------------------------------------
 
-/** Daily lock cap ceiling range (minutes). Default is 180 (3h). */
-const CAP_MIN_MINUTES = 30;
-const CAP_MAX_MINUTES = 480; // 8h — a generous hard ceiling.
-const CAP_STEP = 30;
+const DAILY_CAP_STEP = 30;
+const SINGLE_CAP_STEP = 5;
 
 /** Human-friendly label for a never-lock category key. */
 const CATEGORY_LABELS: Record<string, string> = {
@@ -31,12 +42,17 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 /**
  * The 6 safety categories that are ALWAYS reachable and can never be removed
- * (§9.10, doc 06 §4). Client-enforced today: the app never locks these, and the
- * server stores the list; full server/device-level enforcement (a CHECK/trigger
- * plus native shielding that honors it) arrives with native app-locking in
- * Round C. User-added always-reachable apps live alongside these but, unlike
- * them, may be removed by the user. Compared case-insensitively so a stray-cased
- * persisted value still counts.
+ * (§9.10, doc 06 §4). Enforced client-side (the app never locks these,
+ * `store/migrations/settings.ts#safeNeverLock` re-unions them into every
+ * normalize) AND, as of `supabase/migrations/20260730000008_...`, server-side
+ * too — a CHECK constraint requires every persisted `settings` row's
+ * `never_lock_categories` to contain all six. Device-level enforcement (native
+ * shielding that itself refuses to lock a protected app) still arrives with
+ * native app-locking in Round C — see that migration's header for the exact
+ * scope of what "server-side" can mean today. Any extra entries a user added
+ * before this screen became view-only (§8.11) live alongside the six but are
+ * no longer removable from here either. Compared case-insensitively so a
+ * stray-cased persisted value still counts.
  */
 const PROTECTED_CATEGORIES = [
   "phone",
@@ -68,13 +84,51 @@ function categoryLabel(key: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Stake strength (FR-44): fixed sensible defaults plus ONE user-set control,
+// no automated calibration. Framed as three bands, never a raw 0..1 number
+// the user has to reason about — the same thresholds
+// `components/stakes/StakeSetupSheet.tsx` already uses for its own read-only
+// badge, mirrored here so the same underlying number always reads as the
+// same word everywhere in the app.
+// ---------------------------------------------------------------------------
+
+type StrengthBand = "gentle" | "balanced" | "firm";
+
+const STRENGTH_FIRM_THRESHOLD = 0.66;
+const STRENGTH_BALANCED_THRESHOLD = 0.4;
+
+/**
+ * Anchor value written when the user picks a band. `balanced` intentionally
+ * equals the shipped default (`DEFAULT_STAKE_STRENGTH`), so picking the band
+ * you're already in is a no-op.
+ */
+const STRENGTH_BAND_VALUE: Record<StrengthBand, number> = {
+  gentle: 0.25,
+  balanced: DEFAULT_STAKE_STRENGTH,
+  firm: 0.85,
+};
+
+const STRENGTH_BANDS: { key: StrengthBand; label: string }[] = [
+  { key: "gentle", label: "Gentle" },
+  { key: "balanced", label: "Balanced" },
+  { key: "firm", label: "Firm" },
+];
+
+/** Which band a raw 0..1 strength currently reads as. */
+function strengthBandOf(strength: number): StrengthBand {
+  if (strength >= STRENGTH_FIRM_THRESHOLD) return "firm";
+  if (strength >= STRENGTH_BALANCED_THRESHOLD) return "balanced";
+  return "gentle";
+}
+
+// ---------------------------------------------------------------------------
 // Local presentation primitives
 // ---------------------------------------------------------------------------
 
 /** A row inside the group: leading icon bubble, label + optional sublabel, trailing slot. */
 function Row({
   icon,
-  iconTint = "#57534E",
+  iconTint = colors.light.textSecondary,
   iconBg = "bg-neutral-100",
   label,
   sublabel,
@@ -150,7 +204,7 @@ function Stepper({
         accessibilityLabel={`Decrease ${a11yLabel}`}
         accessibilityState={{ disabled: atMin }}
       >
-        <Ionicons name="remove" size={18} color="#1C1917" />
+        <Ionicons name="remove" size={18} color={colors.light.text} />
       </Pressable>
       <Text
         className="mx-3 min-w-[56px] text-center text-body-lg font-semibold text-neutral-900"
@@ -169,8 +223,55 @@ function Stepper({
         accessibilityLabel={`Increase ${a11yLabel}`}
         accessibilityState={{ disabled: atMax }}
       >
-        <Ionicons name="add" size={18} color="#1C1917" />
+        <Ionicons name="add" size={18} color={colors.light.text} />
       </Pressable>
+    </View>
+  );
+}
+
+/**
+ * Three-band strength picker (Gentle / Balanced / Firm) — the single control
+ * FR-44 asks for, never a slider or a raw number. Each pill is a real 44px
+ * target (`min-h-11`), and the group carries a radiogroup/radio accessibility
+ * shape so the current value and every option read cleanly to a screen reader.
+ */
+function StrengthPicker({
+  band,
+  onSelect,
+}: {
+  band: StrengthBand;
+  onSelect: (band: StrengthBand) => void;
+}) {
+  return (
+    <View
+      className="flex-row gap-2"
+      accessibilityRole="radiogroup"
+      accessibilityLabel="Stake strength"
+    >
+      {STRENGTH_BANDS.map((b) => {
+        const selected = b.key === band;
+        return (
+          <Pressable
+            key={b.key}
+            onPress={() => onSelect(b.key)}
+            hitSlop={4}
+            className={`min-h-11 items-center justify-center rounded-full border px-4 ${
+              selected ? "border-primary-600 bg-primary-50" : "border-neutral-200 bg-white"
+            }`}
+            accessibilityRole="radio"
+            accessibilityState={{ selected, checked: selected }}
+            accessibilityLabel={b.label}
+          >
+            <Text
+              className={`text-label font-medium ${
+                selected ? "text-primary-700" : "text-neutral-600"
+              }`}
+            >
+              {b.label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -185,20 +286,37 @@ function Stepper({
  * them. Everything here writes through `useSettingsStore.updateSettings` and
  * the stakes store — no local-only state that could drift.
  *
- * Contents:
+ * Contents (§8.11: "daily lock cap and single-session cap, stake strength,
+ * never-lock categories (view only)"):
  * - Daily lock cap — a protective ceiling on total lock minutes per day.
- * - Single-cooldown cap — the longest any one lock can last (a session can
- *   never lock past what remains of the daily cap; shown here so the user
- *   knows the worst case up front).
- * - Quiet hours — the window where stakes always release (read-only preview;
- *   editing lives in scheduling settings).
- * - Never-lock apps — always reachable, shown as protected and non-removable.
+ *   User-lowerable, never user-raisable (FR-46) — the stepper is bounded by
+ *   `DAILY_LOCK_CAP_BOUNDS`, the same constant `normalizeSettings` clamps
+ *   every write against.
+ * - Single-session cap — the longest any one lock can last (this is also
+ *   what converts a bad `until_done` estimate into a normal release, doc `04`
+ *   §7). Bounded by `SINGLE_SESSION_CAP_BOUNDS`, same clamp relationship.
+ * - Stake strength (FR-44) — fixed sensible defaults plus this ONE user
+ *   control. De-escalation (FR-43) can lower it automatically after repeated
+ *   panic-valve use; this control lets the user raise it back deliberately,
+ *   without disabling de-escalation itself, which stays free to act again
+ *   later (`stakesStore.panicValve`, untouched by this screen).
+ * - Quiet hours — the window where stakes always release (read-only preview
+ *   here; no screen in the app currently exposes an editor for it — see
+ *   `NotificationSettings.tsx`'s matching preview, which points back here).
+ * - Never-lock apps — always reachable, shown fully VIEW ONLY per §8.11: no
+ *   add/remove affordance on this screen. The six protected categories are
+ *   re-asserted on every normalize (`store/migrations/settings.ts`) so they
+ *   can never actually be removed regardless.
  * - Pause stakes for today — an always-available way to stand down.
  *
  * Designed to be embedded in a screen that provides its own scroll + padding.
  */
 export function StakesSettings() {
   const dailyLockCapMin = useSettingsStore((s) => s.settings.dailyLockCapMin);
+  const singleSessionCapMin = useSettingsStore(
+    (s) => s.settings.singleSessionCapMin
+  );
+  const stakeStrength = useSettingsStore((s) => s.settings.stakeStrength);
   const quietHours = useSettingsStore((s) => s.settings.quietHours);
   const neverLockCategories = useSettingsStore(
     (s) => s.settings.neverLockCategories
@@ -208,16 +326,19 @@ export function StakesSettings() {
   const isPaused = useStakesStore((s) => s.isPaused());
   const pauseStakesForToday = useStakesStore((s) => s.pauseStakesForToday);
   const resumeStakes = useStakesStore((s) => s.resumeStakes);
+  // De-escalation indicator (FR-43): true once repeated panic-valve use has
+  // crossed the same threshold that already lowers `stakeStrength`
+  // automatically (`stakesStore.panicValve`) and offers the pause sheet
+  // elsewhere. Reusing that exact signal here means "strength was just
+  // eased" and "offer a pause" always agree — they're the same event, read
+  // read-only, never written from this screen.
+  const recentlyDeEscalated = useStakesStore((s) => s.shouldOfferPause());
   // Apps chosen to be put on the line (for the "Choose apps" section copy).
   const stakeApps = useStakesStore((s) => s.apps);
   const stakeAppCount = stakeApps.filter((a) => a.eligible).length;
   const [appPickerOpen, setAppPickerOpen] = useState(false);
 
   const [protectedInfoOpen, setProtectedInfoOpen] = useState(false);
-  // "+ Add always-reachable app" input sheet state.
-  const [addOpen, setAddOpen] = useState(false);
-  const [addText, setAddText] = useState("");
-  const [addError, setAddError] = useState<string | null>(null);
 
   const quietHoursLabel = useMemo(
     () => `${formatWindow(quietHours.start)} – ${formatWindow(quietHours.end)}`,
@@ -225,9 +346,30 @@ export function StakesSettings() {
   );
 
   const setCap = (next: number) => updateSettings({ dailyLockCapMin: next });
+  const setSingleCap = (next: number) =>
+    updateSettings({ singleSessionCapMin: next });
 
-  // Split the never-lock list into the 6 protected safety categories (top,
-  // immovable) and any user-added always-reachable apps (removable).
+  const strengthBand = strengthBandOf(stakeStrength);
+  /**
+   * Write the picked band's anchor value. Raising strength back up after a
+   * de-escalation is always allowed — this is the user's own commitment
+   * device (FR-43) — and doing so never disables de-escalation itself:
+   * `stakesStore.panicValve` reads `settings.stakeStrength` fresh the next
+   * time it fires and can lower it again regardless of what was picked here.
+   * `AccessibilityInfo.announceForAccessibility` covers "announced changes"
+   * for a value that only changes via a tap, with no focus move to re-read it.
+   */
+  const setStrength = (band: StrengthBand) => {
+    Haptics.selectionAsync().catch(() => {});
+    updateSettings({ stakeStrength: STRENGTH_BAND_VALUE[band] });
+    const label = STRENGTH_BANDS.find((b) => b.key === band)?.label ?? band;
+    AccessibilityInfo.announceForAccessibility(`Stake strength set to ${label}.`);
+  };
+
+  // Split the never-lock list into the 6 protected safety categories and any
+  // extra entries added before this screen became view-only (§8.11). Both
+  // groups render identically now (plain, non-removable rows) — the split
+  // only drives the "Protected" vs "Added earlier" sublabel below.
   const { protectedKeys, userKeys } = useMemo(() => {
     const p: string[] = [];
     const u: string[] = [];
@@ -237,42 +379,6 @@ export function StakesSettings() {
     }
     return { protectedKeys: p, userKeys: u };
   }, [neverLockCategories]);
-
-  /** Append a user-named always-reachable app. Guards blanks + duplicates. */
-  const addUserApp = () => {
-    const name = addText.trim();
-    if (!name) {
-      setAddError("Type an app or category name.");
-      return;
-    }
-    // Reject a duplicate (case-insensitive) of anything already on the list —
-    // including the protected categories, so a user can't shadow "Phone".
-    const dupe = neverLockCategories.some(
-      (c) => c.trim().toLowerCase() === name.toLowerCase()
-    );
-    if (dupe) {
-      setAddError("That's already always reachable.");
-      return;
-    }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    updateSettings({ neverLockCategories: [...neverLockCategories, name] });
-    setAddText("");
-    setAddError(null);
-    setAddOpen(false);
-  };
-
-  /**
-   * Remove a user-added always-reachable app. Hard-guarded: the 6 protected
-   * safety categories can NEVER be removed here (defense in depth beyond the UI
-   * only rendering the control for user rows).
-   */
-  const removeUserApp = (key: string) => {
-    if (isProtectedCategory(key)) return; // never remove a safety category
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    updateSettings({
-      neverLockCategories: neverLockCategories.filter((c) => c !== key),
-    });
-  };
 
   const togglePause = () => {
     if (isPaused) {
@@ -302,16 +408,16 @@ export function StakesSettings() {
       >
         <Row
           icon="shield-checkmark-outline"
-          iconTint="#2563EB"
+          iconTint={colors.light.primary}
           iconBg="bg-primary-50"
           label="Daily lock ceiling"
           sublabel="The most Ampora will ever lock in a day"
           trailing={
             <Stepper
               value={dailyLockCapMin}
-              min={CAP_MIN_MINUTES}
-              max={CAP_MAX_MINUTES}
-              step={CAP_STEP}
+              min={DAILY_LOCK_CAP_BOUNDS.min}
+              max={DAILY_LOCK_CAP_BOUNDS.max}
+              step={DAILY_CAP_STEP}
               onChange={setCap}
               a11yLabel="daily lock ceiling"
             />
@@ -320,14 +426,47 @@ export function StakesSettings() {
         <Row
           icon="hourglass-outline"
           label="Longest single lock"
-          sublabel="No one session locks past what is left of today's ceiling"
+          sublabel="The hard ceiling on any one lock — a long until-done task simply releases here"
           trailing={
-            <Text className="text-body-lg font-semibold text-neutral-500">
-              {formatMinutes(dailyLockCapMin)}
-            </Text>
+            <Stepper
+              value={singleSessionCapMin}
+              min={SINGLE_SESSION_CAP_BOUNDS.min}
+              max={SINGLE_SESSION_CAP_BOUNDS.max}
+              step={SINGLE_CAP_STEP}
+              onChange={setSingleCap}
+              a11yLabel="longest single lock"
+            />
           }
           isLast
         />
+      </View>
+
+      {/* Stake strength (FR-44) — fixed defaults plus this one control. ----- */}
+      <Text className="mb-2 ml-1 mt-6 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+        Stake strength
+      </Text>
+      <View
+        className="rounded-2xl border border-neutral-200 bg-white p-4"
+        style={shadows.sm}
+      >
+        <Text className="text-body-lg text-neutral-900">
+          How firm a lock holds you to it
+        </Text>
+        <Text className="mt-0.5 text-caption text-neutral-500">
+          Fixed, sensible defaults per band — never a number to tune.
+        </Text>
+        <View className="mt-3">
+          <StrengthPicker band={strengthBand} onSelect={setStrength} />
+        </View>
+        {recentlyDeEscalated ? (
+          <Text
+            className="mt-3 text-caption text-neutral-500"
+            accessibilityLiveRegion="polite"
+          >
+            Eased after a few recent overrides, to take pressure off. Set it
+            back whenever you&apos;re ready.
+          </Text>
+        ) : null}
       </View>
 
       {/* Quiet hours -------------------------------------------------------- */}
@@ -374,7 +513,7 @@ export function StakesSettings() {
           }
         >
           <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
-            <Ionicons name="apps-outline" size={18} color="#2563EB" />
+            <Ionicons name="apps-outline" size={18} color={colors.light.primary} />
           </View>
           <View className="ml-3 flex-1 pr-3">
             <Text className="text-body-lg text-neutral-900">Choose apps to lock</Text>
@@ -384,7 +523,7 @@ export function StakesSettings() {
                 : "The leisure apps a stake can lock"}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color="#A8A29A" />
+          <Ionicons name="chevron-forward" size={18} color={colors.light.textDisabled} />
         </Pressable>
       </View>
       <Text className="ml-1 mt-2 text-caption text-neutral-500">
@@ -403,19 +542,25 @@ export function StakesSettings() {
           accessibilityRole="button"
           accessibilityLabel="Why can't these be locked?"
         >
-          <Ionicons name="information-circle-outline" size={18} color="#6F6862" />
+          <Ionicons name="information-circle-outline" size={18} color={colors.light.textMuted} />
         </Pressable>
       </View>
       <View
         className="rounded-2xl border border-neutral-200 bg-white px-4"
         style={shadows.sm}
       >
-        {/* The 6 safety categories — always shown first, always Protected. */}
-        {protectedKeys.map((key) => (
+        {/* The 6 safety categories — always shown first, always Protected.
+            View only throughout this section (§8.11): no add or remove
+            control anywhere here, on purpose (see the file header). The six
+            are re-asserted on every normalize regardless
+            (`store/migrations/settings.ts#safeNeverLock`), so this UI change
+            doesn't alter what's actually protected — only what the screen
+            honestly presents as editable, which is nothing. */}
+        {protectedKeys.map((key, i) => (
           <Row
             key={key}
             icon="lock-open-outline"
-            iconTint="#16A34A"
+            iconTint={colors.light.successAccent}
             iconBg="bg-success-100"
             label={categoryLabel(key)}
             trailing={
@@ -423,59 +568,41 @@ export function StakesSettings() {
                 <Text className="mr-1 text-caption font-medium text-success-700">
                   Protected
                 </Text>
-                <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+                <Ionicons name="checkmark-circle" size={16} color={colors.light.successAccent} />
               </View>
             }
+            isLast={userKeys.length === 0 && i === protectedKeys.length - 1}
           />
         ))}
 
-        {/* User-added always-reachable apps — removable (protected ones aren't). */}
-        {userKeys.map((key) => (
+        {/* Any entries added before this screen became view-only. Same
+            treatment as the six above (plain, non-removable) — only the
+            sublabel differs, to be honest about provenance without implying
+            a lesser or different protection than the mandatory six. */}
+        {userKeys.map((key, i) => (
           <Row
             key={key}
             icon="lock-open-outline"
-            iconTint="#57534E"
+            iconTint={colors.light.textSecondary}
             iconBg="bg-neutral-100"
             label={categoryLabel(key)}
-            sublabel="Added by you"
+            sublabel="Added earlier"
             trailing={
-              <Pressable
-                onPress={() => removeUserApp(key)}
-                hitSlop={8}
-                className="h-9 w-9 items-center justify-center rounded-full active:opacity-60"
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${categoryLabel(key)} from always reachable`}
-              >
-                <Ionicons name="close-circle" size={20} color="#A8A29A" />
-              </Pressable>
+              <View className="flex-row items-center">
+                <Text className="mr-1 text-caption font-medium text-neutral-500">
+                  Always reachable
+                </Text>
+                <Ionicons name="checkmark-circle" size={16} color={colors.light.textMuted} />
+              </View>
             }
+            isLast={i === userKeys.length - 1}
           />
         ))}
-
-        {/* + Add always-reachable app (always the last row). */}
-        <Pressable
-          onPress={() => {
-            setAddText("");
-            setAddError(null);
-            setAddOpen(true);
-            Haptics.selectionAsync().catch(() => {});
-          }}
-          className="flex-row items-center py-3.5 active:opacity-70"
-          accessibilityRole="button"
-          accessibilityLabel="Add an always-reachable app"
-        >
-          <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
-            <Ionicons name="add" size={20} color="#2563EB" />
-          </View>
-          <Text className="ml-3 flex-1 text-body-lg font-medium text-primary-600">
-            Add always-reachable app
-          </Text>
-        </Pressable>
       </View>
       <Text className="ml-1 mt-2 text-caption text-neutral-500">
-        The 6 safety apps stay open no matter what — they can't be locked or
-        removed. Add your own always-reachable apps too, and remove those any
-        time.
+        These stay reachable no matter what — nothing here can be locked.
+        This list isn&apos;t something you manage; Ampora keeps it protected
+        automatically.
       </Text>
 
       {/* Pause for today ---------------------------------------------------- */}
@@ -490,7 +617,7 @@ export function StakesSettings() {
           <>
             <View className="mb-3 flex-row items-center">
               <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
-                <Ionicons name="pause-circle-outline" size={18} color="#2563EB" />
+                <Ionicons name="pause-circle-outline" size={18} color={colors.light.primary} />
               </View>
               <Text className="ml-3 flex-1 text-body text-neutral-600">
                 Stakes are paused for the rest of today. Nothing will lock until
@@ -552,68 +679,6 @@ export function StakesSettings() {
                 onPress={() => setProtectedInfoOpen(false)}
                 accessibilityLabel="Close"
               />
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* Add always-reachable app sheet ------------------------------------- */}
-      <Modal
-        visible={addOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAddOpen(false)}
-      >
-        <Pressable
-          className="flex-1 items-center justify-center bg-black/40 px-8"
-          onPress={() => setAddOpen(false)}
-        >
-          <Pressable
-            className="w-full max-w-[360px] rounded-2xl bg-white p-6"
-            style={shadows.lg}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Heading size="h3">Add always-reachable app</Heading>
-            <Text className="mt-2 text-body text-neutral-600">
-              Name an app or category that should never be locked. It joins your
-              always-reachable list — you can remove it any time.
-            </Text>
-            <TextInput
-              value={addText}
-              onChangeText={(t) => {
-                setAddText(t);
-                if (addError) setAddError(null);
-              }}
-              onSubmitEditing={addUserApp}
-              placeholder="e.g. Banking, Health, Duolingo"
-              placeholderTextColor="#A8A29A"
-              returnKeyType="done"
-              autoFocus
-              maxLength={40}
-              className="mt-4 h-12 rounded-lg border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
-              accessibilityLabel="App or category name"
-            />
-            {addError ? (
-              <Text className="mt-2 text-caption font-medium text-warning-700">
-                {addError}
-              </Text>
-            ) : null}
-            <View className="mt-6 gap-2">
-              <Button
-                title="Add"
-                variant="primaryBlue"
-                size="lg"
-                onPress={addUserApp}
-                accessibilityLabel="Add this app to always reachable"
-              />
-              <Pressable
-                onPress={() => setAddOpen(false)}
-                className="items-center py-2.5"
-                accessibilityRole="button"
-                accessibilityLabel="Cancel"
-              >
-                <Text className="text-label font-medium text-neutral-500">Cancel</Text>
-              </Pressable>
             </View>
           </Pressable>
         </Pressable>

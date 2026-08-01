@@ -1,26 +1,37 @@
 import "../global.css";
 import "@/nativewind-reanimated";
 import React, { useEffect, useState } from "react";
-import { Platform, View } from "react-native";
+import { AppState, Platform, View, type AppStateStatus } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "nativewind";
+import * as Notifications from "expo-notifications";
 import DotGridBackground from "@/components/ui/DotGridBackground";
+import { GlobalLockBanner } from "@/components/focus/GlobalLockBanner";
+import { useStakeTick } from "@/hooks/useStakeTick";
+import { useStakeScheduler } from "@/hooks/useStakeScheduler";
+import { useNightlyPass } from "@/hooks/useNightlyPass";
+// Lexend, not Inter (docs/02 §2.1 binding convention: weight lives in the
+// family name, mirrored exactly from how Inter was wired here). Inter stays
+// installed in package.json — only the load site moved — since removing the
+// now-unused package is separate cleanup, not part of this pass.
 import {
   useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from "@expo-google-fonts/inter";
+  Lexend_400Regular,
+  Lexend_500Medium,
+  Lexend_600SemiBold,
+  Lexend_700Bold,
+} from "@expo-google-fonts/lexend";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useScheduleStore, selectAllBlocks } from "@/store/scheduleStore";
 import { useTaskStore, selectAllTasks } from "@/store/taskStore";
 import { useRecoveryStore } from "@/store/recoveryStore";
 import { useStakesStore } from "@/store/stakesStore";
+import { useSyncStore } from "@/store/syncStore";
 import { scheduleTaskReminders } from "@/services/notifications";
 import { detectLapse } from "@/core/recovery";
 import { isActive } from "@/core/subscription";
+import { wipeAllData } from "@/core/dataExport";
 import { getCurrentUser, onAuthStateChange } from "@/services/supabase";
 import type { User } from "@supabase/supabase-js";
 
@@ -34,14 +45,34 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [guestMode, setGuestMode] = useState(false);
 
   const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    Lexend_400Regular,
+    Lexend_500Medium,
+    Lexend_600SemiBold,
+    Lexend_700Bold,
   });
+
+  // Drive `stakesStore.tick()` app-wide (~1/min while foregrounded, plus a
+  // catch-up on every return to foreground). Nothing else calls it on a
+  // schedule, and it is where the daily cap, the single-session cap, the
+  // quiet-hours release and the served-session release actually fire — so
+  // without this a lock armed and then walked away from has no clock running
+  // against it at all (NFR-7, doc `04` §7).
+  useStakeTick();
+
+  // Drive `stakesStore.autoArmDueStakes()` app-wide (FR-41a, ARCH_PLAN A4):
+  // on mount (cold-launch catch-up), every 30s while foregrounded, and on
+  // every return to foreground. This is what actually arms a scheduled stake
+  // (or times it out) — see `hooks/useStakeScheduler.ts` for the exact
+  // foreground/background/killed behaviour this does and does not cover.
+  useStakeScheduler();
+
+  // Drive the nightly pre-built-tomorrow pass app-wide (FR-90): on mount, on
+  // every return to foreground, and on a coarse poll while foregrounded. See
+  // `hooks/useNightlyPass.ts` / `services/nightlyPass.ts` for exactly what
+  // fires when and why there is deliberately no background timer here.
+  useNightlyPass();
 
   // Short delay to let Zustand/MMKV hydrate before we gate routing.
   useEffect(() => {
@@ -67,10 +98,41 @@ export default function RootLayout() {
         }
       });
 
-    const unsubscribe = onAuthStateChange((_event, session) => {
+    const unsubscribe = onAuthStateChange((event, session) => {
       if (!cancelled) {
         setAuthUser(session?.user ?? null);
         setAuthLoading(false);
+      }
+      // Shared-device data leak (FR-87, task report): without this, signing
+      // out leaves every local store exactly as it was. If a SECOND account
+      // signs in on this same device next, its first `syncNow()`
+      // (`store/syncStore.ts`) would find the FIRST user's local tasks,
+      // lists, proofs, etc. absent from the new account's cloud copy and
+      // adopt-then-push them via `upsertTask`/`upsertLists`/etc., stamping
+      // them with the new account's `user_id` — permanently copying one
+      // person's tasks and Proof Log into someone else's account.
+      // `services/supabase.ts#deleteAccount`'s own doc comment already
+      // described this exact hazard; it just was not guarded against for an
+      // ORDINARY sign-out until now. Reacting to the `SIGNED_OUT` event
+      // (rather than only the explicit "Sign out" button) covers every path
+      // that ends a session, including `deleteAccount`'s own internal
+      // `supabase.auth.signOut()`.
+      //
+      // This intentionally does not try to save the outgoing user's
+      // not-yet-pushed edits itself — discarding them here is the accepted
+      // tradeoff (see `store/syncStore.ts#flushBeforeSignOut`'s doc comment
+      // and `components/settings/DataSettings.tsx`'s sign-out handler,
+      // which already flushed BEFORE calling `signOut()`, well before this
+      // event fires). By the time `SIGNED_OUT` reaches us the session is
+      // already gone, so `wipeAllData()`'s own push-suppression
+      // (`resetPushBaselines()` + `useSyncStore#reset`) is redundant here —
+      // every cloud call in `services/supabase.ts` already independently
+      // no-ops with no signed-in user — but harmless, and keeps this one
+      // function doing the exact same safe thing everywhere it's called.
+      if (event === "SIGNED_OUT") {
+        wipeAllData();
+        useSyncStore.getState().reset();
+        useRecoveryStore.getState().reset();
       }
     });
 
@@ -80,27 +142,15 @@ export default function RootLayout() {
     };
   }, []);
 
-  // Poll for the guest-mode flag set by the auth screen.
-  useEffect(() => {
-    if (guestMode) return;
-    const check = setInterval(() => {
-      if ((globalThis as Record<string, unknown>).__AMPORA_GUEST_MODE__) {
-        setGuestMode(true);
-      }
-    }, 200);
-    return () => clearInterval(check);
-  }, [guestMode]);
-
   // Routing gate (in order): no session → auth; session but not onboarded →
   // onboarding; onboarded but not entitled (no active plan / no live trial) →
   // paywall. Once a trial is started or a plan chosen (or dev-bypassed), the
   // subscription becomes entitled, this effect re-runs and stops redirecting,
-  // and the paywall proceeds into the tabs. Soft gate — local data is untouched.
-  // Guest mode is intentionally exempt (it manages its own routing and stays
-  // usable without the paywall).
+  // and the paywall proceeds into the tabs. Soft gate — local data is
+  // untouched. FR-87: an account is required, no anonymous local-only mode —
+  // `authUser === null` always routes to `/auth`, with no bypass.
   useEffect(() => {
     if (authLoading || !ready) return;
-    if (guestMode) return; // guest mode handles its own routing
     if (authUser === null) {
       router.replace("/auth");
     } else if (!onboardingComplete) {
@@ -108,7 +158,7 @@ export default function RootLayout() {
     } else if (!isActive(subscription)) {
       router.replace("/paywall");
     }
-  }, [authLoading, ready, authUser, onboardingComplete, subscription, guestMode, router]);
+  }, [authLoading, ready, authUser, onboardingComplete, subscription, router]);
 
   // Sync app color scheme with the user's theme preference.
   useEffect(() => {
@@ -138,12 +188,40 @@ export default function RootLayout() {
     useStakesStore.getState().reconcileActiveSession();
   }, [ready]);
 
-  // Reschedule notification reminders whenever tasks or the notification-
-  // relevant settings change (FR-63, §8.9). Debounced 500ms so a burst of
-  // edits (e.g. adding subtasks) only reschedules once. `scheduleTaskReminders`
-  // cancels the prior batch and rebuilds a rate-limited, quiet-hours-respecting
-  // set from current state, degrading to a no-op without permission / on
-  // unsupported platforms. Runs an initial pass on app open too.
+  // Cloud sync (FR-87 "cloud is the source of truth"). `useSyncStore.syncNow()`
+  // is a full two-way reconcile (pull + push) across every synced entity —
+  // see `store/syncStore.ts`. It already no-ops cleanly with nothing signed
+  // in, so it is safe to call speculatively; this effect just decides WHEN:
+  // once right after a real session appears (covers both "just signed in" and
+  // "cold launch with an existing session"), and again on every return to the
+  // foreground, so a device that was closed for a while catches up on
+  // whatever changed elsewhere. Per-mutation pushes (list/tag/project/stake/
+  // proof/event edits) are wired separately, as module-level store
+  // subscriptions inside `store/syncStore.ts` itself.
+  useEffect(() => {
+    if (authLoading || !ready || authUser === null) return;
+
+    useSyncStore.getState().syncNow();
+
+    const onAppStateChange = (next: AppStateStatus) => {
+      if (next === "active") useSyncStore.getState().syncNow();
+    };
+    const sub = AppState.addEventListener("change", onAppStateChange);
+    return () => sub.remove();
+  }, [authLoading, ready, authUser]);
+
+  // Reschedule notification reminders whenever tasks, the notification-
+  // relevant settings, or the SCHEDULED BLOCKS change (FR-63, §8.9). Blocks
+  // matter because Start Reminder / Motivation Nudge now anchor on a task's
+  // next scheduled block, not an energy peak (`services/notifications.ts`) —
+  // so a recompute that moves/creates/removes blocks (e.g. a drag-reschedule,
+  // or the nightly pass placing a new project session) must reschedule
+  // reminders too, or their fire times would go stale silently. Debounced
+  // 500ms so a burst of changes (e.g. a recompute plus several task edits)
+  // only reschedules once. `scheduleTaskReminders` cancels the prior batch and
+  // rebuilds a rate-limited, quiet-hours-respecting set from current state,
+  // degrading to a no-op without permission / on unsupported platforms. Runs
+  // an initial pass on app open too.
   useEffect(() => {
     if (!ready) return;
 
@@ -154,8 +232,9 @@ export default function RootLayout() {
         timer = null;
         const tasks = selectAllTasks(useTaskStore.getState());
         const settings = useSettingsStore.getState().settings;
+        const blocks = selectAllBlocks(useScheduleStore.getState());
         // Fire-and-forget; the service never throws and never surfaces errors.
-        void scheduleTaskReminders(tasks, settings);
+        void scheduleTaskReminders(tasks, settings, blocks);
       }, 500);
     };
 
@@ -170,25 +249,29 @@ export default function RootLayout() {
       const b = prev.settings;
       if (
         a.quietHours !== b.quietHours ||
-        a.energyPeak !== b.energyPeak ||
         a.maxNotificationsPerHour !== b.maxNotificationsPerHour ||
         a.reminderKinds !== b.reminderKinds
       ) {
         reschedule();
       }
     });
+    const unsubBlocks = useScheduleStore.subscribe((state, prev) => {
+      if (state.blocks !== prev.blocks) reschedule();
+    });
 
     // Web has no OS-level scheduling, so a scheduled reminder only fires if
     // something drives `checkAndFireWebReminders` on an interval while the app
     // is open (services/notifications.ts). On web, poll ~every 60s off current
-    // tasks + settings (reschedule() delegates to checkAndFireWebReminders).
-    // Native is unchanged — expo-notifications handles scheduling itself.
+    // tasks + settings + blocks (reschedule() delegates to
+    // checkAndFireWebReminders). Native is unchanged — expo-notifications
+    // handles scheduling itself.
     let webPoll: ReturnType<typeof setInterval> | null = null;
     if (Platform.OS === "web") {
       webPoll = setInterval(() => {
         const tasks = selectAllTasks(useTaskStore.getState());
         const settings = useSettingsStore.getState().settings;
-        void scheduleTaskReminders(tasks, settings);
+        const blocks = selectAllBlocks(useScheduleStore.getState());
+        void scheduleTaskReminders(tasks, settings, blocks);
       }, 60 * 1000);
     }
 
@@ -197,8 +280,51 @@ export default function RootLayout() {
       if (webPoll) clearInterval(webPoll);
       unsubTasks();
       unsubSettings();
+      unsubBlocks();
     };
   }, [ready]);
+
+  // Route a tapped notification to the right screen. Before this, NOTHING
+  // handled a notification response anywhere in the app (landmine #2), so
+  // tapping any notification — a stake cue, a task reminder, the recurring-
+  // stake weekly summary — did nothing at all. A stake cue/arm notice routes
+  // into the focus session for its task; everything else routes to the task.
+  // Two entry points, both required: the live listener covers a tap while the
+  // app is already running or backgrounded, and the one-time
+  // `getLastNotificationResponseAsync()` check covers the cold-launch case,
+  // which a listener registered only after launch would otherwise miss
+  // entirely (the tap that started the app happened before the listener
+  // existed).
+  useEffect(() => {
+    if (!ready) return;
+
+    const routeFromResponse = (response: Notifications.NotificationResponse | null) => {
+      if (!response) return;
+      const data = response.notification.request.content.data as
+        | { type?: unknown; taskId?: unknown }
+        | undefined;
+      const taskId = typeof data?.taskId === "string" ? data.taskId : "";
+      if (!taskId) return;
+      const type = typeof data?.type === "string" ? data.type : "";
+      if (type === "stake_cue" || type === "stake_arm") {
+        router.push(`/focus/session?taskId=${taskId}`);
+      } else {
+        // Task reminders AND the recurring-stake weekly summary ("tap to
+        // edit") both land on the task screen — that's where stake setup
+        // lives, so "edit" and "reminder" resolve to the same place.
+        router.push(`/task/${taskId}`);
+      }
+    };
+
+    // Fire-and-forget, never throws: a cold launch not caused by a
+    // notification simply resolves null here.
+    Notifications.getLastNotificationResponseAsync()
+      .then(routeFromResponse)
+      .catch(() => {});
+
+    const sub = Notifications.addNotificationResponseReceivedListener(routeFromResponse);
+    return () => sub.remove();
+  }, [ready, router]);
 
   // One-time Recovery check on app open (FR-60): after the initial recompute
   // settles, look for a lapse (2+ days of missed scheduled blocks). If found,
@@ -255,6 +381,13 @@ export default function RootLayout() {
           options={{ presentation: "modal", animation: "slide_from_bottom" }}
         />
         </Stack>
+        {/* App-wide lock banner. A `hold: 'session'` lock deliberately survives
+            leaving the focus screen (doc `04` §6), so it must be visible and
+            escapable from ANYWHERE — what is on the line, the time left, a way
+            back into the session, and the panic valve. Floated over the routed
+            content near the top, clear of the tab bar; it hides itself on the
+            focus session and Blindfold, which show the lock in context. */}
+        <GlobalLockBanner />
       </View>
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
     </>

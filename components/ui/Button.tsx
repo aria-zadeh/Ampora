@@ -13,7 +13,7 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { EASINGS } from "@/utils/motion";
-import { motion, shadows } from "@/utils/design-tokens";
+import { colors, motion, shadows } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 
 type ButtonVariant =
@@ -172,7 +172,7 @@ export function Button({
       >
         {loading ? (
           <ActivityIndicator
-            color={usesLightText ? "#FFFFFF" : "#1C1917"}
+            color={usesLightText ? colors.light.primaryForeground : colors.light.text}
             className="mr-2"
           />
         ) : icon ? (

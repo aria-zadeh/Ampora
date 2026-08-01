@@ -1,12 +1,49 @@
 /**
- * DataSettings — §8.11 data export, delete-all, account, and About/Help/Legal
- * (Phase 7, PRD FR-65).
+ * DataSettings — §8.11 data export, erase-local-data, account deletion, and
+ * About/Help/Legal (Phase 7, PRD FR-65; account deletion is FR-87).
  *
  * - Export data: serialize every local store to JSON and hand it off — the
  *   native Share sheet on iOS/Android, a file download on web. Nothing leaves
  *   the device unless the user chooses a destination in the share sheet.
- * - Delete all data: a guarded, two-step confirm that wipes the persisted MMKV
- *   blob and resets the in-memory stores (`core/dataExport.wipeAllData`).
+ * - Erase data on this device: a guarded, two-step confirm that wipes the
+ *   persisted MMKV blob and resets the in-memory stores
+ *   (`core/dataExport.wipeAllData`). DEVICE-ONLY and reversible — the cloud
+ *   copy survives, so signing back in restores everything. Deliberately
+ *   relabeled (was "Delete all data") so it reads as unmistakably distinct
+ *   from account deletion below, per FR-87's "two destructive actions, never
+ *   one button."
+ * - Delete account: PERMANENT, cross-device, unrecoverable
+ *   (`services/supabase.ts#deleteAccount`, which calls the `delete-account`
+ *   edge function then signs out itself on a CONFIRMED success — this screen
+ *   must not repeat that sign-out). Local data is wiped separately:
+ *   `app/_layout.tsx`'s `onAuthStateChange` listener reacts to the resulting
+ *   `SIGNED_OUT` event and calls `core/dataExport.wipeAllData` there, the
+ *   same as it does for an ordinary sign-out (`deleteAccount` used to call
+ *   `wipeAllData` inline, but that import closes a require cycle back
+ *   through `store/syncStore.ts` — see that function's doc comment). The one
+ *   exception is the "session check failed but the deletion likely went
+ *   through anyway" branch in `attemptAccountDeletion` below, which cannot
+ *   assume `deleteAccount`'s own sign-out landed and so wipes + signs out
+ *   itself defensively; a resulting duplicate `wipeAllData()` call is
+ *   harmless (idempotent). Apple guideline
+ *   5.1.1(v) requires in-app account deletion for any app offering account
+ *   creation; GDPR/CCPA erasure rights apply regardless. Gated behind a
+ *   multi-step flow: an explanation with data export offered first, then a
+ *   typed "DELETE" confirmation (`core/dataExport.isDeleteAccountConfirmed` —
+ *   a single "are you sure" is not proportionate to an irreversible,
+ *   every-device action), then the attempt itself.
+ *   A FAILED attempt does NOT assume nothing happened: the edge function
+ *   deletes the account before this client ever sees a reply, so a dropped
+ *   response can report failure after the deletion already committed.
+ *   `attemptAccountDeletion` re-checks the session with `getCurrentUser()`
+ *   (a real server round-trip, unlike a cached `getSession()`) to tell apart
+ *   the cases that are actually distinguishable: session now dead -> most
+ *   likely already succeeded, so finish the local cleanup here instead of
+ *   showing a false failure; session still valid -> genuinely didn't go
+ *   through, safe to say so and offer retry; couldn't check at all (e.g. no
+ *   connection) -> says exactly that, never guesses. This is also what stops
+ *   "Try again" from looping a 401 forever against an already-deleted user
+ *   under a copy that keeps claiming nothing was lost.
  * - Account: current email + sign out.
  * - About / Help / Legal: quiet affordances (Phase 4 polish audit). No
  *   invented external links — Ampora has no live support site or published
@@ -20,18 +57,35 @@
  */
 
 import React, { useEffect, useState } from 'react'
-import { View, Text, Platform, Share, Modal, Pressable } from 'react-native'
+import {
+  View,
+  Text,
+  Platform,
+  Share,
+  Modal,
+  Pressable,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+} from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import Constants from 'expo-constants'
 
 import { Heading } from '@/components/ui/Heading'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { shadows } from '@/utils/design-tokens'
+import { colors, shadows } from '@/utils/design-tokens'
 import { SectionLabel, SectionFootnote, Group } from '@/components/settings/SettingsPrimitives'
-import { serializeExport, exportFileName, wipeAllData } from '@/core/dataExport'
-import { getCurrentUser, signOut } from '@/services/supabase'
+import {
+  serializeExport,
+  exportFileName,
+  wipeAllData,
+  isDeleteAccountConfirmed,
+  DELETE_ACCOUNT_CONFIRM_PHRASE,
+} from '@/core/dataExport'
+import { getCurrentUser, signOut, deleteAccount } from '@/services/supabase'
+import { flushBeforeSignOut } from '@/store/syncStore'
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0'
 
@@ -65,7 +119,7 @@ function downloadOnWeb(json: string, filename: string): boolean {
 /** A tappable action row with a leading icon bubble + chevron/trailing slot. */
 function ActionRow({
   icon,
-  iconTint = '#57534E',
+  iconTint = colors.light.textSecondary,
   iconBg = 'bg-neutral-100',
   label,
   sublabel,
@@ -114,7 +168,7 @@ function ActionRow({
       <Ionicons
         name={busy ? 'hourglass-outline' : 'chevron-forward'}
         size={18}
-        color={danger ? '#DC2626' : '#C4C4CC'}
+        color={danger ? colors.light.dangerStrong : colors.light.textDisabled}
       />
     </PressableScale>
   )
@@ -129,12 +183,37 @@ export function DataSettings() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleted, setDeleted] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [signingOut, setSigningOut] = useState(false)
 
   useEffect(() => {
     getCurrentUser()
       .then((u) => setUserEmail(u?.email ?? null))
       .catch(() => {})
   }, [])
+
+  // Sign out — flush this device's not-yet-synced edits to THIS account
+  // first (`flushBeforeSignOut`, time-bounded so a slow/offline network can
+  // never hang the button), then sign out. `app/_layout.tsx`'s
+  // `onAuthStateChange` listener does the local-state clearing once the
+  // resulting `SIGNED_OUT` event lands — see that file and
+  // `store/syncStore.ts#flushBeforeSignOut`'s doc comment for the full
+  // flush-then-clear design and why a shared-device sign-out needs both
+  // halves. Without the flush, a task edited in the last moment before
+  // tapping "Sign out" could be discarded rather than saved to this account;
+  // without the listener's clear, a second account signing in on this
+  // device could inherit this account's data (see that listener's comment).
+  const handleSignOut = async () => {
+    setSigningOut(true)
+    Haptics.selectionAsync().catch(() => {})
+    try {
+      await flushBeforeSignOut().catch(() => {})
+      await signOut()
+    } finally {
+      // Harmless if the auth-gate redirect (app/_layout.tsx) has already
+      // unmounted this screen by the time this runs.
+      setSigningOut(false)
+    }
+  }
 
   const handleExport = async () => {
     setExporting(true)
@@ -155,7 +234,10 @@ export function DataSettings() {
     }
   }
 
-  const handleDelete = () => {
+  // Erase data on THIS DEVICE only — device-only, reversible (the cloud copy
+  // survives; signing back in restores everything). Distinct from account
+  // deletion below, which is permanent and cross-device.
+  const handleEraseLocal = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {})
     wipeAllData()
     setConfirmDelete(false)
@@ -166,6 +248,110 @@ export function DataSettings() {
   const openInfo = (sheet: 'help' | 'legal') => {
     Haptics.selectionAsync().catch(() => {})
     setInfoSheet(sheet)
+  }
+
+  // -------------------------------------------------------------------------
+  // Delete account (FR-87) — PERMANENT, every device, unrecoverable. A
+  // distinct flow from the local erase above: explanation + export offered
+  // first -> typed "DELETE" confirmation -> the attempt -> honest success/
+  // failure. `deleteAccount()` (services/supabase.ts) already wipes local
+  // data and signs out on success, so this handler must not repeat either.
+  // -------------------------------------------------------------------------
+  const [deleteAccountStep, setDeleteAccountStep] = useState<
+    'closed' | 'intro' | 'confirm' | 'deleting' | 'error'
+  >('closed')
+  const [deleteAccountText, setDeleteAccountText] = useState('')
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null)
+  // The 'error' step's heading is no longer a single hard-coded claim (see
+  // `attemptAccountDeletion`) — it depends on which of the distinguishable
+  // failure cases actually happened.
+  const [deleteAccountHeading, setDeleteAccountHeading] = useState('Your account was not deleted')
+
+  const openDeleteAccount = () => {
+    Haptics.selectionAsync().catch(() => {})
+    setDeleteAccountText('')
+    setDeleteAccountError(null)
+    setDeleteAccountHeading('Your account was not deleted')
+    setDeleteAccountStep('intro')
+  }
+
+  const closeDeleteAccount = () => {
+    // Never let a dismiss (overlay tap, hardware back) interrupt an in-flight
+    // deletion — the request is already on the wire.
+    if (deleteAccountStep === 'deleting') return
+    setDeleteAccountStep('closed')
+    setDeleteAccountText('')
+    setDeleteAccountError(null)
+    setDeleteAccountHeading('Your account was not deleted')
+  }
+
+  const attemptAccountDeletion = async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {})
+    setDeleteAccountStep('deleting')
+    const { error } = await deleteAccount()
+    if (!error) {
+      // Success: deleteAccount() already wiped local data and signed out, which
+      // flips the auth gate in app/_layout.tsx to redirect to /auth on its own.
+      // Just close and reset here in case that redirect hasn't landed yet.
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+      setDeleteAccountStep('closed')
+      setDeleteAccountText('')
+      setDeleteAccountError(null)
+      return
+    }
+
+    // A failed response does not prove nothing happened. `delete-account`
+    // deletes the account server-side before this client ever sees a reply
+    // (`supabase/functions/delete-account/index.ts`), so a dropped response, a
+    // backgrounded app, or a flaky connection can all report failure AFTER the
+    // deletion already committed — leaving the account gone, local data
+    // intact, and the app signed in on a dead session. "Try again" would then
+    // re-invoke with a JWT belonging to a deleted user: a guaranteed 401,
+    // forever, under the same false "nothing was deleted" copy.
+    //
+    // Check the one thing we actually can: `getCurrentUser()` asks the server
+    // to re-verify the session (unlike a cached getSession()), so if it now
+    // comes back empty, the account this token belonged to is genuinely gone
+    // — most likely because this very attempt (or an earlier retry) succeeded.
+    // A still-valid session means the account is still there. Neither branch
+    // is asserted unless we actually checked it.
+    let sessionCheckFailed = false
+    let stillSignedIn = true
+    try {
+      stillSignedIn = (await getCurrentUser()) != null
+    } catch {
+      sessionCheckFailed = true
+    }
+
+    if (!sessionCheckFailed && !stillSignedIn) {
+      // Session is dead: complete the same local cleanup a successful call
+      // would have done, rather than showing a false failure and looping
+      // "Try again" against an account that no longer exists.
+      wipeAllData()
+      await signOut().catch(() => {})
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+      setDeleteAccountStep('closed')
+      setDeleteAccountText('')
+      setDeleteAccountError(null)
+      return
+    }
+
+    if (sessionCheckFailed) {
+      // Could not even check (e.g. no connection to verify with) — say so
+      // rather than guessing either way.
+      setDeleteAccountHeading("We couldn't confirm what happened")
+      setDeleteAccountError(
+        "We can't check whether this went through without a connection. Try again once you're back online — if Ampora signs you out on its own, it worked."
+      )
+    } else {
+      // A real, still-valid session came back: the account is still there.
+      setDeleteAccountHeading('Your account was not deleted')
+      setDeleteAccountError(
+        'Your account still appears active, so this attempt did not go through. Check your connection and try again.'
+      )
+    }
+    setDeleteAccountStep('error')
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {})
   }
 
   return (
@@ -180,7 +366,7 @@ export function DataSettings() {
       <Group>
         <ActionRow
           icon="download-outline"
-          iconTint="#2563EB"
+          iconTint={colors.light.primary}
           iconBg="bg-primary-50"
           label="Export data"
           sublabel="Save a JSON copy of everything"
@@ -204,7 +390,7 @@ export function DataSettings() {
         {userEmail ? (
           <View className="flex-row items-center border-b border-neutral-100 py-3.5">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-              <Ionicons name="mail-outline" size={18} color="#57534E" />
+              <Ionicons name="mail-outline" size={18} color={colors.light.textSecondary} />
             </View>
             <Text className="ml-3 flex-1 text-body-lg text-neutral-900" numberOfLines={1}>
               {userEmail}
@@ -213,10 +399,11 @@ export function DataSettings() {
         ) : null}
         <ActionRow
           icon="log-out-outline"
-          iconTint="#DC2626"
+          iconTint={colors.light.dangerStrong}
           iconBg="bg-danger-100"
           label="Sign out"
-          onPress={() => signOut()}
+          onPress={handleSignOut}
+          busy={signingOut}
           danger
           isLast
           accessibilityHint="Signs you out of your account"
@@ -232,7 +419,7 @@ export function DataSettings() {
       <Group>
         <ActionRow
           icon="help-circle-outline"
-          iconTint="#2563EB"
+          iconTint={colors.light.primary}
           iconBg="bg-primary-50"
           label="Help"
           sublabel="What Ampora does and how it's built to help"
@@ -248,50 +435,78 @@ export function DataSettings() {
         />
         <View className="flex-row items-center py-3.5">
           <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-            <Ionicons name="information-circle-outline" size={18} color="#57534E" />
+            <Ionicons name="information-circle-outline" size={18} color={colors.light.textSecondary} />
           </View>
           <Text className="ml-3 flex-1 text-body-lg text-neutral-900">Version</Text>
           <Text className="text-body text-neutral-500">{APP_VERSION}</Text>
         </View>
       </Group>
 
-      {/* Danger zone -------------------------------------------------------- */}
+      {/* Danger zone --------------------------------------------------------
+          Two distinct destructive actions, deliberately never one button:
+          erasing this device is local-only and reversible (sign back in to
+          restore from the cloud); deleting the account is permanent and
+          removes it from every device. Separate cards, separate footnotes,
+          separate confirmation flows, so the difference reads as
+          unmistakable rather than one vague "delete" affordance. */}
       <View className="mt-6">
         <SectionLabel>Danger zone</SectionLabel>
       </View>
+
       <Group>
         {deleted ? (
           <View className="flex-row items-center py-3.5">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-success-100">
-              <Ionicons name="checkmark-circle-outline" size={18} color="#16A34A" />
+              <Ionicons name="checkmark-circle-outline" size={18} color={colors.light.successAccent} />
             </View>
             <Text className="ml-3 flex-1 text-body-lg text-neutral-900">
-              All local data cleared
+              Local data erased
             </Text>
           </View>
         ) : (
           <ActionRow
             icon="trash-outline"
-            iconTint="#DC2626"
+            iconTint={colors.light.dangerStrong}
             iconBg="bg-danger-100"
-            label="Delete all data"
-            sublabel="Erase every task, project, and record"
+            label="Erase data on this device"
+            sublabel="Clears tasks, projects, and history stored here"
             onPress={() => {
               Haptics.selectionAsync().catch(() => {})
               setConfirmDelete(true)
             }}
             danger
             isLast
-            accessibilityHint="Permanently erases all local data on this device"
+            accessibilityHint="Clears local data on this device only. Your account and cloud copy are not affected."
           />
         )}
       </Group>
       <SectionFootnote>
-        This clears everything stored on this device and can't be undone. Export
-        a copy first if you might want it.
+        Device-only. Your Ampora account and cloud copy are untouched — sign
+        back in to get everything back.
       </SectionFootnote>
 
-      {/* Delete confirmation ------------------------------------------------ */}
+      <View className="mt-4">
+        <Group>
+          <ActionRow
+            icon="person-remove-outline"
+            iconTint={colors.light.dangerStrong}
+            iconBg="bg-danger-100"
+            label="Delete account"
+            sublabel="Permanently deletes your account and all its data"
+            onPress={openDeleteAccount}
+            danger
+            isLast
+            accessibilityHint="Opens the account deletion flow. This permanently deletes your account and all its data on every device."
+          />
+        </Group>
+        <SectionFootnote>
+          Permanent, and removes your account from every device. This can't
+          be undone.
+        </SectionFootnote>
+      </View>
+
+      {/* Erase-local-data confirmation — single confirm is proportionate here:
+          device-only and reversible by signing back in. */}
       <Modal
         visible={confirmDelete}
         transparent
@@ -308,22 +523,24 @@ export function DataSettings() {
             onPress={(e) => e.stopPropagation()}
           >
             <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-              <Ionicons name="trash-outline" size={24} color="#DC2626" />
+              <Ionicons name="trash-outline" size={24} color={colors.light.dangerStrong} />
             </View>
             <Heading size="h3" className="mt-4">
-              Delete all data?
+              Erase data on this device?
             </Heading>
             <Text className="mt-2 text-body text-neutral-600 leading-6">
-              This erases every task, project, schedule, and record stored on this
-              device. It can't be undone.
+              This clears every task, project, schedule, and record stored on
+              this device. Your Ampora account and cloud copy are not
+              affected — sign back in here or on any device to get it all
+              back.
             </Text>
             <View className="mt-6 gap-2.5">
               <Button
-                title="Delete everything"
+                title="Erase this device"
                 variant="destructive"
                 size="lg"
-                onPress={handleDelete}
-                accessibilityLabel="Confirm delete all data"
+                onPress={handleEraseLocal}
+                accessibilityLabel="Confirm erase data on this device"
               />
               <Button
                 title="Keep my data"
@@ -335,6 +552,197 @@ export function DataSettings() {
             </View>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* Delete-account flow — PERMANENT, every device, unrecoverable, so it
+          gets a proportionately stronger gate than the erase-local modal
+          above: an explanation with data export offered first, then a typed
+          "DELETE" confirmation (not just a tap), then the attempt itself.
+          `deleteAccountStep` drives which of the four panels below renders;
+          only one Modal so there is only ever one dialog on screen. */}
+      <Modal
+        visible={deleteAccountStep !== 'closed'}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDeleteAccount}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <Pressable
+            className="flex-1 items-center justify-center bg-black/40 px-8"
+            onPress={closeDeleteAccount}
+          >
+            <Pressable
+              className="w-full max-w-[360px] rounded-2xl bg-white p-6"
+              style={shadows.lg}
+              onPress={(e) => e.stopPropagation()}
+            >
+              {deleteAccountStep === 'intro' ? (
+                <>
+                  <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
+                    <Ionicons name="person-remove-outline" size={24} color={colors.light.dangerStrong} />
+                  </View>
+                  <Heading size="h3" className="mt-4">
+                    Delete your account
+                  </Heading>
+                  <Text className="mt-2 text-body text-neutral-600 leading-6">
+                    This permanently deletes your Ampora account and every
+                    task, project, and record tied to it, on every device you
+                    use. It cannot be undone.
+                  </Text>
+                  <PressableScale
+                    onPress={handleExport}
+                    haptic="light"
+                    disabled={exporting}
+                    className="mt-4 flex-row items-center rounded-lg border border-neutral-200 bg-neutral-50 p-3"
+                    accessibilityRole="button"
+                    accessibilityLabel="Export your data"
+                    accessibilityHint="Saves a copy of your tasks, projects, and settings before you delete your account"
+                  >
+                    <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
+                      <Ionicons
+                        name={exporting ? 'hourglass-outline' : 'download-outline'}
+                        size={18}
+                        color={colors.light.primary}
+                      />
+                    </View>
+                    <View className="ml-3 flex-1">
+                      <Text className="text-label font-medium text-neutral-900">
+                        Export your data first
+                      </Text>
+                      <Text className="mt-0.5 text-caption text-neutral-500">
+                        Save a copy before you go
+                      </Text>
+                    </View>
+                  </PressableScale>
+                  <View className="mt-6 gap-2.5">
+                    <Button
+                      title="Continue"
+                      variant="secondary"
+                      size="lg"
+                      onPress={() => setDeleteAccountStep('confirm')}
+                      accessibilityLabel="Continue to delete your account"
+                    />
+                    <Button
+                      title="Cancel"
+                      variant="ghost"
+                      size="lg"
+                      onPress={closeDeleteAccount}
+                      accessibilityLabel="Cancel account deletion"
+                    />
+                  </View>
+                </>
+              ) : null}
+
+              {deleteAccountStep === 'confirm' ? (
+                <>
+                  <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
+                    <Ionicons name="warning-outline" size={24} color={colors.light.dangerStrong} />
+                  </View>
+                  <Heading size="h3" className="mt-4">
+                    Type DELETE to confirm
+                  </Heading>
+                  <Text className="mt-2 text-body text-neutral-600 leading-6">
+                    This is permanent. Your account and everything in it will
+                    be deleted from every device. Type DELETE below to
+                    confirm.
+                  </Text>
+                  <Input
+                    containerClassName="mt-4"
+                    label={`Type ${DELETE_ACCOUNT_CONFIRM_PHRASE} to confirm`}
+                    placeholder={DELETE_ACCOUNT_CONFIRM_PHRASE}
+                    value={deleteAccountText}
+                    onChangeText={setDeleteAccountText}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    autoComplete="off"
+                    error={deleteAccountText.length > 0 && !isDeleteAccountConfirmed(deleteAccountText)}
+                    helperText={
+                      deleteAccountText.length > 0 && !isDeleteAccountConfirmed(deleteAccountText)
+                        ? `Type ${DELETE_ACCOUNT_CONFIRM_PHRASE} exactly to enable the button below`
+                        : undefined
+                    }
+                    accessibilityLabel={`Type ${DELETE_ACCOUNT_CONFIRM_PHRASE} to confirm account deletion`}
+                  />
+                  <View className="mt-6 gap-2.5">
+                    <Button
+                      title="Delete my account"
+                      variant="destructive"
+                      size="lg"
+                      onPress={attemptAccountDeletion}
+                      disabled={!isDeleteAccountConfirmed(deleteAccountText)}
+                      accessibilityLabel="Delete my account permanently"
+                      accessibilityHint={`Disabled until you type ${DELETE_ACCOUNT_CONFIRM_PHRASE} above`}
+                    />
+                    <Button
+                      title="Cancel"
+                      variant="secondary"
+                      size="lg"
+                      onPress={closeDeleteAccount}
+                      accessibilityLabel="Cancel account deletion"
+                    />
+                  </View>
+                </>
+              ) : null}
+
+              {deleteAccountStep === 'deleting' ? (
+                <View className="items-center py-2">
+                  <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
+                    <Ionicons name="person-remove-outline" size={24} color={colors.light.dangerStrong} />
+                  </View>
+                  <View accessibilityLiveRegion="polite" className="items-center">
+                    <Heading size="h3" className="mt-4 text-center">
+                      Deleting your account
+                    </Heading>
+                    <Text className="mt-3 text-body text-neutral-500 text-center">
+                      This only takes a moment. Don't close the app.
+                    </Text>
+                  </View>
+                  <View className="mt-4">
+                    <ActivityIndicator
+                      color={colors.light.dangerStrong}
+                      accessibilityLabel="Deleting"
+                    />
+                  </View>
+                </View>
+              ) : null}
+
+              {deleteAccountStep === 'error' ? (
+                <>
+                  <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
+                    <Ionicons name="alert-circle-outline" size={24} color={colors.light.dangerStrong} />
+                  </View>
+                  <View accessibilityLiveRegion="polite">
+                    <Heading size="h3" className="mt-4">
+                      {deleteAccountHeading}
+                    </Heading>
+                    <Text className="mt-2 text-body text-neutral-600 leading-6">
+                      {deleteAccountError}
+                    </Text>
+                  </View>
+                  <View className="mt-6 gap-2.5">
+                    <Button
+                      title="Try again"
+                      variant="destructive"
+                      size="lg"
+                      onPress={attemptAccountDeletion}
+                      accessibilityLabel="Try deleting my account again"
+                    />
+                    <Button
+                      title="Cancel"
+                      variant="secondary"
+                      size="lg"
+                      onPress={closeDeleteAccount}
+                      accessibilityLabel="Cancel account deletion"
+                    />
+                  </View>
+                </>
+              ) : null}
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Help / Legal info sheet — honest, static content; no external links. */}
@@ -356,7 +764,7 @@ export function DataSettings() {
             {infoSheet === 'help' ? (
               <>
                 <View className="h-12 w-12 items-center justify-center rounded-full bg-primary-50">
-                  <Ionicons name="help-circle-outline" size={24} color="#2563EB" />
+                  <Ionicons name="help-circle-outline" size={24} color={colors.light.primary} />
                 </View>
                 <Heading size="h3" className="mt-4">
                   How Ampora helps
@@ -372,7 +780,7 @@ export function DataSettings() {
             ) : (
               <>
                 <View className="h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
-                  <Ionicons name="document-text-outline" size={24} color="#57534E" />
+                  <Ionicons name="document-text-outline" size={24} color={colors.light.textSecondary} />
                 </View>
                 <Heading size="h3" className="mt-4">
                   Privacy and terms

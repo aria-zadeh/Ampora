@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Chip } from "@/components/ui/Chip";
 import { useTaskStore } from "@/store/taskStore";
+import { colors } from "@/utils/design-tokens";
 import type { Task } from "@/types";
 
 interface DependsOnPickerProps {
@@ -55,11 +56,11 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
       ) : null}
 
       <View className="mb-2 min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-3">
-        <Ionicons name="search" size={16} color="#A8A29A" />
+        <Ionicons name="search" size={16} color={colors.light.textDisabled} />
         <TextInput
           className="ml-2 flex-1 text-body-lg text-neutral-900"
           placeholder="Search tasks"
-          placeholderTextColor="#A8A29A"
+          placeholderTextColor={colors.light.textDisabled}
           value={query}
           onChangeText={setQuery}
           accessibilityLabel="Search tasks to depend on"
@@ -93,7 +94,7 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
                   }`}
                 >
                   {selected ? (
-                    <Ionicons name="checkmark" size={13} color="#FFFFFF" />
+                    <Ionicons name="checkmark" size={13} color={colors.light.primaryForeground} />
                   ) : null}
                 </View>
                 <Text

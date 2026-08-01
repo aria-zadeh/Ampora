@@ -27,6 +27,7 @@ import { NotificationSettings } from '@/components/settings/NotificationSettings
 import { DataSettings } from '@/components/settings/DataSettings'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { colors } from '@/utils/design-tokens'
 
 /** A titled section wrapper with a staggered entrance. */
 function Section({
@@ -69,7 +70,7 @@ export default function AllSettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color="#1C1917" />
+          <Ionicons name="chevron-back" size={24} color={colors.light.text} />
         </PressableScale>
       </View>
 

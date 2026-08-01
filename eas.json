@@ -19,6 +19,27 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "development-native": {
+      "extends": "development",
+      "env": {
+        "AMPORA_NATIVE": "1",
+        "EXPO_PUBLIC_AMPORA_NATIVE": "1"
+      }
+    },
+    "preview-native": {
+      "extends": "preview",
+      "env": {
+        "AMPORA_NATIVE": "1",
+        "EXPO_PUBLIC_AMPORA_NATIVE": "1"
+      }
+    },
+    "production-native": {
+      "extends": "production",
+      "env": {
+        "AMPORA_NATIVE": "1",
+        "EXPO_PUBLIC_AMPORA_NATIVE": "1"
+      }
     }
   },
   "submit": {

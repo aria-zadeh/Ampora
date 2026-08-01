@@ -1,68 +1,101 @@
 /**
  * BlockingStrategy — the single seam between Ampora's Ignition session logic
- * and however a lock is actually enforced (PRD §9.13, doc 06 §7).
+ * and however a lock is actually enforced (PRD §9.13, doc `05` §7).
  *
- * All Ignition session logic (caps, panic valve, de-escalation — in
+ * All Ignition session logic (holds, caps, panic valve, de-escalation — in
  * `store/stakesStore.ts`) talks ONLY to this interface, never to a platform
- * API directly. That keeps the wellbeing/caps logic identical across:
+ * API directly. That keeps the wellbeing rules identical across:
  *   - SoftBlockingStrategy: an IN-APP focus lock (the active, ship-today impl;
  *     no OS blocking, works on web + dev builds with no entitlement).
  *   - NativeBlockingStrategy: real iOS Family Controls shielding (isolated,
- *     behind `FEATURE_FLAGS.IGNITION_NATIVE`, not wired into the build yet).
+ *     behind `FEATURE_FLAGS.IGNITION_NATIVE`, still a refusing stub today).
  *
  * Consumers must obtain their strategy via `getBlockingStrategy()` in
  * `./index`, never by constructing an implementation directly, so the native
  * impl swaps in by flipping the feature flag with zero call-site changes.
+ *
+ * Note the shape of `applyShield`: it takes a `StakeSelection` (what to
+ * shield), NOT a `StakeSession` (why we are shielding). The strategy has no
+ * business knowing about holds, triggers, outcomes or caps — those are the
+ * store's, and keeping them out of here is what makes a second platform a
+ * drop-in. `removeShield()` correspondingly takes nothing: the store already
+ * guarantees a single active session, and the fail-safe direction is "unlock",
+ * so an unconditional release is the correct primitive (NFR-7).
  *
  * Portability note: this file is pure TS (a type + a tiny emitter). No
  * react-native / expo / MMKV imports, so it is safe to import anywhere,
  * including on web and in a future server context.
  */
 
-import type { StakeSession } from '@/types'
+import type { StakeSelection, StakeSession } from '@/types'
+
+/** Whether the platform has granted whatever permission the strategy needs to shield. */
+export type BlockingPermissionStatus = 'granted' | 'denied' | 'undetermined'
 
 /**
- * The enforcement contract. Kept intentionally small — richer platform
- * concerns (picking apps, permission status enums, auto-expiry scheduling
- * from doc 06 §7) are the native impl's private business and are added there
- * when the entitlement lands; the shared session logic only needs these.
+ * The enforcement contract (doc `05` §7). Implementations: SoftBlockingStrategy
+ * (today), NativeBlockingStrategy (iOS Family Controls), and later an Android
+ * overlay strategy — all slotting in without touching shared logic.
  */
 export interface BlockingStrategy {
   /** Which enforcement backs this strategy. `"soft"` = in-app only, `"native"` = OS shield. */
   readonly kind: 'soft' | 'native'
 
   /**
-   * Whether this strategy can enforce a lock in the current environment.
-   * Soft is always available; native is only available on a build with the
-   * Family Controls entitlement + native module present.
+   * Current permission state. Soft needs nothing, so it is always `'granted'`.
+   * Native reports the Screen Time authorization status, re-checked on every
+   * foreground because it can lag (doc `05` §3.1). MUST never throw — an
+   * uncertain state resolves `'undetermined'`, never a rejection.
    */
-  isAvailable(): boolean
+  getPermissionStatus(): Promise<BlockingPermissionStatus>
 
   /**
-   * Ask the OS/user for whatever permission the strategy needs before it can
-   * lock (Screen Time consent on iOS). Resolves `true` if authorized. Soft
-   * needs nothing, so it resolves `true` immediately. MUST never throw —
-   * fail-safe returns `false` rather than rejecting (doc 06 §3.10).
+   * Ask the OS/user for that permission (Apple's Screen Time consent on iOS).
+   * Resolves once the prompt is done; read `getPermissionStatus()` afterwards
+   * for the outcome. MUST never throw (doc `05` §3.10).
    */
-  requestAuthorization(): Promise<boolean>
+  requestPermission(): Promise<void>
 
   /**
-   * Apply the lock for `session`. Soft: set the in-app "locked" state that the
-   * focus/lock UI reads to keep the user on task. Native: apply the
-   * ManagedSettings shield for the selected app tokens.
+   * Present the platform's app picker and resolve with what the user chose.
+   * On iOS this is `FamilyActivityPicker` and the tokens are opaque — Ampora
+   * can shield them but can never resolve them to app identities, so the UI
+   * shows a count, never names (FR-40, NFR-4). On the soft path there is no
+   * system picker, so the app's own picker supplies the selection.
+   */
+  pickStakeApps(): Promise<StakeSelection>
+
+  /**
+   * Shield everything in `selection`. Soft: set the in-app "locked" state that
+   * the focus/lock UI reads to keep the user on task. Native: write the
+   * ManagedSettings shield for the selected tokens.
    *
    * Fail-safe: implementations should resolve (not reject) on internal error
    * and leave the user UNLOCKED, because the product would rather under-lock
-   * than trap someone (NFR-7, doc 06 §3.10). Event logging is the store's job.
+   * than trap someone (NFR-7, doc `05` §3.10). Event logging is the store's job.
    */
-  applyShield(session: StakeSession): Promise<void>
+  applyShield(selection: StakeSelection): Promise<void>
 
   /**
-   * Remove the lock for `session` (completion, panic valve, cap, quiet hours,
-   * or recovery). Soft: clear the in-app "locked" state. Native: clear the
-   * shield tokens. Idempotent — safe to call when nothing is locked.
+   * Release the shield. Idempotent and unconditional — safe to call when
+   * nothing is locked, and it never second-guesses whether the caller "owns"
+   * the lock, because refusing to unlock is the one failure mode this product
+   * will not accept.
    */
-  removeShield(session: StakeSession): Promise<void>
+  removeShield(): Promise<void>
+
+  /** Whether a shield is currently applied. Never throws; resolves `false` when uncertain. */
+  isShieldActive(): Promise<boolean>
+
+  /**
+   * Schedule an automatic release at `at` (epoch ms) as a backstop for the
+   * session end, the daily cap, the single-session cap and the quiet-hours
+   * boundary, so a forgotten lock lifts even with the app closed (doc `05`
+   * §3.5). The in-app wall clock stays the source of truth — platform events
+   * fire prematurely on some iOS versions — so this is a safety net, never the
+   * primary mechanism. Calling it again replaces any prior scheduled expiry.
+   */
+  scheduleAutoExpiry(at: number): Promise<void>
 }
 
 // ---------------------------------------------------------------------------
@@ -79,7 +112,12 @@ export interface BlockingStrategy {
 export interface LockState {
   /** True while a soft lock is active. */
   locked: boolean
-  /** The session driving the current lock, or null when unlocked. */
+  /**
+   * The session driving the current lock, or null when unlocked. The soft
+   * strategy no longer receives a session (it shields a `StakeSelection`), so
+   * this is populated by the store via `setLockSession` — the store is the one
+   * place that knows which session a lock belongs to.
+   */
   session: StakeSession | null
 }
 
