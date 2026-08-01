@@ -2,17 +2,31 @@
 
 Windows can run and edit almost all of Ampora, but it cannot compile the iOS app: that needs Xcode, which only runs on a Mac. This file gets a Mac ready to build and test the real, native version of the app.
 
-## Before pasting anything: one manual copy
+## Before pasting anything: carry one folder across
 
-Three things cannot be reinstalled automatically and have to be physically carried over from the Windows machine. Zip these up and move them across by iCloud, Google Drive, Dropbox, or a USB stick:
+Three things cannot be reinstalled automatically, because nothing records where they originally came from. They have already been packaged up for you on the Windows Desktop:
+
+- **`Desktop\transfer\`** — the folder, ready to copy
+- **`Desktop\ampora-claude-config.zip`** — the same thing zipped, about 7 MB, easier to upload
+
+It contains the skill packs, 17 custom subagent definitions, and the personal `CLAUDE.md` working rules. **No keys, no passwords, no tokens** — documentation and configuration only.
+
+**Do this:**
+
+1. Upload `ampora-claude-config.zip` to Google Drive from the Windows machine.
+2. On the Mac, download it and unzip onto the Desktop, so you end up with `~/Desktop/transfer/`.
+3. Run the prompt below. It looks for that folder and copies everything into place itself.
+
+If the folder is not there, the prompt says so and carries on with everything else, so nothing breaks.
+
+**Doing it by hand instead**, if that is ever easier:
 
 ```
-C:\Users\Aria\.claude\skills\      →  ~/.claude/skills/
-C:\Users\Aria\.claude\agents\      →  ~/.claude/agents/
-C:\Users\Aria\.claude\CLAUDE.md    →  ~/.claude/CLAUDE.md
+mkdir -p ~/.claude
+cp -R ~/Desktop/transfer/claude-config/skills ~/.claude/skills
+cp -R ~/Desktop/transfer/claude-config/agents ~/.claude/agents
+cp ~/Desktop/transfer/claude-config/CLAUDE.md ~/.claude/CLAUDE.md
 ```
-
-The `skills` folder holds design and Expo skill packs whose original install sources are not recorded anywhere, so a fresh install on the Mac cannot fetch them automatically. The `agents` folder holds custom subagent definitions built up over time. Neither contains a secret or key, both are safe to move by USB or cloud drive.
 
 Everything else (plugins, marketplaces, MCP servers) gets installed by the prompt below.
 
@@ -29,6 +43,33 @@ Code environment, plus the native iOS toolchain that Windows cannot run.
 
 Work through these steps in order. Tell me what succeeded and what failed at the
 end. Do not ask me to confirm each step, just do them and report.
+
+## 0. Restore my Claude config from the transfer folder
+
+Look for a folder at ~/Desktop/transfer. I copied it over from my Windows
+machine, via Google Drive, because these three things cannot be reinstalled
+automatically: nothing records where they originally came from.
+
+If ~/Desktop/transfer/claude-config exists, copy its contents into place:
+
+  mkdir -p ~/.claude
+  cp -R ~/Desktop/transfer/claude-config/skills ~/.claude/skills
+  cp -R ~/Desktop/transfer/claude-config/agents ~/.claude/agents
+  cp ~/Desktop/transfer/claude-config/CLAUDE.md ~/.claude/CLAUDE.md
+
+Then confirm it worked by telling me how many entries are in ~/.claude/skills
+and ~/.claude/agents. I expect roughly 50 skills and 17 agents. If either count
+looks far off, say so rather than moving on.
+
+If I unzipped it somewhere else, check ~/Downloads and the Desktop for a folder
+or zip named "transfer" or "ampora-claude-config" before giving up.
+
+If you cannot find it anywhere, do not stop. Say so clearly, carry on with
+every step below, and remind me at the end. Everything else works without it,
+the Mac will just be missing some skills until I copy the folder over.
+
+There are no keys or passwords in that folder. If you find anything that looks
+like a credential in it, stop and tell me instead of copying it.
 
 ## 1. Prerequisites
 
@@ -111,7 +152,7 @@ want to see before we go further.
 
 Tell me: what you installed, what was already present, what failed, and the
 exact commands I still need to run myself (OAuth authorisation, the two env
-values, the manual ~/.claude copy if I have not done it).
+values, and the transfer folder if you could not find it).
 ```
 
 ## What happens after
@@ -120,6 +161,6 @@ Claude Code works through all six steps on its own and gives a report at the end
 
 1. **OAuth authorization** for the `supabase` and `expo` MCP servers. Run `/mcp` inside an interactive Claude Code session on the Mac and follow the sign-in prompts for each. Claude Code cannot complete a browser sign-in flow by itself.
 2. **The two env values it left blank.** Fill in `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the new `.env` file, from `02-supabase.md`. Leave `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` blank until `05-revenuecat.md`.
-3. **The manual `~/.claude` copy above**, if it was not done before running the prompt.
+3. **The transfer folder**, if the prompt reported it could not find `~/Desktop/transfer`.
 
 **What success looks like overall:** `npm run typecheck` reports 0 errors, `npm test` passes, and `npx expo export --platform web` completes, all three matching what already passes on the Windows machine. If any of them differ, that is a real machine difference worth looking at before moving on to `04-test-the-lock.md`, not something to work around.
