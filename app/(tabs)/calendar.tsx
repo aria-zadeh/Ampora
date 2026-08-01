@@ -26,6 +26,7 @@ import { EventActionSheet } from "@/components/calendar/EventActionSheet";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { AddEventModal } from "@/components/ui/AddEventModal";
+import { useTabBarClearance } from "@/components/ui/SegmentedTabBar";
 import {
   DEFAULT_PX_PER_HOUR,
   nearestZoomStop,
@@ -65,6 +66,8 @@ function coerceView(value: string | undefined): CalendarView {
  * here; the individual views stay presentational and reusable.
  */
 export default function CalendarScreen() {
+  const tabBarClearance = useTabBarClearance();
+
   // Persisted preferences (optional on Settings; default here when a restored
   // blob predates the fields).
   const persistedView = useSettingsStore((s) => s.settings.calendarView);
@@ -285,7 +288,13 @@ export default function CalendarScreen() {
         </View>
 
         {/* The active view, or the global empty state when nothing is scheduled. */}
-        <View className="flex-1">
+        {/* Bottom padding, not a scroll-content inset: the pill tab bar floats */}
+        {/* over content now instead of reserving layout space, and every view */}
+        {/* here (three time grids, month, agenda) owns its own scroller. */}
+        {/* Shortening the shared viewport clears the pill for all five at once */}
+        {/* without touching any of their internal geometry, which is what the */}
+        {/* drag, resize and pinch handlers measure against. */}
+        <View className="flex-1" style={{ paddingBottom: tabBarClearance }}>
           {showEmpty ? (
             <View className="flex-1 items-center justify-center">
               <EmptyState

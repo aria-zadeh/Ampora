@@ -704,7 +704,13 @@ function HoldOptionTile({
         <Text className={`text-body-lg font-medium ${active ? "text-primary-700" : "text-neutral-900"}`}>
           {label}
         </Text>
-        <Text className="mt-0.5 text-caption text-neutral-500" numberOfLines={2}>
+        {/* 3 lines, not 2. The longest blurb ("Apps come back once you've */}
+        {/* focused for the session length below.") lands at roughly 35 */}
+        {/* characters per line in Lexend against the ~250px this column */}
+        {/* gets, so it fills both lines with nothing spare. One notch of */}
+        {/* Dynamic Type used to cut the sentence mid-word, and this is the */}
+        {/* copy that explains what the lock will actually do. */}
+        <Text className="mt-0.5 text-caption text-neutral-500" numberOfLines={3}>
           {blurb}
         </Text>
       </View>

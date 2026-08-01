@@ -287,7 +287,7 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      <FAB onPress={() => router.push("/task/new")} />
+      <FAB onPress={() => router.push("/task/new")} liftAboveTabBar />
     </SafeAreaView>
   );
 }

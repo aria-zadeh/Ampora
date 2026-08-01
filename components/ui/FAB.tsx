@@ -10,16 +10,27 @@ import * as Haptics from "expo-haptics";
 import { EASINGS } from "@/utils/motion";
 import { motion, shadows, colors } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useTabBarClearance } from "@/components/ui/SegmentedTabBar";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface FABProps {
   onPress: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
+  /**
+   * Sit above the floating pill tab bar instead of at the screen edge. Set
+   * this on tab screens: the tab bar no longer reserves layout space the way
+   * the old bottom bar did, so at the default offset the FAB lands on top of
+   * it. Off by default because the FAB is also used on stack screens
+   * (`app/projects/index.tsx`) that have no tab bar to clear.
+   */
+  liftAboveTabBar?: boolean;
 }
 
-export function FAB({ onPress, icon = "add" }: FABProps) {
+export function FAB({ onPress, icon = "add", liftAboveTabBar = false }: FABProps) {
   const reduceMotion = useReduceMotion();
+  const tabBarClearance = useTabBarClearance();
+  const bottom = liftAboveTabBar ? tabBarClearance : 24;
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
@@ -67,14 +78,14 @@ export function FAB({ onPress, icon = "add" }: FABProps) {
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      className="absolute bottom-6 right-5 w-14 h-14 rounded-full bg-primary-600 items-center justify-center"
+      className="absolute right-5 w-14 h-14 rounded-full bg-primary-600 items-center justify-center"
       accessibilityRole="button"
       accessibilityLabel="Add new task"
       accessibilityHint="Opens the new task form"
       style={[
         {
           position: "absolute",
-          bottom: 24,
+          bottom,
           right: 20,
           width: 56,
           height: 56,

@@ -66,7 +66,9 @@ export function RecoveryBanner() {
             <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
               Fresh start
             </Text>
-            <Text className="mt-0.5 text-body font-medium leading-5 text-primary-900">
+            {/* `leading-5` removed: 15px body belongs in the scale's 22px */}
+            {/* box, and Lexend needs the room Inter did not. */}
+            <Text className="mt-0.5 text-body font-medium text-primary-900">
               You have {missedCount} unfinished {missedCount === 1 ? 'block' : 'blocks'}. Want me to
               rebuild?
             </Text>

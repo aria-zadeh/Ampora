@@ -471,15 +471,19 @@ The `COMPLETED` / `IDLE` / `AI WORKER` pattern. These carry state and category a
 
 The reference shows a sidebar of line icons. Translate this to mobile patterns:
 
-**Bottom tab bar (primary navigation):**
+**Bottom tab bar (primary navigation) — AS BUILT, `components/ui/SegmentedTabBar.tsx`:**
 
-- Height: 56 + bottom safe-area inset (use `useSafeAreaInsets`)
-- Background: `bg.surface` `#FFFFFF` with a 1px top border `border.default` and `shadow.sm` pointing up (negative offset) or no shadow + border
-- 3-5 tabs, evenly distributed
-- Icon: 24px line icon (lucide-react-native)
-- Inactive: icon + label `neutral.400`
-- Active: icon + label `text.primary` `#18181B` (or `primary.600` if you want a colored active state). Optional 3px rounded indicator or a soft `primary.50` pill behind the active icon.
-- Label: `tiny` (11 / 500) under the icon, or icon-only with active label
+Ampora ships the "Stack" variant of this pattern (`docs/design/stack-reference.html`, decision logged in `09`): a **floating segmented pill**, not a full-width slab.
+
+- One rounded track, `radius.full`, floating: `left`/`right` 18, `bottom` = bottom safe-area inset + 8. Height 48 (a 44px segment row + 2px padding each side).
+- Background `bg.surface` `#FFFFFF`, 1px `border.default`, `shadow.lg` (it genuinely floats, so it earns the heavier tier).
+- 5 segments, `flex: 1`, evenly distributed. At a 390pt width each segment is ~70x44, clearing the 44x44 minimum.
+- Icon-only, 24px. There is no text label, so **every segment carries an `accessibilityLabel`** plus `accessibilityRole="tab"` and `accessibilityState={{ selected }}`.
+- Active: a filled `primary.600` pill behind a `#FFFFFF` glyph (5.2:1, §12). The pill slides on `SPRINGS.tactile`, direct-assigned under reduce-motion. Active state is carried by fill and shape, not hue alone.
+- Inactive: `text.tertiary` `#6F6862` (5.5:1 on white). Do not go lighter — `neutral.400` fails the 3:1 bar for UI glyphs.
+- **It floats over content and reserves no layout space.** Every tab screen must reserve its own bottom clearance with `useTabBarClearance()`, and a FAB on a tab screen needs `liftAboveTabBar`.
+
+The older full-width bar (56 + inset, 1px top border, icon + `tiny` label) is superseded and should not be reintroduced.
 
 **Top app bar (screen header):**
 

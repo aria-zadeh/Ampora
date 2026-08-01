@@ -58,6 +58,14 @@ module.exports = {
           700: "#B91C1C",
         },
       },
+      // MIRROR OF utils/design-tokens.ts `typography`. That object is the
+      // scale of record (doc 02 §2.2); this block is how screens actually
+      // consume it, via `text-*` + `font-*` classes. The two are asserted
+      // equal, key for key, by core/__tests__/design-tokens.test.ts — change
+      // one and that test names the other. `bodyMedium`/`captionMedium` have
+      // no entry of their own on purpose: they differ from `body`/`caption`
+      // by weight only, so they are spelled `text-body font-medium` and
+      // `text-caption font-medium`.
       fontSize: {
         display: ["34px", { lineHeight: "40px" }],
         h1: ["28px", { lineHeight: "34px" }],
@@ -98,7 +106,14 @@ module.exports = {
       spacing: {
         18: "72px",
         22: "88px",
+        // The grouping step, mirroring `spacing.group` in design-tokens.ts.
+        // `mt-group` is the 18px break BETWEEN groups in a card stack; the
+        // tight rhythm within a group stays on the 4px grid at `gap-2`.
+        group: "18px",
       },
+      // Also mirrored from `typography` (its `letterSpacing` field). `wide`
+      // is the `overline` tracking, `tiny-wide` is `tiny`'s. Body-size styles
+      // sit at 0 and need no class.
       letterSpacing: {
         "tight-display": "-0.8px",
         "tight-h1": "-0.6px",
@@ -106,6 +121,7 @@ module.exports = {
         "tight-h3": "-0.2px",
         "tight-h4": "-0.1px",
         wide: "0.6px",
+        "tiny-wide": "0.2px",
       },
     },
   },

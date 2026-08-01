@@ -318,7 +318,7 @@ Feature: Project generates today's session
 
 Visual styling is governed by `02_Design_System.md`.
 
-**8.1 Tabs (bottom bar):** `Today`, `Calendar`, `Tasks`, `Focus`, `Profile`.
+**8.1 Tabs (bottom bar):** `Today`, `Calendar`, `Tasks`, `Focus`, `Profile`. The bar is a floating segmented pill, icon-only, spec'd in `02` §6.5 and reference `docs/design/stack-reference.html`. All five surfaces stay reachable from it.
 
 **8.2 Today screen**
 - Header: "Good morning, {name}." (time-of-day variant).

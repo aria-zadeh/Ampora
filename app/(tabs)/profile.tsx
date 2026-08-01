@@ -17,6 +17,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
+import { useTabBarClearance } from "@/components/ui/SegmentedTabBar";
 import { StakesSettings } from "@/components/settings/StakesSettings";
 import { CalendarSyncSettings } from "@/components/settings/CalendarSyncSettings";
 import { getCurrentUser, signOut } from "@/services/supabase";
@@ -118,6 +119,7 @@ function SettingsRow({
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarClearance = useTabBarClearance();
   const reduceMotion = useReduceMotion();
 
   const displayName = useSettingsStore((s) => s.settings.displayName);
@@ -213,9 +215,13 @@ export default function ProfileScreen() {
         }}
       />
 
+      {/* pb-12 was enough when the bottom bar reserved its own layout space. */}
+      {/* The pill floats over content instead, so the last row has to be */}
+      {/* scrolled clear of it explicitly. */}
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-5 pb-12"
+        contentContainerClassName="px-5"
+        contentContainerStyle={{ paddingBottom: tabBarClearance }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
