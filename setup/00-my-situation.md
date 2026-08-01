@@ -47,6 +47,9 @@ Quite a lot, and this is the honest line:
 - **All of `02-supabase.md`** except Apple sign-in.
 - **All of `03-mac-setup.md`**. Getting the Mac ready needs a Mac and free Xcode, not a developer account.
 - **Most of `04-test-the-lock.md`**: flipping native on, `npm run typecheck:native`, and `npx expo prebuild`. Everything up to the point where a build has to be *signed*.
+- **Compiling all the Swift**, which is better news than it sounds. Step 5b of `04-test-the-lock.md` builds the whole native module unsigned for the Simulator with **no Apple account and no EAS quota**. Every Swift compile error a cloud build would report shows up there instead, in a few minutes rather than 10 to 20. On its first ever run it caught two real bugs that would each have failed a cloud build. Run it before every `eas build`.
+
+  This is the sharpest line in the whole setup: **compiling the Swift needs nobody. Running the lock needs dad.** Compiling proves the code is correct; only a real device with Family Controls proves the lock actually works.
 
 What needs dad, and only this:
 
