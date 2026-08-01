@@ -83,8 +83,8 @@ final class AmporaDeviceActivityMonitorExtension: DeviceActivityMonitor {
         AppGroupStore.removeShield(store: store)
     }
 
-    override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, for activity: DeviceActivityName) {
-        super.eventDidReachThreshold(event, for: activity)
+    override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
+        super.eventDidReachThreshold(event, activity: activity)
 
         guard activity == expiryActivityName, event == expiryEventName else { return }
         // Redundant path to the SAME outcome as intervalDidEnd above.

@@ -67,6 +67,25 @@ xcodebuild -list -project ios/Ampora.xcodeproj
 
 If either check fails, do not run the EAS build yet, go back and figure out why first (`native/README.md` and `docs/05_App_Blocking_Technical.md` §2 describe what should exist).
 
+**5b. Compile the Swift locally first. This is worth more than both checks above.**
+
+An earlier version of this file said the EAS build in step 7 is "the step that actually compiles all the Swift code for the first time anywhere." That is not true — the Swift can be compiled on the Mac, unsigned, for the Simulator, needing **no Apple account and no EAS quota**:
+
+```
+xcodebuild -workspace ios/Ampora.xcworkspace -scheme Ampora \
+  -configuration Debug -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+**Should show:** `** BUILD SUCCEEDED **`. Takes a few minutes against 10-20 for a cloud build, and every Swift compile error EAS would report shows up here instead.
+
+Requires the iOS platform SDK, which Xcode does not bundle: `sudo xcodebuild -downloadPlatform iOS` (~8.5GB, one time).
+
+Run this before every `eas build`. On 2026-08-01 its first ever run caught two real bugs that would each have failed a cloud build: the config plugin silently dropping `SWIFT_VERSION` (and three other settings) on all three extension targets, and a wrong argument label on `eventDidReachThreshold` in `DeviceActivityMonitorExtension.swift`. Both are fixed; the point is that this check is where such things surface cheaply.
+
+It only proves the code *compiles*. The lock cannot be *tested* here — Family Controls needs a real device, as the top of this file says.
+
 **6. Sign into EAS:**
 ```
 eas login
@@ -111,9 +130,13 @@ Each item below is a real way this kind of feature breaks. Go through them in or
 - [ ] **6. A scheduled lock arms itself.** Set up a stake with a scheduled start window ("lock in 10 minutes if not started"). Do not start the task. **Pass:** the lock arms on its own once the window passes, and never arms at all if the window falls inside quiet hours (default 11pm-8am). Try again but actually start or finish the task inside the window this time. **Pass:** it releases early instead of arming.
 - [ ] **7. Daily and quiet-hours limits release on their own, app closed or not.** Harder to test in one sitting since it needs hitting the 180-minute daily total or crossing the quiet-hours boundary for real. Easiest way: temporarily lower the daily cap in Settings to something small like 15 minutes, hit it, confirm the lock releases even with Ampora fully closed. Set the cap back afterward.
 - [ ] **8. The panic valve works, and is not punishing.** Mid-lock, tap the "unlock early" option. **Pass:** there is a genuine 60-second wait with calm, non-shaming text, not an instant unlock. Do this a second time shortly after. **Pass:** the app offers to pause stakes for the rest of the day, rather than adding more pressure or warnings.
-- [ ] **9. A corrupted app selection does not trap anyone.** Hard to trigger by hand, this one needs an engineer (or Claude Code directly) to simulate the app's stored picks getting out of sync with what iOS actually has. **Pass:** the result is a gentle "pick your apps again" prompt, never a lock with no way out.
+- [x] **9. A corrupted app selection does not trap anyone.** Hard to trigger by hand, this one needs an engineer (or Claude Code directly) to simulate the app's stored picks getting out of sync with what iOS actually has. **Pass:** the result is a gentle "pick your apps again" prompt, never a lock with no way out.
+  - **Half done, and the important half is the one that works.** Covered in `core/__tests__/nativeBlockingStrategy.test.ts`: a missing `selectionId` never reaches native at all, and native reporting `selection_not_found` / `selection_decode_failed` both resolve **unlocked**, never throwing. Nobody gets trapped.
+  - **The "gentle re-pick" prompt does not exist yet.** `NativeBlockingStrategy.getLastApplyShieldOutcome()` is read by nothing outside those tests; `store/stakesStore.ts` only branches on reject-vs-resolve, never on the refusal `reason`, so a stale selection is silently indistinguishable from success. The `no_selection` copy in `StakeSetupSheet.tsx` covers an *empty* selection, not a stale one. Building it means `stakesStore.ts` inspecting the reason and new UI copy alongside `no_selection`. Same gap `docs/05_App_Blocking_Technical.md:222` already tracks.
 - [ ] **10. Odd timing does not break anything.** Turn on Low Power Mode and repeat a couple of the tests above. **Pass:** the countdown shown in Ampora is what actually governs when the unlock happens, not whatever the background system reports.
-- [ ] **11. Errors fail open, never fail locked.** Also hard to trigger by hand, ask Claude Code to force an error in the shield-apply code path for this one specifically. **Pass:** the result is unlocked and it gets logged somewhere, never stuck behind a lock screen because of an internal error.
+- [x] **11. Errors fail open, never fail locked.** Also hard to trigger by hand, ask Claude Code to force an error in the shield-apply code path for this one specifically. **Pass:** the result is unlocked and it gets logged somewhere, never stuck behind a lock screen because of an internal error.
+  - **Done, in the TypeScript layer.** Covered in `core/__tests__/nativeBlockingStrategy.test.ts`: `applyShield` catches both async and sync throws from the native call, records `unknown_error`, and *resolves* rather than rejecting. A second independent layer in `store/stakesStore.ts` (`startStake`, `reconcileActiveSession`) also `.catch()`es and calls `endActive('expired')` to unlock. The tests include a healthy-apply control case, so the fail-open assertions cannot pass vacuously.
+  - Still worth confirming on the phone that the Swift side behaves the same, since only the TS layer is reachable from the test harness.
 - [ ] **12. Protected apps can never be picked.** In the app picker, try to select "All Apps" as a category, or look specifically for Phone, Messages, Maps, Settings, or Ampora itself. **Pass:** an all-apps selection gets refused, and none of those specific ones are ever selectable.
 
 ## While the phone is in hand: four typography spots to eyeball
@@ -121,11 +144,15 @@ Each item below is a real way this kind of feature breaks. Go through them in or
 The app switched typeface from Inter to Lexend. Lexend is a wider face, so text that used to fit on one line may now wrap. Nothing can confirm this from a Windows machine, so check these four while a real device is in front of you. None of them is a crash, they are all "does this look broken".
 
 1. **A long task title on a task card.** `components/ui/TaskCard.tsx` allows two lines. A title that used to fit on one may now take two and push the card taller.
-2. **The dense week column on the calendar.** This is the most exposed of the four. `components/calendar/CalendarBlock.tsx` switches to a compressed treatment under 56px wide and shows roughly the first six characters. That is a fixed **character** count, and a wider typeface means six characters now measure wider, so they may not fit the space the number six was chosen for. Look at a full Week view and check nothing is clipped mid-letter.
+2. ~~**The dense week column on the calendar.**~~ **Already fixed in code — no longer the risky one.** This used to hard-slice the title to six characters, which is what made it the most exposed of the four. `components/calendar/CalendarBlock.tsx:153-169` now uses `numberOfLines={1}` + `ellipsizeMode="tail"`, so the layout measures the real width at any typeface instead of assuming a character advance. Worth a glance in Week view that the ellipsis renders cleanly, but there is no fixed character budget left to overflow.
 3. **The lock banner**, the "Instagram and 2 more are locked, 12 min left" line. It is one continuous sentence, so it either fits or wraps awkwardly.
-4. **The stake setup sheet**, where the option descriptions are the longest copy in the app.
+4. **The stake setup sheet**, where the option descriptions are the longest copy in the app. **This is now the one actually worth looking at.** `components/stakes/StakeSetupSheet.tsx:713` was already bumped to `numberOfLines={3}` for Lexend, but the comment above it says the longest blurb fills the space "with nothing spare" even after that fix. Check the "When this session ends" copy at the largest Dynamic Type setting, watching for a tail-ellipsis cutoff at the 3-line cap.
+
+   Spots 1 and 3 (`TaskCard.tsx:206`, `LockBanner.tsx:149`) were checked statically and are low risk: both live in flexible containers with no height cap, so wider text just reflows and the card grows. A glance is enough.
 
 Also worth a look, and a judgement call rather than a bug: the smallest text in the app is 13px captions and 11px micro-labels, both at regular weight. The colour contrast is unchanged and still passes, but Lexend's letterforms at that size are a different reading experience from Inter's. If they feel thin on a real screen, the fix is bumping those two steps to medium weight, not changing the colour.
+
+Where that edit goes, if it turns out to be wanted: `utils/design-tokens.ts:197` (`caption`, 13px) and `:199-200` (`overline` / `tiny`, 11px), mirrored in `tailwind.config.js:78-80`. Both sides must move together — `core/__tests__/design-tokens.test.ts` asserts the token block and Tailwind's `fontSize` block stay key-for-key identical, so changing one alone fails the suite. Swap `fontFamilies.regular` for `fontFamilies.medium`, not just the weight value.
 
 ## When done for the session
 
@@ -139,3 +166,12 @@ Also worth a look, and a judgement call rather than a bug: the smallest text in 
    ```
    Both must still come back clean.
 3. Commit only `native.config.json`, `package.json`, and `package-lock.json`, plus any genuine code fixes made along the way. **Never commit the `ios/` folder**, it is gitignored and gets thrown away and regenerated every time anyway.
+
+**Two silent edits `expo prebuild` makes that must be reverted, not committed:**
+
+- `package.json` — rewrites the `ios` and `android` scripts from `expo start --ios/--android` to `expo run:ios/run:android`.
+- `app.json` — writes `"bundleIdentifier": "com.anonymous.Ampora"` into `ios`, and reformats some arrays.
+
+That bundle ID is Expo's placeholder, produced because `app.json` deliberately carries no `ios.bundleIdentifier` (`app.config.ts` adds the real `com.ampora.app` only on the native path — see its header comment). Committing it would hardcode the placeholder into the Windows/web config, which is exactly the failure mode the flag file exists to prevent. Always `git diff package.json app.json` after a prebuild and `git checkout --` both unless the change is genuinely wanted.
+
+The safest habit is to wrap any local native work in a script with an `EXIT` trap that runs `npm run native:off` and reverts those two files, so a build that fails partway cannot leave the repo in a state that breaks Windows.
