@@ -13,7 +13,23 @@ It comes in two separate levels. This distinction is the single most important t
 - **Development.** Works immediately, the moment the capability is checked on in the Apple Developer account. No approval, no waiting, no request form. Enough to build the app and test the real lock on a real iPhone (see `04-test-the-lock.md`).
 - **Distribution.** Needs Apple to manually review and approve a written request. Only required before a build can go on TestFlight or the App Store. Takes anywhere from about 4 business days to several weeks. Some developers on Apple's own forums report waiting 4 or more weeks.
 
-**Testing is never blocked on Apple.** The real lock can be built and tested on a phone today using only the free, instant Development capability. Only shipping to real users needs the slow Distribution approval, so start that request now and let it sit in the background while everything else happens.
+### The part that catches people, including the earlier version of this file
+
+"Development needs no approval" is true. **"Therefore the lock can be tested without a paid Apple account" is false**, and an earlier version of this document said exactly that. It is corrected here because it wasted real time.
+
+**Family Controls is not available on a free Apple "Personal Team" at all.** It is not in Apple's supported-capabilities list for free provisioning, and there is no workaround. So:
+
+| | Free Personal Team | Paid Developer Program |
+|---|---|---|
+| Build an app onto your own phone | Yes | Yes |
+| **Family Controls / the app lock** | **No, not possible** | Yes |
+| Ship to TestFlight or the App Store | No | Yes, once Distribution is approved |
+
+So testing the real lock **requires the paid membership** (see `00-my-situation.md` — the parent already has one). "Free and instant" was only ever about there being no *approval wait*, not about there being no membership.
+
+This is why the Mac asks for App IDs and an `eas login` before it will build: signing anything for a physical device needs a real team, and Family Controls needs that team to be a paid one.
+
+**What is still true:** the Distribution request, the slow part, is not needed to test. And per `00-my-situation.md` it is not needed for a long time, since nothing ships until the app is finished and an LLC exists.
 
 ### It is per bundle ID, and Ampora needs four
 
@@ -47,7 +63,11 @@ If a build ever fails with a provisioning error mentioning a missing App ID or c
 
 ### The situation
 
-The plan is to eventually publish Ampora under an LLC, which does not exist yet. But the entitlement request above is the slowest thing in this whole setup, so it needs to start now, under whatever Apple account currently exists (a parent's individual membership). This section is about doing that now without creating a problem later.
+See `00-my-situation.md` for the full standing context. In short: the parent holds a paid **individual** Apple Developer membership, there is **no LLC yet**, and the parent will not publish under his own personal name. The LLC gets formed **after the app is finished**, and the app publishes under it.
+
+So the real order is: **finish the app, form the LLC, then publish.** Nothing ships before that, which means the slow Distribution entitlement is genuinely not urgent here, unlike in a project racing to submit.
+
+What *is* needed sooner is the ability to test the lock on a phone, and that needs the parent's paid account for App ID registration and signing. Those are the steps to batch together, so he is only interrupted once.
 
 ### Recommended: register everything now, convert the account later
 

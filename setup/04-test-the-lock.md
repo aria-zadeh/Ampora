@@ -16,6 +16,15 @@ EAS (Expo Application Services) is Expo's cloud build service. It compiles the i
 
 ## Whose Apple account is needed, and when
 
+**Read `00-my-situation.md` first if you have not.** The short version: the parent holds the paid Apple Developer membership, and **there is no way to test the app lock without it.** Family Controls is not available on Apple's free Personal Team at all, so this is the one part of Ampora that genuinely cannot be done solo.
+
+**Two things must exist before `eas build` will work**, and hitting them in the wrong order is the most common way this stalls:
+
+1. **The four App IDs registered, with Family Controls and the App Group enabled** (`01-apple.md` Part 1). EAS cannot create these itself, and a build against missing App IDs fails with a confusing provisioning error rather than a clear "these do not exist" message.
+2. **An `eas login` that can reach the paid team** — either the parent signing in, or the teen added to the team as Admin.
+
+So batch it: get the App IDs registered and the team access sorted in one sitting with the parent, then everything below runs solo from then on.
+
 Covered in more depth in `01-apple.md` Part 3, restated here at the exact point it matters:
 
 - The very first time `eas build` runs against this project, it asks for sign-in with an Apple ID so it can manage code-signing certificates and provisioning profiles automatically. That Apple ID needs to be on the Ampora developer team with a role that can manage certificates (**Admin** is simplest).
