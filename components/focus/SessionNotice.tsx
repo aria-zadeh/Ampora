@@ -33,7 +33,9 @@ export function SessionNotice({ icon, text, role = "summary", className }: Sessi
       accessibilityRole={role}
     >
       <Ionicons name={icon} size={iconSizes.sm} color={colors.light.primary} />
-      <Text className="flex-1 text-body font-medium text-neutral-800 leading-5">{text}</Text>
+      {/* `leading-5` removed: 15px body belongs in the scale's 22px box, and */}
+      {/* Lexend needs the room Inter did not. */}
+      <Text className="flex-1 text-body font-medium text-neutral-800">{text}</Text>
     </Animated.View>
   );
 }

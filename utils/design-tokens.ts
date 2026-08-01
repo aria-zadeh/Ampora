@@ -151,31 +151,53 @@ export const borderRadius = {
 } as const;
 
 /**
- * Type scale (doc 02 §2.2). `bodyMedium`/`captionMedium` were specified in
- * the doc's scale from the start but were never added here — every other
- * style existed at 400 or 600/700 only, so a component reaching for "body
- * text with a bit of emphasis" had no 500-weight option at body/caption size
- * and fell back to `font-semibold` (600) instead. Restored here to close
- * that gap; values match doc 02 §2.2 exactly (15/22/500 and 13/18/500). This
- * is additive only — nothing in the app currently imports `typography.*`
- * directly (screens style via the Tailwind `text-*`/`font-*` classes in
- * `tailwind.config.js`), so this has no runtime effect until a future
- * screen pass wires it in, and cannot regress anything today.
+ * Font families. Doc 02 §2.1 is binding: React Native does not reliably
+ * combine `fontFamily` with a numeric `fontWeight` across platforms, so the
+ * weight is bound into the family name. These four identifiers are the exact
+ * exports of `@expo-google-fonts/lexend` loaded in `app/_layout.tsx`, and
+ * they must stay in lockstep with `tailwind.config.js`'s `fontFamily` block
+ * (`font-sans` / `font-medium` / `font-semibold` / `font-bold`).
+ */
+export const fontFamilies = {
+  regular: "Lexend_400Regular",
+  medium: "Lexend_500Medium",
+  semibold: "Lexend_600SemiBold",
+  bold: "Lexend_700Bold",
+} as const;
+
+/**
+ * Type scale (doc 02 §2.2).
+ *
+ * HOW THIS IS CONSUMED. Screens style text with the Tailwind `text-*` /
+ * `font-*` classes, not by importing these objects — converting ~36 screens
+ * off NativeWind onto StyleSheet objects would be a large, risky, zero-visual
+ * -benefit refactor. So the contract is the other direction: **`tailwind.
+ * config.js` mirrors this object**, and `core/__tests__/design-tokens.test.ts`
+ * asserts the mirror holds (size, line height, family and tracking, key for
+ * key). Previously neither was true of the other, which is exactly how the
+ * two were free to drift. Change a value here and the parity test tells you
+ * which Tailwind entry to move with it.
+ *
+ * Each entry is a complete, directly-usable RN `TextStyle`: `fontFamily`
+ * carries the weight (see `fontFamilies` above), `fontWeight` is retained
+ * alongside it as the semantic record of the scale and for web, and headings
+ * carry the negative tracking doc 02 §2.2 calls "the single most important
+ * detail" of the headline look.
  */
 export const typography = {
-  display: { fontSize: 34, lineHeight: 40, fontWeight: "700" as const },
-  h1: { fontSize: 28, lineHeight: 34, fontWeight: "700" as const },
-  h2: { fontSize: 24, lineHeight: 30, fontWeight: "600" as const },
-  h3: { fontSize: 20, lineHeight: 26, fontWeight: "600" as const },
-  h4: { fontSize: 18, lineHeight: 24, fontWeight: "600" as const },
-  bodyLg: { fontSize: 16, lineHeight: 24, fontWeight: "400" as const },
-  body: { fontSize: 15, lineHeight: 22, fontWeight: "400" as const },
-  bodyMedium: { fontSize: 15, lineHeight: 22, fontWeight: "500" as const },
-  label: { fontSize: 14, lineHeight: 20, fontWeight: "500" as const },
-  caption: { fontSize: 13, lineHeight: 18, fontWeight: "400" as const },
-  captionMedium: { fontSize: 13, lineHeight: 18, fontWeight: "500" as const },
-  overline: { fontSize: 11, lineHeight: 14, fontWeight: "600" as const },
-  tiny: { fontSize: 11, lineHeight: 14, fontWeight: "400" as const },
+  display: { fontSize: 34, lineHeight: 40, fontWeight: "700" as const, fontFamily: fontFamilies.bold, letterSpacing: -0.8 },
+  h1: { fontSize: 28, lineHeight: 34, fontWeight: "700" as const, fontFamily: fontFamilies.bold, letterSpacing: -0.6 },
+  h2: { fontSize: 24, lineHeight: 30, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: -0.4 },
+  h3: { fontSize: 20, lineHeight: 26, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: -0.2 },
+  h4: { fontSize: 18, lineHeight: 24, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: -0.1 },
+  bodyLg: { fontSize: 16, lineHeight: 24, fontWeight: "400" as const, fontFamily: fontFamilies.regular, letterSpacing: 0 },
+  body: { fontSize: 15, lineHeight: 22, fontWeight: "400" as const, fontFamily: fontFamilies.regular, letterSpacing: 0 },
+  bodyMedium: { fontSize: 15, lineHeight: 22, fontWeight: "500" as const, fontFamily: fontFamilies.medium, letterSpacing: 0 },
+  label: { fontSize: 14, lineHeight: 20, fontWeight: "500" as const, fontFamily: fontFamilies.medium, letterSpacing: 0 },
+  caption: { fontSize: 13, lineHeight: 18, fontWeight: "400" as const, fontFamily: fontFamilies.regular, letterSpacing: 0 },
+  captionMedium: { fontSize: 13, lineHeight: 18, fontWeight: "500" as const, fontFamily: fontFamilies.medium, letterSpacing: 0 },
+  overline: { fontSize: 11, lineHeight: 14, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: 0.6 },
+  tiny: { fontSize: 11, lineHeight: 14, fontWeight: "400" as const, fontFamily: fontFamilies.regular, letterSpacing: 0.2 },
 } as const;
 
 /**

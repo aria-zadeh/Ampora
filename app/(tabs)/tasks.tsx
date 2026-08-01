@@ -961,7 +961,7 @@ export default function TasksScreen() {
         )}
       </View>
 
-      <FAB onPress={() => router.push("/task/new")} />
+      <FAB onPress={() => router.push("/task/new")} liftAboveTabBar />
 
       {/* Inline schedule modal */}
       <ScheduleModal

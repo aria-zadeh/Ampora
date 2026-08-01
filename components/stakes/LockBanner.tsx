@@ -140,7 +140,13 @@ export function LockBanner({ session, onPanic }: LockBannerProps) {
           <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500">
             On the line
           </Text>
-          <Text className="mt-0.5 text-body font-medium text-neutral-900 leading-5">{headline}</Text>
+          {/* No `leading-5` here: that pinned a 15px line to a 20px box, */}
+          {/* tighter than the scale's 22px. Lexend sits taller in its line */}
+          {/* box than Inter did, so the override risked clipping descenders */}
+          {/* on the wrap this headline takes at longer app names. It also */}
+          {/* has no numberOfLines on purpose: the banner grows rather than */}
+          {/* truncating, so "Instagram and 2 more are locked" always reads. */}
+          <Text className="mt-0.5 text-body font-medium text-neutral-900">{headline}</Text>
         </View>
       </View>
 

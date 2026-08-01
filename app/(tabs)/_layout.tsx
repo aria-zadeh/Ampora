@@ -1,43 +1,18 @@
 import { Tabs } from "expo-router";
 import React from "react";
-import { Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "@/utils/design-tokens";
+import { SegmentedTabBar } from "@/components/ui/SegmentedTabBar";
 
-// Slightly larger, calmer tab icons. bg-white with a hairline border top
-// border; active tint primary, inactive muted. Restrained — no glow.
+// Slightly larger, calmer tab icons. Kept here for parity with the custom
+// tab bar's own icon map, even though SegmentedTabBar renders the icons.
 const TAB_ICON_SIZE = 25;
 
 export default function TabLayout() {
   return (
     <Tabs
+      tabBar={(props) => <SegmentedTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.light.primary,
-        tabBarInactiveTintColor: colors.light.textMuted,
-        tabBarStyle: {
-          backgroundColor: colors.light.card,
-          borderTopColor: colors.light.border,
-          borderTopWidth: 1,
-          paddingTop: 8,
-          paddingBottom: Platform.OS === "ios" ? 28 : 12,
-          height: Platform.OS === "ios" ? 88 : 68,
-          // Soft lift off the canvas — subtle, not a heavy shadow.
-          shadowColor: colors.light.text,
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.03,
-          shadowRadius: 8,
-          elevation: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-          letterSpacing: 0.1,
-          marginTop: 2,
-        },
-        tabBarItemStyle: {
-          paddingVertical: 2,
-        },
       }}
     >
       {/* Order and labels are fixed by PRD §8.1: Today · Calendar · Tasks · Focus · Profile. */}
