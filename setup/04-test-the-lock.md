@@ -67,7 +67,9 @@ These take seconds and catch a broken setup before waiting 10-20 minutes for an 
 ```
 grep -A3 family-controls ios/Ampora/Ampora.entitlements
 ```
-**Should show:** the family-controls, deviceactivity, managedsettings, and application-groups entitlements listed. If this shows nothing, or the file does not exist, stop here, something in `app.config.ts` or the plugin did not run correctly.
+**Should show:** the `com.apple.developer.family-controls` and `com.apple.security.application-groups` entitlements, and **only** those two. If this shows nothing, or the file does not exist, stop here, something in `app.config.ts` or the plugin did not run correctly.
+
+Family Controls is the only entitlement the Screen Time API has, covering all three frameworks. If `com.apple.developer.deviceactivity` or `com.apple.developer.managedsettings` ever reappear here, something re-added two keys that do not exist and the next signed build will fail on them (an unsigned Simulator build will not).
 
 ```
 xcodebuild -list -project ios/Ampora.xcodeproj

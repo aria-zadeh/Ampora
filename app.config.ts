@@ -17,8 +17,9 @@
  *   1. `ios.bundleIdentifier` — `app.json` deliberately has none today. A
  *      bundle ID is required before any native build, and setting it only on
  *      the native path keeps the Windows/web config byte-identical to today.
- *   2. `ios.entitlements` — Family Controls, DeviceActivity, ManagedSettings
- *      and the shared App Group on the MAIN app target (doc 05 §2).
+ *   2. `ios.entitlements` — Family Controls (the single entitlement covering
+ *      all three Screen Time frameworks) and the shared App Group on the MAIN
+ *      app target (doc 05 §2).
  *   3. `plugins += ampora-ignition` and
  *      `extra.eas.build.experimental.ios.appExtensions` for the three
  *      extension targets. FOUR App IDs total (app + 3 extensions), every one of
@@ -46,11 +47,21 @@ const BUNDLE_ID = 'com.ampora.app'
  * The entitlement set every one of the four App IDs needs. Missing any of these
  * on any target is the single most common cause of "cryptic provisioning
  * errors" for Family Controls apps (doc 05 §2).
+ *
+ * `com.apple.developer.family-controls` is the ONLY entitlement the Screen Time
+ * API has. ManagedSettings and DeviceActivity have no entitlement keys of their
+ * own -- Family Controls is the single authorization layer for all three
+ * frameworks, and "Family Controls" is the single checkbox in the developer
+ * portal. Earlier versions of this file also declared
+ * `com.apple.developer.deviceactivity` and `com.apple.developer.managedsettings`.
+ * Those keys do not exist. Any `com.apple.developer.*` entitlement is restricted
+ * and must appear in the provisioning profile, and no profile can ever carry
+ * these two, so their only possible effect was to fail the first signed build
+ * (the local unsigned Simulator compile cannot catch it). Do not re-add them.
+ * Keep this list in sync with `native/modules/ampora-ignition/plugin/index.js`.
  */
 const FAMILY_CONTROLS_ENTITLEMENTS = {
   'com.apple.developer.family-controls': true,
-  'com.apple.developer.deviceactivity': true,
-  'com.apple.developer.managedsettings': true,
   'com.apple.security.application-groups': [APP_GROUP],
 }
 

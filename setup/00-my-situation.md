@@ -54,9 +54,10 @@ Quite a lot, and this is the honest line:
 What needs dad, and only this:
 
 - Registering the four App IDs and enabling Family Controls on them
-- `eas login` against his team, or being added to it
-- The actual EAS build and installing it on a phone
+- Apple authentication for code signing. **Not** "being added to his team", that is impossible on an individual membership (`01-apple.md` Part 3). Either he sits in on every first-time signing step, or he generates one App Store Connect **Team API key** and hands it over, which removes him from the loop permanently. Generate the key.
 - Later, far later: the Distribution entitlement, and the LLC conversion
+
+Note what is **not** on that list: `eas login` and `eas init`. Those use a free **Expo** account, which has nothing to do with Apple and needs nobody.
 
 ## The open question to ask Apple, not to guess
 
