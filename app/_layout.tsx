@@ -28,6 +28,7 @@ import { useTaskStore, selectAllTasks } from "@/store/taskStore";
 import { useRecoveryStore } from "@/store/recoveryStore";
 import { useStakesStore } from "@/store/stakesStore";
 import { useSyncStore } from "@/store/syncStore";
+import { useDevAuthBypassed } from "@/store/devAuthStore";
 import { scheduleTaskReminders } from "@/services/notifications";
 import { detectLapse } from "@/core/recovery";
 import { isActive } from "@/core/subscription";
@@ -45,6 +46,7 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const devAuthBypassed = useDevAuthBypassed();
 
   const [fontsLoaded] = useFonts({
     Lexend_400Regular,
@@ -148,17 +150,32 @@ export default function RootLayout() {
   // subscription becomes entitled, this effect re-runs and stops redirecting,
   // and the paywall proceeds into the tabs. Soft gate — local data is
   // untouched. FR-87: an account is required, no anonymous local-only mode —
-  // `authUser === null` always routes to `/auth`, with no bypass.
+  // in any shipped build `authUser === null` always routes to `/auth`.
+  //
+  // `devAuthBypassed` is the single exception and it exists only on dev
+  // machines: `store/devAuthStore.ts` gates itself on `__DEV__`, so it is
+  // always false in a production build even if a `true` was persisted while
+  // developing. It fabricates no session, so the sync effect below (gated on a
+  // real `authUser`) still never runs while bypassed, and every cloud call
+  // independently no-ops without a signed-in user. See that file for why.
   useEffect(() => {
     if (authLoading || !ready) return;
-    if (authUser === null) {
+    if (authUser === null && !devAuthBypassed) {
       router.replace("/auth");
     } else if (!onboardingComplete) {
       router.replace("/onboarding/welcome");
     } else if (!isActive(subscription)) {
       router.replace("/paywall");
     }
-  }, [authLoading, ready, authUser, onboardingComplete, subscription, router]);
+  }, [
+    authLoading,
+    ready,
+    authUser,
+    devAuthBypassed,
+    onboardingComplete,
+    subscription,
+    router,
+  ]);
 
   // Sync app color scheme with the user's theme preference.
   useEffect(() => {
