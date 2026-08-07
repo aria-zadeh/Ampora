@@ -2,6 +2,8 @@
 
 Covers two separate things Ampora needs from Apple: permission to actually lock apps on a real device (the Family Controls entitlement), and the question of which Apple account should own all of this long-term (the parent's individual account today, versus a future LLC's organization account).
 
+**This file is the reference version, written for Aria.** To actually get the steps done, send `01a-parent-walkthrough.md` instead: same material, rewritten for the account holder, every button named, every answer pre-written, with a status table tracking what has been done. Keep the two in sync.
+
 ## Part 1: the Family Controls entitlement
 
 ### What it actually is, in plain terms
@@ -51,7 +53,15 @@ If a build ever fails with a provisioning error mentioning a missing App ID or c
 - **What success looks like:** all four App IDs appear in the Identifiers list, each showing Family Controls and App Groups under its capabilities.
 - A working build, a TestFlight submission, or an App Store listing are not needed to do this. Apple's own guidance is that the app needs to be created, not developed, to request the entitlement below. A registered App ID is enough.
 
-**2. Request the Distribution capability.** Go to [developer.apple.com/contact/request/family-controls-distribution](https://developer.apple.com/contact/request/family-controls-distribution), signed in as the account's Account Holder (see Part 3 below for who that is). Submit **one request per bundle ID, all four**, not just the main app. Each request asks for the bundle ID and an explanation of how the app uses the FamilyControls, ManagedSettings, and DeviceActivity frameworks.
+**2. Request the Distribution capability.** There are two doors to the same request, and the in-portal one is better. Apple's own documentation presents it first, it keeps the Account Holder on the page he is already on, and because it lives inside each App ID he cannot structurally forget one of the four:
+
+> In Certificates, Identifiers & Profiles, click **Identifiers** in the sidebar. Click the **name** of the identifier in the list of App IDs. Click the **Capability Requests** tab. Find the capability. Click the **Request** button. Submit the request form.
+
+Required role: **Account Holder**, so this is his to do either way. The fallback door, if Family Controls does not appear on that tab, is [developer.apple.com/contact/request/family-controls-distribution](https://developer.apple.com/contact/request/family-controls-distribution). Same request.
+
+Submit **one request per bundle ID, all four**, not just the main app. This is Apple's own instruction, not a guess: "If your app includes a Screen Time API app extension such as Device Activity Monitor, Device Activity Report, Shield Action, or Shield Configuration, submit the same request for the extension." Each request asks for the bundle ID and an explanation of how the app uses the FamilyControls, ManagedSettings, and DeviceActivity frameworks. **Full pre-written answers for all of them live in `01a-parent-walkthrough.md` Part 4** rather than being re-derived each time.
+
+Check status at the same place: **Capability Requests** tab, then the **Status** button. Approved shows as **Assigned**.
 
 - **What to write for the use case:** describe Ampora as a self-directed focus tool, in the same spirit as apps like Opal and Brick (`docs/05_App_Blocking_Technical.md` §9 has this framing in more detail). The points to hit: the user restricts their own device, by their own choice, there is no parental or child mode, no remote control by anyone else, and no usage data collected for advertising.
 - **What success looks like:** no confirmation email arrives right away, just a "thank you" message on submission. That is normal, not a sign anything failed. Weeks later, an email either approves the request (after which **Family Controls (Distribution)** becomes a toggle under **Additional Capabilities** on each of the four Identifiers) or asks for more detail (resubmit with a fuller explanation of the use case).

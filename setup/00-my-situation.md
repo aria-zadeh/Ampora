@@ -18,7 +18,9 @@ This is not a business yet and will not be for a long time. Treat revenue, subsc
 
 ## What this means in practice
 
-**Anything requiring dad has to be scheduled with him.** It is not blocked forever, it just cannot happen spontaneously. Batch those steps so he is only interrupted once.
+**Anything requiring dad has to be scheduled with him.** It is not blocked forever, it just cannot happen spontaneously. Batch those steps so he is only interrupted once. `01a-parent-walkthrough.md` is that batch, already written and ready to send: every Apple step he can do, in order, with every button named and every answer pre-written. Send that rather than re-deriving instructions.
+
+**As of 2026-08-07 he is signed in on the Windows machine**, so Parts 1 to 3 of that walkthrough can be done there while the session is live. Part 3 (the App Store Connect Team Key) is the one worth doing before it lapses, because it is precisely what stops him being needed again.
 
 **Do not suggest publishing, TestFlight, or App Store submission** as a next step. Nothing ships until there is an LLC, and there is no LLC until the app is done.
 
