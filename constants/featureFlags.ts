@@ -84,6 +84,21 @@ export const FEATURE_FLAGS = {
    * sets the variable for it, which is a fact about the build config rather
    * than a guarantee in the code.
    *
+   * Two things about that `vercel.json` build command, both learned by breaking
+   * it, so this is the place they are written down rather than there:
+   *
+   *   - **`vercel.json` cannot carry comments.** Not `//`, and not `_comment_`
+   *     keys either: Vercel validates the file against a strict schema and
+   *     fails the whole deploy with "should NOT have additional property". A
+   *     first attempt at documenting the variable inline did exactly that and
+   *     broke both the preview and production deploys. Explain it here instead.
+   *   - **The `--clear` in that command is load-bearing, not caution.**
+   *     `babel-preset-expo` inlines `EXPO_PUBLIC_*` at transform time, but
+   *     Metro's transform cache is not keyed on those values, so a cached build
+   *     silently reuses whatever the variable was on the previous run. Verified
+   *     2026-08-07: the same command without `--clear` inlined this flag to
+   *     `false` despite the variable being set, and the button did not render.
+   *
    * What limits the damage, and why case 2 is defensible on a preview URL: the
    * bypass fabricates NO session. There is no user id and no JWT, so cloud sync
    * never runs (`app/_layout.tsx`'s sync effect is gated on a real `authUser`),
