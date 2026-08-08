@@ -1,6 +1,4 @@
 {
-  "_comment_EXPO_PUBLIC_DEV_AUTH_BYPASS": "Turns on the 'Skip sign-in' button in the DEPLOYED web build (constants/featureFlags.ts). Set at Aria's explicit request on 2026-08-07: this URL is not public-facing yet and sign-in was blocking all use of it. It is safe-ish only because the bypass fabricates no session, so a visitor gets an empty local-only app and can reach nobody's data. DELETE THIS VARIABLE FROM THE BUILD COMMAND BEFORE THE SITE IS PUBLIC OR BEFORE ANY STORE SUBMISSION.",
-  "_comment_clear": "--clear is load-bearing, not caution. babel-preset-expo inlines EXPO_PUBLIC_* at transform time, and Metro's transform cache is not keyed on those values, so a cached build silently reuses whatever the variable was on the previous run. Verified locally on 2026-08-07: the same command without --clear inlined DEV_BYPASS_AUTH to false despite the variable being set, and the button did not render.",
   "buildCommand": "EXPO_PUBLIC_DEV_AUTH_BYPASS=1 npx expo export -p web --clear",
   "outputDirectory": "dist",
   "framework": null,
