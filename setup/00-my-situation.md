@@ -18,9 +18,13 @@ This is not a business yet and will not be for a long time. Treat revenue, subsc
 
 ## What this means in practice
 
-**Anything requiring dad has to be scheduled with him.** It is not blocked forever, it just cannot happen spontaneously. Batch those steps so he is only interrupted once. `01a-parent-walkthrough.md` is that batch, already written and ready to send: every Apple step he can do, in order, with every button named and every answer pre-written. Send that rather than re-deriving instructions.
+**Everything that required dad is now DONE, as of 2026-08-07.** All four parts of `01a-parent-walkthrough.md` were completed in his account (Team ID `Z3X3PQU95V`) with him present and consenting. That file is now a record, not a to-do, and should not be sent to him again. Read its Status block for exactly what exists.
 
-**As of 2026-08-07 he is signed in on the Windows machine**, so Parts 1 to 3 of that walkthrough can be done there while the session is live. Part 3 (the App Store Connect Team Key) is the one worth doing before it lapses, because it is precisely what stops him being needed again.
+In short: the App Group and all four App IDs are registered with Family Controls + App Groups, the Family Controls (Distribution) entitlement came back **`Assigned` immediately** rather than after weeks, and an App Store Connect Team API key (Key ID `NQ9F796882`, Admin) was generated and handed over.
+
+**Dad is no longer a scheduled dependency for anything currently known.** The Team Key is precisely what removes him from the loop for code signing. The only future item that would need him is the LLC conversion, which is far off.
+
+**The `.p8` is a real secret and the repo is public.** It lives at `C:\Users\Aria\Downloads\AuthKey_NQ9F796882.p8` and Apple will never let it be downloaded again. `.gitignore` already blocks `*.p8`, but that is a backstop, not a reason to keep the key near the tree. Move it somewhere durable.
 
 **Do not suggest publishing, TestFlight, or App Store submission** as a next step. Nothing ships until there is an LLC, and there is no LLC until the app is done.
 
