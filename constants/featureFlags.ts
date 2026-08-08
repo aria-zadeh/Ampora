@@ -66,18 +66,36 @@ export const FEATURE_FLAGS = {
   DEV_BYPASS_PAYWALL: __DEV__,
 
   /**
-   * Dev-only sign-in bypass. When true, `app/auth.tsx` renders a "Skip sign-in
-   * (dev)" button and `app/_layout.tsx` stops redirecting an unauthenticated
-   * launch to `/auth`. Exists because Google sign-in and the email magic link
-   * both depend on remote configuration that is not finished yet, which would
-   * otherwise make the whole app unopenable on a dev machine.
+   * Sign-in bypass. When true, `app/auth.tsx` renders a "Skip sign-in" button
+   * and `app/_layout.tsx` stops redirecting an unauthenticated launch to
+   * `/auth`. Exists so the app is openable while sign-in is being sorted out.
    *
-   * Gated on `__DEV__`, so it is false in every production build and the
-   * persisted flag in `store/devAuthStore.ts` cannot leak into a release. This
-   * does NOT reintroduce the anonymous mode FR-87 forbids: no session is
-   * fabricated, there is no user id, and cloud sync never runs while bypassed.
+   * True in two cases:
+   *   1. `__DEV__` — any local dev run, always.
+   *   2. `EXPO_PUBLIC_DEV_AUTH_BYPASS === '1'` — an explicit opt-in that works
+   *      in PRODUCTION builds too. `vercel.json` sets it for the deployed web
+   *      preview, at Aria's explicit request (2026-08-07), because that URL is
+   *      not public-facing yet and sign-in was blocking all use of it.
+   *
+   * **Read this before shipping.** Case 2 means this is NOT automatically off
+   * in a release build any more. Before any TestFlight or App Store submission,
+   * remove `EXPO_PUBLIC_DEV_AUTH_BYPASS` from `vercel.json` and from any build
+   * environment. An App Store build is unaffected today only because nothing
+   * sets the variable for it, which is a fact about the build config rather
+   * than a guarantee in the code.
+   *
+   * What limits the damage, and why case 2 is defensible on a preview URL: the
+   * bypass fabricates NO session. There is no user id and no JWT, so cloud sync
+   * never runs (`app/_layout.tsx`'s sync effect is gated on a real `authUser`),
+   * every cloud call in `services/supabase.ts` independently no-ops, and RLS
+   * would reject the calls regardless. Someone who opens the deployed URL and
+   * taps the button gets an empty local-only app in their own browser. They
+   * cannot reach anyone else's data. It is still not the anonymous local-only
+   * mode FR-87 forbids, because it is a build-time escape hatch rather than a
+   * product mode, and no shipped store build enables it.
    */
-  DEV_BYPASS_AUTH: __DEV__,
+  DEV_BYPASS_AUTH:
+    __DEV__ || process.env.EXPO_PUBLIC_DEV_AUTH_BYPASS === '1',
 } as const
 
 export type FeatureFlags = typeof FEATURE_FLAGS
