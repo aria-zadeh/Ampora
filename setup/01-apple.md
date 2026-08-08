@@ -33,9 +33,15 @@ This is why the Mac asks for App IDs and an `eas login` before it will build: si
 
 **What is still true:** the Distribution request, the slow part, is not needed to test. And per `00-my-situation.md` it is not needed for a long time, since nothing ships until the app is finished and an LLC exists.
 
-### It is per bundle ID, and Ampora needs four
+### DONE as of 2026-08-07, and the "per bundle ID" claim below was wrong
 
-Apple grants this entitlement separately to each individual App ID (what Apple calls a "bundle ID"). Ampora's app-locking is split across four App IDs, not one: the main app, plus three small helper extensions that do the actual blocking. Get the exact strings from `app.config.ts` in the repo (search for `BUNDLE_ID` and `APP_EXTENSIONS`) rather than trusting a copy pasted here, but as of this writing they are:
+**Everything in this Part 1 was carried out on 2026-08-07 and is finished.** The App Group and all four App IDs exist with Family Controls (Development) + App Groups, and Family Controls (Distribution) shows **`Assigned`** on all four. See `01a-parent-walkthrough.md` for the full record, the portal internal IDs, and the list of corrections.
+
+**The correction that matters most:** the Distribution entitlement is **not** granted per bundle ID. It is granted to the **developer account**. There is exactly one request form, it takes no bundle ID at all, and one submission covered all four. Step 2 below is preserved for history but its "one request per bundle ID, all four" instruction is wrong. It also came back `Assigned` in under a minute, not in weeks.
+
+### Ampora's four bundle IDs
+
+Ampora's app-locking is split across four App IDs, not one: the main app, plus three small helper extensions that do the actual blocking. Get the exact strings from `app.config.ts` in the repo (search for `BUNDLE_ID` and `APP_EXTENSIONS`) rather than trusting a copy pasted here, but as of this writing they are:
 
 - `com.ampora.app` (the main app)
 - `com.ampora.app.AmporaDeviceActivityMonitor` (schedules when the lock turns on and off)
@@ -53,19 +59,18 @@ If a build ever fails with a provisioning error mentioning a missing App ID or c
 - **What success looks like:** all four App IDs appear in the Identifiers list, each showing Family Controls and App Groups under its capabilities.
 - A working build, a TestFlight submission, or an App Store listing are not needed to do this. Apple's own guidance is that the app needs to be created, not developed, to request the entitlement below. A registered App ID is enough.
 
-**2. Request the Distribution capability.** There are two doors to the same request, and the in-portal one is better. Apple's own documentation presents it first, it keeps the Account Holder on the page he is already on, and because it lives inside each App ID he cannot structurally forget one of the four:
+**2. Request the Distribution capability. ONE request, for the whole account.** The form is [developer.apple.com/contact/request/family-controls-distribution](https://developer.apple.com/contact/request/family-controls-distribution).
 
-> In Certificates, Identifiers & Profiles, click **Identifiers** in the sidebar. Click the **name** of the identifier in the list of App IDs. Click the **Capability Requests** tab. Find the capability. Click the **Request** button. Submit the request form.
+There is only one door, despite appearances. The **Capability Requests** tab inside each App ID does show a **Family Controls (Distribution)** row, but its "Request" control is a plain link to that same contact form, opening in a new tab. It is not a separate per-App-ID form.
 
-Required role: **Account Holder**, so this is his to do either way. The fallback door, if Family Controls does not appear on that tab, is [developer.apple.com/contact/request/family-controls-distribution](https://developer.apple.com/contact/request/family-controls-distribution). Same request.
+The form has three fields, all prefilled from the signed-in account and not editable (Name, Email, Team ID), a Terms and Conditions block, and a **Get Entitlement** button. **No bundle ID field, no framework checkboxes, no free-text boxes.** Required role: **Account Holder**.
 
-Submit **one request per bundle ID, all four**, not just the main app. This is Apple's own instruction, not a guess: "If your app includes a Screen Time API app extension such as Device Activity Monitor, Device Activity Report, Shield Action, or Shield Configuration, submit the same request for the extension." Each request asks for the bundle ID and an explanation of how the app uses the FamilyControls, ManagedSettings, and DeviceActivity frameworks. **Full pre-written answers for all of them live in `01a-parent-walkthrough.md` Part 4** rather than being re-derived each time.
+The terms require the app's primary purpose to be either family controls via Family Sharing, or "offering individuals the ability to manage their devices to enable focus and productivity through focus controls, timers and task management, or personal device usage management". Ampora is squarely the second. The terms also forbid ad blocking, organizational use, managing another adult's device, and sharing device or usage data for advertising or with data brokers. Ampora does none of these.
 
-Check status at the same place: **Capability Requests** tab, then the **Status** button. Approved shows as **Assigned**.
+Check status at **Capability Requests** on any App ID, on the **Family Controls (Distribution)** row. `Assigned` is the finished state.
 
-- **What to write for the use case:** describe Ampora as a self-directed focus tool, in the same spirit as apps like Opal and Brick (`docs/05_App_Blocking_Technical.md` §9 has this framing in more detail). The points to hit: the user restricts their own device, by their own choice, there is no parental or child mode, no remote control by anyone else, and no usage data collected for advertising.
-- **What success looks like:** no confirmation email arrives right away, just a "thank you" message on submission. That is normal, not a sign anything failed. Weeks later, an email either approves the request (after which **Family Controls (Distribution)** becomes a toggle under **Additional Capabilities** on each of the four Identifiers) or asks for more detail (resubmit with a fuller explanation of the use case).
-- **What failure looks like:** total silence past roughly 6 weeks. At that point, follow up through Apple Developer Support ([developer.apple.com/contact](https://developer.apple.com/contact)) rather than resubmitting from scratch.
+- **What actually happened on 2026-08-07:** no confirmation email, just the on-screen thank-you, and the status read `Assigned` on all four App IDs within a minute. Earlier versions of this file predicted four business days to six weeks. Do not repeat that prediction.
+- **What failure would look like:** a status that stays un-assigned, or an email asking for more detail. The accurate technical description of how Ampora uses FamilyControls, ManagedSettings and DeviceActivity lives in `docs/04_Ignition_Sessions_and_Verification.md` and `docs/05_App_Blocking_Technical.md` §9, and is the material to answer with.
 
 **3. After approval, before the first real distribution build:** go back to each of the four Identifiers, turn on **Family Controls (Distribution)** under Additional Capabilities, and regenerate any provisioning profiles that existed before approval. EAS usually handles the regeneration automatically, see `04-test-the-lock.md`.
 
@@ -131,13 +136,21 @@ Apple's rule, verified 2026-08-07:
 
 This is not about the teen's age. It is purely individual-versus-organization. Adding real team members only becomes possible after the Organization conversion in Part 2, which needs the LLC.
 
-**What replaces it: an App Store Connect API key.** The parent generates one **Team Key** with **Admin** access at [appstoreconnect.apple.com/access/users](https://appstoreconnect.apple.com/access/users), under **Integrations**, **Team Keys**, **Generate API Key**, and hands over three things: the downloaded `.p8` file, the **Key ID**, and the **Issuer ID**. EAS then authenticates with that key instead of an Apple ID, and creates certificates, creates provisioning profiles, and registers devices non-interactively:
+**What replaces it: an App Store Connect API key. DONE 2026-08-07.** The parent generates one **Team Key** with **Admin** access at [appstoreconnect.apple.com/access/integrations/api](https://appstoreconnect.apple.com/access/integrations/api), under **Integrations**, **Team Keys**, **Generate API Key**, and hands over three things: the downloaded `.p8` file, the **Key ID**, and the **Issuer ID**. EAS then authenticates with that key instead of an Apple ID, and creates certificates, creates provisioning profiles, and registers devices non-interactively.
+
+**Undocumented prerequisite, hit on the day:** if the account has never used the API, that page shows only "Permission is required to access the App Store Connect API" and a **Request Access** button, with **no Team Keys tab at all**. Request Access carries its own agreement checkbox and was approved instantly. Team Keys only appears afterwards. Also, the Access control in the generate dialog is a multi-select labelled **"Select Roles"** (Admin / App Manager / Developer / Finance / Sales and Reports), not a plain dropdown, and the download is gated behind a second **"API keys can be downloaded only once"** confirmation modal.
+
+The real values for this project, key name `Ampora EAS`:
 
 ```
-export EXPO_ASC_API_KEY_PATH=/absolute/path/to/AuthKey_XXXXXXXXXX.p8
-export EXPO_ASC_KEY_ID=XXXXXXXXXX
-export EXPO_ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+export EXPO_ASC_API_KEY_PATH=/absolute/path/to/AuthKey_NQ9F796882.p8
+export EXPO_ASC_KEY_ID=NQ9F796882
+export EXPO_ASC_ISSUER_ID=72621750-6b7d-4a97-88a6-aaefa9b2b3ae
 ```
+
+The `.p8` currently sits at `C:\Users\Aria\Downloads\AuthKey_NQ9F796882.p8`. It cannot be re-downloaded. Move it somewhere durable, and never let it near the repo, which is public.
+
+**One tension recorded rather than hidden:** the App Store Connect API agreement says "you may not share authorization credentials with anyone outside your team", and on an individual membership the team is one person. The key was handed over with the Account Holder's explicit consent and is revocable at any time from the same page, but the conflict is real.
 
 Three things about that key that matter:
 

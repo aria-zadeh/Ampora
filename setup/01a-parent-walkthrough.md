@@ -1,40 +1,60 @@
-# The parent's walkthrough (send this to him)
+﻿# The parent's walkthrough (send this to him)
 
 The Apple steps only the Account Holder can do, written for someone who is not a developer and does not need to become one. Everything below the divider is meant to be sent to him as-is, so it repeats context deliberately and avoids repo jargon.
 
 `01-apple.md` is the reference version of the same material, written for Aria. This file is the send-it version. **If a fact changes, change it in both.**
 
-## Status
+## Status: ALL FOUR PARTS DONE, 2026-08-07
 
-Nothing here has been done yet. When it is, update this block rather than leaving it stale.
+Every part below was completed on 2026-08-07 in the Apple account of **Ali Nabavizadeh, Team ID `Z3X3PQU95V`**, with him present and consenting. **This file no longer needs to be sent to anyone.** It is kept as the record of what was done and as the reference if any of it ever has to be redone.
 
 | Part | What | Done? |
 |---|---|---|
-| 1 | App Group `group.com.ampora.blocker` registered | No |
-| 2 | Four App IDs registered with Family Controls + App Groups | No |
-| 3 | App Store Connect Team Key generated and handed over | No |
-| 4 | Four Family Controls (Distribution) requests submitted | No |
+| 1 | App Group `group.com.ampora.blocker` registered | **Yes** |
+| 2 | Four App IDs registered, App Groups + Family Controls (Development), group assigned to each | **Yes** |
+| 3 | App Store Connect Team Key generated and downloaded | **Yes** |
+| 4 | Family Controls (Distribution) entitlement requested | **Yes, and already `Assigned`** |
 
-Part 4 is optional right now and is Aria's call. See "the one real judgement call" in `01-apple.md` Part 2. Parts 1 to 3 are what unblock testing the lock on a phone.
+Verified by reloading every page afterwards, not just by the success screens.
 
-## What a future session should know before touching this
+### The identifiers as they now exist
 
-**The parent is signed in on the Windows machine as of 2026-08-07.** Parts 1 to 3 can be done from there directly while that session is live, rather than scheduling him again. Part 3 in particular is worth doing before that session lapses, because the Team Key is exactly what removes the need for him to be signed in anywhere ever again.
+| Description | Bundle ID | Portal internal ID |
+|---|---|---|
+| Ampora | `com.ampora.app` | `4H2K8M6X64` |
+| Ampora Device Activity Monitor | `com.ampora.app.AmporaDeviceActivityMonitor` | `66SYG64TJF` |
+| Ampora Shield Configuration | `com.ampora.app.AmporaShieldConfiguration` | `3G225BYXKM` |
+| Ampora Shield Action | `com.ampora.app.AmporaShieldAction` | `H4S4T49L5X` |
 
-**Every button label in Parts 1, 2, 3, and the navigation of Part 4 came from Apple's own help pages**, read directly on 2026-08-07:
+All four carry App Groups (with `group.com.ampora.blocker` assigned) and Family Controls (Development), and all four show Family Controls (Distribution) status **`Assigned`**. Every string was checked against `app.config.ts` before being typed, not against this document.
 
-- `developer.apple.com/help/account/identifiers/register-an-app-id`
-- `developer.apple.com/help/account/identifiers/register-an-app-group`
-- `developer.apple.com/help/account/identifiers/enable-app-capabilities`
-- `developer.apple.com/help/account/capabilities/capability-requests/`
-- `developer.apple.com/help/app-store-connect/get-started/app-store-connect-api/`
-- `developer.apple.com/documentation/familycontrols/requesting-the-family-controls-entitlement`
+The App Store Connect Team Key is **Key ID `NQ9F796882`**, Issuer ID `72621750-6b7d-4a97-88a6-aaefa9b2b3ae`, access **Admin**, name `Ampora EAS`. The `.p8` downloaded to `C:\Users\Aria\Downloads\AuthKey_NQ9F796882.p8`. **Apple allows that download exactly once**, so move it somewhere durable and never commit it. `.gitignore` already blocked `*.p8` before any of this (line 16), but the repo is public, so treat that as a backstop and not a licence to keep the key near the tree.
 
-**The one thing that could not be verified:** the inside of the Family Controls request form. It 302s to `idmsa.apple.com` sign-in, and the forum threads that show it are behind a CAPTCHA. So the *fields* in Part 4 are prepared answers matched to likely labels, not confirmed ones. Step 31 tells him to copy the real form back rather than improvise. **When he does, put the real field names in this file and delete this paragraph.**
+## What was wrong in this document, corrected by doing it
 
-**Why Part 4 uses the Capability Requests tab** rather than `developer.apple.com/contact/request/family-controls-distribution`: Apple's own docs present the in-portal tab as the route, it keeps him on the page he is already on, and because the tab lives inside each App ID he cannot structurally forget one of the four. The contact form is in there as a fallback.
+Recorded deliberately, because the wrong version was confidently written and would mislead again.
 
-**Apple's wording on extensions**, which is why it is four requests and not one: "If your app includes a Screen Time API app extension such as Device Activity Monitor, Device Activity Report, Shield Action, or Shield Configuration, submit the same request for the extension."
+**Part 4 was wrong in its central claim. It is ONE request for the whole team, not four per App ID.** The real form at `developer.apple.com/contact/request/family-controls-distribution/` has exactly four fields: Name, Email, Team ID, and a Terms acknowledgment. All three inputs arrive prefilled from the signed-in account and are not editable. There is **no bundle ID field, no framework checkboxes, and none of the eight prepared free-text answers** this document used to contain. The submit button reads **"Get Entitlement"**. Apple's page states the entitlement is "assigned to your developer account", which is why one submission covered all four bundle IDs at once.
+
+**The old Part 4 answers are therefore dead text.** They were accurate about the app, but there is nowhere to put them. They have been deleted rather than left to imply a form that does not exist. If Apple ever asks follow-up questions by email, the accurate descriptions still live in `docs/04_Ignition_Sessions_and_Verification.md` and `docs/05_App_Blocking_Technical.md`.
+
+**The Capability Requests tab is not a separate route.** Its "Request" control is a plain `<a href>` to that same contact form, opening in a new tab. The old reasoning that the tab "keeps him on the page" and stops him "structurally forgetting one of the four" was wrong on both counts.
+
+**It was not a four-day-to-six-week wait.** Status went to `Assigned` immediately, visible on reload of all four App IDs within a minute of submitting. Do not tell anyone to expect weeks.
+
+**Apple's quoted line about submitting "the same request for the extension" does not describe this form.** It cannot, since the form takes no bundle ID.
+
+**Part 3 had an undocumented prerequisite.** App Store Connect showed "Permission is required to access the App Store Connect API" with a **Request Access** button, and no Team Keys tab at all until that was submitted. It carries its own agreement, was approved instantly, and only then did Team Keys appear. Also note the Access control is a multi-select labelled "Select Roles" (Admin / App Manager / Developer / Finance / Sales and Reports), not the plain dropdown described below.
+
+**The capability checkbox is labelled "Family Controls (Development)", not "Family Controls".** There is a neighbouring, different checkbox called **"Family Controls App and Website Usage"** which was deliberately left OFF, because that one covers `DeviceActivityReport` usage data and Ampora never uses it.
+
+**Saving an App ID pops an unlabelled confirmation.** After Save, a "Modify App Capabilities" modal appears warning that provisioning profiles will be invalidated. Nothing persists until Confirm is clicked. Missing it silently reverts the change, which happened twice before it was spotted.
+
+**App Groups cannot be assigned while creating an App ID.** The Configure button only exists on the edit page afterwards. So the flow is: register all four, then edit each one to attach the group.
+
+**The App Group identifier field auto-prefixes `group.`** Typing the full `group.com.ampora.blocker` yields `group.group.com.ampora.blocker`. Type only `com.ampora.blocker`.
+
+**One thing worth flagging, unresolved.** The App Store Connect API agreement says "you may not share authorization credentials with anyone outside your team". On an individual membership the team is one person. Handing the `.p8` to Aria was done with the account holder's explicit consent, and the key is revocable at any time from that same page, but the tension is real and is recorded here rather than smoothed over.
 
 **Do not tell him to be added to the team as an Admin.** Impossible on an individual membership. See `01-apple.md` Part 3.
 
@@ -156,136 +176,39 @@ This is the part that means you don't have to sit with Aria every time the app g
 
 You can delete it at any time from that same page, and deleting it breaks nothing except the ability to build. If you ever want it gone, click into it and revoke it.
 
-## PART 4: Four permission requests to Apple
+## PART 4: One permission request to Apple
 
-Last part. Apple restricts the feature the whole app is built around, which is letting someone lock their own distracting apps for a set amount of time. You have to ask Apple's permission for it, and a real person at Apple reads the request and decides. It takes anywhere from about four business days to six weeks, which is why it's worth sending now rather than later.
+**Done on 2026-08-07. Status came back `Assigned` immediately.** Kept here because the original version of this part was wrong in a way worth remembering.
 
-Same as Part 2, it goes four times, once per ID. I've written out every answer below, so this is copying and pasting.
+Apple restricts the feature the whole app is built around, which is letting someone lock their own distracting apps for a set amount of time. You have to ask Apple's permission for it.
 
-**Step 27.** Go back to **developer.apple.com/account**, then **Certificates, Identifiers & Profiles**, then **Identifiers** in the sidebar.
+**It is one request for the whole developer account, not one per App ID.** Apple's own wording on the form is that the entitlement is "assigned to your developer account". One submission covered all four bundle IDs.
 
-**Step 28.** Click the **name** of the first identifier, `Ampora`, in the list.
+**Step 27.** Go to **developer.apple.com/contact/request/family-controls-distribution/** while signed in.
 
-**Step 29.** Click the **Capability Requests** tab.
+You can also reach it from Identifiers, clicking an identifier's name, then the **Capability Requests** tab, then the link next to **Family Controls (Distribution)**. That link goes to the exact same page in a new tab, so it is the same request either way.
 
-**Step 30.** Find **Family Controls** in the list, and click the **Request** button next to it.
+**Step 28.** The form has three fields, **all filled in for you and not editable**: Name, Email, Team ID. There is nothing to type.
 
-**Step 31.** A request form opens. Fill it in using the prepared answers below.
+**Step 29.** Read the Terms and Conditions. The part that matters is that the app's primary purpose must be one of two things, and Ampora is squarely the second:
 
-**Here's the one thing I have to be honest about.** This form sits behind an Apple sign-in, so I could not open it and see it myself. The answers below are correct and complete, but I'm not certain what the fields are actually labelled, or how many there are. **If the form doesn't match what I've written, don't try to make it fit.** Copy every question and field name off the screen into an email, or just screenshot the whole form, and send it to Aria. Aria will bring it to me and I'll write the exact answers for the real fields and send them straight back. That'll take a few minutes, not days.
+> offering individuals the ability to manage their devices to enable focus and productivity through focus controls, timers and task management, or personal device usage management
 
-**Step 32.** Submit the form.
+The terms also forbid using the framework for ad blocking, in organizational settings, or to manage another adult's device, and forbid sharing device or usage data for advertising or with data brokers. Ampora does none of these: the lock is self-imposed, `.individual` only, and no usage data ever leaves the device.
 
-**Step 33.** Repeat Steps 28 to 32 for the other three identifiers: `Ampora Device Activity Monitor`, `Ampora Shield Configuration`, and `Ampora Shield Action`. Everything stays identical except the Bundle ID, and one extra paragraph that gets added on those three rounds only.
+**Step 30.** Click **Get Entitlement**.
 
-If **Family Controls** does not appear on the Capability Requests tab at all, there's a backup route: go to **developer.apple.com/contact/request/family-controls-distribution** and fill in the same answers there. Same request, different door. Tell Aria if you end up using it.
+You get "Thank you for your submission. We'll review your request and contact you soon with a status update."
 
-### App name
+**There is no bundle ID field, no framework checkboxes, and no free-text boxes.** Earlier versions of this document contained eight prepared paragraphs for fields that do not exist. They have been deleted. If Apple ever follows up by email, the accurate technical descriptions live in `docs/04_Ignition_Sessions_and_Verification.md` and `docs/05_App_Blocking_Technical.md`.
 
-```
-Ampora
-```
+## What happened after
 
-### Bundle ID (changes each round)
+Apple sent no confirmation email, just the thank-you message on screen. That is normal.
 
-Round 1:
-```
-com.ampora.app
-```
-Round 2:
-```
-com.ampora.app.AmporaDeviceActivityMonitor
-```
-Round 3:
-```
-com.ampora.app.AmporaShieldConfiguration
-```
-Round 4:
-```
-com.ampora.app.AmporaShieldAction
-```
+**The status was `Assigned` within a minute**, on all four App IDs, checked by reloading each one. The old text here predicted four business days to six weeks. That was wrong, and nobody should be told to expect a wait.
 
-### Website or app URL
-
-```
-https://github.com/aria-zadeh/Ampora
-```
-
-### If it asks which frameworks the app uses
-
-Tick all three: **FamilyControls**, **ManagedSettings**, **DeviceActivity**.
-
-### What the app does
-
-```
-Ampora is a focus and time-management app for students and people with ADHD. It automatically schedules a user's own tasks onto their calendar and helps them start work. Its core feature is a self-imposed focus session: before starting a session, the user chooses which of their own distracting apps to place off-limits, and those apps are shielded on their own device for the duration of that session only. The entire product is built around this feature. Without the Screen Time API, the app's central function does not exist.
-```
-
-### How the app uses FamilyControls
-
-```
-Ampora calls AuthorizationCenter.shared.requestAuthorization(for: .individual). It never requests .child authorization and has no parental mode, no child mode, and no ability for one person to control another person's device. The user selects which applications and categories to restrict using Apple's own FamilyActivityPicker, so the selection is made entirely inside Apple's UI. Ampora receives only opaque ApplicationTokens and never learns the identity of any app the user selected. It displays a count such as "3 apps on the line" and cannot display names, because it does not have them.
-```
-
-### How the app uses ManagedSettings
-
-```
-Ampora writes to a single named ManagedSettingsStore ("AmporaIgnitionShield"). When a user starts a focus session, it sets shield.applications, shield.applicationCategories, and shield.webDomains from the selection the user made in Apple's picker. When the session ends, is cancelled, or is released by any of the safety limits described below, all three are set back to nil. The store is used for nothing else. Ampora never modifies any other ManagedSettings domain, and never restricts anything the user did not personally select.
-```
-
-### How the app uses DeviceActivity
-
-```
-Ampora calls DeviceActivityCenter.startMonitoring with a DeviceActivitySchedule whose start and end match the focus session the user configured. A DeviceActivityMonitor extension clears the shield at the scheduled end time, so a session always ends on time even if the app is not running or the phone was restarted. Ampora does not use DeviceActivityReport and does not read, store, aggregate, or transmit any usage statistics about the user's device. DeviceActivity is used purely as a timer that can outlive the app process.
-```
-
-### Personal use or distribution
-
-```
-Distribution on the App Store.
-```
-
-### Data collection or advertising
-
-```
-No. Ampora does not collect device usage data for advertising or for any third party. It never receives the identity of the apps a user restricts, only opaque tokens issued by Apple's picker. Session records stay on the user's device and in the user's own private account.
-```
-
-### For any large free-text box, or a field called Additional Information
-
-```
-Ampora is a self-directed focus tool in the same category as Opal, Brick, and one sec. The user restricts their own device, by their own choice, for a duration they set themselves, in advance. There is no supervisor, no parent, no administrator, and no remote party who can lock or unlock anyone's device. Authorization is .individual only.
-
-Several safeguards are built in specifically so this capability can never trap a user:
-
-1. An escape hatch is always available. During any active session the user can end the lock early. It runs a 60-second countdown with calm, non-judgmental text, and then releases. It is never removed, never hidden, and never placed behind a payment. Repeated use makes the app offer to reduce or pause its restrictions for the rest of the day, rather than adding pressure.
-
-2. Hard time limits the user cannot exceed. A single session can never shield apps for more than 50 minutes. Total shielded time can never exceed 180 minutes in a day, and the user can lower that limit but not raise it. Quiet hours default to 11pm to 8am and automatically release any active shield.
-
-3. Categories that can never be restricted. Ampora refuses to shield Phone, Messages, Maps, Accessibility apps, system Settings, or Ampora itself, and refuses any "All Apps" selection. This is enforced in code, not by policy.
-
-4. Errors fail open. Every failure path in the shield code resolves to unlocked and logs the error. A user can never be left behind a shield because something went wrong internally.
-
-The app is aimed at students and people with ADHD, age 13 and up, who want a way to make starting work easier and slacking slightly costly, on their own terms. It has no parental control features and will not add any. The source is public at https://github.com/aria-zadeh/Ampora.
-```
-
-### Add this on rounds 2, 3 and 4 only
-
-Paste it at the end of whichever box is largest.
-
-```
-This bundle ID is an app extension of com.ampora.app and is required for the main app's Screen Time functionality to work. AmporaDeviceActivityMonitor is the DeviceActivityMonitor extension that ends a session on schedule when the app is not running. AmporaShieldConfiguration is the ShieldConfiguration extension that renders the lock screen the user sees. AmporaShieldAction is the ShieldAction extension that handles the buttons on that lock screen, including the option to end the session early. Apple's frameworks require these to be separate extension targets, and each one carries the FamilyControls entitlement, so each needs its own approval.
-```
-
-## What happens after
-
-Nothing to do, just so you know what to expect. Apple usually doesn't send a confirmation email for Part 4, just a thank-you message on screen. That's normal and doesn't mean it failed.
-
-You can check on it any time: Identifiers, click the identifier's name, **Capability Requests** tab, click the **Status** button. When Apple approves it, the status changes to **Assigned**. That can take four business days to six weeks. If any email from Apple about this arrives, please forward it to Aria.
-
-If nothing at all has happened after about six weeks, that's when something has actually gone wrong, and we chase it rather than resubmitting.
-
-And again, if any screen looks different from what I described, screenshot it and send it to Aria rather than guessing. I'd much rather answer a question than untangle a wrong setting.
+To check it yourself at any time: Identifiers, click the identifier's name, **Capability Requests** tab, look at the **Family Controls (Distribution)** row. `Assigned` is the finished state. If any email from Apple about this ever arrives, forward it to Aria.
 
 Thanks for doing this.
 
