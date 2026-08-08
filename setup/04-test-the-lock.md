@@ -18,12 +18,22 @@ EAS (Expo Application Services) is Expo's cloud build service. It compiles the i
 
 **Read `00-my-situation.md` first if you have not.** The short version: the parent holds the paid Apple Developer membership, and **there is no way to test the app lock without it.** Family Controls is not available on Apple's free Personal Team at all, so this is the one part of Ampora that genuinely cannot be done solo.
 
-**Two things must exist before `eas build` will work**, and hitting them in the wrong order is the most common way this stalls:
+**Both prerequisites were satisfied on 2026-08-07. Neither is pending.** Kept here so the reasoning stays visible:
 
-1. **The four App IDs registered, with Family Controls and the App Group enabled** (`01-apple.md` Part 1). EAS cannot create these itself, and a build against missing App IDs fails with a confusing provisioning error rather than a clear "these do not exist" message.
-2. **Apple authentication that can reach the paid team.** Either the parent signs in personally when EAS asks, or he generates an App Store Connect **Team Key** once and hands it over (`01-apple.md` Part 3). Note this is Apple auth, not `eas login` — `eas login` uses a free Expo account and involves nobody.
+1. **The four App IDs registered, with Family Controls and the App Group enabled.** Done, all four, each verified by page reload, and Family Controls (Distribution) reads `Assigned` on every one. Full record in `01b-apple-session-log.md`.
+2. **Apple authentication that can reach the paid team.** Done, via an App Store Connect **Team Key**, so nobody signs in. Export these three in the shell you build from and EAS never prompts for an Apple ID:
 
-So batch it: get the App IDs registered and the team access sorted in one sitting with the parent, then everything below runs solo from then on.
+```
+EXPO_ASC_API_KEY_PATH=C:\Users\Aria\AppleKeys\AuthKey_NQ9F796882.p8
+EXPO_ASC_KEY_ID=NQ9F796882
+EXPO_ASC_ISSUER_ID=72621750-6b7d-4a97-88a6-aaefa9b2b3ae
+```
+
+Note this is Apple auth, not `eas login` — `eas login` uses a free Expo account and involves nobody.
+
+**The parent is no longer needed for anything here.**
+
+**A third prerequisite this file never mentioned: register the iPhone before building.** Run `npx eas-cli@latest device:create`, pick the **Website** option, then open the URL or QR **on the phone** and install the profile it offers. Skip this and the build completes normally and then silently refuses to install.
 
 Covered in more depth in `01-apple.md` Part 3, restated here at the exact point it matters:
 
@@ -34,7 +44,11 @@ Covered in more depth in `01-apple.md` Part 3, restated here at the exact point 
 
 ## The exact commands, in order
 
-Run these from the repo root, on the Mac, inside the cloned Ampora repo (`03-mac-setup.md`).
+Run these from the repo root, inside the cloned Ampora repo.
+
+**A Mac is not required to get the app onto the phone.** `eas build` compiles on Expo's cloud macOS machines, and `development-native` is `distribution: internal`, so the finished build installs from a link opened in Safari **on the iPhone**. Steps 1 to 5b and step 8 below are Mac-only, and every one of them is an optimisation or an alternative rather than a requirement. The minimum path from Windows is: `eas login`, `eas init`, `eas device:create`, export the three `EXPO_ASC_*` variables above, `eas build --profile development-native --platform ios`, then open the resulting link on the phone.
+
+**No local flag flipping is needed for a cloud build.** Leave `native.config.json` all-false. The `-native` profiles set `AMPORA_NATIVE=1` in the cloud environment, which `constants/nativeFlags.js` reads ahead of the file. Step 1 only matters when building or running locally.
 
 **1. Turn the quarantined native code on, locally:**
 ```
@@ -111,11 +125,17 @@ This `-native` profile is different from the plain `development` profile in `eas
 
 **What the most likely failure looks like:** a provisioning error mentioning a missing App ID or a missing capability. This nearly always means one of the four bundle IDs (`01-apple.md`) is missing the Family Controls or App Group entitlement. Check all four, not just the main app.
 
-**8. Install it on the actual phone:**
+**8. Install it on the actual phone.**
+
+**From Windows, or from anywhere:** the build output includes a URL and QR code. Open that link **on the iPhone** in Safari and tap Install. Because `development-native` is `distribution: internal`, this is an ad hoc build that installs over the air, no cable and no Mac. This is the normal path now.
+
+**From a Mac with the phone plugged in**, this also works:
 ```
 eas build:run -p ios --latest
 ```
-Needs the iPhone connected to the Mac (cable, or sometimes just the same network depending on the EAS CLI version) and unlocked. **What success looks like:** the Ampora icon appears on the phone's home screen and opens.
+Needs the iPhone connected (cable, or sometimes just the same network depending on the EAS CLI version) and unlocked.
+
+**What success looks like either way:** the Ampora icon appears on the phone's home screen and opens.
 
 The very first time a build like this runs on the phone, iOS may show an "Untrusted Developer" warning and refuse to open the app. **Fix:** on the iPhone, Settings, General, VPN & Device Management, find the developer profile listed there, tap **Trust**.
 

@@ -17,6 +17,8 @@ Every part below was completed on 2026-08-07 in the Apple account of **Ali Nabav
 
 Verified by reloading every page afterwards, not just by the success screens.
 
+**`01b-apple-session-log.md` is the exhaustive click-by-click record** of that session, including the real contents of every form and the traps that cost time. Read it before doing anything in Apple's portal.
+
 ### The identifiers as they now exist
 
 | Description | Bundle ID | Portal internal ID |
