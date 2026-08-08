@@ -64,6 +64,20 @@ export const FEATURE_FLAGS = {
    * development. Gated on `__DEV__` so it is stripped from production builds.
    */
   DEV_BYPASS_PAYWALL: __DEV__,
+
+  /**
+   * Dev-only sign-in bypass. When true, `app/auth.tsx` renders a "Skip sign-in
+   * (dev)" button and `app/_layout.tsx` stops redirecting an unauthenticated
+   * launch to `/auth`. Exists because Google sign-in and the email magic link
+   * both depend on remote configuration that is not finished yet, which would
+   * otherwise make the whole app unopenable on a dev machine.
+   *
+   * Gated on `__DEV__`, so it is false in every production build and the
+   * persisted flag in `store/devAuthStore.ts` cannot leak into a release. This
+   * does NOT reintroduce the anonymous mode FR-87 forbids: no session is
+   * fabricated, there is no user id, and cloud sync never runs while bypassed.
+   */
+  DEV_BYPASS_AUTH: __DEV__,
 } as const
 
 export type FeatureFlags = typeof FEATURE_FLAGS

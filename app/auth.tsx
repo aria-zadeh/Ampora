@@ -28,6 +28,9 @@ import {
 import { shadows, gradients } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useRouter } from "expo-router";
+import { FEATURE_FLAGS } from "@/constants/featureFlags";
+import { useDevAuthStore } from "@/store/devAuthStore";
 
 type ScreenState = "idle" | "loading" | "success" | "error";
 type ErrorKind = "invalidEmail" | "network" | "generic";
@@ -63,6 +66,7 @@ function classifyError(error: Error): ErrorKind {
 }
 
 export default function AuthScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [screenState, setScreenState] = useState<ScreenState>("idle");
   const [errorKind, setErrorKind] = useState<ErrorKind>("generic");
@@ -269,6 +273,34 @@ export default function AuthScreen() {
                 </>
               )}
             </Pressable>
+
+            {/*
+              Dev-only escape hatch. Stripped from production builds:
+              FEATURE_FLAGS.DEV_BYPASS_AUTH is `__DEV__`, a compile-time
+              constant, so this whole branch is dead code Metro drops. It
+              fabricates no session (see store/devAuthStore.ts) — it only stops
+              the routing gate in app/_layout.tsx from bouncing back here, so
+              the app runs pure local-first with no cloud sync. Exists because
+              Google sign-in and the magic link both depend on remote setup
+              that is not finished, which otherwise makes the app unopenable.
+            */}
+            {FEATURE_FLAGS.DEV_BYPASS_AUTH && (
+              <Pressable
+                onPress={() => {
+                  useDevAuthStore.getState().enableBypass();
+                  router.replace("/");
+                }}
+                className="min-h-[48px] flex-row items-center justify-center rounded-md border border-dashed border-neutral-300 px-5"
+                accessibilityRole="button"
+                accessibilityLabel="Skip sign-in, development only"
+                accessibilityHint="Opens the app with no account and no cloud sync. Not available in released builds."
+              >
+                <Ionicons name="construct-outline" size={16} color="#78716C" />
+                <Text className="text-label font-medium text-neutral-500 ml-2">
+                  Skip sign-in (dev)
+                </Text>
+              </Pressable>
+            )}
 
             <View className="flex-row items-center my-1">
               <View className="flex-1 h-px bg-neutral-200" />
