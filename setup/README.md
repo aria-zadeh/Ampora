@@ -4,11 +4,17 @@ This folder is the complete, current set of operational instructions for everyth
 
 Written for someone who has never done any of this before. If a step says "click X," it means click the literal button named X. Where something might have moved since this was written (dashboards change over time), that is called out rather than stated as certain.
 
+## Everything Apple is DONE, as of 2026-08-07
+
+**Do not re-do `01-apple.md` or `01a-parent-walkthrough.md`, and do not send the walkthrough to anyone.** All four parts were carried out in the Account Holder's portal on 2026-08-07: the App Group, all four App IDs with Family Controls (Development) + App Groups, the App Store Connect Team API key, and the Family Controls (Distribution) entitlement, which came back **`Assigned` immediately** rather than after weeks.
+
+**`01b-apple-session-log.md` is the exhaustive record** of exactly what was clicked, what the real forms contained, and every place the older docs were wrong. Read it before touching anything Apple.
+
+The remaining Apple-adjacent work is `04-test-the-lock.md`, and it no longer waits on anyone.
+
 ## What can be done alone, today
 
-Most of it. Nothing needs Apple until it is time to build for a real iPhone, and only that last step does.
-
-**Read `00-my-situation.md` first.** It records who holds which account and what the plan is, so nothing here has to be re-explained.
+All of it now. **Read `00-my-situation.md` first.** It records who holds which account and what the plan is, so nothing here has to be re-explained.
 
 - **`02b-browser-setup-prompt.md`** and the non-Apple half of **`02-supabase.md`**: the database, the redirect URL, Google sign-in, and the two `.env` keys. No Apple account involved at any point.
 - **`03-mac-setup.md`**: getting a Mac ready. No Apple Developer account needed, just a Mac and the free Xcode.
@@ -17,21 +23,20 @@ Most of it. Nothing needs Apple until it is time to build for a real iPhone, and
 
 Testing the real lock on a phone needs the parent's paid Apple account, because Family Controls does not work on a free Apple team at all. Batch those steps so he is only interrupted once. Nothing above waits on him.
 
-## The two slow ones, whenever you get to them
+## The slow one, and the one that turned out not to be slow
 
-Two things in here take real calendar time and mostly just sit and wait once started. Everything else can happen in an afternoon.
+1. ~~**The Family Controls (Distribution) entitlement request.** Days to a few weeks.~~ **Done 2026-08-07, and it was neither slow nor a review.** Status read `Assigned` within a minute of submitting a form that has no free-text fields at all. See `01b-apple-session-log.md`.
+2. **A D-U-N-S number** (Dun & Bradstreet), only needed once you convert the Apple account to an Organization for the future LLC. About 1-2 weeks. Still pending, still far off, see `01-apple.md`.
 
-1. **The Family Controls (Distribution) entitlement request** (Apple). Days to a few weeks. This is what lets Ampora actually lock apps in a real, distributed build. See `01-apple.md`.
-2. **A D-U-N-S number** (Dun & Bradstreet), only needed once you convert the Apple account to an Organization for the future LLC. About 1-2 weeks. Also in `01-apple.md`.
-
-Neither blocks building, testing, or working on the app today. Native locking and real subscriptions are both off by default (feature flags), and the app runs fine without them while these two wait in the background.
+Neither blocks building, testing, or working on the app today. Native locking and real subscriptions are both off by default (feature flags), and the app runs fine without them.
 
 ## Order to do things in
 
 | Order | File | What it's for | Start when | Typical wait |
 |---|---|---|---|---|
-| 1 | `01-apple.md` | Apple Developer account, the Family Controls entitlement, who legally owns the account | Whenever the account holder is available | Days to weeks |
-| 1a | `01a-parent-walkthrough.md` | The same Apple steps, rewritten to be **sent to the account holder** and followed without help | Same as 1. This is the thing you actually hand him | 45 minutes of his time |
+| 1 | `01-apple.md` | Apple Developer account, the Family Controls entitlement, who legally owns the account | **DONE 2026-08-07.** Reference only now | — |
+| 1a | `01a-parent-walkthrough.md` | The same Apple steps, written for the account holder | **DONE. Do not send this to anyone.** Record only | — |
+| 1b | `01b-apple-session-log.md` | Exhaustive log of what was actually clicked in Apple's portal, and where 1 and 1a were wrong | Read before touching anything Apple | — |
 | 2 | `02-supabase.md` | The database, sign-in, AI, env keys | Today, alongside 1 | Under an hour of clicking, plus occasional waiting on a paused project |
 | 3 | `03-mac-setup.md` | Getting a Mac ready to build iOS at all | Whenever a Mac is available | 30-60 minutes |
 | 4 | `04-test-the-lock.md` | Building the real app lock and testing it on a real iPhone | After 3, and after the App IDs from 1 exist on the paid account | An afternoon |
@@ -51,7 +56,8 @@ Right now, on Windows, the app already works: it typechecks, the tests pass, and
 
 - **`00-my-situation.md`**: the standing context on accounts, money and who owns what. Read it first. Any instruction anywhere that conflicts with it is wrong.
 - **`01-apple.md`**: the Apple Developer account, the Family Controls entitlement (Development vs Distribution), and the honest answer to "should this be under the parent's account or an LLC." Written for Aria, as reference.
-- **`01a-parent-walkthrough.md`**: the send-it version of the same Apple steps, written for the account holder rather than for a developer. Every button named, every answer pre-written, and a status table at the top tracking which of the four parts are done. It also records what could not be verified (the inside of the Family Controls request form) and what to do about that. **If a fact changes, change it in both this and `01-apple.md`.**
+- **`01a-parent-walkthrough.md`**: the send-it version of the same Apple steps. **All four parts are done, so this is now a record, not a task.** Its Status block lists exactly what exists, and a "what was wrong" section records where it misled. **If a fact changes, change it in both this and `01-apple.md`.**
+- **`01b-apple-session-log.md`**: the exhaustive action-by-action log of the 2026-08-07 portal session. Every click, the real contents of the Family Controls request form, the three traps that cost time (the auto-prefixed App Group field, the App Groups Configure button not existing at creation, and the unlabelled "Modify App Capabilities" confirm that silently reverts a save), the generated key IDs, and browser-automation notes for driving Apple's site. **Read this before doing anything in Apple's portal.**
 - **`02-supabase.md`**: the database, running migrations, where the `.env` keys come from, turning on Google and Apple sign-in, deploying the AI functions.
 - **`02b-browser-setup-prompt.md`**: a shortcut for most of `02`. A paste-able prompt for the Claude Chrome extension that wakes the project, adds the redirect URL, turns on Google sign-in, and hands back the two `.env` values. Read its warning about which keys are safe to share first, because they are not all the same. Use `02` directly if you would rather click through it yourself.
 - **`03-mac-setup.md`**: the one-time Mac setup, including the paste-able Claude Code prompt and the one manual file copy that can't be automated.

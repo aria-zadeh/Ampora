@@ -18,7 +18,7 @@ This is not a business yet and will not be for a long time. Treat revenue, subsc
 
 ## What this means in practice
 
-**Everything that required dad is now DONE, as of 2026-08-07.** All four parts of `01a-parent-walkthrough.md` were completed in his account (Team ID `Z3X3PQU95V`) with him present and consenting. That file is now a record, not a to-do, and should not be sent to him again. Read its Status block for exactly what exists.
+**Everything that required dad is now DONE, as of 2026-08-07.** All four parts of `01a-parent-walkthrough.md` were completed in his account (Team ID `Z3X3PQU95V`) with him present and consenting. That file is now a record, not a to-do, and should not be sent to him again. Read its Status block for exactly what exists, and **`01b-apple-session-log.md` for the exhaustive click-by-click log** of what was done and where the older docs were wrong.
 
 In short: the App Group and all four App IDs are registered with Family Controls + App Groups, the Family Controls (Distribution) entitlement came back **`Assigned` immediately** rather than after weeks, and an App Store Connect Team API key (Key ID `NQ9F796882`, Admin) was generated and handed over.
 
