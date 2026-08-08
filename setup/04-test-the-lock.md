@@ -21,15 +21,15 @@ EAS (Expo Application Services) is Expo's cloud build service. It compiles the i
 **Two things must exist before `eas build` will work**, and hitting them in the wrong order is the most common way this stalls:
 
 1. **The four App IDs registered, with Family Controls and the App Group enabled** (`01-apple.md` Part 1). EAS cannot create these itself, and a build against missing App IDs fails with a confusing provisioning error rather than a clear "these do not exist" message.
-2. **An `eas login` that can reach the paid team** — either the parent signing in, or the teen added to the team as Admin.
+2. **Apple authentication that can reach the paid team.** Either the parent signs in personally when EAS asks, or he generates an App Store Connect **Team Key** once and hands it over (`01-apple.md` Part 3). Note this is Apple auth, not `eas login` — `eas login` uses a free Expo account and involves nobody.
 
 So batch it: get the App IDs registered and the team access sorted in one sitting with the parent, then everything below runs solo from then on.
 
 Covered in more depth in `01-apple.md` Part 3, restated here at the exact point it matters:
 
 - The very first time `eas build` runs against this project, it asks for sign-in with an Apple ID so it can manage code-signing certificates and provisioning profiles automatically. That Apple ID needs to be on the Ampora developer team with a role that can manage certificates (**Admin** is simplest).
-- If the parent has already added the teen as an Admin on the team (`01-apple.md` Part 3), the teen signs into their **own** Apple ID here and everything below runs solo, no parent needed for any individual command.
-- If that has not happened yet, either the parent runs this step personally (signing in with their own Apple ID when asked), or the teen gets added to the team first. Adding the teen first is the better long-term move, it only needs doing once.
+- **The teen cannot be added to the team.** An earlier version of this file said they could, as an Admin. That is impossible on an **individual** membership, which is the one in play: Certificates, Identifiers & Profiles is Account-Holder-only there, and anyone an individual member invites reaches App Store Connect only. It is not an age restriction, and it changes only after the LLC-driven Organization conversion. See `01-apple.md` Part 3.
+- **So the parent either sits in on the signing step, or hands over an App Store Connect Team Key.** With the key exported as `EXPO_ASC_API_KEY_PATH` / `EXPO_ASC_KEY_ID` / `EXPO_ASC_ISSUER_ID`, EAS creates certificates, creates provisioning profiles and registers devices with no Apple ID prompt at all, and everything below runs solo from then on. Without it, he is needed again on every certificate expiry and every new test device.
 - Let EAS generate and manage certificates and provisioning profiles automatically when it asks. Doing this by hand in Xcode instead is more error-prone.
 
 ## The exact commands, in order
