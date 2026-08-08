@@ -30,10 +30,19 @@ const { withEntitlementsPlist, withInfoPlist, createRunOncePlugin } = require('@
 const { withAmporaExtensionTargets } = require('./withExtensionTargets')
 
 const DEFAULT_APP_GROUP = 'group.com.ampora.blocker'
+/**
+ * `com.apple.developer.family-controls` is the ONLY entitlement the Screen Time
+ * API has. ManagedSettings and DeviceActivity have no entitlement keys of their
+ * own -- Family Controls is the single authorization layer for all three
+ * frameworks. Earlier versions of this file also declared
+ * `com.apple.developer.deviceactivity` and `com.apple.developer.managedsettings`.
+ * Those keys do not exist. Any `com.apple.developer.*` entitlement is restricted
+ * and must appear in the provisioning profile, and no profile can ever carry
+ * these two because they have no capability in the developer portal, so their
+ * only possible effect was to fail the first signed build. Do not re-add them.
+ */
 const DEFAULT_ENTITLEMENTS = {
   'com.apple.developer.family-controls': true,
-  'com.apple.developer.deviceactivity': true,
-  'com.apple.developer.managedsettings': true,
   'com.apple.security.application-groups': [DEFAULT_APP_GROUP],
 }
 

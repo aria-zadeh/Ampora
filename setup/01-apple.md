@@ -2,6 +2,8 @@
 
 Covers two separate things Ampora needs from Apple: permission to actually lock apps on a real device (the Family Controls entitlement), and the question of which Apple account should own all of this long-term (the parent's individual account today, versus a future LLC's organization account).
 
+**This file is the reference version, written for Aria.** To actually get the steps done, send `01a-parent-walkthrough.md` instead: same material, rewritten for the account holder, every button named, every answer pre-written, with a status table tracking what has been done. Keep the two in sync.
+
 ## Part 1: the Family Controls entitlement
 
 ### What it actually is, in plain terms
@@ -51,7 +53,15 @@ If a build ever fails with a provisioning error mentioning a missing App ID or c
 - **What success looks like:** all four App IDs appear in the Identifiers list, each showing Family Controls and App Groups under its capabilities.
 - A working build, a TestFlight submission, or an App Store listing are not needed to do this. Apple's own guidance is that the app needs to be created, not developed, to request the entitlement below. A registered App ID is enough.
 
-**2. Request the Distribution capability.** Go to [developer.apple.com/contact/request/family-controls-distribution](https://developer.apple.com/contact/request/family-controls-distribution), signed in as the account's Account Holder (see Part 3 below for who that is). Submit **one request per bundle ID, all four**, not just the main app. Each request asks for the bundle ID and an explanation of how the app uses the FamilyControls, ManagedSettings, and DeviceActivity frameworks.
+**2. Request the Distribution capability.** There are two doors to the same request, and the in-portal one is better. Apple's own documentation presents it first, it keeps the Account Holder on the page he is already on, and because it lives inside each App ID he cannot structurally forget one of the four:
+
+> In Certificates, Identifiers & Profiles, click **Identifiers** in the sidebar. Click the **name** of the identifier in the list of App IDs. Click the **Capability Requests** tab. Find the capability. Click the **Request** button. Submit the request form.
+
+Required role: **Account Holder**, so this is his to do either way. The fallback door, if Family Controls does not appear on that tab, is [developer.apple.com/contact/request/family-controls-distribution](https://developer.apple.com/contact/request/family-controls-distribution). Same request.
+
+Submit **one request per bundle ID, all four**, not just the main app. This is Apple's own instruction, not a guess: "If your app includes a Screen Time API app extension such as Device Activity Monitor, Device Activity Report, Shield Action, or Shield Configuration, submit the same request for the extension." Each request asks for the bundle ID and an explanation of how the app uses the FamilyControls, ManagedSettings, and DeviceActivity frameworks. **Full pre-written answers for all of them live in `01a-parent-walkthrough.md` Part 4** rather than being re-derived each time.
+
+Check status at the same place: **Capability Requests** tab, then the **Status** button. Approved shows as **Assigned**.
 
 - **What to write for the use case:** describe Ampora as a self-directed focus tool, in the same spirit as apps like Opal and Brick (`docs/05_App_Blocking_Technical.md` §9 has this framing in more detail). The points to hit: the user restricts their own device, by their own choice, there is no parental or child mode, no remote control by anyone else, and no usage data collected for advertising.
 - **What success looks like:** no confirmation email arrives right away, just a "thank you" message on submission. That is normal, not a sign anything failed. Weeks later, an email either approves the request (after which **Family Controls (Distribution)** becomes a toggle under **Additional Capabilities** on each of the four Identifiers) or asks for more detail (resubmit with a fuller explanation of the use case).
@@ -92,7 +102,9 @@ If this path is ever considered anyway, **ask Apple Developer Support directly f
 
 ### The recommendation
 
-Register the four App IDs and request the entitlement under the current individual account now. Form the LLC on whatever timeline makes sense for the business. Convert that same account to an Organization membership once the LLC exists. Do not create a second Apple account and try to transfer the app later.
+Register the four App IDs under the current individual account now, since testing the lock is blocked without them. Form the LLC on whatever timeline makes sense. Convert that same account to an Organization membership once the LLC exists. Do not create a second Apple account and try to transfer the app later.
+
+**The Distribution entitlement is the one piece with no obvious right answer on timing.** `00-my-situation.md` governs: nothing ships for a long time, so it is not urgent. Against that, it is free, it costs about 20 minutes, and its 4-day-to-6-week wait is the only thing here that cannot be compressed later. The argument for waiting is the open question below: nobody knows whether a grant on an individual team survives the Organization conversion, so submitting early may just mean submitting twice. Aria decides. Do not quietly assume either way.
 
 ### One open question, flagged honestly
 
@@ -108,9 +120,31 @@ Only the Account Holder (the parent's Apple ID) can:
 - Agree to any updated Apple Developer Program License Agreement
 - Later, do the Individual to Organization conversion (Part 2)
 
-The parent can add the teen as a team member with a role that covers almost everything else, without needing the parent for every click:
+### The correction: the teen cannot be added to the team, and the workaround that replaces it
 
-- At [developer.apple.com/account](https://developer.apple.com/account), open **Users and Access**, click **+**, add the teen's own Apple ID with the role **Admin** (the simplest choice, since it can manage certificates and provisioning profiles, which the build process in `04-test-the-lock.md` needs).
-- Once added, the teen can register App IDs, run the `eas build` commands, and do essentially everything else in this setup folder without the parent present.
+An earlier version of this section said the parent could add the teen under **Users and Access** with the role **Admin**, after which the teen could manage certificates and run builds alone. **That is impossible on an individual membership**, which is the membership in play here (`00-my-situation.md`).
 
-`04-test-the-lock.md` picks this thread back up at the exact point in the build process where an Apple ID gets asked for.
+Apple's rule, verified 2026-08-07:
+
+- "Certificates, Identifiers & Profiles is only available to Account Holders and members of an organization's team."
+- An individual member may invite up to 10 people, but they "receive access only to your content in App Store Connect and are not considered part of your team in the Apple Developer Program." No certificates, no identifiers, no provisioning profiles.
+
+This is not about the teen's age. It is purely individual-versus-organization. Adding real team members only becomes possible after the Organization conversion in Part 2, which needs the LLC.
+
+**What replaces it: an App Store Connect API key.** The parent generates one **Team Key** with **Admin** access at [appstoreconnect.apple.com/access/users](https://appstoreconnect.apple.com/access/users), under **Integrations**, **Team Keys**, **Generate API Key**, and hands over three things: the downloaded `.p8` file, the **Key ID**, and the **Issuer ID**. EAS then authenticates with that key instead of an Apple ID, and creates certificates, creates provisioning profiles, and registers devices non-interactively:
+
+```
+export EXPO_ASC_API_KEY_PATH=/absolute/path/to/AuthKey_XXXXXXXXXX.p8
+export EXPO_ASC_KEY_ID=XXXXXXXXXX
+export EXPO_ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+Three things about that key that matter:
+
+- It must be a **Team Key**, not an Individual Key. Individual keys cannot use the provisioning endpoints at all, which is exactly the half that builds need.
+- The `.p8` downloads **once, ever**. Lost means revoke and regenerate.
+- It is scoped and revocable from the same page, and it cannot publish, submit, or touch billing. It is strictly safer than the alternative, which is the parent's actual Apple ID password plus a two-factor code read aloud on every build.
+
+Without the key, the parent has to sit in on the first `eas build` and sign in personally, and again whenever a certificate expires or a new test device is added. With it, the App ID registration above is genuinely the last time he is needed until the LLC.
+
+`04-test-the-lock.md` picks this thread back up at the exact point in the build process where Apple authentication gets asked for.

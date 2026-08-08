@@ -31,6 +31,7 @@ Neither blocks building, testing, or working on the app today. Native locking an
 | Order | File | What it's for | Start when | Typical wait |
 |---|---|---|---|---|
 | 1 | `01-apple.md` | Apple Developer account, the Family Controls entitlement, who legally owns the account | Whenever the account holder is available | Days to weeks |
+| 1a | `01a-parent-walkthrough.md` | The same Apple steps, rewritten to be **sent to the account holder** and followed without help | Same as 1. This is the thing you actually hand him | 45 minutes of his time |
 | 2 | `02-supabase.md` | The database, sign-in, AI, env keys | Today, alongside 1 | Under an hour of clicking, plus occasional waiting on a paused project |
 | 3 | `03-mac-setup.md` | Getting a Mac ready to build iOS at all | Whenever a Mac is available | 30-60 minutes |
 | 4 | `04-test-the-lock.md` | Building the real app lock and testing it on a real iPhone | After 3, and after the App IDs from 1 exist on the paid account | An afternoon |
@@ -49,7 +50,8 @@ Right now, on Windows, the app already works: it typechecks, the tests pass, and
 ## The files
 
 - **`00-my-situation.md`**: the standing context on accounts, money and who owns what. Read it first. Any instruction anywhere that conflicts with it is wrong.
-- **`01-apple.md`**: the Apple Developer account, the Family Controls entitlement (Development vs Distribution), and the honest answer to "should this be under the parent's account or an LLC."
+- **`01-apple.md`**: the Apple Developer account, the Family Controls entitlement (Development vs Distribution), and the honest answer to "should this be under the parent's account or an LLC." Written for Aria, as reference.
+- **`01a-parent-walkthrough.md`**: the send-it version of the same Apple steps, written for the account holder rather than for a developer. Every button named, every answer pre-written, and a status table at the top tracking which of the four parts are done. It also records what could not be verified (the inside of the Family Controls request form) and what to do about that. **If a fact changes, change it in both this and `01-apple.md`.**
 - **`02-supabase.md`**: the database, running migrations, where the `.env` keys come from, turning on Google and Apple sign-in, deploying the AI functions.
 - **`02b-browser-setup-prompt.md`**: a shortcut for most of `02`. A paste-able prompt for the Claude Chrome extension that wakes the project, adds the redirect URL, turns on Google sign-in, and hands back the two `.env` values. Read its warning about which keys are safe to share first, because they are not all the same. Use `02` directly if you would rather click through it yourself.
 - **`03-mac-setup.md`**: the one-time Mac setup, including the paste-able Claude Code prompt and the one manual file copy that can't be automated.
