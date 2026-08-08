@@ -1,26 +1,26 @@
 /**
- * DataSettings — §8.11 data export, erase-local-data, account deletion, and
+ * DataSettings, §8.11 data export, erase-local-data, account deletion, and
  * About/Help/Legal (Phase 7, PRD FR-65; account deletion is FR-87).
  *
- * - Export data: serialize every local store to JSON and hand it off — the
+ * - Export data: serialize every local store to JSON and hand it off, the
  *   native Share sheet on iOS/Android, a file download on web. Nothing leaves
  *   the device unless the user chooses a destination in the share sheet.
  * - Erase data on this device: a guarded, two-step confirm that wipes the
  *   persisted MMKV blob and resets the in-memory stores
- *   (`core/dataExport.wipeAllData`). DEVICE-ONLY and reversible — the cloud
+ *   (`core/dataExport.wipeAllData`). DEVICE-ONLY and reversible, the cloud
  *   copy survives, so signing back in restores everything. Deliberately
  *   relabeled (was "Delete all data") so it reads as unmistakably distinct
  *   from account deletion below, per FR-87's "two destructive actions, never
  *   one button."
  * - Delete account: PERMANENT, cross-device, unrecoverable
  *   (`services/supabase.ts#deleteAccount`, which calls the `delete-account`
- *   edge function then signs out itself on a CONFIRMED success — this screen
+ *   edge function then signs out itself on a CONFIRMED success, this screen
  *   must not repeat that sign-out). Local data is wiped separately:
  *   `app/_layout.tsx`'s `onAuthStateChange` listener reacts to the resulting
  *   `SIGNED_OUT` event and calls `core/dataExport.wipeAllData` there, the
  *   same as it does for an ordinary sign-out (`deleteAccount` used to call
  *   `wipeAllData` inline, but that import closes a require cycle back
- *   through `store/syncStore.ts` — see that function's doc comment). The one
+ *   through `store/syncStore.ts`, see that function's doc comment). The one
  *   exception is the "session check failed but the deletion likely went
  *   through anyway" branch in `attemptAccountDeletion` below, which cannot
  *   assume `deleteAccount`'s own sign-out landed and so wipes + signs out
@@ -29,7 +29,7 @@
  *   5.1.1(v) requires in-app account deletion for any app offering account
  *   creation; GDPR/CCPA erasure rights apply regardless. Gated behind a
  *   multi-step flow: an explanation with data export offered first, then a
- *   typed "DELETE" confirmation (`core/dataExport.isDeleteAccountConfirmed` —
+ *   typed "DELETE" confirmation (`core/dataExport.isDeleteAccountConfirmed`,
  *   a single "are you sure" is not proportionate to an irreversible,
  *   every-device action), then the attempt itself.
  *   A FAILED attempt does NOT assume nothing happened: the edge function
@@ -46,7 +46,7 @@
  *   under a copy that keeps claiming nothing was lost.
  * - Account: current email + sign out.
  * - About / Help / Legal: quiet affordances (Phase 4 polish audit). No
- *   invented external links — Ampora has no live support site or published
+ *   invented external links, Ampora has no live support site or published
  *   legal docs yet, so each opens a small honest in-app sheet instead of a
  *   dead URL. Version reads the real `app.json`/`package.json` version.
  *
@@ -90,7 +90,7 @@ import { flushBeforeSignOut } from '@/store/syncStore'
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0'
 
 // ---------------------------------------------------------------------------
-// Export — platform-appropriate hand-off of the serialized JSON.
+// Export, platform-appropriate hand-off of the serialized JSON.
 // ---------------------------------------------------------------------------
 
 /**
@@ -191,11 +191,11 @@ export function DataSettings() {
       .catch(() => {})
   }, [])
 
-  // Sign out — flush this device's not-yet-synced edits to THIS account
+  // Sign out, flush this device's not-yet-synced edits to THIS account
   // first (`flushBeforeSignOut`, time-bounded so a slow/offline network can
   // never hang the button), then sign out. `app/_layout.tsx`'s
   // `onAuthStateChange` listener does the local-state clearing once the
-  // resulting `SIGNED_OUT` event lands — see that file and
+  // resulting `SIGNED_OUT` event lands, see that file and
   // `store/syncStore.ts#flushBeforeSignOut`'s doc comment for the full
   // flush-then-clear design and why a shared-device sign-out needs both
   // halves. Without the flush, a task edited in the last moment before
@@ -228,13 +228,13 @@ export function DataSettings() {
         await Share.share({ title: filename, message: json })
       }
     } catch {
-      // Swallow — export is best-effort; the user can retry.
+      // Swallow, export is best-effort; the user can retry.
     } finally {
       setExporting(false)
     }
   }
 
-  // Erase data on THIS DEVICE only — device-only, reversible (the cloud copy
+  // Erase data on THIS DEVICE only, device-only, reversible (the cloud copy
   // survives; signing back in restores everything). Distinct from account
   // deletion below, which is permanent and cross-device.
   const handleEraseLocal = () => {
@@ -251,7 +251,7 @@ export function DataSettings() {
   }
 
   // -------------------------------------------------------------------------
-  // Delete account (FR-87) — PERMANENT, every device, unrecoverable. A
+  // Delete account (FR-87), PERMANENT, every device, unrecoverable. A
   // distinct flow from the local erase above: explanation + export offered
   // first -> typed "DELETE" confirmation -> the attempt -> honest success/
   // failure. `deleteAccount()` (services/supabase.ts) already wipes local
@@ -263,7 +263,7 @@ export function DataSettings() {
   const [deleteAccountText, setDeleteAccountText] = useState('')
   const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null)
   // The 'error' step's heading is no longer a single hard-coded claim (see
-  // `attemptAccountDeletion`) — it depends on which of the distinguishable
+  // `attemptAccountDeletion`), it depends on which of the distinguishable
   // failure cases actually happened.
   const [deleteAccountHeading, setDeleteAccountHeading] = useState('Your account was not deleted')
 
@@ -277,7 +277,7 @@ export function DataSettings() {
 
   const closeDeleteAccount = () => {
     // Never let a dismiss (overlay tap, hardware back) interrupt an in-flight
-    // deletion — the request is already on the wire.
+    // deletion, the request is already on the wire.
     if (deleteAccountStep === 'deleting') return
     setDeleteAccountStep('closed')
     setDeleteAccountText('')
@@ -304,15 +304,15 @@ export function DataSettings() {
     // deletes the account server-side before this client ever sees a reply
     // (`supabase/functions/delete-account/index.ts`), so a dropped response, a
     // backgrounded app, or a flaky connection can all report failure AFTER the
-    // deletion already committed — leaving the account gone, local data
+    // deletion already committed, leaving the account gone, local data
     // intact, and the app signed in on a dead session. "Try again" would then
     // re-invoke with a JWT belonging to a deleted user: a guaranteed 401,
     // forever, under the same false "nothing was deleted" copy.
     //
     // Check the one thing we actually can: `getCurrentUser()` asks the server
     // to re-verify the session (unlike a cached getSession()), so if it now
-    // comes back empty, the account this token belonged to is genuinely gone
-    // — most likely because this very attempt (or an earlier retry) succeeded.
+    // comes back empty, the account this token belonged to is genuinely gone,
+    // most likely because this very attempt (or an earlier retry) succeeded.
     // A still-valid session means the account is still there. Neither branch
     // is asserted unless we actually checked it.
     let sessionCheckFailed = false
@@ -337,11 +337,11 @@ export function DataSettings() {
     }
 
     if (sessionCheckFailed) {
-      // Could not even check (e.g. no connection to verify with) — say so
+      // Could not even check (e.g. no connection to verify with), say so
       // rather than guessing either way.
       setDeleteAccountHeading("We couldn't confirm what happened")
       setDeleteAccountError(
-        "We can't check whether this went through without a connection. Try again once you're back online — if Ampora signs you out on its own, it worked."
+        "We can't check whether this went through without a connection. Try again once you're back online. If Ampora signs you out on its own, it worked."
       )
     } else {
       // A real, still-valid session came back: the account is still there.
@@ -412,7 +412,7 @@ export function DataSettings() {
 
       {/* About ---------------------------------------------------------------
           Quiet affordances (Phase 4 polish audit). No invented external
-          links — each opens a small honest in-app sheet. */}
+          links, each opens a small honest in-app sheet. */}
       <View className="mt-6">
         <SectionLabel>About</SectionLabel>
       </View>
@@ -481,7 +481,7 @@ export function DataSettings() {
         )}
       </Group>
       <SectionFootnote>
-        Device-only. Your Ampora account and cloud copy are untouched — sign
+        Device-only. Your Ampora account and cloud copy are untouched, sign
         back in to get everything back.
       </SectionFootnote>
 
@@ -505,7 +505,7 @@ export function DataSettings() {
         </SectionFootnote>
       </View>
 
-      {/* Erase-local-data confirmation — single confirm is proportionate here:
+      {/* Erase-local-data confirmation, single confirm is proportionate here:
           device-only and reversible by signing back in. */}
       <Modal
         visible={confirmDelete}
@@ -531,7 +531,7 @@ export function DataSettings() {
             <Text className="mt-2 text-body text-neutral-600 leading-6">
               This clears every task, project, schedule, and record stored on
               this device. Your Ampora account and cloud copy are not
-              affected — sign back in here or on any device to get it all
+              affected, sign back in here or on any device to get it all
               back.
             </Text>
             <View className="mt-6 gap-2.5">
@@ -554,7 +554,7 @@ export function DataSettings() {
         </Pressable>
       </Modal>
 
-      {/* Delete-account flow — PERMANENT, every device, unrecoverable, so it
+      {/* Delete-account flow, PERMANENT, every device, unrecoverable, so it
           gets a proportionately stronger gate than the erase-local modal
           above: an explanation with data export offered first, then a typed
           "DELETE" confirmation (not just a tap), then the attempt itself.
@@ -745,7 +745,7 @@ export function DataSettings() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Help / Legal info sheet — honest, static content; no external links. */}
+      {/* Help / Legal info sheet, honest, static content; no external links. */}
       <Modal
         visible={infoSheet != null}
         transparent
@@ -774,7 +774,7 @@ export function DataSettings() {
                   small first step for every task, and can lock your own apps
                   behind the work if you choose to turn that on. A panic valve is
                   always available if a lock ever feels like too much. Nothing
-                  here is medical advice — it's a planning tool.
+                  here is medical advice, it's a planning tool.
                 </Text>
               </>
             ) : (
@@ -788,7 +788,7 @@ export function DataSettings() {
                 <Text className="mt-2 text-body text-neutral-600 leading-6">
                   Your tasks and settings live on your device first and sync to
                   your account so you can pick up on another device. Full,
-                  published privacy and terms documents are being finalized —
+                  published privacy and terms documents are being finalized,
                   this notice will link to them once they're live.
                 </Text>
               </>

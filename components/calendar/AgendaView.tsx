@@ -94,8 +94,8 @@ type AgendaEntry =
  * AND CalEvents, sectioned by day (Today / Tomorrow / weekday, dates
  * ascending). Task rows show the block's time range, title, a deadline-slack
  * dot, and an "N steps" hint. Event rows are visually distinct by shape (a
- * dashed border + calendar glyph, matching `CalendarBlock`'s event treatment
- * — reused, not reinvented) and show "All day" instead of a time range for
+ * dashed border + calendar glyph, matching `CalendarBlock`'s event treatment,
+ * reused, not reinvented) and show "All day" instead of a time range for
  * all-day events. Within a day, all-day events sort first, then everything
  * else by start time. Built on FlashList for performance with a stagger-enter
  * on the first screenful. Reuses the visual language of
@@ -137,7 +137,7 @@ export function AgendaView({ date, onBlockPress, onEventPress, testID }: AgendaV
       if (event.end < floor) continue
       // An event already under way when the visible range starts (e.g. a
       // multi-day all-day span that began before `floor`) is grouped under
-      // the FIRST visible day instead of growing a stray past-day header —
+      // the FIRST visible day instead of growing a stray past-day header,
       // presentational only, mirrors `scheduleStore#selectEventsByDay`'s
       // per-day render clamp; the canonical event is untouched.
       const groupStart = Math.max(event.start, floor)
@@ -274,7 +274,7 @@ function AgendaRowCard({
         accessibilityLabel={a11yLabel}
         accessibilityHint="Opens details"
       >
-        {/* Slack dot — the deadline-pressure signal (color never the sole cue). */}
+        {/* Slack dot, the deadline-pressure signal (color never the sole cue). */}
         <View
           className={`w-2.5 h-2.5 rounded-full ${slackStyle.dot}`}
           accessibilityElementsHidden
@@ -308,7 +308,7 @@ function AgendaRowCard({
 }
 
 /**
- * A fixed CalEvent's row — same card shell as {@link AgendaRowCard} so the two
+ * A fixed CalEvent's row, same card shell as {@link AgendaRowCard} so the two
  * read as one list, but visually distinct by SHAPE (a dashed border + a
  * calendar glyph in place of the slack dot), never by hue alone, matching
  * `CalendarBlock`'s own event treatment (reused, not reinvented). All-day
@@ -349,7 +349,7 @@ function AgendaEventRow({
         accessibilityLabel={a11yLabel}
         accessibilityHint="Opens details"
       >
-        {/* Calendar glyph — the event's shape-based signal, standing in for
+        {/* Calendar glyph, the event's shape-based signal, standing in for
             the slack dot a task row carries. */}
         <Ionicons name="calendar-clear-outline" size={18} color={colors.light.textMuted} />
 

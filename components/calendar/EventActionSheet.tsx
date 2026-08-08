@@ -1,16 +1,16 @@
 /**
- * EventActionSheet — the fixed-Event counterpart to `BlockActionSheet`
+ * EventActionSheet, the fixed-Event counterpart to `BlockActionSheet`
  * (PRD FR-1, FR-28; `docs/01_PRD.md` §8.6 "Tap a block opens a bottom sheet
  * with Complete, Edit, Delete").
  *
  * Tapping an Event block on the calendar opens this. The two sources behave
  * very differently on purpose:
  *
- *   • `source: 'local'` — created inside Ampora, so it is fully ours: Edit
+ *   • `source: 'local'`, created inside Ampora, so it is fully ours: Edit
  *     (opens `AddEventModal` prefilled) and Delete are offered, matching the
  *     Task block sheet's bar (no confirmation dialog, a haptic is the only
- *     ceremony — see `BlockActionSheet`'s `handleDelete`).
- *   • Anything else (`google` / `apple` / `outlook`) — read from the device
+ *     ceremony, see `BlockActionSheet`'s `handleDelete`).
+ *   • Anything else (`google` / `apple` / `outlook`), read from the device
  *     calendar by `services/calendarSync.ts`, which never writes back
  *     (FR-22 puts write-back out of scope for launch). Pretending these are
  *     editable here would silently fail or, worse, diverge from the real
@@ -133,7 +133,7 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
                     </View>
                   ) : (
                     // Device-synced: clearly external, never pretending to be
-                    // ours (FR-22 — read-only, write-back out of scope).
+                    // ours (FR-22, read-only, write-back out of scope).
                     <View
                       className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3"
                       style={shadows.xs}
@@ -141,7 +141,7 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
                     >
                       <Ionicons name="link-outline" size={20} color="#6F6862" style={{ marginTop: 1 }} />
                       <Text className="flex-1 text-body text-neutral-600">
-                        Synced from {SOURCE_LABEL[event.source]}. Edit or delete it there — Ampora only reads it
+                        Synced from {SOURCE_LABEL[event.source]}. Edit or delete it there. Ampora only reads it
                         to keep this time free.
                       </Text>
                     </View>

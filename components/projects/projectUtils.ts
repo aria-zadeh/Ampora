@@ -1,14 +1,14 @@
 /**
  * Small pure helpers for the Projects UI (doc `06`). Kept out of components so
  * the derivation stays testable and consistent across ProjectCard / detail /
- * progress tracker. No I/O, no platform deps — web-safe.
+ * progress tracker. No I/O, no platform deps, web-safe.
  */
 
 import type { Ionicons } from "@expo/vector-icons";
 import type { ProjectKind } from "@/types";
 import { colors } from "@/utils/design-tokens";
 
-/** The project theme accent (doc `02` — Projects use the "special/premium" accent, reserved exclusively for Projects). */
+/** The project theme accent (doc `02`, Projects use the "special/premium" accent, reserved exclusively for Projects). */
 export const PROJECT_ACCENT = colors.light.accentStrong;
 export const PROJECT_ACCENT_LIGHT = colors.light.accentLight;
 
@@ -26,13 +26,13 @@ export function kindMeta(kind: ProjectKind): KindMeta {
       return {
         label: "Deliverable",
         icon: "document-text-outline",
-        blurb: "A paper or big assignment — tracked as ordered phases to a due date.",
+        blurb: "A paper or big assignment, tracked as ordered phases to a due date.",
       };
     case "study":
       return {
         label: "Study",
         icon: "school-outline",
-        blurb: "An exam or unit — tracked as a topic list, done one at a time.",
+        blurb: "An exam or unit, tracked as a topic list, done one at a time.",
       };
   }
 }

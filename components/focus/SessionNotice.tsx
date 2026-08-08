@@ -1,10 +1,10 @@
 /**
- * SessionNotice — a calm, one-line explanation card inside a focus session.
+ * SessionNotice, a calm, one-line explanation card inside a focus session.
  *
  * Used for the two moments the session has to be honest about the lock rather
  * than leave the user guessing: "you finished early but the hold is time" and
  * "the session is served, your apps are back". Neutral surface, never a colour
- * shout — the text carries the meaning, so status is never colour alone.
+ * shout, the text carries the meaning, so status is never colour alone.
  */
 
 import React from "react";

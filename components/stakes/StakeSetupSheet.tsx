@@ -1,11 +1,11 @@
 /**
- * StakeSetupSheet — Ampora Ignition, rebuilt onto the hold + trigger model
+ * StakeSetupSheet, Ampora Ignition, rebuilt onto the hold + trigger model
  * (PRD §8.8, doc `04` §2/§6/§7).
  *
  * A calm bottom sheet to "put something on the line" for a task. It walks
  * through exactly the questions PRD §8.8 specifies, in order:
  *   1. Toggle: `Put something on the line`.
- *   2. `Unlock when?` — `When this session ends` (hold='session', default) or
+ *   2. `Unlock when?`, `When this session ends` (hold='session', default) or
  *      `When it's done` (hold='until_done'), offered only when
  *      `isUntilDoneEligible(taskId)` says the task fits inside one session
  *      under the wellbeing cap. When it doesn't qualify, the option stays
@@ -21,7 +21,7 @@
  * THE BUG THIS FIXES: after the stakes-store rebuild, `startStake` correctly
  * refuses to arm when nothing has been selected, quiet hours are active, the
  * daily cap is spent, stakes are paused, a session is already active, or
- * `until_done` doesn't fit — but until now the sheet routed straight into the
+ * `until_done` doesn't fit, but until now the sheet routed straight into the
  * focus session regardless, so a refusal there was invisible (the session
  * just ran unlocked with no explanation). This sheet now runs the SAME gates
  * as a pre-flight, via `canStartStake()` plus the two checks it doesn't cover
@@ -29,14 +29,14 @@
  * BEFORE ever navigating away. No refusal is ever silent.
  *
  * Two arming paths, both handled here:
- *   - `trigger: 'manual'` — hands an `ArmedStake` to `onArm`, which the
+ *   - `trigger: 'manual'`, hands an `ArmedStake` to `onArm`, which the
  *     caller (app/task/[id].tsx) uses to route into the focus session; that
  *     screen calls `startStake(...)` on mount, now virtually guaranteed to
  *     succeed because the same gates were just checked here.
- *   - `trigger: 'scheduled'` — calls `stakesStore.scheduleStake(...)`
+ *   - `trigger: 'scheduled'`, calls `stakesStore.scheduleStake(...)`
  *     directly and stays on this screen (there is nothing to start now). If
  *     `scheduleStake` refuses (it is a deliberate stub today, pending the
- *     notification plumbing — see `store/stakesStore.ts`), that refusal is
+ *     notification plumbing, see `store/stakesStore.ts`), that refusal is
  *     shown here too, honestly, rather than pretending the schedule was set.
  *
  * Wellbeing stance (§9.10): warm, never shaming. Arming is fully reversible
@@ -73,7 +73,7 @@ import { SESSION_MIN_BOUNDS, DEFAULT_SESSION_MIN, clampTo } from "@/core/blockin
 import type { StakeSession, StakeSelection, Task } from "@/types";
 
 // ---------------------------------------------------------------------------
-// Armed-stake payload — what Confirm produces for the MANUAL path. The focus
+// Armed-stake payload, what Confirm produces for the MANUAL path. The focus
 // session consumes this and calls stakesStore.startStake(...) on mount (so
 // caps apply at lock time, not sheet-close time).
 // ---------------------------------------------------------------------------
@@ -94,7 +94,7 @@ const START_WINDOW_BOUNDS = { min: 5, max: 120 };
 const SESSION_STEP_MIN = 5;
 
 // ---------------------------------------------------------------------------
-// Copy — plain language for every refusal reason. No refusal is ever silent.
+// Copy, plain language for every refusal reason. No refusal is ever silent.
 // ---------------------------------------------------------------------------
 
 const REFUSAL_COPY: Record<StartStakeRefusal, string> = {
@@ -109,13 +109,13 @@ const REFUSAL_COPY: Record<StartStakeRefusal, string> = {
 
 /**
  * `scheduleStake` is fully implemented (it persists the row and posts the cue
- * notifications for real), so the old "not ready yet" stub fallback is gone —
+ * notifications for real), so the old "not ready yet" stub fallback is gone,
  * a scheduled arm now either succeeds or fails for one of the real
  * `StartStakeRefusal` reasons below.
  *
  * `quiet_hours` gets its own scheduled-specific wording: `scheduleStake`
  * checks quiet hours at the ARM MOMENT (`scheduledAt + startWindowMin`), not
- * at "now" — so "it's quiet hours right now" would be misleading for a stake
+ * at "now", so "it's quiet hours right now" would be misleading for a stake
  * armed hours or days out. `scheduledConflictMoment` is only passed when that
  * arm-moment check is actually what produced the refusal (see
  * `scheduledQuietHoursConflict` below); the rarer case where the generic
@@ -158,7 +158,7 @@ function nextOccurrenceMs(time: Date, fromMs: number): number {
   return next.getTime();
 }
 
-/** The instant a scheduled stake would actually arm — mirrors `scheduleStake`'s own `armAt` derivation exactly, so the refusal copy can name the true conflicting moment. */
+/** The instant a scheduled stake would actually arm, mirrors `scheduleStake`'s own `armAt` derivation exactly, so the refusal copy can name the true conflicting moment. */
 function computeArmMoment(scheduledAt: Date, startWindowOn: boolean, startWindowMin: number): Date {
   const base = nextOccurrenceMs(scheduledAt, Date.now());
   return new Date(startWindowOn ? base + startWindowMin * 60_000 : base);
@@ -217,7 +217,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
   const selectionCount = selection?.count ?? 0;
 
   // The instant a scheduled stake would actually arm, and whether THAT
-  // instant (not "now") is what's in quiet hours — only cheap to compute and
+  // instant (not "now") is what's in quiet hours, only cheap to compute and
   // only read while a refusal is visible, so no memoization needed.
   const scheduledArmMoment = scheduledOn ? computeArmMoment(scheduledAt, startWindowOn, startWindowMin) : null;
   const scheduledQuietHoursConflict =
@@ -281,7 +281,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
     }
 
     // `until_done` unlocks on image proof (doc `04` §4); a session hold
-    // unlocks on focus time served, which IS `focus_time` — not a user choice.
+    // unlocks on focus time served, which IS `focus_time`, not a user choice.
     const verificationValue: StakeSession["verification"] = hold === "until_done" ? verification : "focus_time";
 
     if (scheduledOn) {
@@ -599,7 +599,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                           </Pressable>
                         </View>
 
-                        {/* Strength framing — words, not a slider the user must reason about. */}
+                        {/* Strength framing, words, not a slider the user must reason about. */}
                         <View className="flex-row items-center gap-2 px-1">
                           <Badge label={strengthLabel} tone="primary" />
                           <Text className="flex-1 text-caption text-neutral-500">
@@ -610,7 +610,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                     )}
                   </ScrollView>
 
-                  {/* Non-silent refusal — always visible above the footer, never
+                  {/* Non-silent refusal, always visible above the footer, never
                       only shown after navigating away (that was the bug). */}
                   {refusal ? (
                     <View
@@ -624,7 +624,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
                     </View>
                   ) : null}
 
-                  {/* Footer — Confirm + cancel. */}
+                  {/* Footer, Confirm + cancel. */}
                   <View className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3" style={shadows.md}>
                     <Button
                       title={stakeOn ? (scheduledOn ? "Schedule this stake" : "Arm this stake") : "Continue without a lock"}
@@ -652,7 +652,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
         </Pressable>
       </Modal>
 
-      {/* Leisure-app picker — "choose what's on the line". Rendered as a sibling
+      {/* Leisure-app picker, "choose what's on the line". Rendered as a sibling
           modal so it layers above this sheet when opened. */}
       <AppPicker visible={appPickerOpen} onClose={() => setAppPickerOpen(false)} />
     </>
@@ -660,7 +660,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
 }
 
 // ---------------------------------------------------------------------------
-// Hold-option tile — replaces the deleted completion-condition tiles. Exactly
+// Hold-option tile, replaces the deleted completion-condition tiles. Exactly
 // two, mutually exclusive: `session` (always available) and `until_done`
 // (disabled, with a short honest reason, when the task doesn't qualify).
 // ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@ interface DotGridBackgroundProps {
 }
 
 /**
- * A subtle, static "dots on white" texture — the design-v2 depth layer. Renders
+ * A subtle, static "dots on white" texture, the design-v2 depth layer. Renders
  * an absolutely-positioned, non-interactive full-bleed SVG dot grid meant to sit
  * behind the app's surfaces. Static by design (no animation → no reduce-motion
  * handling needed) and cheap: a single tiled SVG pattern.

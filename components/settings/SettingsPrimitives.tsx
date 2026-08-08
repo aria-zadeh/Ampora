@@ -1,11 +1,11 @@
 /**
- * Shared settings presentation primitives — Phase 7 (PRD §8.11 full settings
+ * Shared settings presentation primitives, Phase 7 (PRD §8.11 full settings
  * surface). Extracted so SchedulingSettings / NotificationSettings /
  * DataSettings all render with one consistent, premium visual language
  * (grouped white cards, soft shadow, overline headers, -/+ steppers, inline
  * segmented pickers) instead of each re-inventing rows.
  *
- * Everything here is presentation only — no store access, no side effects.
+ * Everything here is presentation only, no store access, no side effects.
  * RN + NativeWind, web-export safe. Values come from the design tokens; no
  * hardcoded colors beyond the Ionicons `color` prop (which cannot take a class).
  */
@@ -102,7 +102,7 @@ export function Row({
 // ---------------------------------------------------------------------------
 
 /**
- * A -/+ stepper. Generic over the displayed unit — `format` turns the raw
+ * A -/+ stepper. Generic over the displayed unit, `format` turns the raw
  * numeric value into its label (e.g. minutes → "1h 30m", weeks → "4 weeks").
  * Clamps to [min, max]; fires selection haptic on a real change.
  */
@@ -231,7 +231,7 @@ export function InlineSegmented<T extends string>({
 
 /**
  * A track-and-thumb toggle switch matching the app's calm, springless
- * settings motion (eased withTiming, not a spring — a switch here is a
+ * settings motion (eased withTiming, not a spring, a switch here is a
  * settings commit, not a tactile drag control). Track tints primary-600 when
  * on, neutral-200 when off; thumb is always white. Reduce-motion collapses
  * the transition to an instant snap.

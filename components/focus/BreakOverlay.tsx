@@ -1,10 +1,10 @@
 /**
- * BreakOverlay — a break HOLDS the session clock (PRD FR-62, doc `04` §6).
+ * BreakOverlay, a break HOLDS the session clock (PRD FR-62, doc `04` §6).
  *
  * This is the single most important thing about it: a break is not a second
  * phase of the timer, it is a pause on the one bounded session. Break time must
  * never count toward a stake's hold, or "take a break" becomes a way to serve a
- * lock without doing anything — the exact leak the session model closes. The
+ * lock without doing anything, the exact leak the session model closes. The
  * parent holds the timer (`useForegroundTimer({ held })`) for as long as this is
  * visible, so nothing accrues while it is up. The copy says so plainly, because
  * a user who does not know that will assume the worst.

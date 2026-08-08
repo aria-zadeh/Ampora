@@ -19,21 +19,21 @@ import { ProgressDots } from "./ProgressDots";
 /**
  * Onboarding step 7, THE LAUNCH GATE (PRD §8.10, `01_PRD.md:43`): "pick stake
  * apps and run one short locked session on the first task". `01_PRD.md`
- * names this exact moment as the gate — "the first session reliably reaches
+ * names this exact moment as the gate, "the first session reliably reaches
  * 'I locked an app and started.'"
  *
  * Reuses the SAME components the rest of the app uses for this (`StakeSetup
- * Sheet`, `AppPicker` underneath it) rather than rebuilding stake setup —
+ * Sheet`, `AppPicker` underneath it) rather than rebuilding stake setup,
  * mirrors `app/task/[id].tsx`'s own "Start focus" / "Put something on the
  * line" -> `StakeSetupSheet` -> `/focus/session` wiring exactly, so this
  * screen and the rest of the app never diverge in how a stake arms.
  *
  * Screen Time permission is primed honestly and skippable (§8.10): today that
- * simply means `StakeSetupSheet`/`AppPicker` themselves — there is no native
+ * simply means `StakeSetupSheet`/`AppPicker` themselves, there is no native
  * permission prompt at all while `FEATURE_FLAGS.IGNITION_NATIVE` is off (the
  * picker already says so honestly in its own footer note). Every exit path
- * below (lock in, start without locking, skip entirely) completes onboarding
- * — FR-64 forbids blocking use behind any of this.
+ * below (lock in, start without locking, skip entirely) completes onboarding,
+ * FR-64 forbids blocking use behind any of this.
  */
 export default function AhaScreen() {
   const insets = useSafeAreaInsets();
@@ -49,14 +49,14 @@ export default function AhaScreen() {
 
   // If this screen is somehow revisited after onboarding already completed
   // (e.g. backing out of the focus session mid-stack), don't strand the user
-  // inside the onboarding flow — send them on to the real app.
+  // inside the onboarding flow, send them on to the real app.
   //
-  // MUST read the store IMPERATIVELY, once, on mount only — NOT react to
+  // MUST read the store IMPERATIVELY, once, on mount only, NOT react to
   // `onboardingComplete` via a live selector. Every exit path below
   // (`handleArmStake`, `handleStartWithoutLock`, `handleSkip`) flips
   // `onboardingComplete` to true THEN navigates away in the same handler; a
   // reactive effect watching that value would also fire at that exact
-  // moment, race the real navigation, and could win — silently swapping
+  // moment, race the real navigation, and could win, silently swapping
   // "go to the focus session" for "go to tabs" before the session ever
   // mounts to arm its stake (verified live: this raced and stripped the arm
   // every time before this guard was made mount-only).
@@ -97,7 +97,7 @@ export default function AhaScreen() {
   };
 
   // No task to lock against (e.g. onboarding step 6 was skipped, or the task
-  // vanished some other way) — never a blank screen (design system rule):
+  // vanished some other way), never a blank screen (design system rule):
   // icon + title + one line + one primary action back to where a task gets made.
   if (!task) {
     return (
@@ -157,7 +157,7 @@ export default function AhaScreen() {
             </Heading>
             <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[330px]">
               Pick the apps that usually pull you away. They&apos;ll go dark
-              while you work on this — and come back the moment you&apos;ve
+              while you work on this, and come back the moment you&apos;ve
               earned it.
             </Text>
           </Animated.View>

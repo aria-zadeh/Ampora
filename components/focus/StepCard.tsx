@@ -1,9 +1,9 @@
 /**
- * StepCard — the ONE current step, large (PRD FR-62, doc `03` Part 3.4).
+ * StepCard, the ONE current step, large (PRD FR-62, doc `03` Part 3.4).
  *
  * The session shows a single step at a time: the First move if it is still
  * open, otherwise the next unchecked subtask. The First move is the ON-RAMP,
- * never a gate — completing it reveals the next step and logs "started", and it
+ * never a gate, completing it reveals the next step and logs "started", and it
  * unlocks nothing (doc `04` §5). This card carries no unlock affordance at all,
  * by design.
  *
@@ -68,7 +68,7 @@ export function StepCard({ step, simplerText, celebrate = false, style }: StepCa
           </Heading>
           {simplerText && !noSteps && (
             <Text className="text-caption text-primary-600 mt-3">
-              Simplified — smaller and easier to just start.
+              Simplified, smaller and easier to just start.
             </Text>
           )}
         </View>

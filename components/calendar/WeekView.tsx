@@ -41,7 +41,7 @@ const WEEKDAY_LONG = [
 
 /**
  * When a day column is narrower than this many px, blocks render in "dense"
- * mode (colored bar + ~6 chars) — we pass `measuredWidth` to CalendarBlock so
+ * mode (colored bar + ~6 chars), we pass `measuredWidth` to CalendarBlock so
  * its §8.7 width threshold trips. Below the 56px dense threshold on purpose so
  * a 7-up phone layout is always dense-legible rather than clipped.
  */
@@ -62,7 +62,7 @@ export interface WeekViewProps {
   pxPerHour?: number
   /** Fired with the tapped block (opens the detail sheet). */
   onBlockPress?: (block: ScheduledBlock) => void
-  /** Fired with the tapped CalEvent — timed (in the grid) or all-day (in the strip). */
+  /** Fired with the tapped CalEvent, timed (in the grid) or all-day (in the strip). */
   onEventPress?: (event: CalEvent) => void
   testID?: string
 }
@@ -76,7 +76,7 @@ function startOfWeek(t: number): number {
 
 /**
  * A time-grid item ready to lay out: either a scheduled task block or a
- * TIMED (non-all-day) fixed event — mirrors `DayView.tsx`'s `GridItem`. All-day
+ * TIMED (non-all-day) fixed event, mirrors `DayView.tsx`'s `GridItem`. All-day
  * events never reach this union; they render in the {@link AllDayStrip} instead
  * (PRD §8.7 has no room for a midnight-to-midnight block in a dense week column).
  */
@@ -93,7 +93,7 @@ interface DayColumn {
  * WeekView (PRD FR-23, FR-25, §9.8): a compressed 7-day time grid. A fixed left
  * hour gutter plus seven narrow day columns sharing one vertical scroll. Blocks
  * are laid out per-day with the interval-graph overlap algorithm and rendered
- * small — CalendarBlock switches to its dense (bar + ~6 chars) treatment once a
+ * small, CalendarBlock switches to its dense (bar + ~6 chars) treatment once a
  * column measures under 56px, with tap opening the detail sheet (§8.7).
  *
  * Sticky weekday headers sit above the scroll; today's column is tinted and its
@@ -132,7 +132,7 @@ export function WeekView({
   const now = Date.now()
 
   // Bucket blocks + TIMED (non-all-day) events into the 7 days, running
-  // per-day overlap layout (§9.8, eventsFirst bias — matches DayView). Only
+  // per-day overlap layout (§9.8, eventsFirst bias, matches DayView). Only
   // blocks whose task still exists are rendered (stale-block guard, matches
   // UpcomingList). All-day events are handled separately below, in the strip.
   const days = useMemo<DayColumn[]>(() => {
@@ -152,7 +152,7 @@ export function WeekView({
     for (const event of calEvents) {
       if (event.allDay) continue // rendered in the all-day strip instead
       if (event.end <= weekStart || event.start >= weekEnd) continue
-      // An event can cross a day boundary — bucket it into EVERY day column it
+      // An event can cross a day boundary, bucket it into EVERY day column it
       // overlaps, clipped to that day for geometry only (mirrors
       // `scheduleStore#selectEventsByDay`'s per-day render clamp; the
       // canonical unclipped record is what `onEventPress` hands back).
@@ -184,7 +184,7 @@ export function WeekView({
   }, [blocks, calEvents, tasks, weekStart])
 
   // All-day events, bucketed the same cross-day way as timed events above but
-  // kept separate — a midnight-to-midnight block has nowhere sensible to sit
+  // kept separate, a midnight-to-midnight block has nowhere sensible to sit
   // in a per-minute time grid (§8.7 has no threshold for that), so these
   // render in a small strip above the grid instead (below).
   const allDayByDay = useMemo(() => {
@@ -226,7 +226,7 @@ export function WeekView({
         ))}
       </View>
 
-      {/* All-day strip — only takes space when the visible week actually has
+      {/* All-day strip, only takes space when the visible week actually has
           an all-day event (§8.7 has no time-grid slot for one). */}
       {stripHeight > 0 ? (
         <AllDayStrip
@@ -268,7 +268,7 @@ export function WeekView({
                   const isTask = item.kind === 'task'
                   const { top, height } = blockGeometry(item.start, item.end, day.dayStartMs, pxPerMin)
                   // Inner block width after the overlap fraction, minus a hair of
-                  // padding — this measured width drives CalendarBlock's dense mode.
+                  // padding, this measured width drives CalendarBlock's dense mode.
                   const measuredWidth = colWidth * laid.widthFraction - 4
                   return isTask ? (
                     <CalendarBlock
@@ -314,7 +314,7 @@ export function WeekView({
 
   return (
     <View className="flex-1 flex-row" testID={testID}>
-      {/* Fixed left hour gutter — outside the horizontal scroll so it stays put. */}
+      {/* Fixed left hour gutter, outside the horizontal scroll so it stays put. */}
       <View style={{ width: GUTTER_WIDTH }}>
         {/* Header spacer aligns the gutter with the day-header row + all-day strip. */}
         <View
@@ -349,7 +349,7 @@ export function WeekView({
 /**
  * The all-day strip: one column per day, each stacking up to
  * {@link ALLDAY_MAX_ROWS} compact event chips (colored bar + dashed border +
- * calendar glyph, via {@link CalendarBlock}'s own event treatment — reused,
+ * calendar glyph, via {@link CalendarBlock}'s own event treatment, reused,
  * not reinvented) with a "+N" overflow label, matching MonthView's dot
  * overflow pattern. Sits between the day-header row and the scrollable time
  * grid, inside the (possibly horizontally-scrolling) column group so it stays
@@ -444,7 +444,7 @@ function DayHeader({
 
 /**
  * The hour labels in the fixed gutter. Kept in its own vertical ScrollView that
- * is scroll-synced by the columns' scroll — but to avoid a second scroll view
+ * is scroll-synced by the columns' scroll, but to avoid a second scroll view
  * fighting the main one, we render the labels statically at the same offsets and
  * rely on the gutter being tall enough; the labels track because the gutter's
  * ScrollView shares the same content height and mounts scrolled to the same y.

@@ -1,5 +1,5 @@
 /**
- * BrainDumpSheet — "Brain dump" voice capture (PRD FR-4, §8.2; doc `03` §1.8
+ * BrainDumpSheet, "Brain dump" voice capture (PRD FR-4, §8.2; doc `03` §1.8
  * "Speak my own").
  *
  * The full pipeline, in order, matching FR-4 exactly:
@@ -11,15 +11,15 @@
  *    afterward.
  * 2. Parse: the finished transcript goes through `extractTasks` (splits a
  *    rambling paragraph into discrete tasks) and then EVERY extracted task's
- *    title goes through `parseQuickAdd` (dates, durations, priority, list —
+ *    title goes through `parseQuickAdd` (dates, durations, priority, list,
  *    same parser the typed quick-add field uses), so "read chapter 11
  *    tomorrow at 3, then outline the essay by friday high priority" comes
  *    back as two properly-dated, prioritized drafts.
- * 3. Preview is mandatory — nothing is written to the task store until the
+ * 3. Preview is mandatory, nothing is written to the task store until the
  *    user reviews this screen. Each row is a plain editable text field (the
  *    SAME text the parser reads), so editing a row live-updates its chips
  *    exactly like the main quick-add preview; a row can be dropped outright.
- * 4. Confirm creates one task per remaining row via `taskStore.createTask` —
+ * 4. Confirm creates one task per remaining row via `taskStore.createTask`,
  *    which is also where FR-5's Inbox-vs-schedulable default lives, so a
  *    voice-parsed task with both a duration and a due date schedules
  *    immediately, and one missing either lands safely in the Inbox.
@@ -27,7 +27,7 @@
  * Never a dead end: if voice capture isn't available (web without the
  * browser's Web Speech API, a device/OS without a usable recognizer, denied
  * permission, or any runtime error), this always leaves the user with a
- * "Type instead" path back to the typed quick-add field it was opened from —
+ * "Type instead" path back to the typed quick-add field it was opened from,
  * it never hard-fails the app.
  */
 
@@ -73,7 +73,7 @@ import type { List } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Local formatting helpers (mirrors app/(tabs)/tasks.tsx's quick-add preview,
-// which isn't exported from that screen — kept small and self-contained here).
+// which isn't exported from that screen, kept small and self-contained here).
 // ---------------------------------------------------------------------------
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -129,7 +129,7 @@ const PRIORITY_TONE: Record<number, "neutral" | "primary" | "warning" | "danger"
 
 interface DraftRow {
   key: string;
-  /** The editable raw text — same string `parseQuickAdd` reads, so editing live-updates the chips. */
+  /** The editable raw text, same string `parseQuickAdd` reads, so editing live-updates the chips. */
   text: string;
   /** `extractTasks`' own structured guess, used as a fallback under whatever `parseQuickAdd` finds in `text`. */
   seedDue?: number;
@@ -138,7 +138,7 @@ interface DraftRow {
   seedList?: string;
 }
 
-/** Single source of truth for a row's final fields — used for BOTH the preview chips and task creation. */
+/** Single source of truth for a row's final fields, used for BOTH the preview chips and task creation. */
 function resolveDraft(row: DraftRow, now: number) {
   const parsed = parseQuickAdd(row.text, now);
   return {
@@ -188,7 +188,7 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  // #list resolution — identical policy to the Tasks tab's own quick-add:
+  // #list resolution, identical policy to the Tasks tab's own quick-add:
   // match an existing list case-insensitively, otherwise create it.
   const resolveListId = useCallback(
     (name?: string): string | undefined => {
@@ -214,7 +214,7 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
     setMode("processing");
     // extractTasks (services/ai.ts) hits the ai-extract-tasks edge function
     // when a key is configured, and otherwise falls back to a local per-line
-    // quick-add parse — either way it never throws.
+    // quick-add parse, either way it never throws.
     const extracted = await extractTasks(transcript);
     const rows: DraftRow[] = extracted
       .filter((t) => t.title.trim().length > 0)
@@ -259,7 +259,7 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
     for (const row of drafts) {
       const resolved = resolveDraft(row, now);
       if (!resolved.title) continue;
-      // No explicit `autoSchedule` here on purpose — `taskStore.createTask`
+      // No explicit `autoSchedule` here on purpose, `taskStore.createTask`
       // (FR-5) decides it from whether both a duration AND a due date came
       // through: dated+timed voice tasks schedule immediately, bare ones
       // land in the Inbox, exactly like the typed quick-add path.
@@ -346,7 +346,7 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Unavailable panel — the graceful-degradation dead end that isn't one.
+// Unavailable panel, the graceful-degradation dead end that isn't one.
 // ---------------------------------------------------------------------------
 
 function UnavailablePanel({ onClose }: { onClose: () => void }) {
@@ -412,7 +412,7 @@ function RecordPanel({
       : status === "starting"
         ? "Starting…"
         : status === "recording"
-          ? "Recording — tap to stop"
+          ? "Recording, tap to stop"
           : status === "stopping"
             ? "Finishing up…"
             : emptyNotice
@@ -420,7 +420,7 @@ function RecordPanel({
               : "Tap the mic and say your tasks out loud.";
 
   // Cross-platform announcement of the recording state for screen-reader
-  // users (accessibilityLiveRegion is Android-only in RN) — state is ALSO
+  // users (accessibilityLiveRegion is Android-only in RN), state is ALSO
   // conveyed visually via the icon (mic <-> stop) and this same text, never
   // by color alone.
   useEffect(() => {
@@ -489,7 +489,7 @@ function RecordPanel({
 }
 
 // ---------------------------------------------------------------------------
-// Mic button — 88px target (well over the 44px minimum), icon+text convey
+// Mic button, 88px target (well over the 44px minimum), icon+text convey
 // state, color is supplementary only.
 // ---------------------------------------------------------------------------
 
@@ -561,7 +561,7 @@ function MicButton({
 }
 
 // ---------------------------------------------------------------------------
-// Level meter — purely decorative "it's alive" feedback so recording never
+// Level meter, purely decorative "it's alive" feedback so recording never
 // looks frozen; the real state is the text label above, not this.
 // ---------------------------------------------------------------------------
 
@@ -602,7 +602,7 @@ function LevelBar({
 }
 
 // ---------------------------------------------------------------------------
-// Preview panel — the mandatory review step. Nothing is created before this.
+// Preview panel, the mandatory review step. Nothing is created before this.
 // ---------------------------------------------------------------------------
 
 interface PreviewPanelProps {
@@ -632,7 +632,7 @@ function PreviewPanel({
         <Text className="text-body text-neutral-500">
           {drafts.length === 1
             ? "Here's what I heard. Edit or drop it, then add it."
-            : `Here's what I heard — split into ${drafts.length} tasks. Edit or drop any, then add them.`}
+            : `Here's what I heard, split into ${drafts.length} tasks. Edit or drop any, then add them.`}
         </Text>
       </View>
       <ScrollView

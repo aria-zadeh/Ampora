@@ -17,7 +17,7 @@ interface ProgressDotsProps {
 
 /**
  * Small step indicator for the onboarding flow (e.g. "step 2 of 5").
- * Local to onboarding — not a components/ui primitive since it is only
+ * Local to onboarding, not a components/ui primitive since it is only
  * meaningful in this linear flow. The active dot widens into a pill and
  * animates in/out of that state; respects reduce-motion (instant swap,
  * no width tween).

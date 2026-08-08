@@ -1,11 +1,11 @@
 /**
- * AddEventModal — create/edit a fixed local Event (PRD FR-1, FR-28; §8.6).
+ * AddEventModal, create/edit a fixed local Event (PRD FR-1, FR-28; §8.6).
  *
  * Reached from two places on the Calendar tab:
  *   - Long-press empty space on the time grid (`DayView`/`ThreeDayView` via
  *     `DayBlocksLayer`), prefilled with the pressed time snapped to the 5-min
  *     grid (FR-28).
- *   - The "Add event" toolbar button (`app/(tabs)/calendar.tsx`) — the
+ *   - The "Add event" toolbar button (`app/(tabs)/calendar.tsx`), the
  *     required non-gesture alternative, reachable regardless of which
  *     calendar view is active.
  *
@@ -13,7 +13,7 @@
  * passing `event`, which prefills every field from the real record.
  *
  * Presentational + store-agnostic, matching `BlockActionSheet`'s convention:
- * `onSave` is the only mutation callback — the caller decides whether it's a
+ * `onSave` is the only mutation callback, the caller decides whether it's a
  * create (`addLocalEvent`) or an edit (`updateLocalEvent`) based on whether
  * it passed `event` in the first place.
  */
@@ -67,7 +67,7 @@ export function AddEventModal({
   const [end, setEnd] = useState<Date>(() => new Date());
   const [allDay, setAllDay] = useState(false);
 
-  // Re-seed every time the sheet opens for a (possibly different) target —
+  // Re-seed every time the sheet opens for a (possibly different) target,
   // mirrors BlockActionSheet's own re-seed-on-open effect.
   useEffect(() => {
     if (!visible) return;
@@ -76,7 +76,7 @@ export function AddEventModal({
       setStart(new Date(event.start));
       // Stored end is EXCLUSIVE (the next local midnight after the event's
       // last active day, matching `services/calendarSync.ts`'s device-synced
-      // convention) — shift the DISPLAYED end back onto that last active day
+      // convention), shift the DISPLAYED end back onto that last active day
       // so the "Ends" picker shows it, not the day after (`allDayDisplayEnd`).
       setEnd(new Date(event.allDay ? allDayDisplayEnd(event.end) : event.end));
       setAllDay(!!event.allDay);
@@ -92,7 +92,7 @@ export function AddEventModal({
 
   const handleSave = () => {
     if (allDay) {
-      // Whole local days, exclusive-next-midnight end — matches
+      // Whole local days, exclusive-next-midnight end, matches
       // `services/calendarSync.ts#toCalEvent`'s device-synced convention (see
       // `allDaySpan`) so a local and a synced all-day event are shaped
       // identically downstream. Only the DATE portion of the pickers matters;
@@ -103,7 +103,7 @@ export function AddEventModal({
       return;
     }
     const s = start.getTime();
-    // Never trap the user behind a validation error — an end at/before start
+    // Never trap the user behind a validation error, an end at/before start
     // silently bumps forward instead (mirrors BlockActionSheet's own
     // `Math.max(now, draft)` defensive clamp on its custom-time path).
     const e = end.getTime() > s ? end.getTime() : s + 5 * MS_PER_MIN;
@@ -167,7 +167,7 @@ export function AddEventModal({
                     accessibilityLabel="Event title"
                   />
 
-                  {/* All day — collapses the time pickers below (an all-day
+                  {/* All day, collapses the time pickers below (an all-day
                       event has no meaningful clock time) and shapes the saved
                       span to whole local days on Save (see `allDaySpan`). */}
                   <View className="mb-4 flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3">

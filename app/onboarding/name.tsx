@@ -42,7 +42,7 @@ export default function NameScreen() {
         <View>
           <Animated.View entering={enter(0)} className="mb-6">
             {/* Dot index 2 of 7 (PRD §8.10): index 1 ("Sign in") already
-                happened via the auth gate before this stack ever mounted —
+                happened via the auth gate before this stack ever mounted,
                 see the numbering note in welcome.tsx. */}
             <ProgressDots total={7} current={2} />
           </Animated.View>
@@ -54,7 +54,7 @@ export default function NameScreen() {
               What should we call you?
             </Heading>
             <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[320px]">
-              Just a first name — we’ll use it to keep things personal.
+              Just a first name, we’ll use it to keep things personal.
             </Text>
           </Animated.View>
 

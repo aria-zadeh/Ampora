@@ -61,11 +61,11 @@ interface MissedRow {
 }
 
 /**
- * "Needs attention" — the calm missed-work surface on Home (FR-16, §8.6). Shows
+ * "Needs attention", the calm missed-work surface on Home (FR-16, §8.6). Shows
  * only when there are missed blocks (elapsed sessions whose task is still open,
  * marked `status: 'missed'` by the scheduler). Two inline, zero-shame actions
  * per item: Reschedule (re-place the remaining work) and Let it go (drop the
- * reminder). Tone is deliberately gentle — no counts thrown at the user, no
+ * reminder). Tone is deliberately gentle, no counts thrown at the user, no
  * "you missed X" copy.
  *
  * Renders nothing when the list is empty, so the caller can mount it
@@ -160,7 +160,7 @@ function MissedCard({
       style={shadows.sm}
     >
       <View className="flex-row items-start gap-3">
-        {/* Calm amber marker — a cue, not an alarm. Decorative, hidden from a11y. */}
+        {/* Calm amber marker, a cue, not an alarm. Decorative, hidden from a11y. */}
         <View
           className="mt-0.5 h-8 w-8 items-center justify-center rounded-full bg-warning-100"
           accessibilityElementsHidden
@@ -181,7 +181,7 @@ function MissedCard({
         </View>
       </View>
 
-      {/* Inline actions — Reschedule (primary) + Let it go (ghost). */}
+      {/* Inline actions, Reschedule (primary) + Let it go (ghost). */}
       <View className="mt-3 flex-row gap-2">
         <PressableScale
           onPress={onReschedule}

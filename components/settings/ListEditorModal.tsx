@@ -67,7 +67,7 @@ export interface ListEditorModalProps {
  * Compact list editor (FR-6 / FR-13): edit a list's name, color, and an
  * optional per-list scheduling-hours override. The override is a simple
  * weekday window (matching onboarding's model) with an explicit "Use my default
- * hours" toggle — a full seven-day editor lives in Busy times. Persists through
+ * hours" toggle, a full seven-day editor lives in Busy times. Persists through
  * `useListStore.updateList`. Token-driven, a11y-labelled, reduce-motion-safe
  * (the RN Modal's built-in slide honours OS reduce-motion).
  */
@@ -104,7 +104,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
 
   const summary = useMemo(() => {
     if (!hoursEnabled) return "Uses your default scheduling hours";
-    return `Weekdays · ${formatHour(startHour)}–${formatHour(endHour)}`;
+    return `Weekdays · ${formatHour(startHour)}-${formatHour(endHour)}`;
   }, [hoursEnabled, startHour, endHour]);
 
   const handleSave = () => {
@@ -225,7 +225,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
                 </Pressable>
               </View>
 
-              {/* Start / End steppers — only when custom hours are on. */}
+              {/* Start / End steppers, only when custom hours are on. */}
               {hoursEnabled ? (
                 <>
                   <View className="flex-row items-center py-3.5 border-b border-neutral-100">

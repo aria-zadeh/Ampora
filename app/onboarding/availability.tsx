@@ -40,7 +40,7 @@ const PRESETS: Preset[] = [
   {
     id: "afterSchool",
     label: "After school",
-    subtitle: "3:00pm – 9:00pm",
+    subtitle: "3:00pm - 9:00pm",
     icon: "school-outline",
     start: 15,
     end: 21,
@@ -48,7 +48,7 @@ const PRESETS: Preset[] = [
   {
     id: "evenings",
     label: "Evenings",
-    subtitle: "6:00pm – 10:00pm",
+    subtitle: "6:00pm - 10:00pm",
     icon: "moon-outline",
     start: 18,
     end: 22,
@@ -112,7 +112,7 @@ export default function AvailabilityScreen() {
       () => {},
     );
     useSettingsStore.getState().updateSettings({ schedulingHours });
-    // Scheduling hours is step 4 of 7 (PRD §8.10), not the last step —
+    // Scheduling hours is step 4 of 7 (PRD §8.10), not the last step,
     // Notifications, the guided First task, and the aha moment still follow.
     // `onboardingComplete` is set at the very end of that chain, not here.
     router.push("/onboarding/notifications");
@@ -147,7 +147,7 @@ export default function AvailabilityScreen() {
             When are you usually free to work?
           </Heading>
           <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[330px]">
-            Pick a typical weekday window. Ampora only plans tasks inside it —
+            Pick a typical weekday window. Ampora only plans tasks inside it,
             you can fine-tune any day later.
           </Text>
         </Animated.View>
@@ -171,7 +171,7 @@ export default function AvailabilityScreen() {
           })}
         </View>
 
-        {/* Custom stepper — only when Custom is chosen */}
+        {/* Custom stepper, only when Custom is chosen */}
         {selected === "custom" && (
           <Animated.View
             entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
@@ -240,7 +240,7 @@ interface PresetCardProps {
 
 /**
  * Selectable preset row. On selection the card springs with a quick scale
- * pulse (SPRINGS.tactile) while the tint/border cross-fades — the same
+ * pulse (SPRINGS.tactile) while the tint/border cross-fades, the same
  * "selected state springs" pattern used on the energy screen. Reduce-motion
  * drops the pulse but keeps the color swap.
  */

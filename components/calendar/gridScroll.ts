@@ -38,7 +38,7 @@ export interface GridScrollController {
   /**
    * Max scroll offset in px (`contentHeight - viewportHeight`, floored at 0).
    * Kept in sync via the ScrollView's `onContentSizeChange` + the viewport's
-   * `onLayout`. Autoscroll MUST clamp against this — a native ScrollView
+   * `onLayout`. Autoscroll MUST clamp against this, a native ScrollView
    * silently clamps `scrollTo` at the real content end, so scrolling "past"
    * it without this check would inflate `scrollAccum` by px that never
    * actually moved on screen, corrupting the day-space delta used for the
@@ -51,7 +51,7 @@ export interface GridScrollController {
  * Owns the pieces above so a grid component can wire them into its
  * `ScrollView` (`ref`, `scrollEnabled`, `onScroll`, `onContentSizeChange`) and
  * pass the resulting controller down to its block layer. `scrollEnabled` is
- * plain React state (it only flips twice per drag — arm and release — so
+ * plain React state (it only flips twice per drag, arm and release, so
  * it's cheap), while the live offset / content height / viewport are refs
  * updated without a re-render.
  */
@@ -68,7 +68,7 @@ export function useGridScrollController(): {
   const scrollYRef = useRef(0)
   const viewportRef = useRef<ViewportBounds | null>(null)
   // Sentinel so autoscroll is PERMISSIVE (never wrongly blocked) until both
-  // the content height and the viewport have reported at least once — an
+  // the content height and the viewport have reported at least once, an
   // under-populated `0` here would otherwise clamp downward autoscroll to
   // zero before either measurement has arrived.
   const maxScrollRef = useRef(Number.POSITIVE_INFINITY)
@@ -111,7 +111,7 @@ export const AUTOSCROLL = {
   EDGE_ZONE_PX: 60,
   /** Max scroll speed (px per tick) at the very edge (0 distance). */
   MAX_SPEED_PX: 14,
-  /** Interval (ms) between autoscroll ticks — throttled well under 60fps budget. */
+  /** Interval (ms) between autoscroll ticks, throttled well under 60fps budget. */
   TICK_MS: 50,
 } as const
 

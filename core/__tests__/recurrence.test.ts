@@ -473,7 +473,14 @@ describe('recurrence: MAX_STEPS / MAX_OCCURRENCES guards', () => {
 // ---------------------------------------------------------------------------
 
 describe('recurrence: nextOccurrenceOnOrAfter', () => {
-  const anchor = localMs(2026, 0, 1, 9, 0)
+  // The file's beforeAll TZ pin has not run yet while this describe body is
+  // collected, so the anchor must be built inside a hook, not at describe
+  // level. A collection-time anchor silently uses the runner's own timezone
+  // (caught failing on a UTC runner).
+  let anchor: number
+  beforeAll(() => {
+    anchor = localMs(2026, 0, 1, 9, 0)
+  })
   const rule: RecurrenceRule = { freq: 'daily', interval: 1 }
 
   it('is inclusive: minInstant exactly equal to an occurrence returns that occurrence', () => {

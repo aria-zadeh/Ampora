@@ -35,12 +35,12 @@ const DAYS = 3
  * into an adjacent one) is DELIBERATELY NOT implemented yet. Each day column
  * here is its own `DayColumnBlocks` -> `DayBlocksLayer`, clipped to that
  * column's own box (RN Views clip their children by default, and there is no
- * "escape into a sibling's paint area" primitive) — so a block dragged past
+ * "escape into a sibling's paint area" primitive), so a block dragged past
  * its own column's edge would be invisibly clipped mid-drag, the opposite of
  * this round's "show feedback while dragging" goal. Doing this properly needs
  * ONE shared absolute canvas spanning all 3 days (not 3 independent per-day
  * layers) so a lifted block can visually cross a column boundary, which is a
- * real layout change to this view, not a wiring change — left for a follow-up
+ * real layout change to this view, not a wiring change, left for a follow-up
  * round rather than shipped half-working. Vertical (in-column) drag, resize,
  * the time pill, snap haptics, spring-drop, and edge-autoscroll all work
  * fully here today via the same {@link DayBlocksLayer} DayView uses.
@@ -156,7 +156,7 @@ function NowLine({
  * three day columns side by side, each rendering that day's ScheduledBlocks
  * (and any CalEvents) with overlap columns (§9.8), deadline-slack coloring, and
  * the same interactions as {@link DayView}: 60fps long-press-drag-to-reschedule
- * (FR-28, taps still open the task — a drag never does), top/bottom edge-drag to
+ * (FR-28, taps still open the task, a drag never does), top/bottom edge-drag to
  * resize (5-min snap), and a "…" action sheet (postpone / lock / open / complete
  * / delete). All of this comes free from the shared {@link DayBlocksLayer}.
  *
@@ -180,7 +180,7 @@ export function ThreeDayView({
   const scrollRef = scrollController.scrollRef
   // Same viewport-measurement pattern as TimeGrid (fix #4 edge-autoscroll needs
   // window-space bounds; a plain View ref is cleanly typed for `measureInWindow`,
-  // the ScrollView instance itself is not — see TimeGrid.tsx for the full note).
+  // the ScrollView instance itself is not, see TimeGrid.tsx for the full note).
   const viewportWrapRef = React.useRef<View>(null)
   const pxPerMin = pxPerMinFromHour(pxPerHour)
   const totalHeight = HOURS_IN_DAY * pxPerHour
@@ -203,11 +203,11 @@ export function ThreeDayView({
   // shared by every DayColumnBlocks below, already skips `allDay` events for
   // exactly that reason). Needs its own top-level subscription (unlike each
   // DayColumnBlocks' per-day `selectEventsByDay`) because a multi-day
-  // all-day event must be bucketed across all 3 visible days at once —
+  // all-day event must be bucketed across all 3 visible days at once,
   // mirrors WeekView's own top-level `selectAllCalEvents` + bucketing.
   const calEvents = useScheduleStore(useShallow(selectAllCalEvents))
 
-  // This sheet pair is scoped to the strip ONLY — separate from each
+  // This sheet pair is scoped to the strip ONLY, separate from each
   // DayBlocksLayer instance's own internal sheetTarget / eventSheetTarget /
   // eventModal state (one per day column), which is untouched, so nothing
   // here can regress the grid's existing gesture/sheet wiring.
@@ -250,7 +250,7 @@ export function ThreeDayView({
       {/* All-day strip: a plain sibling ABOVE the scrolling grid, not a child
           of it, so it can never intercept the grid's long-press-create /
           drag / resize gestures. Present only when one of the 3 visible days
-          actually has an all-day event — otherwise renders nothing. */}
+          actually has an all-day event, otherwise renders nothing. */}
       <AllDayStripRow
         dayStarts={dayStarts}
         events={calEvents}

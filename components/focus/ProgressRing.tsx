@@ -20,12 +20,12 @@ interface ProgressRingProps {
   /** Ring stroke width in px. @default 6 */
   strokeWidth?: number;
   /**
-   * Filled-arc color. @default primary "#2563EB" — when the resolved color
+   * Filled-arc color. @default primary "#2563EB", when the resolved color
    * is exactly `colors.light.primary` (the default, or an explicit pass),
    * the ring renders as a same-hue tonal gradient sweep (`colorDeep` at the
    * start to `color` further round) instead of a flat stroke. Any other
    * color (e.g. the paused-state `colors.light.border` gray) renders flat,
-   * unchanged — a non-primary color has no "deep" pairing to assume.
+   * unchanged, a non-primary color has no "deep" pairing to assume.
    */
   color?: string;
   /**
@@ -41,14 +41,14 @@ interface ProgressRingProps {
 }
 
 /**
- * Ambient circular progress ring — the Focus session's signature motion beat.
+ * Ambient circular progress ring, the Focus session's signature motion beat.
  * A quiet ring traces around the timer digits and fills clockwise as the
  * current phase (work/break) elapses; a plain SVG circle underneath is the
  * track. Driven by a single Reanimated shared value on `strokeDashoffset`, so
  * it stays smooth without re-rendering React on every tick.
  *
  * The filled arc is a single-hue tonal gradient (deep `#1D4ED8` to primary
- * `#2563EB`) rather than a flat stroke — replacing what would otherwise be
+ * `#2563EB`) rather than a flat stroke, replacing what would otherwise be
  * the generic move here (a multi-hue decorative gradient unrelated to the
  * rest of the palette). One hue family, functional (it traces elapsed time),
  * never a second accent. See `color`/`colorDeep` above for exactly when the
@@ -56,11 +56,11 @@ interface ProgressRingProps {
  *
  * `children` renders centered inside the ring (the timer digits) via absolute
  * positioning, so this component owns layout for both the ring and its
- * content — callers just pass size + progress.
+ * content, callers just pass size + progress.
  *
  * Reduce-motion: skips the animated tween and jumps straight to the target
  * value (still shows real progress, just without the smoothing animation).
- * Decorative only — never the sole carrier of state (the digits underneath
+ * Decorative only, never the sole carrier of state (the digits underneath
  * remain the source of truth), so it is hidden from the accessibility tree.
  */
 export function ProgressRing({
@@ -77,7 +77,7 @@ export function ProgressRing({
 
   // Resolve the tonal pair. `colorDeep` only defaults to the deep blue when
   // `color` itself resolves to primary blue (the default, or an explicit
-  // pass) — any other explicit `color` (the paused gray, or a future custom
+  // pass), any other explicit `color` (the paused gray, or a future custom
   // color) stays a flat stroke instead of pairing an unrelated hue with
   // primaryDark. An explicit `colorDeep` always wins, for a deliberate
   // custom tonal pair.
@@ -113,7 +113,7 @@ export function ProgressRing({
         {showGradient && (
           <Defs>
             {/* Same-hue tonal sweep: deep at the ring's start, primary further
-                round — not a second accent, not a multi-hue decorative
+                round, not a second accent, not a multi-hue decorative
                 gradient, just elapsed time on the one accent color. */}
             <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
               <Stop offset="0" stopColor={resolvedDeep} />
@@ -121,7 +121,7 @@ export function ProgressRing({
             </LinearGradient>
           </Defs>
         )}
-        {/* Track — the full unfilled ring. */}
+        {/* Track, the full unfilled ring. */}
         <Circle
           cx={size / 2}
           cy={size / 2}
@@ -130,7 +130,7 @@ export function ProgressRing({
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Fill — rotated -90deg so it starts at 12 o'clock and sweeps clockwise. */}
+        {/* Fill, rotated -90deg so it starts at 12 o'clock and sweeps clockwise. */}
         <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
@@ -146,7 +146,7 @@ export function ProgressRing({
         />
       </Svg>
 
-      {/* Centered content (timer digits) — absolute so it doesn't affect the
+      {/* Centered content (timer digits), absolute so it doesn't affect the
           SVG's own layout box. */}
       {children != null && (
         <View

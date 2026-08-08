@@ -4,7 +4,7 @@
  * `UnschedulableFixSheet` already wires four remedies (relax scheduling
  * hours, extend deadline, make splittable, mark done) straight from the
  * engine's `Unschedulable.kind` (`core/scheduler/types.ts`). That enum has no
- * dedicated "blocked by an event" kind — a blocking CalEvent is just folded
+ * dedicated "blocked by an event" kind, a blocking CalEvent is just folded
  * into ordinary free-time subtraction (PRD §9.5.1), so it surfaces as a plain
  * `no_free_time` / `no_free_time_undated` / `partially_placed` reason like any
  * other capacity shortfall. This module is what tells THOSE three kinds apart
@@ -18,7 +18,7 @@
  *
  * NOT a scheduler re-implementation. `taskPlacementWindow` approximates
  * `core/scheduler/placement.ts#candidateSlots`'s [lo, hi) bounds using only
- * what a task carries on its own (`startAfter`, `due`) — it does not resolve
+ * what a task carries on its own (`startAfter`, `due`), it does not resolve
  * dependency-finish times or intersect real scheduling-hours/other busy time,
  * both of which need the full engine run this sheet does not have access to.
  * That is an intentional, honest approximation: exactly like the sheet's other
@@ -32,7 +32,7 @@ import { DEFAULT_CUTOFF_DAYS } from '@/core/scheduler'
 
 const MS_PER_DAY = 86_400_000
 
-/** The task's own rough placement window — see the file header's honesty note. */
+/** The task's own rough placement window, see the file header's honesty note. */
 export interface TaskPlacementWindow {
   /** Epoch ms, inclusive lower bound. */
   lo: number
@@ -52,7 +52,7 @@ export function taskPlacementWindow(task: Task, now: number): TaskPlacementWindo
  * start, then by id, so the result is deterministic). Returns undefined when
  * no all-day event overlaps at all.
  *
- * Scoped to `allDay` events on purpose — FR-20 names this remedy "remove a
+ * Scoped to `allDay` events on purpose, FR-20 names this remedy "remove a
  * blocking ALL-DAY event" specifically. A timed event's partial-day nibble is
  * already addressable via the sheet's existing "relax scheduling hours" /
  * "extend deadline" / "split into sessions" fixes.
@@ -95,7 +95,7 @@ export interface BlockingEventFix {
   /**
    * When set, applying this patch to the event (via `scheduleStore.updateLocalEvent`)
    * clears its ENTIRE overlap with the task's placement window by trimming a
-   * single edge — the "less damaging option" than deleting outright, since the
+   * single edge, the "less damaging option" than deleting outright, since the
    * rest of a multi-day event survives. Undefined when no single-edge trim can
    * fully clear the window: either the event covers the window on both sides
    * (trimming one edge would still leave the other side blocked) or the event
@@ -122,16 +122,16 @@ export function resolveBlockingEventFix(task: Task, event: CalEvent, now: number
 
   let shortenPatch: { start?: number; end?: number } | undefined
   if (startsBeforeWindow && !endsAfterWindow) {
-    // Event's tail is what overlaps [lo, hi) — trim its end back to lo. The
+    // Event's tail is what overlaps [lo, hi), trim its end back to lo. The
     // head [event.start, lo) is untouched, so the rest of the event survives.
     shortenPatch = { end: lo }
   } else if (!startsBeforeWindow && endsAfterWindow) {
-    // Event's head is what overlaps [lo, hi) — trim its start up to hi. The
+    // Event's head is what overlaps [lo, hi), trim its start up to hi. The
     // tail [hi, event.end) survives.
     shortenPatch = { start: hi }
   }
   // else: the event covers the window on both sides, or sits entirely inside
-  // it — no single-edge trim clears the whole overlap, so shortenPatch stays
+  // it, no single-edge trim clears the whole overlap, so shortenPatch stays
   // undefined and only Delete is offered.
 
   return { event, editable, shortenPatch }

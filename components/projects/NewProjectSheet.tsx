@@ -1,5 +1,5 @@
 /**
- * NewProjectSheet — the create-project bottom sheet (doc `06` §3: kind is chosen
+ * NewProjectSheet, the create-project bottom sheet (doc `06` §3: kind is chosen
  * at creation and shapes progress + next-session generation). Title (required),
  * a kind chooser (deliverable / study, each with a one-line blurb), and an
  * optional one-paragraph context line (doc `06` §2). Uses the design system's
@@ -100,7 +100,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
 
           <Heading size="h3">New project</Heading>
           <Text className="text-body text-neutral-500 mt-1 mb-5">
-            Bigger than a task — Ampora tracks it and hands you each next session.
+            Bigger than a task, Ampora tracks it and hands you each next session.
           </Text>
 
           {/* Title */}
@@ -183,7 +183,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
               multiline
               textAlignVertical="top"
               accessibilityLabel="Project context"
-              accessibilityHint="One paragraph, optional — the specifics a session needs to know"
+              accessibilityHint="One paragraph, optional, the specifics a session needs to know"
             />
           </View>
 

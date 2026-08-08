@@ -1,17 +1,17 @@
 /**
- * NotificationSettings — §8.11 notification cadence (Phase 7, PRD FR-63 / FR-65).
+ * NotificationSettings, §8.11 notification cadence (Phase 7, PRD FR-63 / FR-65).
  *
  * Exposes:
  * - A ONE-TIME calm nudge when OS/browser notification permission is denied
- *   (audit GAP). Shown until dismissed, then never again — reads
+ *   (audit GAP). Shown until dismissed, then never again, reads
  *   `Settings.notificationNudgeDismissed` so it never nags (PRD §8.9).
- * - Reminder types — per-kind toggles for the three proactive nudges
+ * - Reminder types, per-kind toggles for the three proactive nudges
  *   (`Settings.reminderKinds`, audit GAP). "Completion celebrate" isn't
  *   listed: it's a direct response to finishing a task, not a proactive
  *   nudge, so there's nothing to opt out of.
- * - Max notifications per hour — the rate-limit ceiling the notification
+ * - Max notifications per hour, the rate-limit ceiling the notification
  *   scheduler respects (`Settings.maxNotificationsPerHour`, FR-63).
- * - Quiet hours summary — read-only preview of the window where reminders (and
+ * - Quiet hours summary, read-only preview of the window where reminders (and
  *   stakes) rest; editing quiet hours lives with Stakes / Busy times, so this is
  *   a summary only to avoid two sources of truth.
  *
@@ -53,7 +53,7 @@ function formatRate(perHour: number): string {
 /**
  * One-time calm nudge shown only while permission reads 'denied' AND the user
  * hasn't already dismissed it. Never re-appears after Dismiss, even if
- * permission is still denied on a later visit — the whole point is to ask
+ * permission is still denied on a later visit, the whole point is to ask
  * once, not nag (PRD §8.9).
  */
 function PermissionNudge() {
@@ -84,7 +84,7 @@ function PermissionNudge() {
     if (Platform.OS !== 'web') {
       Linking.openSettings().catch(() => {})
     }
-    // Opening Settings isn't a promise the user turned it on — leave the card
+    // Opening Settings isn't a promise the user turned it on, leave the card
     // dismissable rather than assuming success, so the user drives the close.
   }
 
@@ -144,7 +144,7 @@ export function NotificationSettings() {
   const updateSettings = useSettingsStore((s) => s.updateSettings)
 
   const quietLabel = useMemo(
-    () => `${formatClock(quietHours.start)} – ${formatClock(quietHours.end)}`,
+    () => `${formatClock(quietHours.start)} - ${formatClock(quietHours.end)}`,
     [quietHours.start, quietHours.end]
   )
 

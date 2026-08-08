@@ -1,5 +1,5 @@
 /**
- * RecoveryBanner — the calm "you're behind, want a hand?" banner (PRD FR-60,
+ * RecoveryBanner, the calm "you're behind, want a hand?" banner (PRD FR-60,
  * §8.6). Ampora Phase 6.
  *
  * Shown on Home / Calendar when a lapse has been detected (2+ days of missed
@@ -9,7 +9,7 @@
  * quiet dismiss.
  *
  * Wellbeing stance (FR-60): ZERO shame. We state a neutral fact (unfinished
- * blocks) and offer help. No streaks, no "you missed", no red alarm styling —
+ * blocks) and offer help. No streaks, no "you missed", no red alarm styling,
  * this uses the calm primary tint, not the danger ramp.
  *
  * Self-contained: it reads the recovery flag + missed-block count and owns the
@@ -44,7 +44,7 @@ export function RecoveryBanner() {
 
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  // Nothing to show — render null so the banner takes zero space when on track.
+  // Nothing to show, render null so the banner takes zero space when on track.
   if (!show || missedCount === 0) return null
 
   return (
@@ -74,7 +74,7 @@ export function RecoveryBanner() {
             </Text>
           </View>
 
-          {/* Quiet dismiss — always available, never demands engagement. */}
+          {/* Quiet dismiss, always available, never demands engagement. */}
           <Pressable
             onPress={dismissBanner}
             hitSlop={10}

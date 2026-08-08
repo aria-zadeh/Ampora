@@ -1,7 +1,7 @@
 /**
- * PanicValveSheet — Ampora Phase 5 Ignition (FR-42, PRD §9.10).
+ * PanicValveSheet, Ampora Phase 5 Ignition (FR-42, PRD §9.10).
  *
- * The always-available "unlock early" escape hatch. It is NOT a wall — it is a
+ * The always-available "unlock early" escape hatch. It is NOT a wall, it is a
  * calm, 60-second breath. The delay is the ONLY friction (a moment to let the
  * impulse pass), never a punishment or a shame screen. Two paths, both kind:
  *   - "Back to task": dismiss and stay focused (the gently encouraged choice).
@@ -60,7 +60,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
   // so a raw `onReleased` dependency changes identity on every parent render.
   // The focus screen re-renders once a second (`useForegroundTimer` advances
   // `elapsedSec`), which tore down and re-armed this 1000ms interval on the
-  // same 1s cadence — racing the countdown against its own cleanup so it
+  // same 1s cadence, racing the countdown against its own cleanup so it
   // stalled instead of reaching 0, and `panicValve()` never fired. A panic
   // valve that does not release is the one failure FR-42/NFR-7 forbid.
   // Same ref pattern `useForegroundTimer` already uses for its callbacks.
@@ -135,7 +135,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                 </View>
 
                 <View className="items-center px-6 pt-6">
-                  {/* Calm icon — a breath, not an alarm. */}
+                  {/* Calm icon, a breath, not an alarm. */}
                   <View className="h-16 w-16 items-center justify-center rounded-full bg-primary-100">
                     <Ionicons name="leaf-outline" size={30} color={colors.light.primary} />
                   </View>
@@ -145,7 +145,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                   </Heading>
                   <Text className="mt-2 text-center text-body text-neutral-600 leading-6">
                     {done
-                      ? "No guilt — you can pick the task back up whenever you're ready."
+                      ? "No guilt, you can pick the task back up whenever you're ready."
                       : "Locked apps come back in 60 seconds. Take a breath, or head back to your task."}
                   </Text>
 
@@ -184,7 +184,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                     />
                   ) : (
                     <>
-                      {/* Encouraged path, front and center — no shame if unused. */}
+                      {/* Encouraged path, front and center, no shame if unused. */}
                       <Button
                         title="Back to task"
                         variant="primaryBlue"
@@ -194,7 +194,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                         accessibilityLabel="Cancel the unlock and go back to your task"
                       />
                       <Text className="pb-1 text-center text-caption text-neutral-500">
-                        Or just wait — the apps unlock on their own.
+                        Or just wait, the apps unlock on their own.
                       </Text>
                     </>
                   )}

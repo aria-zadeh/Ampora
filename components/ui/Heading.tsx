@@ -4,7 +4,7 @@ import { Text, type TextProps } from "react-native";
 type HeadingSize = "display" | "h1" | "h2" | "h3" | "h4";
 
 interface HeadingProps extends TextProps {
-  /** Semantic size — maps to the Ampora type scale. @default "h3" */
+  /** Semantic size, maps to the Ampora type scale. @default "h3" */
   size?: HeadingSize;
   /** Extra classes; appended last so they override the size defaults. */
   className?: string;
@@ -23,7 +23,7 @@ const sizeClasses: Record<HeadingSize, string> = {
 };
 
 /**
- * Heading primitive — the ONLY way to render screen/section titles so
+ * Heading primitive, the ONLY way to render screen/section titles so
  * tracking + weight stay consistent. Defaults to neutral-900; pass a
  * `text-*` class via `className` to override the color.
  *
