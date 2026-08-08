@@ -138,13 +138,21 @@ export const supabase: SupabaseClient = createClient(
  * Returns `{ error }` — null error means the email was dispatched.
  */
 export async function signInWithMagicLink(email: string): Promise<{ error: Error | null }> {
-  // On web, redirect back to the current origin so the magic link always lands
-  // on whatever deployment is active (local dev, preview, or production Vercel).
-  // Without this, Supabase falls back to the project's hard-coded "Site URL".
+  // Always send an explicit redirect, per platform. Both branches must also be
+  // present in the project's Redirect URLs allow list, or Supabase silently
+  // ignores what we send and falls back to the hard-coded "Site URL" instead.
+  //
+  // On web: the current origin, so the link lands on whatever deployment is
+  // actually running (local dev, preview, or production).
+  //
+  // On native: the app's own deep link. This used to be `undefined`, which left
+  // the phone case entirely dependent on Site URL happening to be a deep link.
+  // It was not (it was `http://localhost:3000`), so every magic link opened a
+  // dead page. Deriving it here makes native correct regardless of Site URL.
   const emailRedirectTo =
     Platform.OS === "web" && typeof window !== "undefined"
       ? window.location.origin
-      : undefined;
+      : Linking.createURL("auth/callback");
 
   const { error } = await supabase.auth.signInWithOtp({
     email,
