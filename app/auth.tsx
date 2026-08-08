@@ -275,14 +275,16 @@ export default function AuthScreen() {
             </Pressable>
 
             {/*
-              Dev-only escape hatch. Stripped from production builds:
-              FEATURE_FLAGS.DEV_BYPASS_AUTH is `__DEV__`, a compile-time
-              constant, so this whole branch is dead code Metro drops. It
-              fabricates no session (see store/devAuthStore.ts) — it only stops
-              the routing gate in app/_layout.tsx from bouncing back here, so
-              the app runs pure local-first with no cloud sync. Exists because
-              Google sign-in and the magic link both depend on remote setup
-              that is not finished, which otherwise makes the app unopenable.
+              Sign-in escape hatch. Shown on every local dev run and, since
+              2026-08-07, on the deployed web preview too, which sets
+              EXPO_PUBLIC_DEV_AUTH_BYPASS=1 in vercel.json at Aria's explicit
+              request. Both inputs are compile-time constants, so where the flag
+              is false this whole branch is dead code Metro drops.
+
+              It fabricates no session (see store/devAuthStore.ts) — it only
+              stops the routing gate in app/_layout.tsx from bouncing back here,
+              so the app runs pure local-first with no cloud sync and reaches
+              nobody's account. Read constants/featureFlags.ts before shipping.
             */}
             {FEATURE_FLAGS.DEV_BYPASS_AUTH && (
               <Pressable

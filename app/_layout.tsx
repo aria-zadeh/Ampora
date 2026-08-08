@@ -152,12 +152,15 @@ export default function RootLayout() {
   // untouched. FR-87: an account is required, no anonymous local-only mode —
   // in any shipped build `authUser === null` always routes to `/auth`.
   //
-  // `devAuthBypassed` is the single exception and it exists only on dev
-  // machines: `store/devAuthStore.ts` gates itself on `__DEV__`, so it is
-  // always false in a production build even if a `true` was persisted while
-  // developing. It fabricates no session, so the sync effect below (gated on a
+  // `devAuthBypassed` is the single exception. It is on for every local dev run
+  // and, since 2026-08-07, also wherever `EXPO_PUBLIC_DEV_AUTH_BYPASS=1` is set
+  // at build time, which `vercel.json` does for the deployed web preview. So it
+  // is NOT automatically off in a production build any more, see
+  // `constants/featureFlags.ts` for what to remove before shipping.
+  //
+  // It fabricates no session either way, so the sync effect below (gated on a
   // real `authUser`) still never runs while bypassed, and every cloud call
-  // independently no-ops without a signed-in user. See that file for why.
+  // independently no-ops without a signed-in user.
   useEffect(() => {
     if (authLoading || !ready) return;
     if (authUser === null && !devAuthBypassed) {

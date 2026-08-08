@@ -1,12 +1,16 @@
 /**
  * Dev-only sign-in bypass.
  *
- * Ampora requires a real account and has no anonymous mode (FR-87). That rule
- * is a PRODUCT rule about shipped builds, and this store does not weaken it:
- * every read is gated on `FEATURE_FLAGS.DEV_BYPASS_AUTH`, which is `__DEV__`,
- * so in any production build `isBypassed()` returns false no matter what is in
- * storage. A persisted `true` written on a dev machine cannot leak into a
- * release build, and the auth screen's dev button is not rendered there either.
+ * Ampora requires a real account and has no anonymous mode (FR-87). Every read
+ * here is gated on `FEATURE_FLAGS.DEV_BYPASS_AUTH`, so a persisted `true` is
+ * inert wherever that flag is false.
+ *
+ * **That flag is no longer just `__DEV__`.** Since 2026-08-07 it is also true
+ * when `EXPO_PUBLIC_DEV_AUTH_BYPASS === '1'`, which `vercel.json` sets for the
+ * deployed web preview at Aria's explicit request. So this store CAN be live in
+ * a production build. Read `constants/featureFlags.ts` for the full reasoning
+ * and, more importantly, for what has to be removed before the site is public
+ * or anything is submitted to a store.
  *
  * What it exists for: Google sign-in and the email magic link both depend on
  * remote configuration that is not finished yet (`setup/02-supabase.md`), so
