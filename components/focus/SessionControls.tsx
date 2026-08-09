@@ -1,5 +1,5 @@
 /**
- * SessionControls — the session's action row (PRD FR-62).
+ * SessionControls, the session's action row (PRD FR-62).
  *
  * One primary action (Done) and three secondaries (Take a break / I'm stuck /
  * I'm overwhelmed), per the design system's "one primary action per screen"
@@ -7,7 +7,7 @@
  *
  * "Done" advances the ONE current step. It never releases a lock: a session
  * hold is served by focus time, not by finishing the work early (doc `04` §5,
- * §6) — the store enforces that, and this component deliberately has no path to
+ * §6), the store enforces that, and this component deliberately has no path to
  * it either.
  */
 
@@ -21,7 +21,7 @@ import { colors, iconSizes, shadows } from "@/utils/design-tokens";
 export interface SessionControlsProps {
   /** Primary: mark the current step done (or finish, when nothing is left). */
   onDone: () => void;
-  /** Nothing left to check off — the primary reads "Finish". */
+  /** Nothing left to check off, the primary reads "Finish". */
   noSteps: boolean;
   onBreak: () => void;
   onStuck: () => void;

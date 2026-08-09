@@ -22,7 +22,7 @@ export interface TaskCardProps {
   listColor?: string;
   onPress?: () => void;
   onToggleComplete?: () => void;
-  /** Long-press (220ms default via Pressable's `delayLongPress`) — opens the context menu. */
+  /** Long-press (220ms default via Pressable's `delayLongPress`), opens the context menu. */
   onLongPress?: () => void;
   /**
    * Rendered before the checkbox when present (Phase 3 manual-reorder drag
@@ -125,7 +125,7 @@ function TaskCardImpl({
     onToggleComplete?.();
   }, [isDone, onToggleComplete]);
 
-  // Checkmark crossfade-in — a plain opacity/scale tween keyed on `isDone`,
+  // Checkmark crossfade-in, a plain opacity/scale tween keyed on `isDone`,
   // separate from the PulseScale beat (which pops the whole checkbox once).
   const checkOpacity = useSharedValue(isDone ? 1 : 0);
   React.useEffect(() => {
@@ -144,7 +144,7 @@ function TaskCardImpl({
     <View className="flex-row items-center gap-3">
       {leading}
 
-      {/* Completion checkbox — PulseScale gives the single celebratory beat. */}
+      {/* Completion checkbox, PulseScale gives the single celebratory beat. */}
       <PulseScale trigger={isDone}>
         <Pressable
           onPress={handleToggle}
@@ -175,7 +175,7 @@ function TaskCardImpl({
         style={[
           shadows.sm,
           // `rounded-lg` in this project's Tailwind config is 12px (not the
-          // Tailwind default 8px) — match that exactly so the tint bar's
+          // Tailwind default 8px), match that exactly so the tint bar's
           // outer corners are flush with the card's, per the design system.
           barColor ? { borderTopLeftRadius: 12, borderBottomLeftRadius: 12 } : null,
           lifted ? { transform: [{ scale: 1.02 }], shadowOpacity: 0.16, shadowRadius: 16 } : null,
@@ -187,7 +187,7 @@ function TaskCardImpl({
         }${isDone ? " Completed." : ""}`}
         accessibilityHint="Opens task details. Long press for more actions"
       >
-        {/* List-color tint bar — 3px rounded to match the card's left corners. */}
+        {/* List-color tint bar, 3px rounded to match the card's left corners. */}
         {barColor && (
           <View
             style={{ width: 3, backgroundColor: barColor }}
@@ -214,7 +214,7 @@ function TaskCardImpl({
             )}
           </View>
 
-          {/* Meta row — due chip, list dot, subtask count, first-move dot, project glyph.
+          {/* Meta row, due chip, list dot, subtask count, first-move dot, project glyph.
               One line, gap-based, truncates cleanly. */}
           <View
             className="flex-row items-center flex-wrap gap-x-3 gap-y-1 mt-1.5"
@@ -265,7 +265,7 @@ function TaskCardImpl({
 /**
  * Memoized (Phase 7 perf fix): FlashList recycles/re-renders every visible
  * row on any store mutation (create/complete/edit/filter), even rows whose
- * own `task` is unchanged. Default shallow prop comparison is enough here —
+ * own `task` is unchanged. Default shallow prop comparison is enough here,
  * `task` only gets a new identity when the store actually mutates that
  * task (see `taskStore`'s immutable updates), and callers now pass stable
  * callback identities (see `app/(tabs)/tasks.tsx`).

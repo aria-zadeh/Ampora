@@ -1,30 +1,30 @@
 /**
- * VerificationSheet — Ampora Phase 4 (FR-77/77b/78, doc `04`).
+ * VerificationSheet, Ampora Phase 4 (FR-77/77b/78, doc `04`).
  *
  * A bottom-sheet modal to COMPLETE a task with a chosen verification method.
  * It is the "unlock flow" of doc `04` §6. It records a `Proof` and completes
- * the task — and, when this task is the subject of the active Ignition stake
+ * the task, and, when this task is the subject of the active Ignition stake
  * session, it is also THE `until_done` unlock path: submitting proof (or the
  * always-available override) calls `stakesStore.completeStake` so the shield
  * actually lifts (doc `04` §6). A `hold: 'session'` stake is never unlocked
- * from here — that hold is served by focus time only, and `completeStake` is
+ * from here, that hold is served by focus time only, and `completeStake` is
  * a documented no-op for it, so this sheet does not try to work around that.
  *
- * Verification spectrum offered (doc `04` §2/§4 — launch keeps three tiers
+ * Verification spectrum offered (doc `04` §2/§4, launch keeps three tiers
  * only, `V2_Changes.md` §3):
- * - honor       — "I did it", always available, zero friction (Tier 0).
- * - focus_time  — auto-passes once enough focused minutes are recorded (Tier
+ * - honor, "I did it", always available, zero friction (Tier 0).
+ * - focus_time, auto-passes once enough focused minutes are recorded (Tier
  *                 1, the recommended backbone). Scoped to the active stake
  *                 session's own focus time when one is active, else to every
  *                 focus session recorded against the task.
- * - photo /     — pick an image via expo-image-picker IF installed; a lenient,
- *   screenshot     optional AI plausibility check runs and DEFAULTS TO PASS.
- *                 If the picker is missing (web / not installed) the option
- *                 degrades to "attach later" and still completes on honor.
+ * - photo / screenshot, pick an image via expo-image-picker IF installed; a
+ *                 lenient, optional AI plausibility check runs and DEFAULTS
+ *                 TO PASS. If the picker is missing (web / not installed) the
+ *                 option degrades to "attach later" and still completes on honor.
  *
  * Lenient by design (FR-78, doc `04` §7): nothing ever traps the user. There
  * is always an explicit override ("Complete anyway"), the AI errs toward
- * pass, and a failed/uncertain check never blocks completion — it just
+ * pass, and a failed/uncertain check never blocks completion, it just
  * records the verdict on the Proof. No shame copy anywhere.
  *
  * Graceful degradation:
@@ -74,7 +74,7 @@ type PickerModule = {
 /**
  * Try to load expo-image-picker at call time. It is NOT a dependency yet, so we
  * must never import it statically (that would break the bundle). Returns null
- * when unavailable — the caller then degrades photo capture to "attach later".
+ * when unavailable, the caller then degrades photo capture to "attach later".
  */
 function loadImagePicker(): PickerModule | null {
   try {
@@ -154,7 +154,7 @@ const METHOD_OPTIONS: {
 /**
  * Total completed focused minutes recorded for a task across every session.
  * Fallback used ONLY when there is no active Ignition stake session for this
- * task — with a stake active, focused minutes are scoped tightly to that one
+ * task, with a stake active, focused minutes are scoped tightly to that one
  * `StakeSession` instead (doc `04` §6: proof/time belongs to the session it
  * was served for, not the task's whole history).
  */
@@ -173,7 +173,7 @@ function focusedMinutesForTask(
  * Focused minutes recorded specifically against one Ignition `StakeSession`
  * (via `FocusSession.stakeSessionId`), including the in-progress active focus
  * session if it belongs to the same stake session. This is the correct scope
- * for a stake's own focus-time requirement — summing every focus session ever
+ * for a stake's own focus-time requirement, summing every focus session ever
  * run against the task would credit unrelated, unstaked work.
  */
 function focusedMinutesForStakeSession(
@@ -261,7 +261,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
 
   // The Ignition stake layer (doc `04`). `stakeForTask` is the live
   // `StakeSession` this sheet's completion should unlock, when one is
-  // actually armed against this task — null otherwise, which keeps every
+  // actually armed against this task, null otherwise, which keeps every
   // stake-specific branch below a plain no-op for the common unstaked case.
   const activeStakeSession = useStakesStore((s) => s.activeSession);
   const completeStake = useStakesStore((s) => s.completeStake);
@@ -270,7 +270,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
     [activeStakeSession, task.id]
   );
   // Only an `until_done` hold is ever released by proof/override from this
-  // sheet. A `session` hold unlocks by served focus time alone — `completeStake`
+  // sheet. A `session` hold unlocks by served focus time alone, `completeStake`
   // is a documented no-op for it in the store, and this sheet must not imply
   // otherwise (doc `04` §2/§7): no proof-based unlock is offered here for it.
   const untilDoneStake = stakeForTask?.hold === "until_done" ? stakeForTask : null;
@@ -285,7 +285,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
   const picker = useMemo(() => loadImagePicker(), []);
 
   // Focus-time signal (auto-pass basis for the "Focus time" tier). Scoped to
-  // the active stake session's own focus time when one is active — never the
+  // the active stake session's own focus time when one is active, never the
   // task's whole history, which would credit unrelated, unstaked work and
   // could pass a check the current stake never actually earned.
   const focusedMin = useMemo(() => {
@@ -356,11 +356,11 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
 
   /**
    * Complete the task + record a proof. `override` marks it as a deliberate
-   * "complete anyway" (logged, never blocked — doc `04` §7). Never throws to UI.
+   * "complete anyway" (logged, never blocked, doc `04` §7). Never throws to UI.
    *
    * When this task carries the active `until_done` stake, this is also the
-   * unlock (doc `04` §6): plausible or not, submitting proof — or using the
-   * override — always ends the lock, because verification never traps. A
+   * unlock (doc `04` §6): plausible or not, submitting proof, or using the
+   * override, always ends the lock, because verification never traps. A
    * `session`-hold stake is never touched here; it unlocks by served focus
    * time only, and `completeStake` is a no-op for it in the store.
    */
@@ -370,7 +370,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
     const submittedImage = (method === "photo" || method === "screenshot") && !!imageUri;
 
     // For image methods, run the lenient (optional) plausibility check. It
-    // ALWAYS resolves — pass on any absence/error — and never blocks.
+    // ALWAYS resolves, pass on any absence/error, and never blocks.
     if (submittedImage) {
       aiVerdict = await plausibilityVerdict(imageUri as string, task.title);
     }
@@ -387,9 +387,9 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
 
     // THE until_done UNLOCK. `via` is 'override' for the explicit escape
     // hatch, 'proof' when actual image proof was submitted (pass or
-    // uncertain — leniency means a submission always counts), and
+    // uncertain, leniency means a submission always counts), and
     // 'task_done' when the task was finished through another method while
-    // the stake was armed (still a legitimate release — doc `04` §8).
+    // the stake was armed (still a legitimate release, doc `04` §8).
     if (untilDoneStake) {
       const via: CompleteVia = override ? "override" : submittedImage ? "proof" : "task_done";
       completeStake(untilDoneStake.id, via);
@@ -403,7 +403,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
     onClose();
   };
 
-  // --- Per-method gating (all lenient — override is always offered) ---------
+  // --- Per-method gating (all lenient, override is always offered) ---------
   // `blocked` disables the primary confirm and reveals the override affordance.
   // Nothing here can permanently stop completion.
   const imageMethod = method === "photo" || method === "screenshot";
@@ -412,7 +412,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
 
   let primaryLabel = "Mark done";
   if (method === "honor") primaryLabel = "I did it";
-  else if (method === "focus_time") primaryLabel = focusPassed ? "Verified — mark done" : "Not enough focus yet";
+  else if (method === "focus_time") primaryLabel = focusPassed ? "Verified, mark done" : "Not enough focus yet";
   else if (imageMethod) primaryLabel = attachLater ? "Complete, attach later" : imageUri ? "Verify & complete" : "Add proof to complete";
 
   const primaryDisabled = busy || needsImage || focusBlocked;
@@ -433,7 +433,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
       >
-        {/* Sheet — stop press propagation so taps inside don't dismiss. */}
+        {/* Sheet, stop press propagation so taps inside don't dismiss. */}
         <View className="flex-1 justify-end">
           <Pressable onPress={() => {}} accessibilityElementsHidden={false}>
             <Animated.View
@@ -472,7 +472,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                   </Pressable>
                 </View>
 
-                {/* Stake context — honest, non-shaming expectation-setting so
+                {/* Stake context, honest, non-shaming expectation-setting so
                     the sheet never implies an unlock it can't deliver (doc `04`
                     §2/§7). Shown once, above the method list. */}
                 {untilDoneStake ? (
@@ -486,7 +486,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                   <View className="mx-5 mt-3 flex-row items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3.5 py-3">
                     <Ionicons name="lock-closed-outline" size={16} color={colors.light.textMuted} />
                     <Text className="flex-1 text-caption font-medium text-neutral-600">
-                      Your apps stay locked for this session. Completing the task here won&apos;t unlock them — the session timer does.
+                      Your apps stay locked for this session. Completing the task here won&apos;t unlock them, the session timer does.
                     </Text>
                   </View>
                 ) : null}
@@ -534,14 +534,14 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                         <View className="flex-row items-center gap-2">
                           <Ionicons name="checkmark-circle" size={18} color={colors.light.successAccent} />
                           <Text className="flex-1 text-caption text-neutral-600">
-                            You focused {focusedMin}m — that clears the {requiredFocusMin}m needed. Nice.
+                            You focused {focusedMin}m, that clears the {requiredFocusMin}m needed. Nice.
                           </Text>
                         </View>
                       ) : (
                         <View className="flex-row items-center gap-2">
                           <Ionicons name="time-outline" size={18} color={colors.light.textMuted} />
                           <Text className="flex-1 text-caption text-neutral-600">
-                            {focusedMin}m focused so far. Start a focus session to reach {requiredFocusMin}m — or complete anyway below.
+                            {focusedMin}m focused so far. Start a focus session to reach {requiredFocusMin}m, or complete anyway below.
                           </Text>
                         </View>
                       )}
@@ -574,7 +574,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                             </Text>
                           </Pressable>
                           <Text className="text-caption text-neutral-500">
-                            The check is a light nudge, not a grader — it accepts unless the image is clearly unrelated.
+                            The check is a light nudge, not a grader. It accepts unless the image is clearly unrelated.
                           </Text>
                         </View>
                       ) : picker ? (
@@ -620,7 +620,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                   ) : null}
                 </ScrollView>
 
-                {/* Footer — primary action + always-available override */}
+                {/* Footer, primary action + always-available override */}
                 <View className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3" style={shadows.md}>
                   <Button
                     title={primaryLabel}
@@ -636,7 +636,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                     }
                   />
 
-                  {/* Lenient escape hatch — never trap the user (doc `04` §7). */}
+                  {/* Lenient escape hatch, never trap the user (doc `04` §7). */}
                   {showOverride ? (
                     <Pressable
                       onPress={() => finish(true)}

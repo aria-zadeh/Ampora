@@ -55,7 +55,7 @@ function starterLine(task: Task): string | null {
  * A quiet "moon-phase" visual moment for the evening card: the moon glyph
  * breathes very slowly (fade + a whisper of scale) and a faint halo behind it
  * pulses in the same rhythm, like a phase gently waxing and waning. Deliberately
- * slow (2.6s halves) and low-amplitude — a single ambient cue, not a spinner.
+ * slow (2.6s halves) and low-amplitude, a single ambient cue, not a spinner.
  * Reduce-motion renders a static moon + halo at rest, no animation.
  */
 function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
@@ -94,7 +94,7 @@ function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      {/* Faint halo — decorative depth behind the glyph, never carries meaning. */}
+      {/* Faint halo, decorative depth behind the glyph, never carries meaning. */}
       <Animated.View
         style={[
           haloStyle,
@@ -115,7 +115,7 @@ function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
 }
 
 /**
- * TomorrowPlanCard (FR-90) — a calm "Ready for tomorrow" card surfaced on the
+ * TomorrowPlanCard (FR-90), a calm "Ready for tomorrow" card surfaced on the
  * Home screen in the evening / whenever tomorrow already has a plan.
  *
  * If the engine has placed blocks for tomorrow, it shows a compact preview:
@@ -125,7 +125,7 @@ function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
  * non-shaming nudge instead.
  *
  * Tapping opens the first task (so the First move is one tap away); with no
- * first task it drops the user on the Calendar. Purely additive — it never
+ * first task it drops the user on the Calendar. Purely additive, it never
  * mutates state.
  */
 export function TomorrowPlanCard() {
@@ -161,7 +161,7 @@ export function TomorrowPlanCard() {
   const hasPlan = plan.sessionCount > 0 && plan.firstTask != null;
 
   // FR-84/FR-90 tie-in: when the opening task came from a Project's nightly
-  // session generation, say so with the Projects-only accent (docs/02 — the
+  // session generation, say so with the Projects-only accent (docs/02, the
   // purple accent is reserved for Projects). Raw field select (no derived
   // object), so no useShallow needed (Zustand v5 discipline).
   const firstTaskProjectId = plan.firstTask?.projectId;
@@ -276,7 +276,7 @@ export function TomorrowPlanCard() {
           ) : null}
         </View>
 
-        {/* First move for that opening task — the thing that defeats the cold
+        {/* First move for that opening task, the thing that defeats the cold
             start. Only shown when the task actually surfaces one. */}
         {firstStep ? (
           <View className="mt-3 flex-row items-center rounded-lg bg-primary-50 px-3 py-2.5">

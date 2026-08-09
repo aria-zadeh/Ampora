@@ -56,7 +56,7 @@ export function SubtaskRow({
         </View>
       </Pressable>
 
-      {/* Title — press-scale + light haptic only when editable/tappable. */}
+      {/* Title, press-scale + light haptic only when editable/tappable. */}
       {onEdit ? (
         <PressableScale
           onPress={() => onEdit(subtask.title)}

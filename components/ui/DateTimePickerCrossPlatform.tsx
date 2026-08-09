@@ -3,7 +3,7 @@ import { View, Platform } from "react-native";
 import { useColorScheme } from "nativewind";
 import { colors, borderRadius, TOUCH_TARGET_MIN } from "@/utils/design-tokens";
 
-// Only import DateTimePicker on native — avoids web bundle issues
+// Only import DateTimePicker on native, avoids web bundle issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let NativeDateTimePicker: any = null;
 if (Platform.OS !== "web") {
@@ -52,7 +52,7 @@ function toMinDateAttr(date: Date | undefined): string | undefined {
  * Cross-platform DateTimePicker.
  *
  * - Web: renders HTML <input type="date"> or <input type="time"> which trigger
- *   native iOS Safari picker wheels — the primary demo UX.
+ *   native iOS Safari picker wheels, the primary demo UX.
  * - Native (iOS/Android): renders @react-native-community/datetimepicker.
  */
 export function DateTimePickerCrossPlatform({

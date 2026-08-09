@@ -15,11 +15,11 @@ import { ProgressDots } from "./ProgressDots";
 /**
  * Onboarding step order (PRD §8.10, 7 steps total):
  *   1. Welcome (this screen, dot index 0)
- *   2. Sign in — NOT a screen inside app/onboarding/**. `app/_layout.tsx`'s
+ *   2. Sign in, NOT a screen inside app/onboarding/**. `app/_layout.tsx`'s
  *      root gate already requires a session (Apple/Google/email magic link)
  *      before it will ever route here, so by the time Welcome renders, sign-in
  *      is already done. That screen (`app/auth.tsx`) is owned by another
- *      worker — this flow leaves a clean numbering slot for it (dot index 1
+ *      worker, this flow leaves a clean numbering slot for it (dot index 1
  *      is deliberately never shown by any screen in this folder) rather than
  *      re-wiring the auth gate.
  *   3. Name (dot index 2)
@@ -81,12 +81,12 @@ export default function WelcomeScreen() {
             </Heading>
             <Text className="text-body-lg text-neutral-600 mt-4 leading-7 max-w-[330px]">
               Ampora is built for brains that work differently. We help you find
-              the very next thing to do — so starting never feels like the hard
+              the very next thing to do, so starting never feels like the hard
               part.
             </Text>
           </Animated.View>
 
-          {/* Value lines — left-aligned, varied, no identical icon chips */}
+          {/* Value lines, left-aligned, varied, no identical icon chips */}
           <View className="mt-10 gap-5">
             {VALUE_LINES.map((item, i) => (
               <Animated.View
@@ -108,7 +108,7 @@ export default function WelcomeScreen() {
           </View>
         </View>
 
-        {/* CTA — single primary action */}
+        {/* CTA, single primary action */}
         <Animated.View entering={enter(280)}>
           <Button
             title="Get started"

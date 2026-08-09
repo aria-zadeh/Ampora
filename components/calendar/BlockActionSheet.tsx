@@ -1,22 +1,22 @@
 /**
- * BlockActionSheet — the calendar block's long-press / "…" action menu
+ * BlockActionSheet, the calendar block's long-press / "…" action menu
  * (Round A, FlowSavvy parity + better).
  *
  * A calm bottom sheet opened from a scheduled block. It exposes the actions a
  * user reaches for when a plan needs adjusting, without leaving the calendar:
  *
- *   • Postpone to…   — a quick set (+1h, This evening, Tomorrow) plus a custom
+ *   • Postpone to…, a quick set (+1h, This evening, Tomorrow) plus a custom
  *                      time. Postponing sets the task's `startAfter` lower bound
  *                      (so the scheduler never re-places it before that instant,
  *                      PRD §9.5.3) AND moves the block there now (FlowSavvy
  *                      "push it later"). The block pins as part of the move.
- *   • Lock / Unlock   — a TOGGLE (Round B fix #7): pins the block (setPinned
+ *   • Lock / Unlock, a TOGGLE (Round B fix #7): pins the block (setPinned
  *                      true) so recompute treats it as an immovable input
  *                      (FlowSavvy "lock started blocks"), or unpins it so the
  *                      next recompute can move it again.
- *   • Open           — push the task detail route.
- *   • Mark complete  — completeTask (rolls up subtasks, doc 07 Part 3.5).
- *   • Delete         — deleteTask.
+ *   • Open, push the task detail route.
+ *   • Mark complete, completeTask (rolls up subtasks, doc 07 Part 3.5).
+ *   • Delete, deleteTask.
  *
  * The sheet is presentational: every mutation is delegated to a callback the
  * caller wires to the stores (`onPostpone`, `onTogglePin`, `onOpen`,
@@ -47,7 +47,7 @@ import { formatBlockTimeRange, formatClockTime } from './hours'
 import type { ScheduledBlock, Task } from '@/types'
 
 // ---------------------------------------------------------------------------
-// Postpone target computation — pure, "now"-driven so it is predictable.
+// Postpone target computation, pure, "now"-driven so it is predictable.
 // ---------------------------------------------------------------------------
 
 /** The quick-set postpone options offered as chips. */
@@ -352,8 +352,8 @@ export function BlockActionSheet({
                       label={isPinned ? 'Unlock' : 'Lock at this time'}
                       blurb={
                         isPinned
-                          ? 'Locked — rebuilding the schedule won\'t move it. Tap to unlock.'
-                          : "Keep this block here — rebuilding the schedule won't move it."
+                          ? 'Locked. Rebuilding the schedule won\'t move it. Tap to unlock.'
+                          : "Keep this block here. Rebuilding the schedule won't move it."
                       }
                       onPress={handleTogglePin}
                       active={isPinned}
@@ -402,7 +402,7 @@ const TINT_STYLES: Record<Tint, { icon: string; iconBg: string; text: string }> 
 
 /**
  * Exported so `EventActionSheet` (the fixed-Event counterpart to this sheet)
- * reuses the exact same row chrome instead of a near-duplicate copy — the two
+ * reuses the exact same row chrome instead of a near-duplicate copy, the two
  * sheets share the same bottom-sheet visual language on purpose.
  */
 export function ActionRow({

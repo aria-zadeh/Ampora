@@ -1,5 +1,5 @@
 /**
- * CalendarSyncSettings — read-only device calendar sync (PRD FR-22, §8.6).
+ * CalendarSyncSettings, read-only device calendar sync (PRD FR-22, §8.6).
  *
  * Ampora does not run its own Google/Outlook/iCloud OAuth. Instead it reads
  * the calendars already synced onto the device: once the user has signed
@@ -9,11 +9,11 @@
  * actual reading; this screen is the permission + per-calendar picker UI.
  *
  * States:
- * - unsupported (web): calendar sync needs the phone app — calm explainer,
+ * - unsupported (web): calendar sync needs the phone app, calm explainer,
  *   no dead-end (FR-64).
  * - unrequested / denied: an honest explainer + a single primary action
  *   (request permission, or open Settings if already denied).
- * - granted: a per-calendar toggle list (never auto-select — a birthdays or
+ * - granted: a per-calendar toggle list (never auto-select, a birthdays or
  *   holidays calendar would block the whole schedule), a last-synced line
  *   with a manual "Sync now", and a "Disconnect" action that clears the
  *   selection (Ampora-side only; it cannot revoke the OS permission).
@@ -150,7 +150,7 @@ export function CalendarSyncSettings() {
         <EmptyState
           icon="calendar-outline"
           title="See your classes automatically"
-          subtitle="Ampora reads your calendar so it never schedules study sessions over your classes or existing events. It only reads — Ampora never adds, changes, or deletes anything on your calendar."
+          subtitle="Ampora reads your calendar so it never schedules study sessions over your classes or existing events. It only reads. Ampora never adds, changes, or deletes anything on your calendar."
         />
         <View className="mt-2 items-center">
           <Button
@@ -175,7 +175,7 @@ export function CalendarSyncSettings() {
   return (
     <View>
       <Text className="mb-4 text-body text-neutral-500">
-        Choose which calendars count as busy time. Ampora only reads them — it
+        Choose which calendars count as busy time. Ampora only reads them, it
         never changes anything on your device calendar.
       </Text>
 

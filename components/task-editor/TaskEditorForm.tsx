@@ -54,7 +54,7 @@ export interface TaskEditorFormProps {
   mode: TaskEditorMode;
   /** Seed values for the draft. In edit mode, seeded from the stored task. */
   initialDraft: Partial<Task>;
-  /** The stored task's id — required in edit mode for direct subtask writes. */
+  /** The stored task's id, required in edit mode for direct subtask writes. */
   taskId?: string;
   /**
    * Called when the user taps "Save task". Receives the current draft
@@ -176,9 +176,9 @@ function Divider() {
 // Repeat (FR-15/FR-16, PRD §8.3 "Repeat", doc 03 §2.9)
 //
 // Leads with the presets most people actually want ("every weekday", "every
-// Monday") and keeps the full rule — interval, by-weekday, all three end
+// Monday") and keeps the full rule, interval, by-weekday, all three end
 // conditions, from-completion anchoring, a per-occurrence time window, and
-// the FR-16 carry-forward toggle — behind a single "Edit details" disclosure
+// the FR-16 carry-forward toggle, behind a single "Edit details" disclosure
 // so the common case stays a one-tap pill row. `exceptions` (skip a single
 // occurrence without breaking the series) is implemented end-to-end in
 // `core/recurrence.ts` and the scheduler, but is deliberately NOT exposed
@@ -808,7 +808,7 @@ export function TaskEditorForm({
     }
     setFirstMoveText(result.firstMove);
     setLastBreakdown(result);
-    setAiNote(result.isFallback ? result.note ?? "Showing general steps — tap Refine to shape them." : null);
+    setAiNote(result.isFallback ? result.note ?? "Showing general steps, tap Refine to shape them." : null);
   };
 
   /** Does the current step list have any real progress worth protecting? */
@@ -834,7 +834,7 @@ export function TaskEditorForm({
       applyBreakdown(result);
     } catch {
       // breakdownTask never throws, but stay defensive.
-      setAiNote("Couldn't build steps right now — add them manually below.");
+      setAiNote("Couldn't build steps right now, add them manually below.");
     } finally {
       setBreakingDown(false);
     }
@@ -875,7 +875,7 @@ export function TaskEditorForm({
       setRefineText("");
       setShowRefine(false);
     } catch {
-      setAiNote("Couldn't refine right now — your steps are unchanged.");
+      setAiNote("Couldn't refine right now, your steps are unchanged.");
     } finally {
       setRefining(false);
     }
@@ -914,7 +914,7 @@ export function TaskEditorForm({
     // along on the submitted draft as a non-Task marker (stripped by
     // `taskStore.updateTask` before it ever reaches persisted state) so the
     // store can tell a deliberate auto-schedule choice apart from a stale
-    // echo of whatever the task already had — an explicit off must always
+    // echo of whatever the task already had, an explicit off must always
     // win over the FR-5 inbox-promotion default.
     const finalDraft: Partial<Task> & { autoScheduleTouched?: boolean } = {
       ...draft,
@@ -1011,7 +1011,7 @@ export function TaskEditorForm({
 
         {/* --- First move (focal) --------------------------------------- */}
         <Section title="First move" index={2}>
-          {/* AI: Break it down — fills First move + Steps in one tap. Degrades
+          {/* AI: Break it down, fills First move + Steps in one tap. Degrades
               gracefully with no key (local fallback), never blocks the manual
               flow below. */}
           <View className="gap-3">
@@ -1101,7 +1101,7 @@ export function TaskEditorForm({
             onReorder={reorderSubtask}
           />
 
-          {/* AI: Make easier — per-subtask simplify. Rendered here (not inside
+          {/* AI: Make easier, per-subtask simplify. Rendered here (not inside
               SubtaskChecklist, which this workstream doesn't own) as a compact
               list of "Make easier" affordances. Graceful: simplifySubtask has a
               local fallback and never throws. */}
@@ -1149,7 +1149,7 @@ export function TaskEditorForm({
             </View>
           ) : null}
 
-          {/* AI: Refine — reshape the breakdown from a natural instruction. */}
+          {/* AI: Refine, reshape the breakdown from a natural instruction. */}
           {hasBreakdownContent ? (
             <View className="gap-2">
               {showRefine ? (
@@ -1374,7 +1374,7 @@ export function TaskEditorForm({
             />
           </View>
 
-          {/* Min / Max block — only when splittable */}
+          {/* Min / Max block, only when splittable */}
           {draft.splittable ? (
             <View className="flex-row gap-3">
               <View className="flex-1">
@@ -1412,7 +1412,7 @@ export function TaskEditorForm({
             </View>
           ) : null}
 
-          {/* Buffers — quiet time held around each block (PRD §9.5.4). Stepper
+          {/* Buffers, quiet time held around each block (PRD §9.5.4). Stepper
               rows (0-60 in 5-min steps) so the value is always valid and easy
               to nudge, matching the Scheduling settings pattern. */}
           <View className="gap-3">
@@ -1538,7 +1538,7 @@ export function TaskEditorForm({
         </MoreOptionsSection>
       </ScrollView>
 
-      {/* Sticky Save bar — single primary action, disabled when title empty */}
+      {/* Sticky Save bar, single primary action, disabled when title empty */}
       <View
         className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3"
         style={shadows.md}
@@ -1573,7 +1573,7 @@ export function TaskEditorForm({
           >
             <Heading size="h3">Replace your steps?</Heading>
             <Text className="mt-2 text-body text-neutral-600">
-              You have progress on these steps. Regenerating will replace the list — completed steps
+              You have progress on these steps. Regenerating will replace the list. Completed steps
               won&apos;t carry over unless you keep them.
             </Text>
             <View className="mt-6 flex-row gap-3">

@@ -1,5 +1,5 @@
 /**
- * SchedulingSettings — the remaining §8.11 scheduling defaults not surfaced
+ * SchedulingSettings, the remaining §8.11 scheduling defaults not surfaced
  * elsewhere (Phase 7, PRD FR-9 / FR-11 / FR-14 / FR-65).
  *
  * Exposes the app-wide DEFAULTS a new auto-scheduled task inherits:
@@ -11,7 +11,7 @@
  *
  * All values write through `useSettingsStore.updateSettings`; nothing is held
  * in local-only state that could drift. Fields are optional on `Settings`, so
- * each read falls back to the documented default. Warm, grouped, premium —
+ * each read falls back to the documented default. Warm, grouped, premium,
  * embeds under its own section header on the full-settings screen (renders its
  * own cards, like StakesSettings). RN + NativeWind, web-export safe.
  */
@@ -58,7 +58,7 @@ function formatWeeks(w: number): string {
 
 /**
  * A compact, human summary of the default scheduling-hours template. Groups
- * days that share the same window set so "Mon–Fri 3:00 PM–9:00 PM" reads
+ * days that share the same window set so "Mon-Fri 3:00 PM-9:00 PM" reads
  * cleanly rather than listing seven lines. Returns a small list of phrases.
  */
 function summarizeSchedulingHours(hours: Settings['schedulingHours']): string[] {
@@ -81,19 +81,19 @@ function summarizeSchedulingHours(hours: Settings['schedulingHours']): string[] 
     const sorted = [...days].sort((a, b) => a - b)
     const dayPart = summarizeDayRange(sorted)
     const winPart = windows
-      .map((w) => `${formatClock(w.start)}–${formatClock(w.end)}`)
+      .map((w) => `${formatClock(w.start)}-${formatClock(w.end)}`)
       .join(', ')
     return `${dayPart} · ${winPart}`
   })
 }
 
-/** "Mon–Fri" for a contiguous run, else "Mon, Wed, Fri". */
+/** "Mon-Fri" for a contiguous run, else "Mon, Wed, Fri". */
 function summarizeDayRange(days: number[]): string {
   if (days.length === 0) return ''
   if (days.length === 1) return DAY_LABELS[days[0]]
   const contiguous = days.every((d, i) => i === 0 || d === days[i - 1] + 1)
   if (contiguous && days.length > 2) {
-    return `${DAY_LABELS[days[0]]}–${DAY_LABELS[days[days.length - 1]]}`
+    return `${DAY_LABELS[days[0]]}-${DAY_LABELS[days[days.length - 1]]}`
   }
   return days.map((d) => DAY_LABELS[d]).join(', ')
 }

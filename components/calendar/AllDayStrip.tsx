@@ -1,13 +1,13 @@
 /**
  * Compact all-day strip for Day and 3-Day (PRD §8.6/§8.7 have no time-grid
  * slot for a midnight-to-midnight event). `WeekView` solved this first with a
- * small strip above its grid — this reuses the exact same visual approach
+ * small strip above its grid, this reuses the exact same visual approach
  * (chips via `CalendarBlock`, a "+N" overflow, an "All day" gutter label,
  * present only when the rendered period actually has one) rather than
  * inventing a second one.
  *
  * Deliberately mounted OUTSIDE the scrolling/gesture time grid (`TimeGrid` /
- * `DayBlocksLayer`) — see `DayView.tsx#DayColumn` and `ThreeDayView.tsx` for
+ * `DayBlocksLayer`), see `DayView.tsx#DayColumn` and `ThreeDayView.tsx` for
  * how this is a plain sibling ABOVE them, never a child, so it cannot
  * intercept the grid's long-press-create / drag / resize gestures. The pure
  * bucketing/height math lives in `allDayEvents.ts` (no react-native import,
@@ -93,7 +93,7 @@ function AllDayChipsRow({
 export interface AllDayStripRowProps {
   /** Local-midnight epoch ms of each day column to render, left to right (1 for Day, 3 for 3-Day). */
   dayStarts: number[]
-  /** CalEvents in scope (local + external; timed + all-day) — non-all-day ones are ignored internally, same as WeekView's own bucketing step. */
+  /** CalEvents in scope (local + external; timed + all-day), non-all-day ones are ignored internally, same as WeekView's own bucketing step. */
   events: CalEvent[]
   /** Tap a chip -> caller opens its detail sheet (mirrors the grid's own event tap). */
   onEventPress?: (event: CalEvent) => void
@@ -103,7 +103,7 @@ export interface AllDayStripRowProps {
 /**
  * The full strip row: a fixed-width "All day" gutter label (aligned with the
  * time grid's own {@link GUTTER_WIDTH} rendered below it) plus the chips.
- * Renders nothing — not even the border — when nobody in `dayStarts` has an
+ * Renders nothing, not even the border, when nobody in `dayStarts` has an
  * all-day event, so a day/period with none is visually identical to before
  * this feature existed.
  */

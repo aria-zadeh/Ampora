@@ -1,16 +1,16 @@
 /**
- * EndCheckInSheet — the end-of-session check-in (PRD FR-85).
+ * EndCheckInSheet, the end-of-session check-in (PRD FR-85).
  *
  * "Did you finish today's goal?" with three answers:
- *   - **Done** — the session goal is complete; the project advances.
- *   - **Keep going** — take a short break, then run another session.
- *   - **Stop here** — the remainder reflows into the schedule.
+ *   - **Done**, the session goal is complete; the project advances.
+ *   - **Keep going**, take a short break, then run another session.
+ *   - **Stop here**, the remainder reflows into the schedule.
  *
  * Dismissing is a first-class outcome, not an error state: FR-85 requires that
  * a skipped check-in still moves the project, with progress INFERRED from the
  * subtask checkboxes, so generation never stalls. `onDismiss` carries that
  * case, and the sheet is dismissible by backdrop tap and by the OS back
- * gesture — there is no way to get stuck in it.
+ * gesture, there is no way to get stuck in it.
  *
  * No judgement in the copy. "Stop here" is presented as an equal, reasonable
  * choice, because for this audience a check-in that reads as a report card is
@@ -45,7 +45,7 @@ export interface EndCheckInSheetProps {
   /** Shown when a stake was released by serving this session. */
   unlocked?: boolean;
   onAnswer: (answer: CheckInAnswer) => void;
-  /** Backdrop tap / back gesture — the FR-85 "skipped" path. */
+  /** Backdrop tap / back gesture, the FR-85 "skipped" path. */
   onDismiss: () => void;
 }
 

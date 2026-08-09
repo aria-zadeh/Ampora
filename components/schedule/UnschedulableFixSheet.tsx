@@ -27,11 +27,11 @@ function pushDeadlineOneWeek(currentDue: number | undefined, now: number): numbe
 }
 
 /**
- * A fully open, every-day, all-day scheduling-hours window — the "relax
+ * A fully open, every-day, all-day scheduling-hours window, the "relax
  * scheduling hours" one-tap fix (PRD FR-20). Set as a per-task override so it
  * wins over any list/settings default regardless of what the current
  * effective window is (`Task.schedulingHours ?? List.schedulingHours ??
- * Settings.schedulingHours`, FR-13) — this always strictly widens
+ * Settings.schedulingHours`, FR-13), this always strictly widens
  * availability, so no fix is left silently doing nothing.
  */
 function anyTimeSchedulingHours(): SchedulingHours {
@@ -51,14 +51,14 @@ interface FixAction {
 export interface UnschedulableFixSheetProps {
   /** The at-risk task this sheet explains, or null when closed. */
   task: Task | null;
-  /** The engine's reason for `task`, resolved by the caller (may be stale by one recompute — see `app/(tabs)/tasks.tsx`). */
+  /** The engine's reason for `task`, resolved by the caller (may be stale by one recompute, see `app/(tabs)/tasks.tsx`). */
   info: Unschedulable | undefined;
   onClose: () => void;
 }
 
 /**
- * FR-20's "explain why + one-tap fix" surface. A calm bottom sheet — same
- * chrome as `ScheduleModal`/`DueRangeModal` in `app/(tabs)/tasks.tsx` — that
+ * FR-20's "explain why + one-tap fix" surface. A calm bottom sheet, same
+ * chrome as `ScheduleModal`/`DueRangeModal` in `app/(tabs)/tasks.tsx`, that
  * shows the engine's own human-readable reason a task could not be placed,
  * plus zero or more one-tap fixes appropriate to that reason's `kind`. Never
  * blames the user: a task the app could not schedule is the app's problem to
@@ -70,7 +70,7 @@ export interface UnschedulableFixSheetProps {
  * moment the sheet closes, rather than waiting on the debounced background
  * recompute trigger already wired in `store/scheduleStore.ts` (that trigger
  * still fires a moment later too; recomputing twice on unchanged input is
- * cheap and harmless — `core/scheduler/recompute.ts`'s stability pass makes
+ * cheap and harmless, `core/scheduler/recompute.ts`'s stability pass makes
  * the second run a no-op).
  */
 export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixSheetProps) {
@@ -83,7 +83,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
   const calEvents = useScheduleStore(useShallow(selectAllCalEvents));
 
   // Armed only while the user is confirming "Remove the blocking event"
-  // (destructive — doc 02 "confirm destructive actions"). Reset whenever the
+  // (destructive, doc 02 "confirm destructive actions"). Reset whenever the
   // sheet is retargeted (a new at-risk task, or closed back to null) so a
   // stale confirm panel never survives into the next task it's opened for.
   const [confirmDeleteEvent, setConfirmDeleteEvent] = useState<CalEvent | null>(null);
@@ -109,7 +109,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
   }, [task, completeTask, recompute, onClose]);
 
   // FR-20's fifth remedy: "remove a blocking all-day event" (now that event
-  // CRUD exists — `store/scheduleStore.ts#addLocalEvent/updateLocalEvent/
+  // CRUD exists, `store/scheduleStore.ts#addLocalEvent/updateLocalEvent/
   // deleteLocalEvent`). Only relevant to the "not enough free time" family of
   // reasons; an all-day CalEvent sitting in the task's window is exactly that
   // kind of obstacle (see `components/schedule/blockingEvent.ts`).
@@ -126,7 +126,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
   }, [task, info, calEvents]);
 
   // Shortening trims ONE edge of the event via `updateLocalEvent` (which
-  // recomputes internally — see that action's own doc comment) — the "less
+  // recomputes internally, see that action's own doc comment), the "less
   // damaging" option than deleting, since the rest of the event survives.
   const handleShorten = useCallback(() => {
     if (!blockingFix?.shortenPatch) return;
@@ -135,7 +135,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
   }, [blockingFix, updateLocalEvent, onClose]);
 
   // Deleting is destructive, so this only ever runs after the user confirms
-  // via the panel below — never directly from a fix button.
+  // via the panel below, never directly from a fix button.
   const handleConfirmDeleteEvent = useCallback(() => {
     if (!confirmDeleteEvent) return;
     deleteLocalEvent(confirmDeleteEvent.id); // also recomputes internally
@@ -144,7 +144,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
   }, [confirmDeleteEvent, deleteLocalEvent, onClose]);
 
   // One-tap fixes, chosen from the engine's own `kind` (never by re-parsing
-  // the prose reason) — see `core/scheduler/types.ts#UnschedulableReasonKind`.
+  // the prose reason), see `core/scheduler/types.ts#UnschedulableReasonKind`.
   // Each maps directly to one of the remedies FR-20 names in prose: relax
   // scheduling hours, extend the deadline, make it splittable. The fifth
   // remedy, "remove a blocking all-day event", is handled by `blockingFix`
@@ -280,7 +280,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
               ) : null}
 
               {/* FR-20's fifth remedy, delete half. Only `source: 'local'` events
-                  are ours to edit (FR-22) — a device-synced blocker says so
+                  are ours to edit (FR-22), a device-synced blocker says so
                   honestly instead of offering an action that cannot work. */}
               {blockingFix ? (
                 blockingFix.editable ? (
@@ -303,7 +303,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
                     <Ionicons name="link-outline" size={20} color={colors.light.textMuted} style={{ marginTop: 1 }} />
                     <Text className="flex-1 text-body text-neutral-600">
                       &quot;{blockingFix.event.title}&quot; on your {SOURCE_LABEL[blockingFix.event.source]}{" "}
-                      calendar is in the way. Ampora only reads it — edit or remove it there to free this
+                      calendar is in the way. Ampora only reads it. Edit or remove it there to free this
                       time.
                     </Text>
                   </View>
@@ -312,7 +312,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
 
               {fixes.length === 0 && !blockingFix ? (
                 <Text className="text-caption text-neutral-500 mb-2">
-                  This clears up on its own once the other task is scheduled or finished — nothing to
+                  This clears up on its own once the other task is scheduled or finished, nothing to
                   fix here.
                 </Text>
               ) : null}
@@ -330,7 +330,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
 
 /**
  * The destructive-confirm step for "Remove the blocking event" (doc 02
- * "confirm destructive actions... never trap the user" — Cancel always backs
+ * "confirm destructive actions... never trap the user", Cancel always backs
  * out to the fixes list, never closes the whole sheet outright).
  */
 function DeleteEventConfirm({

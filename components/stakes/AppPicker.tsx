@@ -1,5 +1,5 @@
 /**
- * AppPicker — Ampora Phase 5 Ignition (FR-40, PRD §8.8 / §9.4 StakeApp).
+ * AppPicker, Ampora Phase 5 Ignition (FR-40, PRD §8.8 / §9.4 StakeApp).
  *
  * An Opal-style "choose what's on the line" sheet: a premium, multi-select list
  * of common leisure apps the user opts to put behind their task. Selections are
@@ -8,7 +8,7 @@
  *
  * Platform reality (§8.8, doc 06): on iPhone the REAL blocked-app set is chosen
  * with Apple's own Screen Time picker (FamilyActivityPicker) once the Family
- * Controls entitlement is enabled — Ampora never sees app identities, only
+ * Controls entitlement is enabled, Ampora never sees app identities, only
  * opaque tokens. On web/dev there is no system picker, so we show a curated mock
  * catalog of well-known leisure apps as a faithful stand-in. The copy says so
  * plainly, so nothing here over-promises OS-level blocking.
@@ -129,7 +129,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
   // sheet is a draft the user can cancel out of without mutating anything.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // A calm inline note when a write is refused (e.g. a protected category slipped
-  // through from a stored selection). Never a shame message — it explains.
+  // through from a stored selection). Never a shame message, it explains.
   const [refusalNote, setRefusalNote] = useState<string | null>(null);
 
   useEffect(() => {
@@ -160,7 +160,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
     Haptics.selectionAsync().catch(() => {});
     // Selecting every LEISURE app is fine; selecting an "all apps" CATEGORY is
     // not, and never can be, because the catalog contains no such entry (doc
-    // `05` §4 — a blanket category would sweep phone/messages/maps in with it).
+    // `05` §4, a blanket category would sweep phone/messages/maps in with it).
     setSelected(new Set(catalog.map((c) => c.key)));
   };
   const clearAll = () => {
@@ -201,7 +201,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       setRefusalNote(
         result.reason === "all_apps"
-          ? "Pick specific apps rather than everything — that keeps phone, messages and maps reachable."
+          ? "Pick specific apps rather than everything. That keeps phone, messages and maps reachable."
           : "Some of those stay reachable no matter what, so they were left off the list."
       );
       return;
@@ -340,7 +340,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                     );
                   })}
 
-                  {/* Platform note — set expectations honestly. */}
+                  {/* Platform note, set expectations honestly. */}
                   <View className="mt-2 flex-row items-start gap-2.5 rounded-xl bg-neutral-100 p-3.5">
                     <Ionicons name="phone-portrait-outline" size={16} color={colors.light.textMuted} />
                     <Text className="flex-1 text-caption text-neutral-500">

@@ -18,10 +18,10 @@ import {
 // Bounds + copy for the protective caps. Framed as ceilings that keep the
 // user safe, never as punishment (§9.10 wellbeing stance).
 //
-// The BOUNDS themselves are never hand-rolled here — they come straight from
+// The BOUNDS themselves are never hand-rolled here, they come straight from
 // `core/blocking/limits.ts`, the exact constants `normalizeSettings` clamps
 // every write against. This file used to define its own local 30-480 minute
-// range for the daily cap against a real enforced ceiling of 15-180 — the
+// range for the daily cap against a real enforced ceiling of 15-180, the
 // stepper could be pushed well past where every write actually landed, a
 // drift a conformance audit caught (FR-65). Sourcing the bounds from one
 // place makes that class of drift impossible to reintroduce.
@@ -45,10 +45,10 @@ const CATEGORY_LABELS: Record<string, string> = {
  * (§9.10, doc 06 §4). Enforced client-side (the app never locks these,
  * `store/migrations/settings.ts#safeNeverLock` re-unions them into every
  * normalize) AND, as of `supabase/migrations/20260730000008_...`, server-side
- * too — a CHECK constraint requires every persisted `settings` row's
+ * too, a CHECK constraint requires every persisted `settings` row's
  * `never_lock_categories` to contain all six. Device-level enforcement (native
  * shielding that itself refuses to lock a protected app) still arrives with
- * native app-locking in Round C — see that migration's header for the exact
+ * native app-locking in Round C, see that migration's header for the exact
  * scope of what "server-side" can mean today. Any extra entries a user added
  * before this screen became view-only (§8.11) live alongside the six but are
  * no longer removable from here either. Compared case-insensitively so a
@@ -86,7 +86,7 @@ function categoryLabel(key: string): string {
 // ---------------------------------------------------------------------------
 // Stake strength (FR-44): fixed sensible defaults plus ONE user-set control,
 // no automated calibration. Framed as three bands, never a raw 0..1 number
-// the user has to reason about — the same thresholds
+// the user has to reason about, the same thresholds
 // `components/stakes/StakeSetupSheet.tsx` already uses for its own read-only
 // badge, mirrored here so the same underlying number always reads as the
 // same word everywhere in the app.
@@ -230,7 +230,7 @@ function Stepper({
 }
 
 /**
- * Three-band strength picker (Gentle / Balanced / Firm) — the single control
+ * Three-band strength picker (Gentle / Balanced / Firm), the single control
  * FR-44 asks for, never a slider or a raw number. Each pill is a real 44px
  * target (`min-h-11`), and the group carries a radiogroup/radio accessibility
  * shape so the current value and every option read cleanly to a screen reader.
@@ -284,30 +284,30 @@ function StrengthPicker({
  * Stakes + wellbeing settings group (§8.11, §9.10). Warm, protective framing:
  * the caps are ceilings that keep the user safe, never a way to demand more of
  * them. Everything here writes through `useSettingsStore.updateSettings` and
- * the stakes store — no local-only state that could drift.
+ * the stakes store, no local-only state that could drift.
  *
  * Contents (§8.11: "daily lock cap and single-session cap, stake strength,
  * never-lock categories (view only)"):
- * - Daily lock cap — a protective ceiling on total lock minutes per day.
- *   User-lowerable, never user-raisable (FR-46) — the stepper is bounded by
+ * - Daily lock cap, a protective ceiling on total lock minutes per day.
+ *   User-lowerable, never user-raisable (FR-46), the stepper is bounded by
  *   `DAILY_LOCK_CAP_BOUNDS`, the same constant `normalizeSettings` clamps
  *   every write against.
- * - Single-session cap — the longest any one lock can last (this is also
+ * - Single-session cap, the longest any one lock can last (this is also
  *   what converts a bad `until_done` estimate into a normal release, doc `04`
  *   §7). Bounded by `SINGLE_SESSION_CAP_BOUNDS`, same clamp relationship.
- * - Stake strength (FR-44) — fixed sensible defaults plus this ONE user
+ * - Stake strength (FR-44), fixed sensible defaults plus this ONE user
  *   control. De-escalation (FR-43) can lower it automatically after repeated
  *   panic-valve use; this control lets the user raise it back deliberately,
  *   without disabling de-escalation itself, which stays free to act again
  *   later (`stakesStore.panicValve`, untouched by this screen).
- * - Quiet hours — the window where stakes always release (read-only preview
- *   here; no screen in the app currently exposes an editor for it — see
+ * - Quiet hours, the window where stakes always release (read-only preview
+ *   here; no screen in the app currently exposes an editor for it, see
  *   `NotificationSettings.tsx`'s matching preview, which points back here).
- * - Never-lock apps — always reachable, shown fully VIEW ONLY per §8.11: no
+ * - Never-lock apps, always reachable, shown fully VIEW ONLY per §8.11: no
  *   add/remove affordance on this screen. The six protected categories are
  *   re-asserted on every normalize (`store/migrations/settings.ts`) so they
  *   can never actually be removed regardless.
- * - Pause stakes for today — an always-available way to stand down.
+ * - Pause stakes for today, an always-available way to stand down.
  *
  * Designed to be embedded in a screen that provides its own scroll + padding.
  */
@@ -330,7 +330,7 @@ export function StakesSettings() {
   // crossed the same threshold that already lowers `stakeStrength`
   // automatically (`stakesStore.panicValve`) and offers the pause sheet
   // elsewhere. Reusing that exact signal here means "strength was just
-  // eased" and "offer a pause" always agree — they're the same event, read
+  // eased" and "offer a pause" always agree, they're the same event, read
   // read-only, never written from this screen.
   const recentlyDeEscalated = useStakesStore((s) => s.shouldOfferPause());
   // Apps chosen to be put on the line (for the "Choose apps" section copy).
@@ -341,7 +341,7 @@ export function StakesSettings() {
   const [protectedInfoOpen, setProtectedInfoOpen] = useState(false);
 
   const quietHoursLabel = useMemo(
-    () => `${formatWindow(quietHours.start)} – ${formatWindow(quietHours.end)}`,
+    () => `${formatWindow(quietHours.start)} - ${formatWindow(quietHours.end)}`,
     [quietHours.start, quietHours.end]
   );
 
@@ -352,8 +352,8 @@ export function StakesSettings() {
   const strengthBand = strengthBandOf(stakeStrength);
   /**
    * Write the picked band's anchor value. Raising strength back up after a
-   * de-escalation is always allowed — this is the user's own commitment
-   * device (FR-43) — and doing so never disables de-escalation itself:
+   * de-escalation is always allowed, this is the user's own commitment
+   * device (FR-43), and doing so never disables de-escalation itself:
    * `stakesStore.panicValve` reads `settings.stakeStrength` fresh the next
    * time it fires and can lower it again regardless of what was picked here.
    * `AccessibilityInfo.announceForAccessibility` covers "announced changes"
@@ -368,7 +368,7 @@ export function StakesSettings() {
 
   // Split the never-lock list into the 6 protected safety categories and any
   // extra entries added before this screen became view-only (§8.11). Both
-  // groups render identically now (plain, non-removable rows) — the split
+  // groups render identically now (plain, non-removable rows), the split
   // only drives the "Protected" vs "Added earlier" sublabel below.
   const { protectedKeys, userKeys } = useMemo(() => {
     const p: string[] = [];
@@ -392,9 +392,9 @@ export function StakesSettings() {
 
   return (
     <View>
-      {/* Intro — set the protective tone before any control. */}
+      {/* Intro, set the protective tone before any control. */}
       <Text className="mb-4 text-body text-neutral-500">
-        Stakes help you start. These limits keep them gentle — you are always in
+        Stakes help you start. These limits keep them gentle, you are always in
         control, and nothing here can trap you.
       </Text>
 
@@ -426,7 +426,7 @@ export function StakesSettings() {
         <Row
           icon="hourglass-outline"
           label="Longest single lock"
-          sublabel="The hard ceiling on any one lock — a long until-done task simply releases here"
+          sublabel="The hard ceiling on any one lock, a long until-done task simply releases here"
           trailing={
             <Stepper
               value={singleSessionCapMin}
@@ -441,7 +441,7 @@ export function StakesSettings() {
         />
       </View>
 
-      {/* Stake strength (FR-44) — fixed defaults plus this one control. ----- */}
+      {/* Stake strength (FR-44), fixed defaults plus this one control. ----- */}
       <Text className="mb-2 ml-1 mt-6 text-overline font-semibold uppercase tracking-wide text-neutral-500">
         Stake strength
       </Text>
@@ -453,7 +453,7 @@ export function StakesSettings() {
           How firm a lock holds you to it
         </Text>
         <Text className="mt-0.5 text-caption text-neutral-500">
-          Fixed, sensible defaults per band — never a number to tune.
+          Fixed, sensible defaults per band, never a number to tune.
         </Text>
         <View className="mt-3">
           <StrengthPicker band={strengthBand} onSelect={setStrength} />
@@ -549,12 +549,12 @@ export function StakesSettings() {
         className="rounded-2xl border border-neutral-200 bg-white px-4"
         style={shadows.sm}
       >
-        {/* The 6 safety categories — always shown first, always Protected.
+        {/* The 6 safety categories, always shown first, always Protected.
             View only throughout this section (§8.11): no add or remove
             control anywhere here, on purpose (see the file header). The six
             are re-asserted on every normalize regardless
             (`store/migrations/settings.ts#safeNeverLock`), so this UI change
-            doesn't alter what's actually protected — only what the screen
+            doesn't alter what's actually protected, only what the screen
             honestly presents as editable, which is nothing. */}
         {protectedKeys.map((key, i) => (
           <Row
@@ -576,7 +576,7 @@ export function StakesSettings() {
         ))}
 
         {/* Any entries added before this screen became view-only. Same
-            treatment as the six above (plain, non-removable) — only the
+            treatment as the six above (plain, non-removable), only the
             sublabel differs, to be honest about provenance without implying
             a lesser or different protection than the mandatory six. */}
         {userKeys.map((key, i) => (
@@ -600,7 +600,7 @@ export function StakesSettings() {
         ))}
       </View>
       <Text className="ml-1 mt-2 text-caption text-neutral-500">
-        These stay reachable no matter what — nothing here can be locked.
+        These stay reachable no matter what, nothing here can be locked.
         This list isn&apos;t something you manage; Ampora keeps it protected
         automatically.
       </Text>
@@ -684,7 +684,7 @@ export function StakesSettings() {
         </Pressable>
       </Modal>
 
-      {/* Leisure-app picker — "choose what's on the line". */}
+      {/* Leisure-app picker, "choose what's on the line". */}
       <AppPicker visible={appPickerOpen} onClose={() => setAppPickerOpen(false)} />
     </View>
   );

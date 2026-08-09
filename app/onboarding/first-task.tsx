@@ -21,19 +21,19 @@ import { ProgressDots } from "./ProgressDots";
 
 /**
  * Onboarding step 6 (PRD §8.10): "First task (guided: add one real
- * assignment, watch it break down)". A minimal, single-field capture — not a
+ * assignment, watch it break down)". A minimal, single-field capture, not a
  * rebuild of the full task editor (`components/task-editor/**` is another
- * worker's surface) — that runs the SAME breakdown pipeline every other task
+ * worker's surface), that runs the SAME breakdown pipeline every other task
  * uses (`services/ai.ts#breakdownTask`, which has its own local fallback and
  * never throws), then hands the created task's id to the aha step (`aha.tsx`)
  * so it can be locked against.
  *
  * AI budget: this calls `breakdownTask`, the same ordinary path the task
- * editor already exercises at runtime — not a NEW routine test call against
+ * editor already exercises at runtime, not a NEW routine test call against
  * the edge function (that budget rule is about manual curl/dev testing, see
  * CLAUDE.md). It degrades to the local template fallback exactly like every
  * other breakdown call in the app, and that fallback is never presented as a
- * failure — only as a quiet, honest note.
+ * failure, only as a quiet, honest note.
  */
 
 type Phase = "input" | "loading" | "preview";
@@ -79,7 +79,7 @@ export default function FirstTaskScreen() {
       setPhase("preview");
     } catch {
       // breakdownTask already never throws, but never surface a failure to
-      // the UI regardless — fall back to the gentlest possible next step.
+      // the UI regardless, fall back to the gentlest possible next step.
       setResolvedTitle(title);
       setDue(parsed.due);
       setDurationMin(parsed.durationMin);

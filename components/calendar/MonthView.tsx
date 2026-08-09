@@ -74,8 +74,8 @@ function gridStartFor(date: number): number {
  * primary ring; days outside the current month are dimmed. Tapping a day fires
  * `onDayPress` with that day's local midnight (e.g. to switch to Day view).
  *
- * Custom grid (not react-native-calendars) so every token — the slack dots, the
- * today ring, the muted out-of-month treatment — matches the design system
+ * Custom grid (not react-native-calendars) so every token, the slack dots, the
+ * today ring, the muted out-of-month treatment, matches the design system
  * exactly. Data flows through the store selector with useShallow (project rule).
  */
 export function MonthView({
@@ -262,7 +262,7 @@ function DayCellView({ cell, onPress }: { cell: DayCell; onPress?: () => void })
           </View>
         ) : null}
 
-        {/* Event indicator — a calendar glyph, never a colored dot, so it
+        {/* Event indicator, a calendar glyph, never a colored dot, so it
             reads as "an event" by SHAPE and stays distinct from the round
             slack dots above (doc 02 "status is never color alone"). One
             glyph regardless of count; a trailing number appears past one,

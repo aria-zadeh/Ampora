@@ -16,7 +16,7 @@ interface StarterActionCardProps {
 
 /**
  * The signature focal card: the task's "First move". One of the app's ~4
- * `FeatureShell` uses (doc 02 §14.4) — the nested double-bezel gives it the
+ * `FeatureShell` uses (doc 02 §14.4), the nested double-bezel gives it the
  * quiet weight of the single most important thing on Home. A subtle gradient
  * wash sits inside the shell's white inner surface (same wash technique as
  * `GradientCard`, hand-composed here so it clips to the shell's own radius
@@ -32,7 +32,7 @@ export function StarterActionCard({ action, onToggle }: StarterActionCardProps) 
     <PulseScale trigger={done}>
       <FeatureShell>
         <View>
-          {/* Subtle top wash — decorative only, matches GradientCard's wash
+          {/* Subtle top wash, decorative only, matches GradientCard's wash
               but clipped by the shell's own rounded-xl + overflow-hidden. */}
           <LinearGradient
             colors={gradients.firstMove}
@@ -57,7 +57,7 @@ export function StarterActionCard({ action, onToggle }: StarterActionCardProps) 
               {action.text}
             </Heading>
 
-            {/* Mark done — success haptic on completion, light on undo. */}
+            {/* Mark done, success haptic on completion, light on undo. */}
             <PressableScale
               onPress={onToggle}
               haptic={done ? "light" : "success"}

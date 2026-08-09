@@ -1,14 +1,14 @@
 /**
- * TaskActionSheet — the Tasks list's long-press context menu (Phase 3,
+ * TaskActionSheet, the Tasks list's long-press context menu (Phase 3,
  * Todoist-grade affordances).
  *
  * Visual pattern CLONED from `components/calendar/BlockActionSheet.tsx`'s
  * bottom-sheet + ActionRow (grabber, title header, rounded rows with a tinted
- * leading icon) — that file is Phase-2 owned and is left untouched. This is a
+ * leading icon), that file is Phase-2 owned and is left untouched. This is a
  * new, task-scoped sheet: Edit, Complete/Reopen, Schedule tomorrow, Move to
  * list, Put on the line, Delete.
  *
- * Presentational only — every action is a callback the caller wires to the
+ * Presentational only, every action is a callback the caller wires to the
  * existing task/list stores, so this file stays store-agnostic like its
  * calendar counterpart.
  */
@@ -45,8 +45,8 @@ export interface TaskActionSheetProps {
   onMoveToList: (listId: string | undefined) => void
   onDelete: () => void
   /**
-   * "Put something on the line" (Ignition stake). Omitted entirely — no row
-   * rendered — when the caller has no route to send the user to, per the
+   * "Put something on the line" (Ignition stake). Omitted entirely, no row
+   * rendered, when the caller has no route to send the user to, per the
    * "omit gracefully" instruction.
    */
   onPutOnTheLine?: () => void
@@ -296,7 +296,7 @@ function ListPicker({
 }
 
 // ---------------------------------------------------------------------------
-// Action row — same tint vocabulary as BlockActionSheet's ActionRow.
+// Action row, same tint vocabulary as BlockActionSheet's ActionRow.
 // ---------------------------------------------------------------------------
 
 type Tint = 'neutral' | 'primary' | 'success' | 'danger'

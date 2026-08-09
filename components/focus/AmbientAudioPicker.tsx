@@ -1,5 +1,5 @@
 /**
- * AmbientAudioPicker — the session's optional ambient sound (PRD FR-62).
+ * AmbientAudioPicker, the session's optional ambient sound (PRD FR-62).
  *
  * A disclosure row plus a chip strip. Lifted out of `app/focus/session.tsx`
  * verbatim; the audio itself stays in `hooks/useFocusAudio`, which degrades to

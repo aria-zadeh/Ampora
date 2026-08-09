@@ -1,5 +1,5 @@
 /**
- * ProgressRing — a small circular progress indicator with a centered percent
+ * ProgressRing, a small circular progress indicator with a centered percent
  * label, built with plain Views so it needs no react-native-svg and web-exports
  * cleanly. Two rotating half-disc masks reveal the colored ring underneath as
  * the percentage climbs (the standard SVG-free RN ring technique).
@@ -10,7 +10,7 @@
  * Tonal ring, matching `components/focus/ProgressRing`: when no `color` is
  * passed, the two halves render as a same-hue tonal pair (deep `#1D4ED8` on
  * the first-filled half, primary `#2563EB` on the second) instead of one
- * flat color — see `color`/`colorDeep` below. Both real call sites today
+ * flat color, see `color`/`colorDeep` below. Both real call sites today
  * (`ProjectCard`, `app/projects/[id].tsx`) pass an explicit `color={PROJECT_ACCENT}`
  * and no `colorDeep`, so they render exactly as before: both halves the same
  * flat accent color, unchanged.
@@ -28,7 +28,7 @@ interface ProgressRingProps {
   /** Ring thickness in px. @default 5 */
   stroke?: number;
   /**
-   * Ring color. @default primary "#2563EB" — when left at its default (no
+   * Ring color. @default primary "#2563EB", when left at its default (no
    * explicit `color`), the ring renders as a tonal sweep with `colorDeep`
    * (see below). An explicit `color` (e.g. the Projects screens' own
    * `PROJECT_ACCENT`) renders as a flat single color unless `colorDeep` is
@@ -113,7 +113,7 @@ export function ProgressRing({
   const rightDeg = Math.min(value, 50) / 50 * 180 - 180;
   const leftDeg = value <= 50 ? -180 : (value - 50) / 50 * 180 - 180;
 
-  // Resolve the tonal pair — mirrors components/focus/ProgressRing exactly.
+  // Resolve the tonal pair, mirrors components/focus/ProgressRing exactly.
   // `colorDeep` only defaults to deep blue when `color` itself resolves to
   // primary blue; any other explicit `color` (PROJECT_ACCENT, or a future
   // custom color) stays flat on both halves instead of pairing an unrelated
@@ -140,7 +140,7 @@ export function ProgressRing({
         }}
       />
 
-      {/* Colored fill built from two rotating half-masks — right (0..50%,
+      {/* Colored fill built from two rotating half-masks, right (0..50%,
           first-filled) gets the deeper tone, left (50..100%) the primary
           tone, so the sweep reads deep-to-light like the focus ring's
           gradient. Flat/identical on both halves whenever no tonal pair
@@ -149,7 +149,7 @@ export function ProgressRing({
       <HalfFill size={size} stroke={stroke} color={resolvedDeep} side="right" rotateDeg={rightDeg} />
       <HalfFill size={size} stroke={stroke} color={resolvedColor} side="left" rotateDeg={leftDeg} />
 
-      {/* Centered percent label — the ring is never color-only. */}
+      {/* Centered percent label, the ring is never color-only. */}
       <Text
         style={{ fontSize: size * 0.26, fontWeight: "700", color: colors.light.text }}
         allowFontScaling={false}

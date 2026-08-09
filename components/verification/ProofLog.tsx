@@ -1,18 +1,18 @@
 /**
- * ProofLog — Ampora Phase 4 (verification, doc `04` §4/§7).
+ * ProofLog, Ampora Phase 4 (verification, doc `04` §4/§7).
  *
  * A premium, private list of past verification proofs: each row shows the
  * method (icon), the task it belongs to, when it happened, and a verdict /
  * overridden badge. This is the user's own "record of work done", which is
- * itself motivating (doc `04` §4) — never a report to anyone else.
+ * itself motivating (doc `04` §4), never a report to anyone else.
  *
  * A `Proof` is attributed by `sessionId`. Since `VerificationSheet` attributes
  * every proof recorded against an active Ignition stake to that STAKE
- * session's id (doc `04` §6/§8 — the Proof Log is per stake session, not per
+ * session's id (doc `04` §6/§8, the Proof Log is per stake session, not per
  * focus session), we resolve the task title through `stakesStore.sessions`
  * first. Older/unstaked proofs may still carry a focus-session id or the task
  * id directly (pre-existing fallback paths), so both are tried after, and a
- * neutral label covers anything pruned — proofs must always render.
+ * neutral label covers anything pruned, proofs must always render.
  * Photo/screenshot proofs show a small thumbnail via `expo-image` (already a
  * dependency); everything degrades cleanly on web with no camera.
  *
@@ -166,7 +166,7 @@ export function ProofLog({
    * stake session it was attributed to (the primary path since the sheet
    * started attributing proofs to `StakeSession.id`), then a focus session
    * (older/unstaked proofs), then the taskId directly (honor completions with
-   * no session at all). Never throws — an unresolved proof still renders.
+   * no session at all). Never throws, an unresolved proof still renders.
    */
   const titleFor = (proof: Proof): string => {
     const stakeSession = stakeSessions[proof.sessionId];

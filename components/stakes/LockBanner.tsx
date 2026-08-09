@@ -1,5 +1,5 @@
 /**
- * LockBanner — Ampora Ignition (PRD §8.8), rebuilt onto the hold + trigger
+ * LockBanner, Ampora Ignition (PRD §8.8), rebuilt onto the hold + trigger
  * model.
  *
  * The in-session banner shown while a stake is active: `"{Instagram and 2
@@ -8,17 +8,17 @@
  *
  * NAMES ARE THE EXCEPTION, NOT THE RULE. iOS hands back opaque
  * ApplicationToken/ActivityCategoryToken/WebDomainToken strings and never an
- * app identity (doc `05` §7) — that is the normal case this app will run in,
+ * app identity (doc `05` §7), that is the normal case this app will run in,
  * not an edge case to shrug off. So the subject line is built from whatever
  * data actually exists: named apps (`StakeApp.label`, the soft/dev-catalog
  * path) when present, and the stored `StakeSelection.count` otherwise. There
- * is deliberately no branch on which BlockingStrategy is active — the
+ * is deliberately no branch on which BlockingStrategy is active, the
  * fallback is driven by what the data can support, not by a strategy guess.
  *
  * "N min left" is LIVE:
  *   - `hold: 'session'` unlocks on focus time served, so remaining time only
  *     moves when `session.focusSec` moves (i.e. while a focus session is
- *     actually accruing it) — reading it straight off the session prop is
+ *     actually accruing it), reading it straight off the session prop is
  *     already live, no local clock needed.
  *   - `hold: 'until_done'` converts to a release on a WALL-CLOCK ceiling
  *     (`settings.singleSessionCapMin` from `startedAt`, doc `04` §7), which
@@ -66,7 +66,7 @@ export function LockBanner({ session, onPanic }: LockBannerProps) {
 
   // Self-ticking clock. This banner is mounted app-wide and must stay correct
   // with no focus session mounted anywhere, so it cannot rely on a parent
-  // re-rendering it every minute — it owns its own "now".
+  // re-rendering it every minute, it owns its own "now".
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), TICK_MS);
@@ -112,7 +112,7 @@ export function LockBanner({ session, onPanic }: LockBannerProps) {
       plural = true;
     } else {
       // No names AND no usable count (shouldn't happen while genuinely
-      // locked, but this banner must never assume — fail into calm copy).
+      // locked, but this banner must never assume, fail into calm copy).
       subject = "Your apps";
       plural = true;
     }
@@ -150,7 +150,7 @@ export function LockBanner({ session, onPanic }: LockBannerProps) {
         </View>
       </View>
 
-      {/* Panic valve entry — always available, understated so it never invites
+      {/* Panic valve entry, always available, understated so it never invites
           use, but never hidden (FR-42, §9.10). */}
       <PressableScale
         onPress={onPanic}

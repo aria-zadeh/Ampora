@@ -16,7 +16,7 @@ export const DEFAULT_SCROLL_HOUR = 7
 
 /**
  * Format an hour index (0..23) as a compact 12-hour label: `12a, 1a … 11a,
- * 12p, 1p … 11p` (PRD §8.7 gutter style — terse, lower-case meridiem).
+ * 12p, 1p … 11p` (PRD §8.7 gutter style, terse, lower-case meridiem).
  */
 export function hourLabel(hour: number): string {
   const h = ((hour % 24) + 24) % 24
@@ -75,7 +75,7 @@ export function hourInstant(dayStartMs: number, hour: number): number {
 
 /**
  * Format a start/end span as a compact block time-range label, e.g.
- * "9:00 – 9:45 AM" (shared meridiem collapsed when both ends share it).
+ * "9:00 - 9:45 AM" (shared meridiem collapsed when both ends share it).
  */
 export function formatBlockTimeRange(startMs: number, endMs: number): string {
   const s = new Date(startMs)
@@ -84,7 +84,7 @@ export function formatBlockTimeRange(startMs: number, endMs: number): string {
   const eMer = e.getHours() < 12 ? 'AM' : 'PM'
   const startStr = formatClock(s, sMer !== eMer)
   const endStr = formatClock(e, true)
-  return `${startStr} – ${endStr}`
+  return `${startStr} - ${endStr}`
 }
 
 /** Format a single instant as a compact clock time, e.g. "9:05 AM". */

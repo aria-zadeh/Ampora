@@ -1,18 +1,18 @@
 /**
- * DeEscalationSheet — Ampora Phase 5 Ignition (FR-43, PRD §9.10).
+ * DeEscalationSheet, Ampora Phase 5 Ignition (FR-43, PRD §9.10).
  *
- * Surfaced when `stakesStore.shouldOfferPause()` is true — i.e. the user has
+ * Surfaced when `stakesStore.shouldOfferPause()` is true, i.e. the user has
  * hit the panic valve / missed enough that repeated stakes are clearly not
  * helping right now. This sheet NEVER increases pressure. It does the opposite:
  * it names the struggle with warmth and offers to lift stakes for the rest of
  * the day, no strings attached.
  *
  * Two paths, both kind:
- *   - "Pause stakes for today": `stakesStore.pauseStakesForToday()` — ends any
+ *   - "Pause stakes for today": `stakesStore.pauseStakesForToday()`, ends any
  *     active lock and stops new ones until tomorrow. The recommended, calm out.
  *   - "Keep going": dismiss and carry on. The store has ALREADY lowered the
  *     default strength (de-escalation happens in `panicValve`), so continuing
- *     is already gentler — no extra pressure is added here either way.
+ *     is already gentler, no extra pressure is added here either way.
  *
  * Wellbeing stance (§9.10, doc 09 §5): the app responds to struggle with less,
  * never more. No shame copy. Reduce-motion aware. RN + NativeWind, web-safe.
@@ -84,7 +84,7 @@ export function DeEscalationSheet({ visible, onClose, onPaused }: DeEscalationSh
                 </View>
 
                 <View className="items-center px-6 pt-6">
-                  {/* Warm icon — a hand on the shoulder, not a warning. */}
+                  {/* Warm icon, a hand on the shoulder, not a warning. */}
                   <View className="h-16 w-16 items-center justify-center rounded-full bg-warning-100">
                     <Ionicons name="heart-outline" size={30} color={colors.light.warningStrong} />
                   </View>
@@ -98,7 +98,7 @@ export function DeEscalationSheet({ visible, onClose, onPaused }: DeEscalationSh
                   </Text>
                 </View>
 
-                {/* Actions — pause is the gently recommended choice. */}
+                {/* Actions, pause is the gently recommended choice. */}
                 <View className="mt-8 gap-3 px-5 pb-2">
                   <Button
                     title="Pause stakes for today"

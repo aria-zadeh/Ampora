@@ -1,12 +1,12 @@
 /**
- * ProgressTracker — the editable phase checklist + percent bar for a project
+ * ProgressTracker, the editable phase checklist + percent bar for a project
  * (doc `06` §5/§7): an ordered list of phases (for a study project, this is
  * the topic list), each toggled done/not-done by tapping the row, plus a
- * simple percent bar above it — completed phases plus the fraction of the
+ * simple percent bar above it, completed phases plus the fraction of the
  * current phase (doc `06` §5). No per-phase score or rating: a phase is
  * simply done or it isn't (finer-grained tracking is cut, `V2_Changes.md` §6).
  *
- * Edited exactly like a task breakdown (doc `06` §1) — add, remove, toggle.
+ * Edited exactly like a task breakdown (doc `06` §1), add, remove, toggle.
  * Edits go straight to the store via `onChange`, so this is the one place
  * phases get mutated outside of the end-of-session check-in.
  */

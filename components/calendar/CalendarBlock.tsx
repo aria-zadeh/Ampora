@@ -9,7 +9,7 @@ import { formatBlockTimeRange } from './hours'
 
 /**
  * Deadline-slack visual mapping (PRD §9.5.5 / doc 02 §13.2). Color is NEVER the
- * sole signal — every block also carries a status dot and the block is labeled,
+ * sole signal, every block also carries a status dot and the block is labeled,
  * satisfying NFR-5 / §8.12. Events use a neutral treatment (no deadline slack).
  */
 const SLACK_STYLES = {
@@ -23,7 +23,7 @@ const EVENT_STYLE = { accent: '#6F6862', tint: '#FAF9F7', dot: '#6F6862', label:
 /** §8.7 height thresholds. */
 const H_FULL = 44 // >= 44: title + time (+ meta)
 const H_TITLE_ONLY = 28 // 28..44: title only
-/** §8.7 width thresholds (as fractions of a phone column — resolved by caller sizing). */
+/** §8.7 width thresholds (as fractions of a phone column, resolved by caller sizing). */
 const W_DENSE = 56 // < 56 px: colored bar + first ~6 chars
 
 interface CalendarBlockProps {
@@ -41,7 +41,7 @@ interface CalendarBlockProps {
   left?: DimensionValue
   /** Width, e.g. "50%" or a px number (from `widthFraction * 100`). @default "100%" */
   width?: DimensionValue
-  /** Measured px width of the block, if known — drives the §8.7 WIDTH thresholds (dense mode). */
+  /** Measured px width of the block, if known, drives the §8.7 WIDTH thresholds (dense mode). */
   measuredWidth?: number
   /** "now" for slack computation; defaults to Date.now(). Pass explicitly for determinism/tests. */
   now?: number
@@ -70,8 +70,8 @@ function remainingSteps(task?: Task): number {
  *   the geometry + overlap math from `core/calendar`).
  * - Soft tinted surface + a strong left accent bar in the deadline-slack color
  *   (neutral for events); a status dot repeats the signal for a11y.
- * - Dynamic typography (§8.7): time+title at >=44px, title-only 28–44px,
- *   ~6 chars when very short or in a dense (<56px wide) column. Never clips —
+ * - Dynamic typography (§8.7): time+title at >=44px, title-only 28-44px,
+ *   ~6 chars when very short or in a dense (<56px wide) column. Never clips,
  *   always ellipsizes.
  * - Renders as ONE block with an "N steps" chip for auto-broken tasks (FR-27).
  * - Optional progress fill when `task.progressMin > 0` (FR-18).
@@ -112,14 +112,14 @@ export function CalendarBlock({
       ? Math.min(1, task.progressMin / task.durationMin)
       : 0
 
-  // §8.7 thresholds — height first, then dense-width override.
+  // §8.7 thresholds, height first, then dense-width override.
   const dense = measuredWidth != null && measuredWidth < W_DENSE
   const showTime = !dense && height >= H_FULL
   const showTitle = !dense && height >= H_TITLE_ONLY
-  // All-day events have no meaningful clock time — their start/end are either
+  // All-day events have no meaningful clock time, their start/end are either
   // a midnight-to-midnight marker or a per-day clip of a multi-day span
   // (`selectEventsByDay`'s render-only clamp), so formatting them as a time
-  // range would show something like "12 – 12 AM". Every view (Day/3-Day/Week/
+  // range would show something like "12 - 12 AM". Every view (Day/3-Day/Week/
   // Month/Agenda) renders events through this one component, so fixing the
   // label here fixes it everywhere at once.
   const timeRange = isEvent && event?.allDay ? 'All day' : formatBlockTimeRange(start, end)
@@ -136,7 +136,7 @@ export function CalendarBlock({
             backgroundColor: style.tint,
             borderWidth: 1,
             // Events read as fixed/external by SHAPE, not just their neutral
-            // tint (FR-1, FR-12; doc 02 "never color alone") — a dashed
+            // tint (FR-1, FR-12; doc 02 "never color alone"), a dashed
             // border reads as "placed here, not scheduled by the engine"
             // regardless of hue, on top of the distinct EVENT_STYLE tint and
             // the calendar glyph below.
@@ -156,7 +156,7 @@ export function CalendarBlock({
           // which silently assumed a font advance width: a fixed character
           // count measures wider in Lexend than it did in Inter, so 6 wide
           // glyphs could overflow the ~45px of usable width. Let the layout
-          // measure instead — `numberOfLines` + tail ellipsis truncate at the
+          // measure instead, `numberOfLines` + tail ellipsis truncate at the
           // real width, at any typeface, and unlike the slice they leave a
           // visible signal that there is more title than is shown.
           <View className="flex-1 px-1 py-0.5 justify-center">
@@ -170,7 +170,7 @@ export function CalendarBlock({
           </View>
         ) : (
           <View className="flex-1 px-2 py-1 justify-start">
-            {/* Header row: status dot + title (title-only when 28–44px). */}
+            {/* Header row: status dot + title (title-only when 28-44px). */}
             <View className="flex-row items-center">
               <View
                 className="rounded-full mr-1.5"
@@ -205,7 +205,7 @@ export function CalendarBlock({
               </View>
             ) : null}
 
-            {/* Progress fill (FR-18) — only when there's room and progress exists. */}
+            {/* Progress fill (FR-18), only when there's room and progress exists. */}
             {progressFraction > 0 && height >= H_FULL ? (
               <View className="mt-1 h-[3px] rounded-full overflow-hidden bg-white/60">
                 <View
@@ -219,7 +219,7 @@ export function CalendarBlock({
 
         {/* Pinned affordance (Round B fix #7): a tiny lock glyph, top-right,
             so a user can see at a glance which blocks are immovable inputs to
-            the next recompute (PRD §9.5.10). Never the sole signal — the
+            the next recompute (PRD §9.5.10). Never the sole signal, the
             a11y label below also announces "locked". Purely decorative. */}
         {block?.pinned && !dense ? (
           <View
@@ -231,7 +231,7 @@ export function CalendarBlock({
         ) : null}
 
         {/* Fixed-event glyph, same corner slot (mutually exclusive with the
-            pin glyph — a block is never both). One more non-color cue that
+            pin glyph, a block is never both). One more non-color cue that
             this is a fixed Event, not a scheduled Task block. */}
         {isEvent && !dense ? (
           <View

@@ -18,7 +18,7 @@ import { useGridScrollController, type GridScrollController } from './gridScroll
 interface TimeGridProps {
   /** Vertical zoom in px per hour (one of the FR-24 stops: 40/60/80/120). */
   pxPerHour: number
-  /** Epoch ms mapped to y=0 — local midnight of the rendered day. */
+  /** Epoch ms mapped to y=0, local midnight of the rendered day. */
   dayStartMs: number
   /**
    * Absolutely-positioned block layer(s). The caller positions children via
@@ -42,7 +42,7 @@ interface TimeGridProps {
    * Reports the {@link GridScrollController} for this grid's ScrollView once
    * available, so a caller (e.g. `DayColumn`) can pass it down into a
    * draggable block layer for scroll-lock during drag (fix #3) and
-   * edge-autoscroll (fix #4). Optional — a grid with no draggable children
+   * edge-autoscroll (fix #4). Optional, a grid with no draggable children
    * (e.g. read-only previews) can omit it.
    */
   onScrollController?: (controller: GridScrollController) => void
@@ -100,7 +100,7 @@ function NowLine({
  * layer (the caller's `children`), and a live red current-time line. Scrolls
  * vertically, landing on ~07:00 by default.
  *
- * Presentational only — no data access, no gestures. The view agents layer
+ * Presentational only, no data access, no gestures. The view agents layer
  * gesture handling (drag/resize/create) and the block data on top.
  */
 export function TimeGrid({
@@ -124,13 +124,13 @@ export function TimeGrid({
   const scrollRef = controller.scrollRef
   // A plain View wrapping the ScrollView, measured in window space to feed
   // edge-autoscroll (fix #4). Kept separate from `scrollRef` (whose target is
-  // the ScrollView, not cleanly typed for `measureInWindow`) — a plain `View`
+  // the ScrollView, not cleanly typed for `measureInWindow`), a plain `View`
   // ref is fully typed for it and shares the exact same box as the ScrollView
   // it wraps 1:1.
   const viewportWrapRef = useRef<View>(null)
 
   // Hand the controller to the caller once (identity is stable across
-  // renders — the ref objects never change), so it can be threaded down to a
+  // renders, the ref objects never change), so it can be threaded down to a
   // draggable block layer without this component knowing about drag at all.
   useEffect(() => {
     onScrollController?.(controller)
@@ -193,7 +193,7 @@ export function TimeGrid({
             )
           })}
 
-          {/* Block layer — caller-positioned, offset past the gutter. */}
+          {/* Block layer, caller-positioned, offset past the gutter. */}
           <View
             style={{ position: 'absolute', top: 0, bottom: 0, left: GUTTER_WIDTH, right: 0 }}
           >

@@ -1,10 +1,10 @@
 /**
- * ProjectCard — a single project row in the projects hub (doc `06`).
+ * ProjectCard, a single project row in the projects hub (doc `06`).
  *
  * Premium tappable card: title, kind badge, a compact progress ring, and a
  * task count line. Projects are the "special/premium" surface, so the ring +
  * accents use the accent family (#7C3AED, doc `02`), while the card stays
- * neutral-dominant. Progress is never color-only — the ring carries a
+ * neutral-dominant. Progress is never color-only, the ring carries a
  * percent label and the status line spells out the count.
  */
 
@@ -20,7 +20,7 @@ import type { Project } from "@/types";
 
 interface ProjectCardProps {
   project: Project;
-  /** Count of Tasks with `task.projectId === project.id` — Project no longer stores task ids (doc `06` §9), so the caller computes this once from `taskStore`. */
+  /** Count of Tasks with `task.projectId === project.id`, Project no longer stores task ids (doc `06` §9), so the caller computes this once from `taskStore`. */
   taskCount: number;
   onPress: () => void;
 }
@@ -35,7 +35,7 @@ export function ProjectCard({ project, taskCount, onPress }: ProjectCardProps) {
       accessibilityHint="Opens the project"
       className="flex-row items-center"
     >
-      {/* Progress ring — accent-tinted, carries a percent label (never color-only). */}
+      {/* Progress ring, accent-tinted, carries a percent label (never color-only). */}
       <ProgressRing pct={project.percent} size={54} stroke={5} color={PROJECT_ACCENT} />
 
       <View className="flex-1 ml-4">

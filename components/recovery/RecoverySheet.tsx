@@ -1,11 +1,11 @@
 /**
- * RecoverySheet — the "Catch me up" rebuild flow (PRD FR-60, §8.6, §9.5.9).
+ * RecoverySheet, the "Catch me up" rebuild flow (PRD FR-60, §8.6, §9.5.9).
  * Ampora Phase 6.
  *
  * Opened from the RecoveryBanner. Shows the deterministic rebuild PREVIEW
  * (`core/recovery.buildRecoveryPreview`): which moot past-due items get
  * cleared, which now-urgent tasks get bumped to the front, and how much of the
- * upcoming week gets replanned. One tap — "Rebuild my week" — applies the
+ * upcoming week gets replanned. One tap, "Rebuild my week", applies the
  * drops + bumps and reruns the scheduler, then shows the exact success line
  * "Rebuilt your week."
  *
@@ -66,7 +66,7 @@ export function RecoverySheet({ visible, onClose }: RecoverySheetProps) {
   const preview: RecoveryPreview = useMemo(() => {
     if (!visible) return { drops: [], bumps: [], rebuildCount: 0, summary: '' }
     return buildRecoveryPreview(tasks, blocks, Date.now())
-    // Recompute only when the sheet (re)opens — not on every task keystroke
+    // Recompute only when the sheet (re)opens, not on every task keystroke
     // behind it. `visible` is the intended trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible])
@@ -81,12 +81,12 @@ export function RecoverySheet({ visible, onClose }: RecoverySheetProps) {
 
     // 1) Resolve every past-due item. A non-recurring moot task (or a
     // recurring one whose series has ended) is dropped outright. A missed
-    // RECURRING occurrence is instead ADVANCED past the miss — the series
+    // RECURRING occurrence is instead ADVANCED past the miss, the series
     // continues with its rule (and count, for a count-limited series)
     // rolled forward; only the missed instance goes away (FR-16). Deleting
     // the whole task here would destroy the user's recurring commitment over
     // a single missed day, so this always goes through
-    // `applyRecoveryDrop` — never a direct `deleteTask` — which is the one
+    // `applyRecoveryDrop`, never a direct `deleteTask`, which is the one
     // place that decides delete-vs-advance (`core/recovery.ts`).
     for (const drop of preview.drops) {
       applyRecoveryDrop(drop)
@@ -111,7 +111,7 @@ export function RecoverySheet({ visible, onClose }: RecoverySheetProps) {
     useScheduleStore.getState().recompute()
 
     setRebuilt(true)
-    // The banner has served its purpose — stand it down for this session.
+    // The banner has served its purpose, stand it down for this session.
     dismissBanner()
   }
 
@@ -197,7 +197,7 @@ function PreviewBody({
         </Heading>
         <Text className="mt-2 text-body text-neutral-600 leading-6">
           {nothingToDo
-            ? "You're already on track — there's nothing to clear. Want a fresh plan anyway?"
+            ? "You're already on track, there's nothing to clear. Want a fresh plan anyway?"
             : preview.summary}
         </Text>
       </View>

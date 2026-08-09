@@ -13,7 +13,7 @@ interface ScreenProps {
 }
 
 /**
- * Screen wrapper — bg-neutral-100 canvas + safe-area insets. Constrains
+ * Screen wrapper, bg-neutral-100 canvas + safe-area insets. Constrains
  * content to layout.maxContentWidth and centers it on wide (web) viewports so
  * lines never run edge-to-edge. Set `scroll` for long content, `padded={false}`
  * for full-bleed screens.

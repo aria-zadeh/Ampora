@@ -73,7 +73,7 @@ function fireHaptic(haptic: HapticStyle) {
 }
 
 /**
- * Animated pressable wrapper — the standard press primitive.
+ * Animated pressable wrapper, the standard press primitive.
  * On press-in: scale 0.97 (100ms ease-out) + opacity 0.9; on press-out: back
  * to 1 (150ms). Fires the given haptic on a completed press. When reduce-motion
  * is on, scale is skipped but opacity + haptic stay.

@@ -1,12 +1,12 @@
 /**
- * SessionTimer — the focus session's clock (PRD FR-62, FR-77b).
+ * SessionTimer, the focus session's clock (PRD FR-62, FR-77b).
  *
  * ONE bounded countdown for the whole session, with an ambient ring tracing how
  * much of it has been served. There is no work/break phase here: a break is a
  * hold on this clock (`held`), never a second phase of it, because break time
  * must never count toward a stake's hold (doc `04` §6).
  *
- * Purely presentational — the clock itself lives in `hooks/useForegroundTimer`.
+ * Purely presentational, the clock itself lives in `hooks/useForegroundTimer`.
  * The digits are the accessible source of truth (`accessibilityRole="timer"`,
  * tabular numerals so the column never jitters); the ring is decorative and
  * hidden from the accessibility tree by `ProgressRing`.
@@ -32,7 +32,7 @@ export interface SessionTimerProps {
   ticking: boolean;
   /** The user's pause/resume intent (drives the button label). */
   running: boolean;
-  /** True once the user has left the app during this run — surfaces the calm "paused while away" note. */
+  /** True once the user has left the app during this run, surfaces the calm "paused while away" note. */
   interrupted: boolean;
   /** Total session length in minutes, for the caption. */
   totalMin: number;

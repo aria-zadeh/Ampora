@@ -8,7 +8,7 @@ interface GradientCardProps {
   children: React.ReactNode;
   /**
    * Gradient color stops for the top wash. Defaults to gradients.firstMove.
-   * Keep it subtle — a faint tint fading to white/transparent.
+   * Keep it subtle, a faint tint fading to white/transparent.
    */
   colors?: readonly [string, string, ...string[]];
   className?: string;
@@ -32,7 +32,7 @@ export function GradientCard({
       }`}
       style={[shadows.sm, style]}
     >
-      {/* Subtle top wash — decorative only, sits behind the content. */}
+      {/* Subtle top wash, decorative only, sits behind the content. */}
       <LinearGradient
         colors={colors}
         start={{ x: 0, y: 0 }}

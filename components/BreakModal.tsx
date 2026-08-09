@@ -108,7 +108,7 @@ export function BreakModal({
 
         {/* Actions */}
         <View className="w-full gap-3">
-          {/* Resume — ALWAYS visible, 52pt primary action */}
+          {/* Resume, ALWAYS visible, 52pt primary action */}
           <Pressable
             onPress={handleResume}
             className="w-full min-h-[52px] flex-row items-center justify-center bg-primary active:bg-primary-dark rounded-lg px-6"
@@ -121,7 +121,7 @@ export function BreakModal({
             </Text>
           </Pressable>
 
-          {/* Skip — appears only after 60 seconds have elapsed */}
+          {/* Skip, appears only after 60 seconds have elapsed */}
           {canSkip && (
             <Pressable
               onPress={handleResume}

@@ -30,7 +30,7 @@ export default function NotificationsScreen() {
 
   const handleSkip = () => {
     // FR-64: never block use behind a permission. Declining still continues
-    // the flow — notifications just won't fire until enabled later in Settings.
+    // the flow, notifications just won't fire until enabled later in Settings.
     router.push("/onboarding/first-task");
   };
 
@@ -63,8 +63,8 @@ export default function NotificationsScreen() {
               Reminders that respect your focus
             </Heading>
             <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[330px]">
-              We only reach out when it actually helps. No spam, no pressure —
-              here’s our promise.
+              We only reach out when it actually helps. No spam, no pressure.
+              Here’s our promise.
             </Text>
           </Animated.View>
 

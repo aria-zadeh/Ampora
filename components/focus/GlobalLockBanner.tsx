@@ -1,9 +1,9 @@
 /**
- * GlobalLockBanner — the app-wide "your apps are on the line" banner
+ * GlobalLockBanner, the app-wide "your apps are on the line" banner
  * (PRD FR-42, FR-45, NFR-7; doc `04` §6, §7).
  *
  * WHY THIS EXISTS. A `hold: 'session'` lock is served by focus time, so leaving
- * the focus screen must NOT hand the apps back — that is the leak the session
+ * the focus screen must NOT hand the apps back, that is the leak the session
  * model closes. But until this banner existed, leaving also made the lock
  * INVISIBLE: no timer, no way back in, no panic valve, and `startStake` refused
  * every new session with `already_active` until the app was force-quit. Locked
@@ -16,12 +16,12 @@
  *
  * It hides itself on the focus session and Blindfold. Both are presented as
  * `fullScreenModal` (`app/_layout.tsx`), a native full-screen presentation
- * that sits on top of everything else in the view hierarchy — including this
- * banner, mounted as a plain sibling of the routed `Stack` — so it would never
+ * that sits on top of everything else in the view hierarchy, including this
+ * banner, mounted as a plain sibling of the routed `Stack`, so it would never
  * actually be visible there regardless of the suppression. Each renders its
  * own in-context lock UI instead: the focus session's own `LockBanner` +
  * `PanicValveSheet` (`app/focus/session.tsx`), and Blindfold's own
- * (`app/blindfold.tsx`) — both wired so the panic valve stays reachable
+ * (`app/blindfold.tsx`), both wired so the panic valve stays reachable
  * (FR-42) even though this banner cannot be.
  *
 
@@ -47,14 +47,14 @@ import type { StakeSession } from "@/types";
 /** Routes that already show the lock in context. */
 const SUPPRESSED_PREFIXES = ["/focus/session", "/blindfold"];
 
-/** How often the "minutes left" line re-derives. Minute-granularity copy — 20s is plenty. */
+/** How often the "minutes left" line re-derives. Minute-granularity copy, 20s is plenty. */
 const REFRESH_MS = 20_000;
 
 export function GlobalLockBanner() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
 
-  // Raw field select (Zustand v5 discipline) — no mapping inside the selector.
+  // Raw field select (Zustand v5 discipline), no mapping inside the selector.
   const session = useStakesStore((s) => s.activeSession);
   const singleSessionCapMin = useSettingsStore((s) => s.settings.singleSessionCapMin);
 
@@ -84,7 +84,7 @@ export function GlobalLockBanner() {
       return { min: left, wallClock: true };
     }
     // A session hold is served by FOREGROUND focus time, so the honest number
-    // is focus minutes still to serve — and it does not tick down out here.
+    // is focus minutes still to serve, and it does not tick down out here.
     const requiredSec = (session.sessionMin ?? 0) * 60;
     const left = Math.max(0, Math.ceil((requiredSec - (session.focusSec ?? 0)) / 60));
     return { min: left, wallClock: false };
@@ -157,7 +157,7 @@ export function GlobalLockBanner() {
         </View>
       </View>
 
-      {/* Panic valve — always reachable, from anywhere in the app (FR-42). */}
+      {/* Panic valve, always reachable, from anywhere in the app (FR-42). */}
       {panicSheet}
     </>
   );
