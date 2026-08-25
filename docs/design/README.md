@@ -1,5 +1,15 @@
 # The chosen design direction
 
+## Missing file: `DECISION_SPEC.md`
+
+**11 source files cite `design/DECISION_SPEC` 16 times, and the file is not in this repo.**
+
+Comments point at specific numbered decisions in it (`doc design/DECISION_SPEC D1`, `D4 item 8`, and so on) across `app/(tabs)/focus.tsx`, `app/(tabs)/index.tsx`, `app/focus/session.tsx`, all six `components/focus/*` files, `components/home/TodayFocusCard.tsx` and `components/stakes/LockBanner.tsx`. `app/(tabs)/index.tsx` cites it as `DESIGN_DECISION_SPEC.md`, a slightly different name. Neither file exists.
+
+This is exactly the failure the note at the bottom of this file warns about, the one explaining why `stack-reference.html` had to be committed at all: a design artefact that lived only inside a chat session, which no later session can see. The lesson got applied to the HTML reference and then not to the decision spec.
+
+**If you have that document, commit it as `docs/design/DECISION_SPEC.md`.** Until then every one of those 16 comments is unresolvable, and the Focus and session screens cannot be checked against the decisions they were built to satisfy. Flagged 2026-08-07, see `docs/sessions/2026-08-07-session-record.md`.
+
 ## What is here
 
 - **`stack-reference.html`** — the approved design, "Stack", across all four key screens. Open it in a browser. This is the target the app is being brought to. It is self-contained, so it works offline with no server and no internet.

@@ -50,6 +50,50 @@ Run these from the repo root, inside the cloned Ampora repo.
 
 **No local flag flipping is needed for a cloud build.** Leave `native.config.json` all-false. The `-native` profiles set `AMPORA_NATIVE=1` in the cloud environment, which `constants/nativeFlags.js` reads ahead of the file. Step 1 only matters when building or running locally.
 
+### The Windows path, start to finish
+
+Copy-paste, in order, from the repo root. This is the whole thing. Everything after it in this file is either Mac-only or optional detail.
+
+**1.** Sign in to Expo. Free account, nothing to do with Apple. **This is the only step an agent cannot run for you.**
+```
+npx eas-cli@latest login
+```
+
+**2.** Link the project. Writes a `projectId` into `app.json`, which you then commit.
+```
+npx eas-cli@latest init
+```
+
+**3.** Register the iPhone. Choose the **Website** option, then open the printed URL or QR **on the phone** and install the profile. **Do not skip this.** Without it the build succeeds and then silently refuses to install.
+```
+npx eas-cli@latest device:create
+```
+
+**4.** Hand EAS the Apple key so nobody is asked to sign in. One line, into the same PowerShell window you will build from. It lasts only for that window.
+```
+$env:EXPO_ASC_API_KEY_PATH="C:\Users\Aria\AppleKeys\AuthKey_NQ9F796882.p8"; $env:EXPO_ASC_KEY_ID="NQ9F796882"; $env:EXPO_ASC_ISSUER_ID="72621750-6b7d-4a97-88a6-aaefa9b2b3ae"
+```
+
+**5.** Build in the cloud. 10 to 20 minutes plus queue. Accept when it offers to generate certificates and provisioning profiles.
+```
+npx eas-cli@latest build --profile development-native --platform ios
+```
+
+**6.** Open the link it prints **on the iPhone** in Safari, tap Install.
+
+**7.** On the iPhone: Settings, General, VPN & Device Management, tap the profile, **Trust**.
+
+**8.** Start Metro on the laptop, same Wi-Fi, then open Ampora.
+```
+npx expo start --dev-client
+```
+
+You will not hit a paywall. First launch stamps a 14-day trial (`app/_layout.tsx`, `ensureTrialStarted`).
+
+---
+
+The numbered steps below are the fuller, Mac-oriented version, kept because steps 3, 5 and 5b catch real problems cheaply when a Mac is available.
+
 **1. Turn the quarantined native code on, locally:**
 ```
 npm run native:on
