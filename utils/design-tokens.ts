@@ -58,7 +58,14 @@ export const colors = {
     accentStrong: "#7C3AED",
   },
   dark: {
-    primary: "#3B82F6",
+    // Same #2563EB as light, per doc 02 §14.1 ("Primary UNCHANGED"). This was
+    // briefly the lighter Tailwind primary-500 (#3B82F6) — a plausible-looking
+    // choice for a dark canvas — but dark mode had zero live effect anywhere
+    // in the app until this pass, so the value had never actually been
+    // rendered, and it fails AA for a filled button's white label at 3.68:1
+    // (core/__tests__/design-tokens.test.ts caught it; #2563EB clears 5.17:1,
+    // matching the light-mode audit in doc 02 §14.6).
+    primary: "#2563EB",
     primaryLight: "#60A5FA",
     primaryDark: "#2563EB",
     primaryForeground: "#FFFFFF",
@@ -99,6 +106,43 @@ export const colors = {
     accentStrong: "#7C3AED",
   },
 } as const;
+
+/**
+ * NativeWind `dark:` class mapping cheatsheet. NativeWind's `useColorScheme`
+ * (from "nativewind", never "react-native") drives Tailwind's `dark:`
+ * variant app-wide (`tailwind.config.js` `darkMode: "class"`); this table is
+ * what a screen should actually WRITE to reproduce `colors.light` /
+ * `colors.dark` above exactly, since the neutral ramp in `tailwind.config.js`
+ * is one flat set of steps shared by both themes (it is not itself
+ * theme-aware) — "dark mode" for a neutral surface is really just picking a
+ * different step of the same ramp:
+ *
+ *   bg-white           dark:bg-neutral-900     (card)
+ *   bg-neutral-50      dark:bg-neutral-800     (elevated)
+ *   bg-neutral-100     dark:bg-neutral-950     (background/canvas)
+ *   text-neutral-900   dark:text-neutral-50    (text)
+ *   text-neutral-700   dark:text-neutral-300   (textStrong)
+ *   text-neutral-600   dark:text-neutral-400   (textSecondary)
+ *   text-neutral-400   dark:text-neutral-600   (textDisabled)
+ *   border-neutral-200 dark:border-neutral-800 (border)
+ *   border-neutral-300 dark:border-neutral-700 (borderStrong)
+ *
+ * `textMuted` is the one exception: `colors.dark.textMuted` (`#78716C`) is a
+ * deliberately bespoke value (doc 02 §14.6 "Stone-500-on-dark") that does not
+ * sit on any exact step of the shared neutral ramp — `neutral.500`
+ * (`#6F6862`) is close but measurably lower contrast (3.19:1 vs the audited
+ * 3.65:1 on a dark card). Reproduce it with the literal step: `text-neutral-500
+ * dark:text-[#78716C]`. Semantic accent colors (primary/success/warning/
+ * danger/accent) are UNCHANGED between themes (doc 02 §14.1) and never need a
+ * `dark:` variant. Small pastel tint badges (e.g. `bg-success-100` paired
+ * with `text-success-700`) are self-contained, already-audited pairs (doc 02
+ * §14.6) that stay correct without a `dark:` variant too — leave them as-is
+ * rather than inventing a darker tint for them.
+ *
+ * `core/__tests__/design-tokens.test.ts` asserts this table against
+ * `tailwind.config.js`'s neutral ramp and `colors.dark`, so a future edit to
+ * either side gets a named failure instead of silent drift.
+ */
 
 export const spacing = {
   xs: 4,
@@ -295,6 +339,16 @@ export const gradients = {
   firstMove: ["#EFF6FF", "#FFFFFF"],
   successTint: ["#F0FDF4", "#FFFFFF"],
   fade: ["rgba(247,246,243,0)", "#F7F6F3"],
+  /**
+   * Dark-mode counterpart to `heroWash`. The light wash is a bright blue
+   * tint (`primary-50`), which reads as jarring directly on a dark canvas —
+   * so this is built entirely from existing `colors.dark` values (elevated
+   * fading to a transparent background), never a newly invented hex, per a
+   * warm near-black surface fading to nothing rather than a bright color.
+   * Pick between the two with `useThemeColors`'s resolved scheme, e.g.
+   * `colors={scheme === "dark" ? gradients.heroWashDark : gradients.heroWash}`.
+   */
+  heroWashDark: ["#292524", "rgba(12,10,9,0)"],
 } as const;
 
 /** Layout constants (px) for screen padding, content width, card rhythm. */

@@ -11,6 +11,7 @@ import { GlobalLockBanner } from "@/components/focus/GlobalLockBanner";
 import { useStakeTick } from "@/hooks/useStakeTick";
 import { useStakeScheduler } from "@/hooks/useStakeScheduler";
 import { useNightlyPass } from "@/hooks/useNightlyPass";
+import { useWebSystemTheme } from "@/hooks/useWebSystemTheme";
 // Lexend, not Inter (docs/02 §2.1 binding convention: weight lives in the
 // family name, mirrored exactly from how Inter was wired here). Inter stays
 // installed in package.json — only the load site moved — since removing the
@@ -173,6 +174,10 @@ export default function RootLayout() {
   useEffect(() => {
     setColorScheme(themePreference === "system" ? "system" : themePreference);
   }, [themePreference, setColorScheme]);
+  // Web-only workaround for a react-native-css-interop bug where "system"
+  // never actually applies on web — see the hook's doc comment for the
+  // confirmed root cause. No-ops on native and outside "system".
+  useWebSystemTheme(themePreference);
 
   // Kick an initial schedule recompute once, on app open, after stores have
   // hydrated (FR-21 "recompute on app open"). Subsequent recomputes are driven
