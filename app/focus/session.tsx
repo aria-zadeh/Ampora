@@ -61,6 +61,7 @@ import { SessionNotice } from "@/components/focus/SessionNotice";
 import { SessionTimer } from "@/components/focus/SessionTimer";
 import { StepCard, stepText, stepId } from "@/components/focus/StepCard";
 import { SessionControls } from "@/components/focus/SessionControls";
+import { ParkThoughtSheet } from "@/components/focus/ParkThoughtSheet";
 import { AmbientAudioPicker } from "@/components/focus/AmbientAudioPicker";
 import { BreakOverlay } from "@/components/focus/BreakOverlay";
 import { EndCheckInSheet, type CheckInAnswer } from "@/components/focus/EndCheckInSheet";
@@ -126,6 +127,7 @@ export default function FocusSessionScreen() {
   const setSubtaskCompleted = useTaskStore((s) => s.setSubtaskCompleted);
   const updateTask = useTaskStore((s) => s.updateTask);
   const completeTask = useTaskStore((s) => s.completeTask);
+  const createTask = useTaskStore((s) => s.createTask);
 
   // -- Focus session store --
   const startSession = useSessionStore((s) => s.startSession);
@@ -177,6 +179,14 @@ export default function FocusSessionScreen() {
   const [simplifying, setSimplifying] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [servedStake, setServedStake] = useState(false);
+  // "Park a thought" (intrusive-thought capture, WHY: the #1 way an ADHD
+  // session dies is a stray thought pulling the user out to go act on it).
+  // Both flags are PURELY local UI state. Neither is wired into the
+  // timer's `held` gate below, and neither touches `sessionStore` or
+  // `stakesStore`, so opening the sheet or showing the confirmation can
+  // never pause the clock, end the session, or release the lock.
+  const [parkThoughtOpen, setParkThoughtOpen] = useState(false);
+  const [parkedNotice, setParkedNotice] = useState(false);
 
   const endedRef = useRef(false);
   const startedRef = useRef(false);
@@ -187,6 +197,14 @@ export default function FocusSessionScreen() {
   useEffect(() => {
     ownStakeIdRef.current = ownStakeId;
   }, [ownStakeId]);
+
+  /** Auto-hides the "parked" confirmation; cleared on unmount and re-armed per thought. */
+  const parkedNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (parkedNoticeTimerRef.current) clearTimeout(parkedNoticeTimerRef.current);
+    };
+  }, []);
 
   // The shape of the stake we were running, remembered across its release so
   // "Keep going" can offer the same terms again. By the time the check-in is
@@ -499,6 +517,34 @@ export default function FocusSessionScreen() {
     router.push(taskId ? `/blindfold?taskId=${taskId}` : "/blindfold");
   }, [taskId]);
 
+  /** Opens the capture sheet. Local UI state only, see the flags' own comment above. */
+  const handleParkThought = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setParkThoughtOpen(true);
+  }, []);
+
+  /**
+   * Parks one thought as a plain Inbox task (FR-5). The ONLY effect of this
+   * handler: `createTask` with just a title (no duration, no due date, no
+   * `autoSchedule`) is exactly what `taskStore.createTask` treats as a
+   * detail-less capture, so it comes back `isInbox: true`, `autoSchedule:
+   * false`, no subtasks, no First move, never touching the scheduler. This
+   * function calls nothing from `sessionStore` or `stakesStore`, so the timer
+   * and any lock are untouched by construction, not by careful discipline.
+   * Optimistic and fire-and-forget: the sheet has already closed itself by
+   * the time this runs, and a second (or third) thought in the same session
+   * just re-arms the same confirmation.
+   */
+  const handleParkThoughtSubmit = useCallback(
+    (text: string) => {
+      createTask({ title: text });
+      setParkedNotice(true);
+      if (parkedNoticeTimerRef.current) clearTimeout(parkedNoticeTimerRef.current);
+      parkedNoticeTimerRef.current = setTimeout(() => setParkedNotice(false), 2600);
+    },
+    [createTask]
+  );
+
   const pickAudio = useCallback(
     (kind: FocusAudio) => {
       Haptics.selectionAsync().catch(() => {});
@@ -731,6 +777,17 @@ export default function FocusSessionScreen() {
                   />
                 )}
 
+                {/* "Park a thought" confirmation. Calm, one line, auto-hides
+                    (handleParkThoughtSubmit above). No celebration and no
+                    green: this is a routine save, not a completion. */}
+                {parkedNotice && (
+                  <SessionNotice
+                    icon="bookmark-outline"
+                    className="mt-5 w-full"
+                    text="Saved to your Inbox for later."
+                  />
+                )}
+
                 <View className="mt-8 w-full">
                   <SessionControls
                     onDone={handleDone}
@@ -739,6 +796,7 @@ export default function FocusSessionScreen() {
                     onStuck={handleStuck}
                     simplifying={simplifying}
                     onOverwhelmed={handleOverwhelmed}
+                    onParkThought={handleParkThought}
                   />
                 </View>
 
@@ -792,6 +850,15 @@ export default function FocusSessionScreen() {
         unlocked={servedStake}
         onAnswer={handleCheckIn}
         onDismiss={handleCheckInDismiss}
+      />
+
+      {/* "Park a thought": intrusive-thought capture. Deliberately outside
+          the timer's `held` gate above. Opening or submitting this sheet
+          must never pause the clock, end the session, or touch the lock. */}
+      <ParkThoughtSheet
+        visible={parkThoughtOpen}
+        onClose={() => setParkThoughtOpen(false)}
+        onSubmit={handleParkThoughtSubmit}
       />
 
       {/* Panic valve — 60s breather, then the store releases the lock. */}

@@ -1,9 +1,10 @@
 /**
  * SessionControls, the session's action row (PRD FR-62).
  *
- * One primary action (Done) and three secondaries (I'm stuck / Take a break /
- * I'm overwhelmed), per the design system's "one primary action per screen"
- * rule. Lifted out of `app/focus/session.tsx` essentially verbatim.
+ * One primary action (Done) and four secondaries (I'm stuck / Take a break /
+ * Park a thought / I'm overwhelmed), per the design system's "one primary
+ * action per screen" rule. Lifted out of `app/focus/session.tsx` essentially
+ * verbatim.
  *
  * "Done" advances the ONE current step. It never releases a lock: a session
  * hold is served by focus time, not by finishing the work early (doc `04` §5,
@@ -16,6 +17,15 @@
  * equal row of quiet, text-only pills: no icons, no warm tint on "I'm
  * overwhelmed" (that warm tint read as a warning on a control that isn't
  * one).
+ *
+ * "Park a thought" (intrusive-thought capture) is its OWN row rather than a
+ * third pill jammed into the stuck/break row: that row's whole reason for
+ * being one row of two (not three) is the exact copy-fit failure described
+ * below, and a fresh third label would risk the identical wrap. It sits
+ * between that row and the overwhelm valve on purpose. It is a light,
+ * frequent action, not a rare escape hatch, so it reads as a peer of
+ * stuck/break rather than sharing the overwhelm valve's heavier, alone-on-
+ * its-row weight.
  */
 
 import React from "react";
@@ -36,6 +46,8 @@ export interface SessionControlsProps {
   /** True while the AI simplify call is in flight. */
   simplifying: boolean;
   onOverwhelmed: () => void;
+  /** Opens the "Park a thought" capture sheet. Never touches the timer or the lock. */
+  onParkThought: () => void;
 }
 
 export function SessionControls({
@@ -45,6 +57,7 @@ export function SessionControls({
   onStuck,
   simplifying,
   onOverwhelmed,
+  onParkThought,
 }: SessionControlsProps) {
   return (
     <View>
@@ -84,6 +97,13 @@ export function SessionControls({
         <QuietPill label="Take a break" onPress={onBreak} />
       </View>
       <View className="mt-2 flex-row">
+        <QuietPill
+          label="Park a thought"
+          accessibilityHint="Saves a quick note to your Inbox and keeps the timer running"
+          onPress={onParkThought}
+        />
+      </View>
+      <View className="mt-2 flex-row">
         <QuietPill label="I'm overwhelmed" onPress={onOverwhelmed} />
       </View>
     </View>
@@ -91,12 +111,13 @@ export function SessionControls({
 }
 
 // ---------------------------------------------------------------------------
-// Quiet pill, one of the three equal secondary controls
+// Quiet pill, one of the four equal secondary controls
 // ---------------------------------------------------------------------------
 
 function QuietPill({
   label,
   a11yLabel,
+  accessibilityHint,
   busyLabel,
   busy = false,
   onPress,
@@ -105,6 +126,8 @@ function QuietPill({
   label: string;
   /** Announced instead of `label` when the visible text is an abbreviation. */
   a11yLabel?: string;
+  /** Extra VoiceOver/TalkBack context for a non-obvious action. */
+  accessibilityHint?: string;
   busyLabel?: string;
   busy?: boolean;
   onPress: () => void;
@@ -120,6 +143,7 @@ function QuietPill({
       }`}
       accessibilityRole="button"
       accessibilityLabel={busy && busyLabel ? busyLabel : (a11yLabel ?? label)}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled, busy }}
     >
       <Text
