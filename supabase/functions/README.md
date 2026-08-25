@@ -1,7 +1,7 @@
 # Ampora AI Edge Functions
 
 Deno edge functions that back the AI features. Each wraps the **Anthropic
-Claude** Messages API (model `claude-opus-5`) with a strict JSON-output prompt
+Claude** Messages API (model `claude-sonnet-5`) with a strict JSON-output prompt
 (grounded in `docs/03_AI_Breakdown_and_Subtasks.md` and `docs/06_Projects.md` —
 the doc set was renumbered; see `CLAUDE.md`'s doc index for the current 11-file
 set, nothing else exists) and returns validated JSON. The provider is Anthropic
@@ -54,7 +54,7 @@ Or in the Supabase dashboard: **Project → Edge Functions → Manage secrets �
 add `ANTHROPIC_API_KEY`.
 
 The model is pinned via the `MODEL` const in `_shared/claude.ts`
-(`claude-opus-5`) — an exact model id with no date suffix, do not substitute
+(`claude-sonnet-5`) - an exact model id with no date suffix, do not substitute
 a different model.
 
 ## Deploy

@@ -52,7 +52,9 @@ describe('MockPurchaseStrategy (today\'s ship-now behaviour)', () => {
     expect(offerings).toBe(PLACEHOLDER_OFFERINGS)
     expect(offerings.find((o) => o.plan === 'monthly')?.localizedPrice).toBe('$6.99')
     const annual = offerings.find((o) => o.plan === 'annual')
-    expect(annual?.localizedPrice).toBe('$74.99')
+    // $39.99 since the 2026-08-24 pricing decision (docs/09). It was $74.99
+    // under FR-88's retired "annual about 10 percent cheaper per month" rule.
+    expect(annual?.localizedPrice).toBe('$39.99')
     expect(annual?.priceNote).toMatch(/save/i)
   })
 

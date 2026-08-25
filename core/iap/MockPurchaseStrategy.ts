@@ -21,20 +21,27 @@ import type {
 } from './PurchaseStrategy'
 
 /**
- * Illustrative placeholder pricing (PRD FR-88: "annual about 10% cheaper per
- * month"). Real prices come from App Store Connect / Play Console once a
- * native build fetches real offerings from RevenueCat; `app/paywall.tsx`
- * falls back to this exact list whenever `getOfferings()` resolves empty
- * (true today for the mock, and also true for a native build before
- * RevenueCat offerings are configured in the dashboard).
+ * Illustrative placeholder pricing (PRD FR-88, revised 2026-08-24). Real prices
+ * come from App Store Connect / Play Console once a native build fetches real
+ * offerings from RevenueCat; `app/paywall.tsx` falls back to this exact list
+ * whenever `getOfferings()` resolves empty (true today for the mock, and also
+ * true for a native build before RevenueCat offerings are configured in the
+ * dashboard).
+ *
+ * Annual moved from $74.99 to $39.99 in that revision. The old figure came from
+ * FR-88's original "annual about 10 percent cheaper per month" rule, which is
+ * now retired: the price is set against what the neurodivergent-planner and
+ * app-blocker categories charge, not as a fixed percentage off monthly. Keep
+ * these two in step with `app/paywall.tsx` and with the real store products, or
+ * the paywall shows one price and Apple charges another.
  */
 export const PLACEHOLDER_OFFERINGS: IapOffering[] = [
   { productId: 'ampora_monthly_placeholder', plan: 'monthly', localizedPrice: '$6.99' },
   {
     productId: 'ampora_annual_placeholder',
     plan: 'annual',
-    localizedPrice: '$74.99',
-    priceNote: '$6.25/mo · save ~10%',
+    localizedPrice: '$39.99',
+    priceNote: '$3.33/mo · save 52%',
   },
 ]
 
