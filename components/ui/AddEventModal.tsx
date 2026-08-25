@@ -21,6 +21,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, Pressable, TextInput, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 
 import { Heading } from "@/components/ui/Heading";
@@ -59,6 +60,9 @@ export function AddEventModal({
   initialStart,
   onSave,
 }: AddEventModalProps) {
+  // Only for the close glyph and the input placeholder below, both of which
+  // take a literal colour rather than a class.
+  const theme = useThemeColors();
   const reduceMotion = useReduceMotion();
   const isEditing = event != null;
 
@@ -149,7 +153,7 @@ export function AddEventModal({
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#57534E" />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
@@ -162,7 +166,7 @@ export function AddEventModal({
                     value={title}
                     onChangeText={setTitle}
                     placeholder="e.g. Soccer practice"
-                    placeholderTextColor="#A8A29A"
+                    placeholderTextColor={theme.textDisabled}
                     className="mb-4 min-h-[44px] rounded-xl border border-neutral-200 bg-white px-4 py-3 text-body text-neutral-900"
                     accessibilityLabel="Event title"
                   />

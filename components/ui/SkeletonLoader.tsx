@@ -11,6 +11,7 @@ import Animated, {
 import { LinearGradient } from "expo-linear-gradient";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { borderRadius } from "@/utils/design-tokens";
+import { useColorScheme } from "nativewind";
 
 interface SkeletonLoaderProps {
   width?: DimensionValue;
@@ -22,12 +23,28 @@ interface SkeletonLoaderProps {
 
 const SHIMMER_DURATION = 1200;
 const HIGHLIGHT_WIDTH = 120;
-// Transparent -> light highlight -> transparent, tuned for a neutral-200 base.
-const HIGHLIGHT_COLORS = [
-  "rgba(255,255,255,0)",
-  "rgba(255,255,255,0.55)",
-  "rgba(255,255,255,0)",
-] as const;
+/**
+ * Transparent -> highlight -> transparent. The highlight has to be the
+ * opposite of the surface it sweeps, so it flips with the theme: white at 55%
+ * reads as a lift on the light neutral-200 base, and as a harsh flare on the
+ * dark neutral-800 one. The dark pass uses white at 8%, which is the same
+ * gesture at the intensity a dark surface can carry.
+ *
+ * A gradient `colors` prop takes literals and cannot take a class, which is
+ * why this resolves through `useThemeColors` rather than a `dark:` variant.
+ */
+const HIGHLIGHT_COLORS = {
+  light: [
+    "rgba(255,255,255,0)",
+    "rgba(255,255,255,0.55)",
+    "rgba(255,255,255,0)",
+  ],
+  dark: [
+    "rgba(255,255,255,0)",
+    "rgba(255,255,255,0.08)",
+    "rgba(255,255,255,0)",
+  ],
+} as const;
 
 /**
  * Shimmer placeholder box. A neutral-200 surface with a light highlight sweeping
@@ -40,6 +57,10 @@ export function SkeletonLoader({
   style,
 }: SkeletonLoaderProps) {
   const reduceMotion = useReduceMotion();
+  // Imported from "nativewind", never "react-native" (see CLAUDE.md).
+  const { colorScheme } = useColorScheme();
+  const highlight =
+    colorScheme === "dark" ? HIGHLIGHT_COLORS.dark : HIGHLIGHT_COLORS.light;
   const [boxWidth, setBoxWidth] = useState(0);
   const progress = useSharedValue(0);
 
@@ -66,7 +87,7 @@ export function SkeletonLoader({
   return (
     <View
       onLayout={(e) => setBoxWidth(e.nativeEvent.layout.width)}
-      className="bg-neutral-200 overflow-hidden"
+      className="bg-neutral-200 overflow-hidden dark:bg-neutral-800"
       style={[{ width, height, borderRadius: radius }, style]}
       accessibilityLabel="Loading"
     >
@@ -84,7 +105,7 @@ export function SkeletonLoader({
           ]}
         >
           <LinearGradient
-            colors={HIGHLIGHT_COLORS}
+            colors={highlight}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={{ flex: 1 }}

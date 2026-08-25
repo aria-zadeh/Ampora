@@ -129,6 +129,30 @@ export const brand = {
 } as const;
 
 /**
+ * Bespoke surfaces that are deliberately NOT on the neutral spine.
+ *
+ * `blindfold` is the calm-down takeover (`app/blindfold.tsx`): a warm cream
+ * wash chosen for low stimulation rather than to match the app canvas, which
+ * is why that file previously carried a comment exempting itself from the
+ * colour rule outright. Naming the values here keeps the rule absolute and
+ * makes the exception greppable, without changing a single rendered pixel.
+ *
+ * OPEN DESIGN QUESTION, deliberately not answered here: there is no dark
+ * counterpart. A full-screen cream takeover while the rest of the app is dark
+ * would be jarring, but picking the dark treatment for a wellbeing surface is
+ * a product decision, not a mechanical token swap, so it is left for the owner
+ * rather than invented. Until then Blindfold stays cream in both themes.
+ */
+export const surfaces = {
+  blindfold: {
+    /** Base wash behind the gradient. */
+    base: "#FFFBF5",
+    /** Top of the soft vertical gradient, settling into `base`. */
+    gradientTop: "#FFF3E6",
+  },
+} as const;
+
+/**
  * NativeWind `dark:` class mapping cheatsheet. NativeWind's `useColorScheme`
  * (from "nativewind", never "react-native") drives Tailwind's `dark:`
  * variant app-wide (`tailwind.config.js` `darkMode: "class"`); this table is

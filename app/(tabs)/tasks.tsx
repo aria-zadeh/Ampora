@@ -42,6 +42,7 @@ import { PressableScale } from "@/components/ui/PressableScale";
 import { DURATIONS, SPRINGS, staggerDelay } from "@/utils/motion";
 import { listColors } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -166,6 +167,12 @@ function dueRangeFromDays(days: number): { start: number; end: number } {
 
 export default function TasksScreen() {
   const reduceMotion = useReduceMotion();
+  // For the props on this screen that take a literal color rather than a
+  // class: Ionicons `color`, and `Chip`'s `color` dot. Every value read off
+  // it here is a semantic accent, identical in both token sets (doc 02
+  // §14.1), so the hook changes nothing today. It keeps these call sites
+  // reading from the ACTIVE set instead of pinning them to one scheme.
+  const theme = useThemeColors();
 
   // Only stagger-animate rows on the first paint; scrolling a recycled
   // FlashList cell should not re-fire the entrance (ADHD: no jarring motion).
@@ -615,7 +622,7 @@ export default function TasksScreen() {
         const collapsible = item.collapsible === true;
         const collapsed = item.section === "completed" && completedCollapsed;
         return (
-          <View className="bg-neutral-100">
+          <View className="bg-neutral-100 dark:bg-neutral-950">
             <Pressable
               disabled={!collapsible}
               onPress={collapsible ? () => setCompletedCollapsed((c) => !c) : undefined}
@@ -629,8 +636,12 @@ export default function TasksScreen() {
                 <ChevronSpring collapsed={collapsed} />
               )}
               <Heading size="h4">{SECTION_TITLE[item.section]}</Heading>
-              <View className="ml-2.5 min-w-6 h-6 px-1.5 rounded-full bg-neutral-200 items-center justify-center">
-                <Text className="text-caption font-semibold text-neutral-600">{item.count}</Text>
+              {/* Count pill. `neutral-200` fill -> `neutral-800` on dark, which
+                  keeps the `neutral-600`/`neutral-400` label on it at 6.0:1. */}
+              <View className="ml-2.5 min-w-6 h-6 px-1.5 rounded-full bg-neutral-200 dark:bg-neutral-800 items-center justify-center">
+                <Text className="text-caption font-semibold text-neutral-600 dark:text-neutral-400">
+                  {item.count}
+                </Text>
               </View>
             </Pressable>
           </View>
@@ -688,7 +699,7 @@ export default function TasksScreen() {
   const hasAnyTasks = allTasks.length > 0;
 
   return (
-    <View className="flex-1 bg-neutral-100">
+    <View className="flex-1 bg-neutral-100 dark:bg-neutral-950">
       {/* Header — big, tight. Projects live one tap away (doc 10). */}
       <View className="px-5 pt-5 pb-3 flex-row items-center justify-between">
         <Heading size="h1">Tasks</Heading>
@@ -700,7 +711,7 @@ export default function TasksScreen() {
           accessibilityLabel="Projects"
           accessibilityHint="Opens your projects, which plan and track larger work"
         >
-          <Ionicons name="rocket-outline" size={16} color="#7C3AED" />
+          <Ionicons name="rocket-outline" size={16} color={theme.accentStrong} />
           <Text className="text-caption font-semibold text-accent-700 ml-1.5">Projects</Text>
         </Pressable>
       </View>
@@ -708,7 +719,7 @@ export default function TasksScreen() {
       {/* Sticky quick-add (item 5) — pins to the top of the list; expands with
           NL-parse hint chips on focus. Rendered OUTSIDE the FlashList so it
           never scrolls away, matching "sticky" rather than "sticky header". */}
-      <View className="px-5 bg-neutral-100 z-10">
+      <View className="px-5 bg-neutral-100 dark:bg-neutral-950 z-10">
         <View className="flex-row items-center gap-2">
           <View className="flex-1">
             <Input
@@ -743,7 +754,7 @@ export default function TasksScreen() {
             accessibilityLabel="Brain dump"
             accessibilityHint="Speak your tasks out loud instead of typing them"
           >
-            <Ionicons name="mic-outline" size={20} color="#2563EB" />
+            <Ionicons name="mic-outline" size={20} color={theme.primary} />
           </Pressable>
         </View>
 
@@ -761,7 +772,7 @@ export default function TasksScreen() {
         {preview && (
           <View className="flex-row items-center flex-wrap gap-2 mt-2.5 px-1">
             <Text
-              className="text-caption text-neutral-500"
+              className="text-caption text-neutral-500 dark:text-[#78716C]"
               numberOfLines={1}
               style={{ maxWidth: "55%" }}
             >
@@ -821,7 +832,7 @@ export default function TasksScreen() {
           {missedTaskIds.length > 0 && (
             <Chip
               label="Missed"
-              color="#EA580C"
+              color={theme.warningAccent}
               selected={missedFilter}
               onPress={() => setMissedFilter((m) => !m)}
             />
@@ -832,7 +843,7 @@ export default function TasksScreen() {
           {unschedulableByTaskId.size > 0 && (
             <Chip
               label="At risk"
-              color="#EA580C"
+              color={theme.warningAccent}
               selected={atRiskFilter}
               onPress={() => setAtRiskFilter((v) => !v)}
             />
@@ -906,7 +917,7 @@ export default function TasksScreen() {
               }`}
               accessibilityHint="Edit this list's name, color, and scheduling hours"
             >
-              <Ionicons name="create-outline" size={15} color="#2563EB" />
+              <Ionicons name="create-outline" size={15} color={theme.primary} />
               <Text className="text-caption font-medium text-primary-600">
                 Edit list
               </Text>
@@ -917,7 +928,7 @@ export default function TasksScreen() {
 
       {/* Sort control */}
       <View className="px-5 mt-4 flex-row items-center gap-3">
-        <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide">
+        <Text className="text-overline font-semibold text-neutral-500 dark:text-[#78716C] uppercase tracking-wide">
           Sort
         </Text>
         <View className="flex-1">
@@ -1025,6 +1036,7 @@ export default function TasksScreen() {
 
 function ChevronSpring({ collapsed }: { collapsed: boolean }) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const rotation = useSharedValue(collapsed ? 0 : 90);
 
   useEffect(() => {
@@ -1038,7 +1050,7 @@ function ChevronSpring({ collapsed }: { collapsed: boolean }) {
 
   return (
     <Animated.View style={[{ marginRight: 6 }, style]}>
-      <Ionicons name="chevron-forward" size={18} color="#6F6862" />
+      <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
     </Animated.View>
   );
 }
@@ -1061,6 +1073,9 @@ function AtRiskPill({
   info: Unschedulable;
   onPress: () => void;
 }) {
+  // Glyph and label are the audited warning-100 / warning-700 tint pair
+  // (4.52:1, doc 02 §14.6). Self-contained, so it needs no `dark:` variant.
+  const theme = useThemeColors();
   return (
     <PressableScale
       onPress={onPress}
@@ -1070,7 +1085,7 @@ function AtRiskPill({
       accessibilityLabel={`Couldn't schedule: ${task.title}. ${info.reason}`}
       accessibilityHint="Opens ways to fix this so it can be scheduled"
     >
-      <Ionicons name="alert-circle-outline" size={16} color="#C2410C" />
+      <Ionicons name="alert-circle-outline" size={16} color={theme.warningStrong} />
       <Text className="text-caption font-medium text-warning-700">Couldn&apos;t schedule — fix it</Text>
     </PressableScale>
   );
@@ -1126,6 +1141,11 @@ function TaskRowImpl({
 }: TaskRowProps) {
   const swipeRef = useRef<Swipeable>(null);
   const isDone = task.status === "done";
+  // The swipe actions are filled semantic accents (success-700 / primary-600
+  // / danger-600), which doc 02 §14.1 keeps identical across themes, so their
+  // white glyph is correct in both. `primaryForeground` is the token for
+  // "label on a filled action", and it holds the same white in either set.
+  const theme = useThemeColors();
 
   // Armed-state tracker for the left-swipe reveal, so the threshold haptic
   // fires exactly once per crossing, not on every frame of drag (classic
@@ -1175,13 +1195,13 @@ function TaskRowImpl({
             accessibilityRole="button"
             accessibilityLabel="Mark task done"
           >
-            <Ionicons name="checkmark" size={24} color="#FFFFFF" />
+            <Ionicons name="checkmark" size={24} color={theme.primaryForeground} />
             <Text className="text-tiny text-white mt-1">Done</Text>
           </Pressable>
         </RNAnimated.View>
       );
     },
-    [isDone, handleCompleteSwipe],
+    [isDone, handleCompleteSwipe, theme],
   );
 
   // Left-swipe = Schedule (Inbox rows) or Schedule-tomorrow (dated rows), plus
@@ -1242,7 +1262,11 @@ function TaskRowImpl({
               accessibilityRole="button"
               accessibilityLabel={isInbox ? "Schedule task" : "Schedule tomorrow"}
             >
-              <Ionicons name={isInbox ? "calendar-outline" : "sunny-outline"} size={20} color="#FFFFFF" />
+              <Ionicons
+                name={isInbox ? "calendar-outline" : "sunny-outline"}
+                size={20}
+                color={theme.primaryForeground}
+              />
               <Text className="text-tiny text-white mt-1">{isInbox ? "Schedule" : "Tomorrow"}</Text>
             </Pressable>
           </RNAnimated.View>
@@ -1260,14 +1284,14 @@ function TaskRowImpl({
               accessibilityRole="button"
               accessibilityLabel="Delete task"
             >
-              <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+              <Ionicons name="trash-outline" size={20} color={theme.primaryForeground} />
               <Text className="text-tiny text-white mt-1">Delete</Text>
             </Pressable>
           </RNAnimated.View>
         </View>
       );
     },
-    [close, onDelete, onSchedule, onScheduleTomorrow, task, isInbox],
+    [close, onDelete, onSchedule, onScheduleTomorrow, task, isInbox, theme],
   );
 
   // Reset the armed tracker whenever the row closes, so the NEXT open swipe
@@ -1359,6 +1383,7 @@ function DraggableTaskCardImpl({
   onToggle,
 }: DraggableTaskCardProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const translateY = useSharedValue(0);
   const dragging = useSharedValue(0);
 
@@ -1520,7 +1545,14 @@ function DraggableTaskCardImpl({
               onAccessibilityAction={handleAccessibilityAction}
               accessibilityValue={accessibilityValue}
             >
-              <Ionicons name="reorder-three-outline" size={22} color="#A8A29A" />
+              {/* `textDisabled` is the token that already held this glyph's
+                  literal, so light is pixel-identical and dark resolves to
+                  the matching step. NOTE: at 2.5:1 the handle sits under
+                  the 3:1 UI-glyph bar, and it renders inside
+                  `components/ui/TaskCard.tsx`, which is not dark-aware
+                  yet, so the two are worth revisiting together rather
+                  than half-fixing one side of it here. */}
+              <Ionicons name="reorder-three-outline" size={22} color={theme.textDisabled} />
             </Animated.View>
           </GestureDetector>
         }
@@ -1575,12 +1607,15 @@ function DueRangeModal({ visible, activeLabel, onClose, onSelect, onClear }: Due
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
       >
-        <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+        <Pressable
+          className="bg-white dark:bg-neutral-900 rounded-t-2xl p-5 pb-8"
+          onPress={(e) => e.stopPropagation()}
+        >
           <View className="items-center mb-4">
-            <View className="w-10 h-1 rounded-full bg-neutral-200" />
+            <View className="w-10 h-1 rounded-full bg-neutral-200 dark:bg-neutral-700" />
           </View>
           <Heading size="h3">Due range</Heading>
-          <Text className="text-body text-neutral-500 mt-1 mb-5">
+          <Text className="text-body text-neutral-500 dark:text-[#78716C] mt-1 mb-5">
             Show only tasks due in this window.
           </Text>
 
@@ -1636,20 +1671,20 @@ function ScheduleModal({ task, onClose, onSave }: ScheduleModalProps) {
         accessibilityLabel="Dismiss"
       >
         <Pressable
-          className="bg-white rounded-t-2xl p-5 pb-8"
+          className="bg-white dark:bg-neutral-900 rounded-t-2xl p-5 pb-8"
           onPress={(e) => e.stopPropagation()}
         >
           <View className="items-center mb-4">
-            <View className="w-10 h-1 rounded-full bg-neutral-200" />
+            <View className="w-10 h-1 rounded-full bg-neutral-200 dark:bg-neutral-700" />
           </View>
           <Heading size="h3">Schedule</Heading>
           {task && (
-            <Text className="text-body text-neutral-500 mt-1 mb-5" numberOfLines={1}>
+            <Text className="text-body text-neutral-500 dark:text-[#78716C] mt-1 mb-5" numberOfLines={1}>
               {task.title}
             </Text>
           )}
 
-          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2.5">
+          <Text className="text-overline font-semibold text-neutral-500 dark:text-[#78716C] uppercase tracking-wide mb-2.5">
             Duration
           </Text>
           <View className="flex-row flex-wrap gap-2 mb-6">
@@ -1663,7 +1698,7 @@ function ScheduleModal({ task, onClose, onSave }: ScheduleModalProps) {
             ))}
           </View>
 
-          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2.5">
+          <Text className="text-overline font-semibold text-neutral-500 dark:text-[#78716C] uppercase tracking-wide mb-2.5">
             Due
           </Text>
           <View className="flex-row flex-wrap gap-2 mb-7">

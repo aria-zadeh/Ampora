@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { View, Text, ScrollView, Pressable, Modal, TextInput } from "react-native";
+import { View, ScrollView, Pressable, Modal, TextInput } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -16,6 +16,7 @@ import Animated, {
 import { useSettingsStore } from "@/store/settingsStore";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
+import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { StakesSettings } from "@/components/settings/StakesSettings";
 import { CalendarSyncSettings } from "@/components/settings/CalendarSyncSettings";
@@ -58,7 +59,7 @@ function SettingsGroup({
       }
       className="mt-6"
     >
-      <Text className="mb-2 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+      <Text variant="overline" className="mb-2 ml-1 text-neutral-500 dark:text-[#78716C]">
         {title}
       </Text>
       <View
@@ -102,12 +103,15 @@ function SettingsRow({
         <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
           <Ionicons name={icon} size={18} color={theme.textSecondary} />
         </View>
-        <Text className="ml-3 text-body-lg text-neutral-900 dark:text-neutral-50">{label}</Text>
+        <Text variant="bodyLg" className="ml-3">
+          {label}
+        </Text>
       </View>
       <View className="flex-row items-center">
         {value ? (
           <Text
-            className="mr-1.5 max-w-[140px] text-body text-neutral-500 dark:text-[#78716C]"
+            variant="body"
+            className="mr-1.5 max-w-[140px] text-neutral-500 dark:text-[#78716C]"
             numberOfLines={1}
           >
             {value}
@@ -240,14 +244,22 @@ export default function ProfileScreen() {
           entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
           className="pb-2 pt-6"
         >
-          <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+          {/* Accent restated, not varied, on the dark side. The design-system
+              `Text` defaults to `text-neutral-900 dark:text-neutral-50`, and
+              a bare `text-*` override beats the light half but loses to the
+              `dark:` one, so an unpaired accent would silently repaint
+              near-white in dark mode. The three chip tones and the sign-out
+              label below are paired for the same reason. */}
+          <Text variant="overline" className="text-primary-600 dark:text-primary-600">
             Your profile
           </Text>
-          <Heading size="h1" className="mt-1 dark:text-neutral-50">
+          <Heading size="h1" className="mt-1">
             {displayName || "Welcome"}
           </Heading>
           {userEmail ? (
-            <Text className="mt-1.5 text-body text-neutral-500 dark:text-[#78716C]">{userEmail}</Text>
+            <Text variant="body" className="mt-1.5 text-neutral-500 dark:text-[#78716C]">
+              {userEmail}
+            </Text>
           ) : null}
 
           {/* Subscription chip → paywall. Soft gate only (FR-88): a subtle
@@ -281,19 +293,20 @@ export default function ProfileScreen() {
                 size={14}
                 color={
                   subscriptionChip.tone === "active"
-                    ? "#6D28D9"
+                    ? theme.accentStrong
                     : subscriptionChip.tone === "trial"
-                      ? "#2563EB"
-                      : "#C2410C"
+                      ? theme.primary
+                      : theme.warningStrong
                 }
               />
               <Text
-                className={`ml-1.5 text-caption font-semibold ${
+                variant="captionMedium"
+                className={`ml-1.5 ${
                   subscriptionChip.tone === "active"
-                    ? "text-accent-700"
+                    ? "text-accent-700 dark:text-accent-700"
                     : subscriptionChip.tone === "trial"
-                      ? "text-primary-700"
-                      : "text-warning-700"
+                      ? "text-primary-700 dark:text-primary-700"
+                      : "text-warning-700 dark:text-warning-700"
                 }`}
               >
                 {subscriptionChip.label}
@@ -303,10 +316,10 @@ export default function ProfileScreen() {
                 size={13}
                 color={
                   subscriptionChip.tone === "active"
-                    ? "#6D28D9"
+                    ? theme.accentStrong
                     : subscriptionChip.tone === "trial"
-                      ? "#2563EB"
-                      : "#C2410C"
+                      ? theme.primary
+                      : theme.warningStrong
                 }
                 style={{ marginLeft: 2 }}
               />
@@ -346,10 +359,11 @@ export default function ProfileScreen() {
                         color={isSelected ? theme.primary : theme.textMuted}
                       />
                       <Text
+                        variant="label"
                         className={
                           isSelected
-                            ? "text-label font-semibold text-neutral-900 dark:text-neutral-50"
-                            : "text-label font-medium text-neutral-500 dark:text-[#78716C]"
+                            ? "font-semibold"
+                            : "text-neutral-500 dark:text-[#78716C]"
                         }
                       >
                         {option.label}
@@ -365,14 +379,8 @@ export default function ProfileScreen() {
                 bright would reasonably read the app as broken, and an honest
                 line costs far less trust than that does. Delete this the round
                 the remaining screens land, not before. */}
-            {/* Raw `Text` with a `text-caption` class rather than the
-                design-system `Text` variant prop, because this file binds
-                `Text` to react-native's at the top and follows this pattern
-                throughout (see the chip near line 291). Aliasing the UI Text
-                for one line would be noisier than matching the file. Worth
-                fixing when this screen is converted properly. */}
             {themePreference !== "light" && (
-              <Text className="mt-3 text-caption text-neutral-500 dark:text-[#A8A29E]">
+              <Text variant="caption" className="mt-3 text-neutral-500 dark:text-[#78716C]">
                 Dark mode is still rolling out. Profile and Settings follow it
                 today, the rest of the app stays light for now.
               </Text>
@@ -421,7 +429,7 @@ export default function ProfileScreen() {
           }
           className="mt-6"
         >
-          <Text className="mb-3 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+          <Text variant="overline" className="mb-3 ml-1 text-neutral-500 dark:text-[#78716C]">
             Focus stakes
           </Text>
           <StakesSettings />
@@ -438,7 +446,7 @@ export default function ProfileScreen() {
           }
           className="mt-6"
         >
-          <Text className="mb-3 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+          <Text variant="overline" className="mb-3 ml-1 text-neutral-500 dark:text-[#78716C]">
             Calendar sync
           </Text>
           <CalendarSyncSettings />
@@ -452,7 +460,8 @@ export default function ProfileScreen() {
                 <Ionicons name="mail-outline" size={18} color={theme.textSecondary} />
               </View>
               <Text
-                className="ml-3 flex-1 text-body-lg text-neutral-900 dark:text-neutral-50"
+                variant="bodyLg"
+                className="ml-3 flex-1"
                 numberOfLines={1}
               >
                 {userEmail}
@@ -479,7 +488,7 @@ export default function ProfileScreen() {
               <View className="h-9 w-9 items-center justify-center rounded-full bg-danger-100">
                 <Ionicons name="log-out-outline" size={18} color={theme.dangerStrong} />
               </View>
-              <Text className="ml-3 text-body-lg font-medium text-danger-600">
+              <Text variant="bodyLg" className="ml-3 font-medium text-danger-600 dark:text-danger-600">
                 Sign out
               </Text>
             </PressableScale>
@@ -503,8 +512,8 @@ export default function ProfileScreen() {
             style={shadows.lg}
             onPress={(e) => e.stopPropagation()}
           >
-            <Heading size="h3" className="dark:text-neutral-50">Display name</Heading>
-            <Text className="mt-1.5 text-body text-neutral-500 dark:text-[#78716C]">
+            <Heading size="h3">Display name</Heading>
+            <Text variant="body" className="mt-1.5 text-neutral-500 dark:text-[#78716C]">
               This is how Ampora greets you.
             </Text>
             <TextInput
