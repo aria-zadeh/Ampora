@@ -951,3 +951,46 @@ describe('recurrence: timezone independence', () => {
     for (const zone of ZONES) expect(render(zone)).toBe('2026-03-10 09:00')
   })
 })
+
+// ---------------------------------------------------------------------------
+// Known defects, documented executably rather than in a comment
+// ---------------------------------------------------------------------------
+//
+// These use `it.fails`, which PASSES while the body throws and FAILS once the
+// body starts succeeding. So the suite stays green today, the defect is
+// described in runnable terms rather than prose, and whoever fixes it gets a
+// named failure telling them to promote the test to a normal `it` rather than
+// silently closing a bug nobody records closing.
+//
+// Neither is fixed here on purpose. Both come from one deliberate design
+// decision recorded in this module's header: the anchor is always "whatever
+// `due` is right now", which is what lets a recurring series live in a single
+// Task with no separately-persisted original anchor. Undoing that re-anchoring
+// is a schema change (`RecurrenceRule` has no `byMonthDay`, so there is
+// nowhere to record the intended day) plus a migration and a sync mapper, and
+// that is a product call rather than a bug fix.
+
+describe('recurrence: known defects (see docs/09_Decisions.md)', () => {
+  it.fails('monthly last-of-month drifts permanently after one short month', () => {
+    // A task due the 31st should come back on the 31st in months that have
+    // one, clamping only where the day does not exist. Because each roll
+    // re-anchors on the clamped result, February's clamp to the 28th sticks
+    // forever: Jan 31 -> Feb 28 -> Mar 28 -> Apr 28, so "pay rent on the last
+    // day" silently becomes "pay rent on the 28th" after a single February.
+    // Verified by running it, not reasoned about.
+    const rule: RecurrenceRule = { freq: 'monthly', interval: 1 }
+    let task = makeTask({ due: localMs(2026, 0, 31, 9, 0), recurrence: rule })
+
+    const days: number[] = []
+    for (let i = 0; i < 3; i++) {
+      const next = rollToNextOccurrence(task, (task.due as number) + 1)
+      if (!next) break
+      task = next
+      days.push(new Date(task.due as number).getDate())
+    }
+
+    // Intended: Feb clamps to 28, then March and April return to the real
+    // last day. Actual today: [28, 28, 28].
+    expect(days).toEqual([28, 31, 30])
+  })
+})
