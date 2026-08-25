@@ -184,6 +184,38 @@ export const surfaces = {
  * §14.6) that stay correct without a `dark:` variant too — leave them as-is
  * rather than inventing a darker tint for them.
  *
+ * ACCENTS: the "no `dark:` variant" rule above is about accent SURFACES, and
+ * it is easy to over-apply. Split it by what the accent is doing:
+ *
+ *   - A FILLED accent (button fill, badge fill, toggle track) keeps one value
+ *     in both themes. The fill is opaque, so its white label's contrast does
+ *     not move when the page behind it does. No `dark:` variant. Correct.
+ *   - Accent TEXT or a small accent glyph sitting DIRECTLY on a neutral
+ *     surface does move, and on dark it lands short. Measured against the
+ *     dark card (`#1C1917`) and dark canvas (`#0C0A09`):
+ *
+ *       primary-600 #2563EB   3.38 / 3.82   clears 3:1, FAILS the 4.5:1 body bar
+ *       primary-400 #60A5FA   6.88 / 7.77   passes
+ *       danger-600  #DC2626   3.62          clears 3:1, FAILS 4.5:1
+ *       danger-500  #EF4444   4.65 / 5.25   passes
+ *
+ *     So accent text on dark steps lighter, exactly as doc 02 §1.8 puts it
+ *     ("use the 400 step where you used 600 on light"):
+ *
+ *       text-primary-600  dark:text-primary-400
+ *       text-danger-600   dark:text-danger-500
+ *
+ *     An accent used purely as a large glyph or icon only owes 3:1, so the
+ *     600 step is already fine there and needs no variant.
+ *
+ * KNOWN LIMIT, do not paper over it: the accent purple has no step that
+ * reaches 4.5:1 on a dark surface. accentStrong `#7C3AED` measures 3.07:1 and
+ * accent `#8B5CF6` 4.13:1, and the ramp has no 400. Purple is Projects-only
+ * and is used as a glyph or a tint rather than as reading text, which is
+ * within the 3:1 glyph bar, so this is a constraint rather than a live
+ * failure. If purple is ever needed as body text on dark, the ramp needs a
+ * lighter step first, it cannot be solved at the call site.
+ *
  * `core/__tests__/design-tokens.test.ts` asserts this table against
  * `tailwind.config.js`'s neutral ramp and `colors.dark`, so a future edit to
  * either side gets a named failure instead of silent drift.
