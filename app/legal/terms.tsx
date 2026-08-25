@@ -321,9 +321,10 @@ export default function TermsOfServiceScreen() {
 
           <Section title="Governing law">
             <Paragraph>
-              These Terms are governed by the laws of [JURISDICTION - fill in], without regard to
-              conflict-of-law principles. Any dispute will be resolved in the courts located in
-              [JURISDICTION - fill in], unless applicable law requires otherwise.
+              These Terms are governed by the laws of the Commonwealth of Pennsylvania, United
+              States, without regard to conflict-of-law principles. Any dispute will be resolved in
+              the state or federal courts located in Montgomery County, Pennsylvania, unless
+              applicable law requires otherwise.
             </Paragraph>
           </Section>
 
