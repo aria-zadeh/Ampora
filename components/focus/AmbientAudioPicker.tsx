@@ -29,10 +29,15 @@ export function AmbientAudioPicker({ current, onPick }: AmbientAudioPickerProps)
 
   return (
     <View>
+      {/* `gap-3` and not `justify-between` alone: the session screen wraps this
+          in `items-center` so the pill shrinks to its content, which leaves
+          justify-between no free space to distribute and butts the label
+          straight into the value ("Ambient soundOff"). The gap holds at any
+          width. */}
       <PressableScale
         onPress={() => setOpen((o) => !o)}
         haptic="selection"
-        className="flex-row items-center justify-between px-4 h-12 rounded-xl bg-white border border-neutral-200"
+        className="flex-row items-center justify-between gap-3 px-4 h-12 rounded-xl bg-white border border-neutral-200"
         accessibilityRole="button"
         accessibilityLabel="Ambient sound"
         accessibilityState={{ expanded: open }}

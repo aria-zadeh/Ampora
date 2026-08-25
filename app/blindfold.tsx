@@ -132,7 +132,10 @@ export default function BlindfoldScreen() {
     setRevealKey((k) => k + 1);
   }, [task, step, updateTask, setSubtaskCompleted]);
 
-  const done = !task || step.kind === "none";
+  // "empty" (a task that never had a step) has nothing to reveal either, so it
+  // exits the same way as a finished one. Blindfold shows one micro-step at a
+  // time, and there is no micro-step to show in either case.
+  const done = !task || step.kind === "none" || step.kind === "empty";
   // A single gentle fade — the calm-down surface's one motion beat. Eased
   // (ease-out) rather than linear so it settles instead of moving at a
   // constant rate; still just an opacity fade, never a slide/spring, to keep
