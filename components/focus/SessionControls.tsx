@@ -13,19 +13,26 @@
  *
  * Restyled per doc `design/DECISION_SPEC` D3/D4 item 6: Done is blue, not
  * green (D3, green is reserved for terminal/completed states, never a
- * control that starts or runs). The three secondaries collapse into one
- * equal row of quiet, text-only pills: no icons, no warm tint on "I'm
- * overwhelmed" (that warm tint read as a warning on a control that isn't
- * one).
+ * control that starts or runs). The secondaries are quiet, text-only pills:
+ * no icons, no warm tint on "I'm overwhelmed" (that warm tint read as a
+ * warning on a control that isn't one).
  *
- * "Park a thought" (intrusive-thought capture) is its OWN row rather than a
- * third pill jammed into the stuck/break row: that row's whole reason for
- * being one row of two (not three) is the exact copy-fit failure described
- * below, and a fresh third label would risk the identical wrap. It sits
- * between that row and the overwhelm valve on purpose. It is a light,
- * frequent action, not a rare escape hatch, so it reads as a peer of
- * stuck/break rather than sharing the overwhelm valve's heavier, alone-on-
- * its-row weight.
+ * LAYOUT: two rows of two, not one row of three or four stacked rows.
+ * DECISION_SPEC D4 item 6 originally called for one row of three equal pills,
+ * which could not hold the copy: at 390pt a third-width pill is 99pt with an
+ * 87pt content box, and "I'm overwhelmed" measures 113pt, so it wrapped and
+ * broke mid-word ("Overwhelme / d"). Trimming padding bought single-digit
+ * points and would still have failed at larger Dynamic Type.
+ *
+ * Giving the valve its own full-width row fixed that, and adding "Park a
+ * thought" the same way produced four stacked full-width pills, which looked
+ * repetitive and heavy on screen. Two rows of two is what actually reads well:
+ * each pill is ~175pt, which fits the 113pt worst-case label with real slack
+ * to spare, so it survives text scaling far better than three-across ever did.
+ *
+ * Note the earlier claim that the valve deserved its own row on hierarchy
+ * grounds was reasoning backwards from a layout fix. The valve is reachable
+ * and clearly labelled here, which is what FR-61 actually asks for.
  */
 
 import React from "react";
@@ -96,14 +103,12 @@ export function SessionControls({
         />
         <QuietPill label="Take a break" onPress={onBreak} />
       </View>
-      <View className="mt-2 flex-row">
+      <View className="mt-2 flex-row gap-2">
         <QuietPill
           label="Park a thought"
           accessibilityHint="Saves a quick note to your Inbox and keeps the timer running"
           onPress={onParkThought}
         />
-      </View>
-      <View className="mt-2 flex-row">
         <QuietPill label="I'm overwhelmed" onPress={onOverwhelmed} />
       </View>
     </View>
