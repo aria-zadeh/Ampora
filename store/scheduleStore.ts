@@ -220,6 +220,21 @@ export const useScheduleStore = create<ScheduleState>()(
             // Honour the user's workload preference (FR-14). Without this the
             // Balanced/Front-load toggle in Settings would never reach the engine.
             workload: settings.workloadDistribution ?? 'balanced',
+            // Honour the user's auto-schedule horizon (PRD 8.11, types/index.ts
+            // `autoScheduleCutoffWeeks`) for exactly the same reason as `workload`
+            // directly above: omit it and the engine silently falls back to its own
+            // DEFAULT_CUTOFF_DAYS (14), so the Settings stepper moved a number that
+            // reached nothing. The `?? 4` fallback deliberately matches what the
+            // Settings row itself renders when the value is unset
+            // (`components/settings/SchedulingSettings.tsx` `cutoffWeeks`), so the
+            // horizon the engine plans over is always the one the user is being
+            // shown. That does mean an unset value now plans 28 days rather than
+            // the engine's bare 14 - the engine default stays 14 for direct
+            // callers/tests that pass no `cutoffDays` at all, it is only this
+            // user-facing path that is settings-driven. NFR-2's budget test
+            // already covers a 300-task, 8-week horizon, comfortably past the
+            // 4-week default and the 12-week ceiling the stepper allows.
+            cutoffDays: (settings.autoScheduleCutoffWeeks ?? 4) * 7,
             listMap,
           })
 
