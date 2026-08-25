@@ -35,7 +35,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, ScrollView } from "react-native";
+import { View, ScrollView } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -54,7 +54,7 @@ import { simplifySubtask } from "@/services/ai";
 import { useFocusAudio } from "@/hooks/useFocusAudio";
 import { useForegroundTimer } from "@/hooks/useForegroundTimer";
 import type { FocusAudio } from "@/utils/audioConfig";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { Text } from "@/components/ui/Text";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { SessionNotice } from "@/components/focus/SessionNotice";
@@ -67,7 +67,7 @@ import { EndCheckInSheet, type CheckInAnswer } from "@/components/focus/EndCheck
 import { LockBanner } from "@/components/stakes/LockBanner";
 import { PanicValveSheet } from "@/components/stakes/PanicValveSheet";
 import { DeEscalationSheet } from "@/components/stakes/DeEscalationSheet";
-import { colors } from "@/utils/design-tokens";
+import { colors, shadows, spacing, tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { NextStep } from "@/core/task-logic";
@@ -113,6 +113,11 @@ export default function FocusSessionScreen() {
     stakeTrigger?: string;
     stakeVerification?: string;
     stakeSessionMin?: string;
+    // Set when this arm REPLACES an existing scheduled stake (Focus tab
+    // "Start now" / "Edit"-into-immediate, Today's Start carrying a
+    // schedule). Consumed atomically by `startStake` below, only once this
+    // arm actually succeeds, so a refusal leaves the scheduled row intact.
+    fromScheduledId?: string;
   }>();
   const taskId = params.taskId ?? "";
 
@@ -200,6 +205,17 @@ export default function FocusSessionScreen() {
   const step = useMemo<NextStep>(() => (task ? nextStep(task) : { kind: "none" }), [task]);
   const currentStepId = stepId(step);
 
+  // The step's actual 1-indexed position in the subtask list, not how many
+  // are done so far. Those diverge the instant a subtask is completed out of
+  // order: the next OPEN step then sits at a different position than "how
+  // many are done", so `StepCard`'s "Step N of M" line must read this
+  // instead of a running completed-count.
+  const currentStepIndex = useMemo(() => {
+    if (!task || step.kind !== "subtask") return null;
+    const idx = task.subtasks.findIndex((s) => s.id === step.subtask.id);
+    return idx >= 0 ? idx + 1 : null;
+  }, [task, step]);
+
   // Reset the "simpler version" whenever the current step changes.
   const prevStepIdRef = useRef(currentStepId);
   useEffect(() => {
@@ -209,8 +225,14 @@ export default function FocusSessionScreen() {
     }
   }, [currentStepId]);
 
-  // -- Progress across the task's steps (first move + subtasks) --
-  const { progress, doneCount, totalCount } = useMemo(() => {
+  // -- Progress across the task's steps (first move + subtasks). `progress`
+  //    AND `doneCount` are no longer read here: the top-of-screen ProgressBar
+  //    `progress` drove is dropped per D4 item 4, and `doneCount` used to
+  //    feed "Step N of M" as `doneCount + 1`, wrong the moment a subtask is
+  //    completed out of order (see `currentStepIndex` above, which replaces
+  //    it). The memo's computation is untouched, only the binding narrows to
+  //    the one field still used. --
+  const { totalCount } = useMemo(() => {
     if (!task) return { progress: 0, doneCount: 0, totalCount: 0 };
     const subDone = task.subtasks.filter((s) => s.completedAt != null).length;
     const subTotal = task.subtasks.length;
@@ -234,6 +256,20 @@ export default function FocusSessionScreen() {
     const wanted = estimate > 0 ? estimate : defaultSessionMin;
     return Math.max(MIN_SESSION_MIN, Math.min(singleSessionCapMin, Math.round(wanted)));
   }, [ownStake, task, defaultSessionMin, singleSessionCapMin]);
+
+  // -- "Session N of M" (doc `design/DECISION_SPEC` D4 item 2), a purely
+  //    presentational label, read-only, no new store writes. N = sessions
+  //    already run against this task (history) plus this one. M is an
+  //    estimate of how many sessions the whole task takes at this length,
+  //    never lower than N so it can never read "Session 3 of 2". --
+  const sessionHistory = useSessionStore((s) => s.history);
+  const { sessionOrdinal, sessionCount } = useMemo(() => {
+    const doneForTask = Object.values(sessionHistory).filter((h) => h.taskId === taskId).length;
+    const ordinal = doneForTask + 1;
+    const taskTotalMin = task ? computeDurationMin(task) : 0;
+    const estimatedSessions = totalMin > 0 && taskTotalMin > 0 ? Math.ceil(taskTotalMin / totalMin) : ordinal;
+    return { sessionOrdinal: ordinal, sessionCount: Math.max(ordinal, estimatedSessions, 1) };
+  }, [sessionHistory, taskId, task, totalMin]);
 
   // -- Accrual: one served foreground second at a time. The stake's unlock
   //    lives entirely in `accrueFocus` (FR-77b) — nothing on this screen
@@ -295,18 +331,21 @@ export default function FocusSessionScreen() {
     stakeArmedRef.current = true;
 
     const requested = params.stakeSessionMin ? parseInt(params.stakeSessionMin, 10) : undefined;
-    const result = startStake({
-      taskId,
-      hold: params.stakeHold === "until_done" ? "until_done" : "session",
-      trigger: params.stakeTrigger === "scheduled" ? "scheduled" : "manual",
-      verification:
-        params.stakeVerification === "honor" ||
-        params.stakeVerification === "photo" ||
-        params.stakeVerification === "screenshot"
-          ? params.stakeVerification
-          : "focus_time",
-      sessionMin: Number.isFinite(requested as number) ? (requested as number) : undefined,
-    });
+    const result = startStake(
+      {
+        taskId,
+        hold: params.stakeHold === "until_done" ? "until_done" : "session",
+        trigger: params.stakeTrigger === "scheduled" ? "scheduled" : "manual",
+        verification:
+          params.stakeVerification === "honor" ||
+          params.stakeVerification === "photo" ||
+          params.stakeVerification === "screenshot"
+            ? params.stakeVerification
+            : "focus_time",
+        sessionMin: Number.isFinite(requested as number) ? (requested as number) : undefined,
+      },
+      params.fromScheduledId ? { fromScheduledId: params.fromScheduledId } : undefined
+    );
     if (result.ok) setOwnStakeId(result.session.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId, task]);
@@ -563,132 +602,176 @@ export default function FocusSessionScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
-      {/* Header: state + task title + close */}
-      <View className="flex-row items-center justify-between px-5 pt-2 pb-1">
-        <View className="flex-1 pr-3">
-          <Text
-            className={`text-overline font-semibold uppercase tracking-wide ${
-              timer.ticking ? "text-success-700" : "text-warning-700"
-            }`}
-          >
-            {timer.ticking ? "Focusing" : "Paused"}
-          </Text>
-          <Text className="text-label font-medium text-neutral-600 mt-0.5" numberOfLines={1}>
-            {task?.title ?? "Focus session"}
-          </Text>
-        </View>
-        <PressableScale
-          onPress={leave}
-          haptic="selection"
-          className="min-w-11 min-h-11 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Leave focus session"
-          accessibilityHint={
-            ownStake
-              ? "Your apps stay locked; a banner will show the time left"
-              : "Closes this session"
-          }
-        >
-          <Ionicons name="close" size={26} color={colors.light.text} />
-        </PressableScale>
-      </View>
-
-      {missing ? (
-        <View className="flex-1 justify-center">
-          <EmptyState
-            icon="timer-outline"
-            title="Nothing to focus on"
-            subtitle="This task couldn't be found. Head back and pick one to focus on."
-            actionLabel="Go back"
-            onAction={() => router.back()}
-          />
-        </View>
-      ) : (
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="px-5 pb-6"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Progress across the task's steps */}
-          <Animated.View entering={enter} className="mt-3">
-            <ProgressBar
-              progress={progress}
-              color={progress >= 1 ? "bg-success-500" : "bg-success-600"}
-              label={totalCount > 0 ? `${doneCount} of ${totalCount} steps` : "One focused push"}
-              showPercentage={totalCount > 0}
-              height={8}
-            />
-          </Animated.View>
-
-          {/* Lock banner — in-context while our stake is live. Carries the
-              always-available panic valve. */}
-          {ownStake && (
-            <View className="mt-5">
-              <LockBanner session={ownStake} onPanic={() => setPanicOpen(true)} />
-              <Text className="mt-2 px-1 text-caption text-neutral-500">
-                Leaving this screen keeps your apps locked — a banner will show the time left and
-                the way out.
+      {/* One white hero card, inset 18 on the canvas, warm elevated shadow.
+          Doc `design/DECISION_SPEC` D4 item 1. `shadows.lg` per
+          `utils/design-tokens.ts`'s own pairing of `lg` with `rounded-3xl`
+          (26) hero surfaces. Fills to the bottom inset. */}
+      <View style={{ flex: 1, margin: spacing.group }}>
+        <View className="flex-1 overflow-hidden rounded-3xl bg-white" style={shadows.lg}>
+          {/* Header: state + task title + close (kept, 44px target). */}
+          <View className="flex-row items-center justify-between px-5 pt-4 pb-1">
+            <View className="flex-1 pr-3">
+              <Text
+                variant="overline"
+                className={timer.ticking ? "text-neutral-600" : "text-warning-700"}
+              >
+                {timer.ticking ? "Focusing" : "Paused"}
+              </Text>
+              <Text variant="label" className="text-neutral-600 mt-0.5" numberOfLines={1}>
+                {task?.title ?? "Focus session"}
               </Text>
             </View>
-          )}
-
-          {/* Finished the work before the session was served. Celebrated, not
-              cashed in: the hold is time, so the apps stay on the line. */}
-          {doneEarly && (
-            <SessionNotice
-              icon="sparkles-outline"
-              className="mt-4"
-              text="Every step is done — nice. This session is held by time, so ride out the rest or unlock early whenever you want."
-            />
-          )}
-
-          {/* Just-served confirmation. */}
-          {servedStake && !ownStake && (
-            <SessionNotice
-              icon="lock-open-outline"
-              role="alert"
-              className="mt-5"
-              text="Session served. Your apps are yours again."
-            />
-          )}
-
-          {/* The ONE current step. */}
-          <StepCard
-            step={step}
-            simplerText={simplerText}
-            celebrate={celebrate}
-            style={{ marginTop: 32 }}
-          />
-
-          {/* The bounded session clock. */}
-          <Animated.View entering={enter} className="mt-10">
-            <SessionTimer
-              remainingSec={timer.remainingSec}
-              progress={timer.progress}
-              ticking={timer.ticking}
-              running={timer.running}
-              interrupted={timer.interrupted}
-              totalMin={totalMin}
-              onToggle={timer.toggle}
-            />
-          </Animated.View>
-
-          <View className="mt-10">
-            <SessionControls
-              onDone={handleDone}
-              noSteps={noSteps}
-              onBreak={handleBreak}
-              onStuck={handleStuck}
-              simplifying={simplifying}
-              onOverwhelmed={handleOverwhelmed}
-            />
+            <PressableScale
+              onPress={leave}
+              haptic="selection"
+              className="min-w-11 min-h-11 items-center justify-center"
+              accessibilityRole="button"
+              accessibilityLabel="Leave focus session"
+              accessibilityHint={
+                ownStake
+                  ? "Your apps stay locked; a banner will show the time left"
+                  : "Closes this session"
+              }
+            >
+              <Ionicons name="close" size={26} color={colors.light.text} />
+            </PressableScale>
           </View>
 
-          <View className="mt-6">
-            <AmbientAudioPicker current={audio.current} onPick={pickAudio} />
-          </View>
-        </ScrollView>
-      )}
+          {missing ? (
+            <View className="flex-1 justify-center px-5">
+              <EmptyState
+                icon="timer-outline"
+                title="Nothing to focus on"
+                subtitle="This task couldn't be found. Head back and pick one to focus on."
+                actionLabel="Go back"
+                onAction={() => router.back()}
+              />
+            </View>
+          ) : (
+            <>
+              <ScrollView
+                className="flex-1"
+                contentContainerClassName="px-5 pb-4 items-center"
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Session N of M, overline. Replaces the old top-of-screen
+                    progress bar as the session-level progress cue. Ring +
+                    digits sit directly beneath it, one entrance beat. */}
+                <Animated.View entering={enter} className="w-full items-center">
+                  <Text
+                    variant="overline"
+                    className="text-neutral-500 text-center"
+                    style={tabularNums}
+                  >
+                    {`Session ${sessionOrdinal} of ${sessionCount}`}
+                  </Text>
+                  <View className="mt-4">
+                    <SessionTimer
+                      remainingSec={timer.remainingSec}
+                      progress={timer.progress}
+                      ticking={timer.ticking}
+                      running={timer.running}
+                      interrupted={timer.interrupted}
+                      onToggle={timer.toggle}
+                    />
+                  </View>
+                </Animated.View>
+
+                {/* The ONE current step, bare (no card chrome, the hero card
+                    already is the surface). Its own "Step N of M" line
+                    replaces the dropped top-of-screen progress bar. */}
+                <StepCard
+                  step={step}
+                  simplerText={simplerText}
+                  celebrate={celebrate}
+                  stepNumber={currentStepIndex ?? undefined}
+                  stepTotal={totalCount > 0 ? totalCount : undefined}
+                  bare
+                  style={{ marginTop: 28 }}
+                />
+
+                {/* Lock banner, slim, in-context while our stake is live.
+                    Carries the always-available panic valve via the pinned
+                    "Unlock early" text below (the slim variant drops its own
+                    built-in pill). */}
+                {ownStake && (
+                  <View className="mt-5 w-full">
+                    <LockBanner
+                      session={ownStake}
+                      onPanic={() => setPanicOpen(true)}
+                      variant="slim"
+                    />
+                    <Text variant="caption" className="mt-2 px-1 text-neutral-500 text-center">
+                      Leaving this screen keeps your apps locked. A banner will show the time left
+                      and the way out.
+                    </Text>
+                  </View>
+                )}
+
+                {/* Finished the work before the session was served. Celebrated, not
+                    cashed in: the hold is time, so the apps stay on the line. */}
+                {doneEarly && (
+                  <SessionNotice
+                    icon="sparkles-outline"
+                    className="mt-4 w-full"
+                    text="Every step is done, nice. This session is held by time, so ride out the rest or unlock early whenever you want."
+                  />
+                )}
+
+                {/* Just-served confirmation. */}
+                {servedStake && !ownStake && (
+                  <SessionNotice
+                    icon="lock-open-outline"
+                    role="alert"
+                    className="mt-5 w-full"
+                    text="Session served. Your apps are yours again."
+                  />
+                )}
+
+                <View className="mt-8 w-full">
+                  <SessionControls
+                    onDone={handleDone}
+                    noSteps={noSteps}
+                    onBreak={handleBreak}
+                    onStuck={handleStuck}
+                    simplifying={simplifying}
+                    onOverwhelmed={handleOverwhelmed}
+                  />
+                </View>
+
+                {/* Ambient audio, one quiet centered pill. `items-center` here
+                    (rather than editing AmbientAudioPicker, out of scope for
+                    this pass) stops its row from stretching full-width so it
+                    shrinks to its content and centers, the closest a wrap can
+                    get to a compact pill without touching the component. */}
+                <View className="mt-5 items-center">
+                  <AmbientAudioPicker current={audio.current} onPick={pickAudio} />
+                </View>
+              </ScrollView>
+
+              {/* Unlock early, pinned at the card bottom, never scrolled away
+                  (doc `design/DECISION_SPEC` D4 item 8). Same handler the slim
+                  LockBanner used to expose via its own built-in pill. */}
+              {ownStake && (
+                <View className="items-center pb-5 pt-1">
+                  <PressableScale
+                    onPress={() => setPanicOpen(true)}
+                    haptic="light"
+                    className="min-h-11 px-4 items-center justify-center"
+                    accessibilityRole="button"
+                    accessibilityLabel="Unlock early"
+                    accessibilityHint="Opens a 60 second breather before your apps come back"
+                  >
+                    <Text variant="bodyMedium" className="text-neutral-600 underline">
+                      Unlock early
+                    </Text>
+                  </PressableScale>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      </View>
 
       {/* A break HOLDS the clock — break time is never served toward a hold. */}
       <BreakOverlay

@@ -39,6 +39,18 @@
  *     notification plumbing — see `store/stakesStore.ts`), that refusal is
  *     shown here too, honestly, rather than pretending the schedule was set.
  *
+ * EDITING AN EXISTING SCHEDULED STAKE (the Focus tab's "Edit" entry points,
+ * `components/focus/FocusHeroCard.tsx` and `ScheduledStakeRow.tsx`): pass the
+ * row as `existing` and this sheet seeds every field from it instead of
+ * fresh defaults, rather than the caller cancelling it up front. Confirm then
+ * replaces it ATOMICALLY, the row `existing` describes is only ever removed
+ * AFTER its replacement is safely persisted (`scheduleStake` succeeding) or
+ * armed (`startStake`'s own `fromScheduledId` consuming it, only on THAT
+ * success). Dismissing the sheet, or a refused Confirm, leaves `existing`
+ * completely untouched. This is the fix for the bug where editing a
+ * scheduled lock destroyed it up front regardless of whether the replacement
+ * ever actually succeeded.
+ *
  * Wellbeing stance (§9.10): warm, never shaming. Arming is fully reversible
  * up until (and during) the session via the panic valve.
  *
@@ -86,6 +98,13 @@ export interface ArmedStake {
   verification: StakeSession["verification"];
   /** Session length in minutes; the store clamps it to every cap. */
   sessionMin?: number;
+  /**
+   * Set when this arm REPLACES an existing scheduled stake (editing a
+   * schedule into an immediate start). Threaded through to
+   * `stakesStore.startStake`'s `opts.fromScheduledId`, which consumes that
+   * row atomically, ONLY once this arm actually succeeds.
+   */
+  fromScheduledId?: string;
 }
 
 /** Default "if I haven't started within X min" window for a scheduled stake. */
@@ -97,7 +116,12 @@ const SESSION_STEP_MIN = 5;
 // Copy — plain language for every refusal reason. No refusal is ever silent.
 // ---------------------------------------------------------------------------
 
-const REFUSAL_COPY: Record<StartStakeRefusal, string> = {
+/**
+ * Shared with `components/focus/FocusHeroCard.tsx`'s own inline refusal (the
+ * composer's "Lock in" primary runs the same pre-flight before it
+ * navigates), so the wording is identical wherever a stake is refused.
+ */
+export const REFUSAL_COPY: Record<StartStakeRefusal, string> = {
   no_selection: "Choose which apps go on the line first.",
   quiet_hours: "It's quiet hours right now, so stakes stay off. Try again once quiet hours end.",
   cap_reached: "You've used today's lock time. It resets tomorrow.",
@@ -180,9 +204,16 @@ export interface StakeSetupSheetProps {
    * sheet via `scheduleStake` and never reach this callback.
    */
   onArm: (armed: ArmedStake) => void;
+  /**
+   * An existing SCHEDULED stake this sheet is editing in place. When set,
+   * every draft field seeds from this row instead of the usual fresh
+   * defaults, and Confirm replaces it atomically (see the file doc comment).
+   * Omit to get the ordinary fresh-sheet behaviour.
+   */
+  existing?: StakeSession;
 }
 
-export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupSheetProps) {
+export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: StakeSetupSheetProps) {
   const reduceMotion = useReduceMotion();
 
   const defaultSessionMin = useSettingsStore((s) => s.settings.defaultSessionMin);
@@ -196,6 +227,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
   const canStartStake = useStakesStore((s) => s.canStartStake);
   const isUntilDoneEligible = useStakesStore((s) => s.isUntilDoneEligible);
   const scheduleStake = useStakesStore((s) => s.scheduleStake);
+  const cancelScheduledStake = useStakesStore((s) => s.cancelScheduledStake);
 
   // The leisure-app picker ("choose what's on the line", required step).
   const [appPickerOpen, setAppPickerOpen] = useState(false);
@@ -223,21 +255,38 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
   const scheduledQuietHoursConflict =
     scheduledArmMoment && isQuietHours(settings, scheduledArmMoment.getTime()) ? scheduledArmMoment : null;
 
-  // Re-seed local state when the sheet (re)opens for a task.
+  // Re-seed local state when the sheet (re)opens for a task, from `existing`
+  // when editing a scheduled stake in place, otherwise the usual fresh
+  // defaults. Depends on `existing?.id` rather than `existing` itself so an
+  // unrelated re-render that hands down a new-but-equal object never resets
+  // a user's in-progress edit.
   useEffect(() => {
     if (!visible) return;
-    setStakeOn(true);
-    setHold("session");
-    setScheduledOn(false);
-    setScheduledAt(new Date(Date.now() + 30 * 60 * 1000));
-    setStartWindowOn(false);
-    setStartWindowMin(START_WINDOW_DEFAULT_MIN);
-    setSessionMin(clampTo(defaultSessionMin, SESSION_MIN_BOUNDS, DEFAULT_SESSION_MIN));
-    setVerification("photo");
+    if (existing) {
+      setStakeOn(true);
+      setHold(existing.hold);
+      setScheduledOn(true);
+      setScheduledAt(
+        existing.scheduledAt != null ? new Date(existing.scheduledAt) : new Date(Date.now() + 30 * 60 * 1000)
+      );
+      setStartWindowOn(existing.startWindowMin != null);
+      setStartWindowMin(existing.startWindowMin ?? START_WINDOW_DEFAULT_MIN);
+      setSessionMin(clampTo(existing.sessionMin ?? defaultSessionMin, SESSION_MIN_BOUNDS, DEFAULT_SESSION_MIN));
+      setVerification(existing.verification === "screenshot" ? "screenshot" : "photo");
+    } else {
+      setStakeOn(true);
+      setHold("session");
+      setScheduledOn(false);
+      setScheduledAt(new Date(Date.now() + 30 * 60 * 1000));
+      setStartWindowOn(false);
+      setStartWindowMin(START_WINDOW_DEFAULT_MIN);
+      setSessionMin(clampTo(defaultSessionMin, SESSION_MIN_BOUNDS, DEFAULT_SESSION_MIN));
+      setVerification("photo");
+    }
     setAppPickerOpen(false);
     setRefusal(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, task.id]);
+  }, [visible, task.id, existing?.id]);
 
   // If the task no longer qualifies for `until_done` (e.g. its estimate grew)
   // while it's selected, fall back to the always-available session hold
@@ -301,6 +350,10 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
         setRefusal(result.reason);
         return;
       }
+      // Replace atomically: the new schedule is safely persisted, so only
+      // NOW is it safe to drop the row it replaces. A refusal above returns
+      // before this line, so `existing` is untouched on that path.
+      if (existing) cancelScheduledStake(existing.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       onClose();
       return;
@@ -313,6 +366,11 @@ export function StakeSetupSheet({ visible, task, onClose, onArm }: StakeSetupShe
       trigger: "manual",
       verification: verificationValue,
       sessionMin,
+      // Editing a schedule into an immediate arm: `existing` is consumed by
+      // `startStake` itself, atomically, ONLY once that later arm actually
+      // succeeds (see `ArmedStake.fromScheduledId`), never here, since this
+      // sheet cannot know yet whether the session's own arm will succeed.
+      ...(existing ? { fromScheduledId: existing.id } : {}),
     });
     onClose();
   };

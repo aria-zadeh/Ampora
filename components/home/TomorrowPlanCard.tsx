@@ -11,14 +11,13 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { GradientCard } from "@/components/ui/GradientCard";
-import { PressableScale } from "@/components/ui/PressableScale";
+import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useScheduleStore, selectBlocksByDay } from "@/store/scheduleStore";
 import { useTaskStore } from "@/store/taskStore";
 import { useProjectStore } from "@/store/projectStore";
 import { nextStep } from "@/core/task-logic";
-import { gradients, iconSizes } from "@/utils/design-tokens";
+import { colors, iconSizes } from "@/utils/design-tokens";
 import { EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { ScheduledBlock, Task } from "@/types";
@@ -103,12 +102,12 @@ function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
             width: iconSizes.lg + 20,
             height: iconSizes.lg + 20,
             borderRadius: (iconSizes.lg + 20) / 2,
-            backgroundColor: "#2563EB",
+            backgroundColor: colors.light.primary,
           },
         ]}
       />
       <Animated.View style={moonStyle}>
-        <Ionicons name="moon-outline" size={iconSizes.lg} color="#2563EB" />
+        <Ionicons name="moon-outline" size={iconSizes.lg} color={colors.light.primary} />
       </Animated.View>
     </View>
   );
@@ -180,31 +179,28 @@ export function TomorrowPlanCard() {
   // --- Gentle nudge: nothing scheduled for tomorrow yet. -------------------
   if (!hasPlan) {
     return (
-      <PressableScale
+      <Card
+        feature
         onPress={() => router.push("/(tabs)/calendar")}
-        haptic="light"
-        accessibilityRole="button"
         accessibilityLabel="Tomorrow has no plan yet. Opens your calendar."
         accessibilityHint="Opens the calendar"
       >
-        <GradientCard colors={gradients.firstMove}>
-          <View className="flex-row items-center justify-between">
-            <View className="flex-1 pr-3">
-              <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
-                Ready for tomorrow
-              </Text>
-              <Text className="mt-1.5 text-body-lg font-medium text-neutral-900">
-                Tomorrow is open
-              </Text>
-              <Text className="mt-1 text-body text-neutral-500">
-                Nothing scheduled yet. Add a task tonight and you will wake up
-                with a first move ready.
-              </Text>
-            </View>
-            <MoonPhase reduceMotion={reduceMotion} />
+        <View className="flex-row items-center justify-between">
+          <View className="flex-1 pr-3">
+            <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+              Ready for tomorrow
+            </Text>
+            <Text className="mt-1.5 text-body-lg font-medium text-neutral-900">
+              Tomorrow is open
+            </Text>
+            <Text className="mt-1 text-body text-neutral-500">
+              Nothing scheduled yet. Add a task tonight and you will wake up
+              with a first move ready.
+            </Text>
           </View>
-        </GradientCard>
-      </PressableScale>
+          <MoonPhase reduceMotion={reduceMotion} />
+        </View>
+      </Card>
     );
   }
 
@@ -226,87 +222,84 @@ export function TomorrowPlanCard() {
     .join(", ");
 
   return (
-    <PressableScale
+    <Card
+      feature
       onPress={onPress}
-      haptic="light"
-      accessibilityRole="button"
       accessibilityLabel={a11yLabel}
       accessibilityHint="Opens the first task for tomorrow"
     >
-      <GradientCard colors={gradients.firstMove}>
-        {/* Header: overline + session count. */}
-        <View className="flex-row items-center justify-between">
-          <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
-            Ready for tomorrow
-          </Text>
-          <View className="flex-row items-center">
-            <Ionicons
-              name="calendar-outline"
-              size={iconSizes.xs}
-              color="#6F6862"
-            />
-            <Text className="ml-1 text-caption font-medium text-neutral-500">
-              {sessionLabel}
-            </Text>
-          </View>
-        </View>
-
-        {/* Project origin (FR-84/FR-90): the Projects-only accent, never used elsewhere. */}
-        {project ? (
-          <View className="mt-2 flex-row items-center gap-1.5">
-            <Badge label="Project" tone="accent" />
-            <Text className="flex-1 text-caption text-neutral-500" numberOfLines={1}>
-              {project.title}
-            </Text>
-          </View>
-        ) : null}
-
-        {/* First up: task + start time. */}
-        <View className="mt-2 flex-row items-baseline justify-between">
-          <Text
-            className="flex-1 pr-3 text-h4 font-semibold text-neutral-900"
-            numberOfLines={1}
-          >
-            {firstTask?.title}
-          </Text>
-          {timeLabel ? (
-            <Text className="text-caption font-semibold text-primary-600">
-              {timeLabel}
-            </Text>
-          ) : null}
-        </View>
-
-        {/* First move for that opening task — the thing that defeats the cold
-            start. Only shown when the task actually surfaces one. */}
-        {firstStep ? (
-          <View className="mt-3 flex-row items-center rounded-lg bg-primary-50 px-3 py-2.5">
-            <Ionicons name="flag-outline" size={iconSizes.xs} color="#2563EB" />
-            <View className="ml-2 flex-1">
-              <Text className="text-tiny font-semibold uppercase tracking-wide text-primary-600">
-                First move
-              </Text>
-              <Text
-                className="mt-0.5 text-body font-medium text-neutral-900"
-                numberOfLines={2}
-              >
-                {firstStep}
-              </Text>
-            </View>
-          </View>
-        ) : null}
-
-        {/* Affordance footer. */}
-        <View className="mt-3 flex-row items-center">
-          <Text className="text-caption font-medium text-primary-600">
-            {firstStep ? "Open first task" : "See tomorrow"}
-          </Text>
+      {/* Header: overline + session count. */}
+      <View className="flex-row items-center justify-between">
+        <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+          Ready for tomorrow
+        </Text>
+        <View className="flex-row items-center">
           <Ionicons
-            name="chevron-forward"
+            name="calendar-outline"
             size={iconSizes.xs}
-            color="#2563EB"
+            color={colors.light.textMuted}
           />
+          <Text className="ml-1 text-caption font-medium text-neutral-500">
+            {sessionLabel}
+          </Text>
         </View>
-      </GradientCard>
-    </PressableScale>
+      </View>
+
+      {/* Project origin (FR-84/FR-90): the Projects-only accent, never used elsewhere. */}
+      {project ? (
+        <View className="mt-2 flex-row items-center gap-1.5">
+          <Badge label="Project" tone="accent" />
+          <Text className="flex-1 text-caption text-neutral-500" numberOfLines={1}>
+            {project.title}
+          </Text>
+        </View>
+      ) : null}
+
+      {/* First up: task + start time. */}
+      <View className="mt-2 flex-row items-baseline justify-between">
+        <Text
+          className="flex-1 pr-3 text-h4 font-semibold text-neutral-900"
+          numberOfLines={1}
+        >
+          {firstTask?.title}
+        </Text>
+        {timeLabel ? (
+          <Text className="text-caption font-semibold text-primary-600">
+            {timeLabel}
+          </Text>
+        ) : null}
+      </View>
+
+      {/* First move for that opening task — the thing that defeats the cold
+          start. Only shown when the task actually surfaces one. */}
+      {firstStep ? (
+        <View className="mt-3 flex-row items-center rounded-lg bg-primary-50 px-3 py-2.5">
+          <Ionicons name="flag-outline" size={iconSizes.xs} color={colors.light.primary} />
+          <View className="ml-2 flex-1">
+            <Text className="text-tiny font-semibold uppercase tracking-wide text-primary-600">
+              First move
+            </Text>
+            <Text
+              className="mt-0.5 text-body font-medium text-neutral-900"
+              numberOfLines={2}
+            >
+              {firstStep}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      {/* Affordance footer. */}
+      <View className="mt-3 flex-row items-center">
+        <Text className="text-caption font-medium text-primary-600">
+          {firstStep ? "Open first task" : "See tomorrow"}
+        </Text>
+        <Ionicons
+          name="chevron-forward"
+          size={iconSizes.xs}
+          color={colors.light.primary}
+        />
+      </View>
+    </Card>
   );
 }

@@ -204,6 +204,7 @@ function TaskCardImpl({
                 isDone ? "line-through text-neutral-500" : "text-neutral-900"
               }`}
               numberOfLines={2}
+              ellipsizeMode="tail"
             >
               {task.title}
             </Text>

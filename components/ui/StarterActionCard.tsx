@@ -1,11 +1,11 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { FeatureShell } from "./FeatureShell";
 import { PressableScale } from "./PressableScale";
 import { PulseScale } from "./PulseScale";
-import { Heading } from "./Heading";
+import { Text } from "./Text";
 import { gradients, colors } from "@/utils/design-tokens";
 import type { StarterAction } from "@/types";
 
@@ -44,25 +44,25 @@ export function StarterActionCard({ action, onToggle }: StarterActionCardProps) 
 
           <View className="p-5">
             {/* Overline */}
-            <Text className="text-overline font-semibold text-primary-600 uppercase tracking-wide">
+            <Text variant="overline" className="text-primary-600">
               First move
             </Text>
 
             {/* The action */}
-            <Heading
-              size="h4"
-              className={`mt-1.5 ${done ? "line-through text-neutral-500" : ""}`}
+            <Text
+              variant="bodyMedium"
+              className={`mt-1.5 ${done ? "text-neutral-500 line-through" : "text-neutral-900"}`}
               accessibilityLabel={`First move: ${action.text}${done ? ", done" : ""}`}
             >
               {action.text}
-            </Heading>
+            </Text>
 
             {/* Mark done — success haptic on completion, light on undo. */}
             <PressableScale
               onPress={onToggle}
               haptic={done ? "light" : "success"}
               className={`mt-4 h-12 flex-row items-center justify-center rounded-md ${
-                done ? "bg-success-100" : "bg-success-700"
+                done ? "bg-success-100" : "bg-primary-600"
               }`}
               accessibilityRole="button"
               accessibilityState={{ checked: done }}
@@ -74,11 +74,7 @@ export function StarterActionCard({ action, onToggle }: StarterActionCardProps) 
                   size={18}
                   color={done ? colors.light.successStrong : colors.light.primaryForeground}
                 />
-                <Text
-                  className={`ml-2 text-label font-semibold ${
-                    done ? "text-success-700" : "text-white"
-                  }`}
-                >
+                <Text variant="label" className={`ml-2 ${done ? "text-success-700" : "text-white"}`}>
                   {done ? "Done" : "Start"}
                 </Text>
               </View>

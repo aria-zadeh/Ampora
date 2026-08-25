@@ -157,7 +157,7 @@ Requirements are numbered (FR-#, NFR-#) and tied to goals (G#). Acceptance crite
 - FR-22 (G1). Calendar sync (Google, Outlook, iCloud), read-only for launch. External events are read as busy blocks so the engine never schedules over them. External events always win their own time. Write-back is out of scope for launch.
 
 **Calendar UI**
-- FR-23 (G1). Views: Day, 3-Day (default on phone), Week, Month, Agenda. Pill switcher. Remembers last view.
+- FR-23 (G1). Views: Day, 3-Day, Week, Month, Agenda (default on phone, changed 2026-08-07 from 3-Day). Pill switcher. Remembers last view; a persisted user choice overrides the default.
 - FR-24 (G1). Time grid with pinch-to-zoom hour height across stops (40/60/80/120 px per hour), persisted. Sticky day header. Fixed time gutter (44 px). Current-time line updating each minute.
 - FR-25 (G1). Block geometry: top = minutesFromGridStart * pxPerMin; height = max(durationMin * pxPerMin, 22 px). Overlap clusters lay out side by side via the interval-graph algorithm in Section 9.8.
 - FR-26 (G1). Dynamic block typography: title/time/list shown or hidden by block height and width thresholds (Section 8.7); never clip, always ellipsis.
@@ -318,12 +318,13 @@ Feature: Project generates today's session
 
 Visual styling is governed by `02_Design_System.md`.
 
-**8.1 Tabs (bottom bar):** `Today`, `Calendar`, `Tasks`, `Focus`, `Profile`. The bar is a floating segmented pill, icon-only, spec'd in `02` §6.5 and reference `docs/design/stack-reference.html`. All five surfaces stay reachable from it.
+**8.1 Tabs (top segmented control):** `Today`, `Calendar`, `Tasks`, `Focus`, `Profile`. The bar is an in-flow top segmented control (`TopSegmentedNav`), not a floating bottom pill (changed 2026-08-07, spec'd in `02` §6.5). The active segment shows an icon plus a text label; inactive segments are icon-only. All five surfaces stay reachable from it.
 
 **8.2 Today screen**
 - Header: "Good morning, {name}." (time-of-day variant).
 - "Urgent" strip: tasks due within 24h, each a row with a quiet red dot (never a shaming banner).
 - "Today's focus" card: one recommended task with a checkbox, and below it the "First move" card.
+- Lock chip on the focus card (added 2026-08-07): a line under the meta row. Armed or scheduled shows what's locked and for how long (for example "Locks Instagram and 2 more · 45 min"); no stake shows a ghost `Lock my apps` chip. Tap opens the stake sheet. `Start` stays the one primary and its label never changes.
 - First move card: the starter-action text and a primary button labeled `Start`. Secondary text button `Not now`.
 - Always-visible ghost button: `I'm overwhelmed` (triggers Blindfold).
 - FAB `+` (opens quick-add sheet). A mic button labeled `Brain dump` in the sheet.
@@ -340,6 +341,13 @@ Segments `Overdue` / `Today` / `This week` / `Later`; an `Inbox` section with sw
 
 **8.6 Calendar tab**
 View pills `Day` / `3-Day` / `Week` / `Month` / `Agenda`. Manual recompute button `Rebuild schedule`. When behind, a banner: "You have {N} unfinished blocks. Want me to rebuild?" with button `Catch me up`. Tap a block opens a bottom sheet with `Complete`, `Edit`, `Delete`.
+
+**8.6a Focus tab (lock-first composer, added 2026-08-07)**
+The tab is a session composer, not a launcher: one hero card always answers what task, what's on the line, and for how long, before Start. Three states:
+- Idle: task row (prefilled with the next scheduled task), an "on the line" row (`Instagram and 2 more` when apps are chosen, `Choose what to lock` when not), length pills `15` / `25` / `45` (45 default), primary `Lock in · {N} min` once a selection exists and lock is on, else `Start focus`. Quiet text `Start without locking` always present underneath, no shame copy.
+- Armed / scheduled: headline `Locks at {time}` with a countdown, task title and on-the-line line beneath, primary `Start now`, quiet `Edit` and `Cancel lock` (instant, no confirm).
+- Active: live `{N} min left`, primary `Return to session`, quiet `Unlock early` opening the panic valve. Everything below the hero hides except the trust footer, since only one session can run at a time.
+Below the hero: a `Scheduled locks` section when any exist, an `Up next` list (max 4), and a footer trust line ("You set the limits · {N}h daily cap · Quiet hours {start} to {end}"). No green anywhere on this tab; blue is the only action color (see `02` §14.7).
 
 **8.7 Block typography thresholds**
 - Height >= 44 px and width >= 90 px: title + time + list dot.

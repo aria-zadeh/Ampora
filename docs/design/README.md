@@ -46,5 +46,5 @@ These come from the product spec, not from taste, and a redesign does not get to
 - **WCAG AA**: 4.5:1 for body text, 3:1 for large text and UI glyphs.
 - **The lock is consensual.** Neutral surface, no alarm red, no warning triangles, no shame language anywhere.
 - **Tabular numerals** on the timer, times and counts, so digits do not jitter.
-- **No raw colour literals.** Everything comes from `utils/design-tokens.ts`. The codebase went from 377 literals down to 3, so do not add more.
+- **No raw colour literals.** Everything comes from `utils/design-tokens.ts`. The codebase is down to roughly 160 line-matches across 35 files as of 2026-08-07 (a 2026-07-30 sweep counted 172 across 36, per `CLAUDE.md`), not the 3 once claimed here. Migration is ongoing, not finished. The rule stands: add none.
 - **Nothing critical is gesture-only.** Every gesture needs a visible alternative.

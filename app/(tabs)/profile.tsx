@@ -17,13 +17,12 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { useTabBarClearance } from "@/components/ui/SegmentedTabBar";
 import { StakesSettings } from "@/components/settings/StakesSettings";
 import { CalendarSyncSettings } from "@/components/settings/CalendarSyncSettings";
 import { getCurrentUser, signOut } from "@/services/supabase";
 import { flushBeforeSignOut } from "@/store/syncStore";
 import { trialDaysLeft, isActive } from "@/core/subscription";
-import { shadows, gradients } from "@/utils/design-tokens";
+import { shadows, gradients, spacing } from "@/utils/design-tokens";
 import { DURATIONS, SPRINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 
@@ -119,7 +118,6 @@ function SettingsRow({
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const tabBarClearance = useTabBarClearance();
   const reduceMotion = useReduceMotion();
 
   const displayName = useSettingsStore((s) => s.settings.displayName);
@@ -199,7 +197,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-neutral-100">
       {/* Faint top wash behind the header */}
       <LinearGradient
         colors={gradients.heroWash}
@@ -215,13 +213,13 @@ export default function ProfileScreen() {
         }}
       />
 
-      {/* pb-12 was enough when the bottom bar reserved its own layout space. */}
-      {/* The pill floats over content instead, so the last row has to be */}
-      {/* scrolled clear of it explicitly. */}
+      {/* Plain safe-area inset plus normal spacing. The nav lives in flow */}
+      {/* above the screen now instead of floating over the bottom, so the */}
+      {/* last row just needs to clear the device's own gesture bar. */}
       <ScrollView
         className="flex-1"
         contentContainerClassName="px-5"
-        contentContainerStyle={{ paddingBottom: tabBarClearance }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}

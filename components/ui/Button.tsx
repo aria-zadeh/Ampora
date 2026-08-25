@@ -167,7 +167,7 @@ export function Button({
           className interop applies (it does not apply to createAnimatedComponent
           wrappers). The Pressable above is the touch target. */}
       <Animated.View
-        className={`flex-row items-center justify-center rounded-md ${sizeClasses[size]} ${styles.base} ${isDisabled ? "opacity-50" : ""}`}
+        className={`flex-row items-center justify-center rounded-[14px] ${sizeClasses[size]} ${styles.base} ${isDisabled ? "opacity-50" : ""}`}
         style={[isFilled ? shadows.xs : null, animatedStyle]}
       >
         {loading ? (

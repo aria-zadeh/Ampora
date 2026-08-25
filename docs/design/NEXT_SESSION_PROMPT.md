@@ -2,6 +2,8 @@
 
 Copy everything in the fenced block below into a new conversation in this project. It is self-contained: it points at files in the repo rather than assuming any memory of the previous session.
 
+> **Status update, 2026-08-07: this screen-level pass SHIPPED this round.** Today, Focus, the session screen, task detail, agenda-first calendar default, and the top-nav restructure described below are done. Do not redo them. See `docs/09_Decisions.md`'s 2026-08-07 entry and `docs/02_Design_System.md` for current state before starting new work from this file.
+
 ---
 
 ```
@@ -69,7 +71,8 @@ why the two are able to drift apart.
 - The lock is consensual: neutral surface, no alarm red, no shame language.
 - Tabular numerals on the timer, times and counts.
 - No raw colour literals. Use `utils/design-tokens.ts`. The codebase is down to
-  three literals total from 377, do not add more.
+  roughly 160 line-matches across 35 files from an original 377 (not the "three
+  literals" once claimed here), migration ongoing. Do not add more.
 - No purple or violet in anything new. The owner rejected it explicitly.
 - Nothing critical is gesture-only.
 - Zustand v5: raw-select then `useMemo`, or `useShallow`. An inline `.filter` or

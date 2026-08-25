@@ -7,30 +7,24 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EASINGS } from "@/utils/motion";
-import { motion, shadows, colors } from "@/utils/design-tokens";
+import { motion, shadows, colors, iconSizes } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { useTabBarClearance } from "@/components/ui/SegmentedTabBar";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/** Resting size (doc `design/stack-reference.html` `.sf-fab`: 52px, ink fill, white glyph). */
+const FAB_SIZE = 52;
 
 interface FABProps {
   onPress: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
-  /**
-   * Sit above the floating pill tab bar instead of at the screen edge. Set
-   * this on tab screens: the tab bar no longer reserves layout space the way
-   * the old bottom bar did, so at the default offset the FAB lands on top of
-   * it. Off by default because the FAB is also used on stack screens
-   * (`app/projects/index.tsx`) that have no tab bar to clear.
-   */
-  liftAboveTabBar?: boolean;
 }
 
-export function FAB({ onPress, icon = "add", liftAboveTabBar = false }: FABProps) {
+export function FAB({ onPress, icon = "add" }: FABProps) {
   const reduceMotion = useReduceMotion();
-  const tabBarClearance = useTabBarClearance();
-  const bottom = liftAboveTabBar ? tabBarClearance : 24;
+  const insets = useSafeAreaInsets();
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
@@ -78,19 +72,19 @@ export function FAB({ onPress, icon = "add", liftAboveTabBar = false }: FABProps
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      className="absolute right-5 w-14 h-14 rounded-full bg-primary-600 items-center justify-center"
+      className="absolute items-center justify-center"
       accessibilityRole="button"
       accessibilityLabel="Add new task"
       accessibilityHint="Opens the new task form"
       style={[
         {
           position: "absolute",
-          bottom,
+          bottom: 24 + insets.bottom,
           right: 20,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: colors.light.primary,
+          width: FAB_SIZE,
+          height: FAB_SIZE,
+          borderRadius: FAB_SIZE / 2,
+          backgroundColor: colors.light.text,
           alignItems: "center",
           justifyContent: "center",
           zIndex: 50,
@@ -99,7 +93,7 @@ export function FAB({ onPress, icon = "add", liftAboveTabBar = false }: FABProps
         animatedStyle,
       ]}
     >
-      <Ionicons name={icon} size={28} color={colors.light.primaryForeground} />
+      <Ionicons name={icon} size={iconSizes.lg} color={colors.light.primaryForeground} />
     </AnimatedPressable>
   );
 }

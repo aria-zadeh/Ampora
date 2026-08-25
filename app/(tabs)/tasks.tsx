@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated as RNAnimated, View, Text, Pressable, Modal } from "react-native";
 import { router } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { Swipeable, Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -166,7 +165,6 @@ function dueRangeFromDays(days: number): { start: number; end: number } {
 // ---------------------------------------------------------------------------
 
 export default function TasksScreen() {
-  const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
 
   // Only stagger-animate rows on the first paint; scrolling a recycled
@@ -690,7 +688,7 @@ export default function TasksScreen() {
   const hasAnyTasks = allTasks.length > 0;
 
   return (
-    <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-neutral-100">
       {/* Header — big, tight. Projects live one tap away (doc 10). */}
       <View className="px-5 pt-5 pb-3 flex-row items-center justify-between">
         <Heading size="h1">Tasks</Heading>
@@ -961,7 +959,7 @@ export default function TasksScreen() {
         )}
       </View>
 
-      <FAB onPress={() => router.push("/task/new")} liftAboveTabBar />
+      <FAB onPress={() => router.push("/task/new")} />
 
       {/* Inline schedule modal */}
       <ScheduleModal
