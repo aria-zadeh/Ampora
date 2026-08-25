@@ -5,25 +5,14 @@ import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors, shadows } from "@/utils/design-tokens";
+import { LIST_COLOR_SWATCHES, shadows } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useShallow } from "zustand/react/shallow";
 import {
   useListStore,
   selectAllLists,
   selectAllTags,
 } from "@/store/listStore";
-
-/** Preset swatches offered when creating a new list or tag. */
-const COLOR_PRESETS = [
-  "#2563EB", // primary
-  "#7C3AED", // accent
-  "#16A34A", // success
-  "#EA580C", // warning
-  "#DC2626", // danger
-  "#0891B2", // cyan
-  "#DB2777", // pink
-  "#57534E", // neutral
-];
 
 interface SingleProps {
   mode: "single";
@@ -42,6 +31,9 @@ interface MultiProps {
 type ListTagPickerProps = SingleProps | MultiProps;
 
 export function ListTagPicker(props: ListTagPickerProps) {
+  // Only for the icon tint and `placeholderTextColor` below — neither can
+  // take a `dark:` class. Everything else styles through `dark:` variants.
+  const theme = useThemeColors();
   const lists = useListStore(useShallow(selectAllLists));
   const tags = useListStore(useShallow(selectAllTags));
   const createList = useListStore((s) => s.createList);
@@ -49,13 +41,13 @@ export function ListTagPicker(props: ListTagPickerProps) {
 
   const [creating, setCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
-  const [draftColor, setDraftColor] = useState(COLOR_PRESETS[0]);
+  const [draftColor, setDraftColor] = useState<string>(LIST_COLOR_SWATCHES[0]);
 
   const isSingle = props.mode === "single";
 
   const openCreate = () => {
     setDraftName("");
-    setDraftColor(COLOR_PRESETS[0]);
+    setDraftColor(LIST_COLOR_SWATCHES[0]);
     setCreating(true);
   };
 
@@ -128,12 +120,14 @@ export function ListTagPicker(props: ListTagPickerProps) {
         <PressableScale
           onPress={openCreate}
           haptic="light"
-          className="flex-row items-center rounded-full border border-dashed border-neutral-300 bg-white px-3 py-1.5"
+          className="flex-row items-center rounded-full border border-dashed border-neutral-300 bg-white px-3 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
           accessibilityRole="button"
           accessibilityLabel={isSingle ? "New list" : "New tag"}
         >
-          <Ionicons name="add" size={14} color={colors.light.primary} />
-          <Text className="ml-1 text-caption font-medium text-primary-600">
+          <Ionicons name="add" size={14} color={theme.primary} />
+          {/* Accent TEXT on a neutral surface, so it steps lighter on dark
+              (doc 02 §1.8); the glyph beside it only owes 3:1 and does not. */}
+          <Text className="ml-1 text-caption font-medium text-primary-600 dark:text-primary-400">
             {isSingle ? "New list" : "New tag"}
           </Text>
         </PressableScale>
@@ -150,16 +144,16 @@ export function ListTagPicker(props: ListTagPickerProps) {
           onPress={() => setCreating(false)}
         >
           <Pressable
-            className="w-full rounded-2xl bg-white p-6"
+            className="w-full rounded-2xl bg-white p-6 dark:bg-neutral-900"
             style={shadows.lg}
             onPress={(e) => e.stopPropagation()}
           >
             <Heading size="h3">{isSingle ? "New list" : "New tag"}</Heading>
 
             <TextInput
-              className="mt-5 min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
+              className="mt-5 min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-50"
               placeholder={isSingle ? "List name" : "Tag name"}
-              placeholderTextColor={colors.light.textDisabled}
+              placeholderTextColor={theme.textDisabled}
               value={draftName}
               onChangeText={setDraftName}
               autoFocus
@@ -168,11 +162,11 @@ export function ListTagPicker(props: ListTagPickerProps) {
               accessibilityLabel={isSingle ? "List name" : "Tag name"}
             />
 
-            <Text className="mt-5 mb-2 text-label font-medium text-neutral-600">
+            <Text className="mt-5 mb-2 text-label font-medium text-neutral-600 dark:text-neutral-400">
               Color
             </Text>
             <View className="flex-row flex-wrap gap-3">
-              {COLOR_PRESETS.map((color) => {
+              {LIST_COLOR_SWATCHES.map((color) => {
                 const selected = draftColor === color;
                 return (
                   <Pressable
@@ -182,12 +176,12 @@ export function ListTagPicker(props: ListTagPickerProps) {
                     accessibilityLabel={`Color ${color}`}
                     accessibilityState={{ selected }}
                     className={`h-9 w-9 items-center justify-center rounded-full ${
-                      selected ? "border-2 border-neutral-900" : ""
+                      selected ? "border-2 border-neutral-900 dark:border-neutral-50" : ""
                     }`}
                     style={{ backgroundColor: color }}
                   >
                     {selected ? (
-                      <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
+                      <Ionicons name="checkmark" size={16} color={theme.primaryForeground} />
                     ) : null}
                   </Pressable>
                 );

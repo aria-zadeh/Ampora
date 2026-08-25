@@ -39,9 +39,10 @@ import { Heading } from '@/components/ui/Heading'
 import { PressableScale } from '@/components/ui/PressableScale'
 import { Button } from '@/components/ui/Button'
 import { DateTimePickerCrossPlatform } from '@/components/ui/DateTimePickerCrossPlatform'
-import { shadows } from '@/utils/design-tokens'
+import { colors, shadows } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { MS_PER_HOUR } from '@/core/calendar'
 import { formatBlockTimeRange, formatClockTime } from './hours'
 import type { ScheduledBlock, Task } from '@/types'
@@ -152,6 +153,10 @@ export function BlockActionSheet({
   now,
 }: BlockActionSheetProps) {
   const reduceMotion = useReduceMotion()
+  // Ionicons `color` cannot take a `dark:` class, so the three glyph tints in
+  // this sheet resolve through the active scheme instead. Every surface,
+  // border and text color below stays on `className` + `dark:` variants.
+  const theme = useThemeColors()
   const [pickingTime, setPickingTime] = useState(false)
   // Draft instant for the custom-time path (committed only via "Set time"), so
   // the date/time wheels can be adjusted without prematurely moving the block.
@@ -231,13 +236,13 @@ export function BlockActionSheet({
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
+              className="rounded-t-3xl bg-neutral-100 dark:bg-neutral-950"
               style={shadows.xl}
             >
               <SafeAreaView edges={['bottom']}>
                 {/* Grabber */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1.5 w-10 rounded-full bg-neutral-300 dark:bg-neutral-700" />
                 </View>
 
                 {/* Header: task title + time range */}
@@ -246,36 +251,43 @@ export function BlockActionSheet({
                     <Heading size="h3" numberOfLines={2}>
                       {title}
                     </Heading>
-                    <Text className="mt-1 text-caption text-neutral-500">{timeRange}</Text>
+                    <Text className="mt-1 text-caption text-neutral-500 dark:text-[#78716C]">
+                      {timeRange}
+                    </Text>
                   </View>
                   <Pressable
                     onPress={onClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                    className="h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-neutral-900"
                     style={shadows.xs}
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#57534E" />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
                 <View className="px-5 pb-4 pt-3">
                   {/* --- Postpone to… --- */}
-                  <Text className="mb-2 px-1 text-label font-semibold text-neutral-700">Postpone to</Text>
+                  <Text className="mb-2 px-1 text-label font-semibold text-neutral-700 dark:text-neutral-300">
+                    Postpone to
+                  </Text>
                   <View className="flex-row gap-2">
                     {postponeOptions.map((o) => (
                       <PressableScale
                         key={o.key}
                         onPress={() => handlePostpone(o.at)}
                         haptic={false}
-                        className="flex-1 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-2 py-3"
+                        className="flex-1 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-2 py-3 dark:border-neutral-800 dark:bg-neutral-900"
                         style={shadows.xs}
                         accessibilityRole="button"
                         accessibilityLabel={`Postpone to ${describeInstant(o.at, nowMs)}`}
                       >
-                        <Ionicons name={o.icon} size={18} color="#2563EB" />
-                        <Text className="text-caption font-medium text-neutral-800" numberOfLines={1}>
+                        <Ionicons name={o.icon} size={18} color={theme.primary} />
+                        <Text
+                          className="text-caption font-medium text-neutral-800 dark:text-neutral-100"
+                          numberOfLines={1}
+                        >
                           {o.label}
                         </Text>
                       </PressableScale>
@@ -290,31 +302,45 @@ export function BlockActionSheet({
                     }}
                     haptic={false}
                     className={`mt-2 flex-row items-center gap-3 rounded-xl border px-4 py-3 ${
-                      pickingTime ? 'border-primary-300 bg-primary-50' : 'border-neutral-200 bg-white'
+                      pickingTime
+                        ? 'border-primary-300 bg-primary-50'
+                        : 'border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900'
                     }`}
                     style={pickingTime ? undefined : shadows.xs}
                     accessibilityRole="button"
                     accessibilityLabel="Pick a specific time to postpone to"
                     accessibilityState={{ expanded: pickingTime }}
                   >
-                    <Ionicons name="time-outline" size={20} color="#2563EB" />
-                    <Text className="flex-1 text-body font-medium text-neutral-800">Pick a time…</Text>
+                    <Ionicons name="time-outline" size={20} color={theme.primary} />
+                    {/* The expanded row's `bg-primary-50` is an audited pale
+                        pair that does NOT flip with the scheme (doc 02 §14.6),
+                        so its label deliberately skips the `dark:` step that
+                        the collapsed row (a real card surface) needs. */}
+                    <Text
+                      className={`flex-1 text-body font-medium ${
+                        pickingTime ? 'text-neutral-800' : 'text-neutral-800 dark:text-neutral-100'
+                      }`}
+                    >
+                      Pick a time…
+                    </Text>
                     <Ionicons
                       name={pickingTime ? 'chevron-up' : 'chevron-down'}
                       size={18}
-                      color="#A8A29A"
+                      color={theme.textDisabled}
                     />
                   </PressableScale>
 
                   {pickingTime ? (
                     <Animated.View
                       entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
-                      className="mt-2 rounded-xl border border-neutral-200 bg-white p-3"
+                      className="mt-2 rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900"
                       style={shadows.xs}
                     >
                       <View className="flex-row gap-2">
                         <View className="flex-1">
-                          <Text className="mb-1 px-1 text-caption font-medium text-neutral-500">Day</Text>
+                          <Text className="mb-1 px-1 text-caption font-medium text-neutral-500 dark:text-[#78716C]">
+                            Day
+                          </Text>
                           <DateTimePickerCrossPlatform
                             mode="date"
                             value={draft}
@@ -324,7 +350,9 @@ export function BlockActionSheet({
                           />
                         </View>
                         <View className="flex-1">
-                          <Text className="mb-1 px-1 text-caption font-medium text-neutral-500">Time</Text>
+                          <Text className="mb-1 px-1 text-caption font-medium text-neutral-500 dark:text-[#78716C]">
+                            Time
+                          </Text>
                           <DateTimePickerCrossPlatform
                             mode="time"
                             value={draft}
@@ -393,11 +421,60 @@ export function BlockActionSheet({
 
 type Tint = 'neutral' | 'primary' | 'success' | 'danger'
 
-const TINT_STYLES: Record<Tint, { icon: string; iconBg: string; text: string }> = {
-  neutral: { icon: '#44403C', iconBg: 'bg-neutral-100', text: 'text-neutral-900' },
-  primary: { icon: '#2563EB', iconBg: 'bg-primary-100', text: 'text-neutral-900' },
-  success: { icon: '#15803D', iconBg: 'bg-success-100', text: 'text-neutral-900' },
-  danger: { icon: '#DC2626', iconBg: 'bg-danger-100', text: 'text-danger-700' },
+/**
+ * Per-tint row chrome. `icon` names the `colors` key the glyph reads through
+ * `useThemeColors()` rather than a literal, because an Ionicons `color` prop
+ * cannot take a `dark:` class. Only the neutral glyph actually moves between
+ * themes (`textStrong` flips); the three accent glyphs resolve to the same
+ * hex in both, per doc 02 §14.1.
+ *
+ * `iconBg` is a pale accent tint paired with a glyph one ramp step up — a
+ * self-contained, already-audited pair (doc 02 §14.6) that stays correct on
+ * either canvas, so those three deliberately carry no `dark:` variant. Only
+ * the neutral bubble is a real neutral surface, so it is the only one that
+ * flips.
+ *
+ * `text` is the row LABEL. It is split in two because the row surface is not
+ * always the same kind of thing: on a resting row it is a real card surface
+ * that flips with the scheme, so the label takes `textDark` as well; on an
+ * ACTIVE row it is `bg-primary-50`, an audited pale pair that is identical on
+ * either canvas, so the label must use `text` alone or near-white ink would
+ * land on pale blue.
+ *
+ * The danger label steps from danger-700 to danger-500 on dark: `#B91C1C`
+ * measures 2.70:1 on the dark card, under even the 3:1 glyph bar, where
+ * `#EF4444` clears 4.65:1. That is doc 02 §1.8's "accent ramps step lighter
+ * on dark" rule, the same call `components/ui/Button.tsx`'s ghost variant
+ * documents for its own label.
+ */
+const TINT_STYLES: Record<
+  Tint,
+  { icon: keyof typeof colors.light; iconBg: string; text: string; textDark: string }
+> = {
+  neutral: {
+    icon: 'textStrong',
+    iconBg: 'bg-neutral-100 dark:bg-neutral-800',
+    text: 'text-neutral-900',
+    textDark: 'dark:text-neutral-50',
+  },
+  primary: {
+    icon: 'primary',
+    iconBg: 'bg-primary-100',
+    text: 'text-neutral-900',
+    textDark: 'dark:text-neutral-50',
+  },
+  success: {
+    icon: 'successStrong',
+    iconBg: 'bg-success-100',
+    text: 'text-neutral-900',
+    textDark: 'dark:text-neutral-50',
+  },
+  danger: {
+    icon: 'dangerStrong',
+    iconBg: 'bg-danger-100',
+    text: 'text-danger-700',
+    textDark: 'dark:text-danger-500',
+  },
 }
 
 /**
@@ -424,6 +501,13 @@ export function ActionRow({
   tint?: Tint
 }) {
   const t = TINT_STYLES[tint]
+  const theme = useThemeColors()
+  // The `active` row rides `bg-primary-50`, an audited pale pair that is the
+  // same on either canvas, so its label and blurb keep their light tone
+  // instead of the `dark:` step a resting row takes — near-white ink on pale
+  // blue would vanish.
+  const labelClass = active ? t.text : `${t.text} ${t.textDark}`
+  const blurbClass = active ? 'text-neutral-500' : 'text-neutral-500 dark:text-[#78716C]'
   return (
     <PressableScale
       onPress={disabled ? undefined : onPress}
@@ -431,10 +515,10 @@ export function ActionRow({
       disabled={disabled}
       className={`flex-row items-center gap-3 rounded-xl border px-4 py-3 ${
         disabled
-          ? 'border-neutral-200 bg-white opacity-60'
+          ? 'border-neutral-200 bg-white opacity-60 dark:border-neutral-800 dark:bg-neutral-900'
           : active
             ? 'border-primary-300 bg-primary-50'
-            : 'border-neutral-200 bg-white'
+            : 'border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900'
       }`}
       style={active ? undefined : shadows.xs}
       accessibilityRole={active != null ? 'switch' : 'button'}
@@ -442,12 +526,12 @@ export function ActionRow({
       accessibilityState={{ disabled, checked: active }}
     >
       <View className={`h-10 w-10 items-center justify-center rounded-full ${t.iconBg}`}>
-        <Ionicons name={icon} size={20} color={t.icon} />
+        <Ionicons name={icon} size={20} color={theme[t.icon]} />
       </View>
       <View className="flex-1">
-        <Text className={`text-body-lg font-medium ${t.text}`}>{label}</Text>
+        <Text className={`text-body-lg font-medium ${labelClass}`}>{label}</Text>
         {blurb ? (
-          <Text className="mt-0.5 text-caption text-neutral-500" numberOfLines={2}>
+          <Text className={`mt-0.5 text-caption ${blurbClass}`} numberOfLines={2}>
             {blurb}
           </Text>
         ) : null}

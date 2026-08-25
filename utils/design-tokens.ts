@@ -28,6 +28,16 @@ export const colors = {
 
     success: "#22C55E",
     successLight: "#DCFCE7",
+    // The SUBTLE wash, one step below the `.100` `*Light` above.
+    // These exist for LARGE tinted surfaces that sit behind reading text,
+    // specifically the calendar's slack blocks. On the `.100` step a
+    // `neutral-500` time label lands at 4.49:1 on danger, a hair under AA,
+    // which forces the label a step darker and makes the whole block read
+    // more saturated than the design intends. On these `.50` steps the same
+    // label clears at 5.01 to 5.23:1 and the block keeps its quiet wash.
+    // Use ONLY for a large tinted area. A small badge keeps the audited
+    // `.100` tint plus `.700` text pairing, which is already correct.
+    successSubtle: "#F0FDF4",
     // success.600 — icon-chip glyphs on a success.100 tint, clears the 3:1
     // graphical-object bar (doc 02 section 6.3/12). Icons only, not body text.
     successAccent: "#16A34A",
@@ -36,6 +46,7 @@ export const colors = {
     successStrong: "#15803D",
     warning: "#F97316",
     warningLight: "#FFEDD5",
+    warningSubtle: "#FFF7ED",
     // warning.600 — icon-chip glyphs on a warning.100 tint, clears the 3:1
     // graphical-object bar. Icons only, not body text (3.6:1 on white).
     warningAccent: "#EA580C",
@@ -44,6 +55,7 @@ export const colors = {
     warningStrong: "#C2410C",
     danger: "#EF4444",
     dangerLight: "#FEE2E2",
+    dangerSubtle: "#FEF2F2",
     // red.600 — action.destructive: filled button/strong text, white label
     // 4.83:1 (doc 02 section 1.7/14.6). NOT the same as the danger.500 accent.
     dangerStrong: "#DC2626",
@@ -87,14 +99,21 @@ export const colors = {
 
     success: "#22C55E",
     successLight: "#14361F",
+    // No separate dark step: the dark tints are already near-black washes,
+    // and going subtler would make the slack colour indistinguishable from
+    // the card. Aliased to the same value so a caller can name `*Subtle`
+    // uniformly without branching on theme.
+    successSubtle: "#14361F",
     successAccent: "#16A34A",
     successStrong: "#15803D",
     warning: "#F97316",
     warningLight: "#3A230F",
+    warningSubtle: "#3A230F",
     warningAccent: "#EA580C",
     warningStrong: "#C2410C",
     danger: "#EF4444",
     dangerLight: "#3A1616",
+    dangerSubtle: "#3A1616",
     dangerStrong: "#DC2626",
 
     border: "#292524",

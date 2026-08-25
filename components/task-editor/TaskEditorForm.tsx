@@ -20,9 +20,10 @@ import { SkeletonLoader } from "@/components/ui/SkeletonLoader";
 import { Text as UIText } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
-import { colors, shadows, tabularNums } from "@/utils/design-tokens";
+import { LIST_COLOR_SWATCHES, shadows, tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { newId } from "@/core/id";
 import * as taskLogic from "@/core/task-logic";
 import {
@@ -107,19 +108,15 @@ export function asTaskView(draft: Partial<Task>): Task {
   };
 }
 
-// Exported so other screens that render a stored swatch hex (e.g.
-// `app/task/[id].tsx`'s meta-chip tint) can resolve it back to a `listColors`
-// name by index instead of re-hardcoding these 8 hexes a second time.
-export const COLOR_SWATCHES = [
-  "#2563EB",
-  "#7C3AED",
-  "#16A34A",
-  "#EA580C",
-  "#DC2626",
-  "#0891B2",
-  "#DB2777",
-  "#57534E",
-];
+/**
+ * Compatibility alias for the one canonical swatch palette, which now lives
+ * in `utils/design-tokens.ts` (`LIST_COLOR_SWATCHES`) so the three pickers
+ * that write `List.color` cannot drift apart. Re-exported under the old name
+ * because `app/task/[id].tsx` still resolves a stored hex by index against
+ * `COLOR_SWATCHES` imported from this module; point that import at the token
+ * directly and this alias can go.
+ */
+export const COLOR_SWATCHES = LIST_COLOR_SWATCHES;
 
 // ---------------------------------------------------------------------------
 // Presentation primitives (form-local)
@@ -137,11 +134,11 @@ function Field({
 }) {
   return (
     <View>
-      <Text className="mb-1.5 text-label font-medium text-neutral-600">
+      <Text className="mb-1.5 text-label font-medium text-neutral-600 dark:text-neutral-400">
         {label}
       </Text>
       {helper ? (
-        <Text className="mb-2 text-caption text-neutral-500">{helper}</Text>
+        <Text className="mb-2 text-caption text-neutral-500 dark:text-[#78716C]">{helper}</Text>
       ) : null}
       {children}
     </View>
@@ -176,12 +173,16 @@ function Section({
       }
     >
       {title ? (
-        <Text className="mb-2 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+        <Text className="mb-2 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
           {title}
         </Text>
       ) : null}
       <View
-        className={boxed ? "gap-5 rounded-2xl border border-neutral-200 bg-white p-5" : "gap-3"}
+        className={
+          boxed
+            ? "gap-5 rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900"
+            : "gap-3"
+        }
         style={boxed ? shadows.sm : undefined}
       >
         {children}
@@ -192,7 +193,7 @@ function Section({
 
 /** Hairline divider used to separate fields inside a Section. */
 function Divider() {
-  return <View className="h-px bg-neutral-100" />;
+  return <View className="h-px bg-neutral-100 dark:bg-neutral-800" />;
 }
 
 // ---------------------------------------------------------------------------
@@ -343,6 +344,9 @@ function RepeatControl({
   const endMode: "never" | "count" | "until" =
     value?.count != null ? "count" : value?.until != null ? "until" : "never";
 
+  // For the one Ionicons tint below, which cannot take a `dark:` class.
+  const theme = useThemeColors();
+
   return (
     <View className="gap-3">
       {/* Presets */}
@@ -360,7 +364,7 @@ function RepeatControl({
               className={
                 active
                   ? "rounded-full border border-primary-300 bg-primary-100 px-3.5 py-2"
-                  : "rounded-full border border-neutral-200 bg-white px-3.5 py-2"
+                  : "rounded-full border border-neutral-200 bg-white px-3.5 py-2 dark:border-neutral-800 dark:bg-neutral-900"
               }
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
@@ -370,7 +374,7 @@ function RepeatControl({
                 className={
                   active
                     ? "text-label font-semibold text-primary-700"
-                    : "text-label font-medium text-neutral-600"
+                    : "text-label font-medium text-neutral-600 dark:text-neutral-400"
                 }
               >
                 {opt.label}
@@ -383,7 +387,7 @@ function RepeatControl({
       {value ? (
         <>
           <Text
-            className="text-caption text-neutral-500"
+            className="text-caption text-neutral-500 dark:text-[#78716C]"
             accessibilityLabel={`Repeat summary: ${describeRepeatRule(value)}`}
           >
             {describeRepeatRule(value)}
@@ -397,17 +401,20 @@ function RepeatControl({
             accessibilityState={{ expanded: customOpen }}
             accessibilityLabel={customOpen ? "Hide repeat details" : "Edit repeat details"}
           >
-            <Text className="text-label font-medium text-primary-600">
+            {/* Accent TEXT on a neutral surface steps lighter on dark
+                (doc 02 §1.8); the chevron beside it is a glyph at the 3:1
+                bar and keeps one value. */}
+            <Text className="text-label font-medium text-primary-600 dark:text-primary-400">
               {customOpen ? "Hide details" : "Edit details"}
             </Text>
-            <Ionicons name={customOpen ? "chevron-up" : "chevron-down"} size={14} color={colors.light.primary} />
+            <Ionicons name={customOpen ? "chevron-up" : "chevron-down"} size={14} color={theme.primary} />
           </PressableScale>
 
           {customOpen ? (
-            <View className="gap-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+            <View className="gap-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-800">
               {/* Frequency */}
               <View className="flex-row items-center justify-between">
-                <Text className="text-label font-medium text-neutral-800">Frequency</Text>
+                <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">Frequency</Text>
                 <InlineSegmented
                   value={value.freq}
                   options={[
@@ -424,7 +431,7 @@ function RepeatControl({
 
               {/* Interval */}
               <View className="flex-row items-center justify-between">
-                <Text className="text-label font-medium text-neutral-800">Every</Text>
+                <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">Every</Text>
                 <Stepper
                   value={value.interval}
                   min={1}
@@ -443,7 +450,7 @@ function RepeatControl({
               {/* By weekday (daily/weekly only) */}
               {value.freq !== "monthly" ? (
                 <View className="gap-2">
-                  <Text className="text-label font-medium text-neutral-800">
+                  <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">
                     {value.freq === "daily" ? "Only on these days (optional)" : "On these days"}
                   </Text>
                   <View className="flex-row gap-1.5">
@@ -454,7 +461,9 @@ function RepeatControl({
                           key={day}
                           onPress={() => toggleWeekday(day)}
                           className={`h-9 w-9 items-center justify-center rounded-full border ${
-                            active ? "border-primary-500 bg-primary-600" : "border-neutral-200 bg-white"
+                            active
+                              ? "border-primary-500 bg-primary-600"
+                              : "border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
                           }`}
                           accessibilityRole="checkbox"
                           accessibilityState={{ checked: active }}
@@ -464,7 +473,7 @@ function RepeatControl({
                             className={
                               active
                                 ? "text-label font-semibold text-white"
-                                : "text-label font-medium text-neutral-600"
+                                : "text-label font-medium text-neutral-600 dark:text-neutral-400"
                             }
                           >
                             {letter}
@@ -478,7 +487,7 @@ function RepeatControl({
 
               {/* Ends */}
               <View className="gap-2">
-                <Text className="text-label font-medium text-neutral-800">Ends</Text>
+                <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">Ends</Text>
                 <InlineSegmented
                   value={endMode}
                   options={[
@@ -517,10 +526,10 @@ function RepeatControl({
               {/* From-completion anchor */}
               <View className="flex-row items-center justify-between">
                 <View className="flex-1 pr-3">
-                  <Text className="text-label font-medium text-neutral-800">
+                  <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">
                     Count from when I finish
                   </Text>
-                  <Text className="mt-0.5 text-caption text-neutral-500">
+                  <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
                     Off: always the same day. On: the clock starts once you complete it.
                   </Text>
                 </View>
@@ -535,10 +544,10 @@ function RepeatControl({
               <View className="gap-2">
                 <View className="flex-row items-center justify-between">
                   <View className="flex-1 pr-3">
-                    <Text className="text-label font-medium text-neutral-800">
+                    <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">
                       Only within a time window
                     </Text>
-                    <Text className="mt-0.5 text-caption text-neutral-500">
+                    <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
                       Keep every occurrence inside a set time of day.
                     </Text>
                   </View>
@@ -557,7 +566,7 @@ function RepeatControl({
                 {value.startWindow ? (
                   <View className="flex-row gap-3">
                     <View className="flex-1">
-                      <Text className="mb-1 text-caption text-neutral-500">From</Text>
+                      <Text className="mb-1 text-caption text-neutral-500 dark:text-[#78716C]">From</Text>
                       <DateTimePickerCrossPlatform
                         mode="time"
                         value={minutesToDate(value.startWindow.start)}
@@ -570,7 +579,7 @@ function RepeatControl({
                       />
                     </View>
                     <View className="flex-1">
-                      <Text className="mb-1 text-caption text-neutral-500">Until</Text>
+                      <Text className="mb-1 text-caption text-neutral-500 dark:text-[#78716C]">Until</Text>
                       <DateTimePickerCrossPlatform
                         mode="time"
                         value={minutesToDate(value.startWindow.end)}
@@ -589,10 +598,10 @@ function RepeatControl({
               {/* Carry forward (FR-16) */}
               <View className="flex-row items-center justify-between">
                 <View className="flex-1 pr-3">
-                  <Text className="text-label font-medium text-neutral-800">
+                  <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">
                     Carry forward if missed
                   </Text>
-                  <Text className="mt-0.5 text-caption text-neutral-500">
+                  <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
                     Off (default): a missed one is dropped, not stacked onto the next.
                   </Text>
                 </View>
@@ -672,8 +681,10 @@ export function TaskEditorForm({
   const patch = (p: Partial<Task>) => setDraft((d) => ({ ...d, ...p }));
 
   /** Border class for an input, primary-500 while focused. */
+  // The focused border is an accent that keeps one value on either canvas;
+  // the resting one is a real neutral border, so it steps with the scheme.
   const inputBorder = (name: string) =>
-    focusedField === name ? "border-primary-500" : "border-neutral-200";
+    focusedField === name ? "border-primary-500" : "border-neutral-200 dark:border-neutral-800";
 
   // --- Duration rollup ----------------------------------------------------
   const hasSubtasks = subtasks.length > 0;
@@ -962,6 +973,11 @@ export function TaskEditorForm({
   // --- Effective color chip preview --------------------------------------
   const effectiveColor = draft.color ?? selectedList?.color;
 
+  // Only for props that take a literal color and cannot take a `dark:` class:
+  // Ionicons tints, `placeholderTextColor`, and Switch's `trackColor`. All
+  // className styling below uses `dark:` variants directly.
+  const theme = useThemeColors();
+
   return (
     <View className="flex-1">
       <ScrollView
@@ -977,9 +993,9 @@ export function TaskEditorForm({
             <TextInput
               className={`min-h-12 rounded-md border ${inputBorder(
                 "title"
-              )} bg-white px-4 text-body-lg text-neutral-900`}
+              )} bg-white px-4 text-body-lg text-neutral-900 dark:bg-neutral-900 dark:text-neutral-50`}
               placeholder="What needs doing?"
-              placeholderTextColor={colors.light.textDisabled}
+              placeholderTextColor={theme.textDisabled}
               value={draft.title ?? ""}
               onChangeText={(title) => patch({ title })}
               onFocus={() => setFocusedField("title")}
@@ -997,9 +1013,9 @@ export function TaskEditorForm({
             <TextInput
               className={`min-h-24 rounded-md border ${inputBorder(
                 "notes"
-              )} bg-white px-4 py-3 text-body-lg text-neutral-900`}
+              )} bg-white px-4 py-3 text-body-lg text-neutral-900 dark:bg-neutral-900 dark:text-neutral-50`}
               placeholder="Add details (optional)"
-              placeholderTextColor={colors.light.textDisabled}
+              placeholderTextColor={theme.textDisabled}
               value={draft.notes ?? ""}
               onChangeText={(notes) => patch({ notes })}
               onFocus={() => setFocusedField("notes")}
@@ -1064,7 +1080,7 @@ export function TaskEditorForm({
               accessibilityLabel="Break it down with AI"
               accessibilityState={{ disabled: !canBreakDown || breakingDown, busy: breakingDown }}
             >
-              <Ionicons name="sparkles" size={16} color={colors.light.primaryForeground} />
+              <Ionicons name="sparkles" size={16} color={theme.primaryForeground} />
               <Text className="text-label font-semibold text-white">
                 {breakingDown
                   ? "Breaking it down…"
@@ -1075,7 +1091,7 @@ export function TaskEditorForm({
             </PressableScale>
 
             {!canBreakDown ? (
-              <Text className="text-caption text-neutral-500">
+              <Text className="text-caption text-neutral-500 dark:text-[#78716C]">
                 Add a title first, then let AI suggest a first move and steps.
               </Text>
             ) : null}
@@ -1089,11 +1105,17 @@ export function TaskEditorForm({
             ) : null}
 
             {aiNote ? (
+              // An audited pale pair (warning-700 on warning-100, 4.52:1, doc
+              // 02 §14.6) that deliberately keeps one value on either canvas.
+              // The fill is opaque rather than the old 50% wash because a
+              // half-transparent tint composites against whatever sits behind
+              // it: over the dark card the same pair fell to 1.39:1. On light
+              // the pair only moves from 4.84:1 to the audited 4.52:1.
               <Animated.View
                 entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
-                className="flex-row items-start gap-2 rounded-lg border border-warning-100 bg-warning-100/50 p-3"
+                className="flex-row items-start gap-2 rounded-lg border border-warning-100 bg-warning-100 p-3"
               >
-                <Ionicons name="cloud-offline-outline" size={16} color={colors.light.warningStrong} />
+                <Ionicons name="cloud-offline-outline" size={16} color={theme.warningStrong} />
                 <Text className="flex-1 text-caption text-warning-700">{aiNote}</Text>
               </Animated.View>
             ) : null}
@@ -1105,9 +1127,9 @@ export function TaskEditorForm({
             <TextInput
               className={`min-h-12 rounded-md border ${inputBorder(
                 "firstMove"
-              )} bg-white px-4 text-body-lg text-neutral-900`}
+              )} bg-white px-4 text-body-lg text-neutral-900 dark:bg-neutral-900 dark:text-neutral-50`}
               placeholder="e.g. Open the doc and write one line"
-              placeholderTextColor={colors.light.textDisabled}
+              placeholderTextColor={theme.textDisabled}
               value={firstMoveText}
               onChangeText={setFirstMoveText}
               onFocus={() => setFocusedField("firstMove")}
@@ -1145,7 +1167,7 @@ export function TaskEditorForm({
               local fallback and never throws. */}
           {subtasks.length > 0 ? (
             <View className="gap-2">
-              <Text className="text-caption font-medium text-neutral-500">
+              <Text className="text-caption font-medium text-neutral-500 dark:text-[#78716C]">
                 Too big? Make a step easier
               </Text>
               <View className="flex-row flex-wrap gap-2">
@@ -1162,7 +1184,7 @@ export function TaskEditorForm({
                         className={`max-w-full flex-row items-center gap-1.5 rounded-full border px-3 py-2 ${
                           loading
                             ? "border-primary-200 bg-primary-50"
-                            : "border-neutral-200 bg-white"
+                            : "border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
                         }`}
                         style={shadows.xs}
                         accessibilityRole="button"
@@ -1172,10 +1194,15 @@ export function TaskEditorForm({
                         <Ionicons
                           name={loading ? "hourglass-outline" : "cut-outline"}
                           size={13}
-                          color={colors.light.primary}
+                          color={theme.primary}
                         />
+                        {/* The loading chip rides `bg-primary-50`, an audited
+                            pale pair identical on both canvases, so its label
+                            skips the `dark:` step the resting chip takes. */}
                         <Text
-                          className="max-w-[180px] text-caption font-medium text-neutral-700"
+                          className={`max-w-[180px] text-caption font-medium ${
+                            loading ? "text-neutral-700" : "text-neutral-700 dark:text-neutral-300"
+                          }`}
                           numberOfLines={1}
                         >
                           {loading ? "Simplifying…" : s.title}
@@ -1194,7 +1221,11 @@ export function TaskEditorForm({
               <View className="flex-1">
                 <ProgressBar progress={stepsProgress} color="bg-primary-600" height={6} />
               </View>
-              <UIText variant="captionMedium" className="text-neutral-600" style={tabularNums}>
+              <UIText
+                variant="captionMedium"
+                className="text-neutral-600 dark:text-neutral-400"
+                style={tabularNums}
+              >
                 {liveProgressMin} / {stepsTotalMin} min
               </UIText>
             </View>
@@ -1212,11 +1243,11 @@ export function TaskEditorForm({
                 <PressableScale
                   onPress={() => setShowRefine(true)}
                   haptic="light"
-                  className="h-[46px] flex-1 items-center justify-center rounded-md bg-neutral-100"
+                  className="h-[46px] flex-1 items-center justify-center rounded-md bg-neutral-100 dark:bg-neutral-800"
                   accessibilityRole="button"
                   accessibilityLabel="Refine the steps with an instruction"
                 >
-                  <UIText variant="captionMedium" className="text-neutral-900">
+                  <UIText variant="captionMedium" className="text-neutral-900 dark:text-neutral-50">
                     Refine
                   </UIText>
                 </PressableScale>
@@ -1226,7 +1257,7 @@ export function TaskEditorForm({
                   }
                   haptic={nextSimplifiableSubtask ? "selection" : false}
                   disabled={!nextSimplifiableSubtask || simplifyingId != null}
-                  className="h-[46px] flex-1 items-center justify-center rounded-md bg-neutral-100"
+                  className="h-[46px] flex-1 items-center justify-center rounded-md bg-neutral-100 dark:bg-neutral-800"
                   style={!nextSimplifiableSubtask || simplifyingId != null ? { opacity: 0.5 } : undefined}
                   accessibilityRole="button"
                   accessibilityLabel="Make the next step easier"
@@ -1235,7 +1266,7 @@ export function TaskEditorForm({
                     busy: !!nextSimplifiableSubtask && simplifyingId === nextSimplifiableSubtask.id,
                   }}
                 >
-                  <UIText variant="captionMedium" className="text-neutral-900">
+                  <UIText variant="captionMedium" className="text-neutral-900 dark:text-neutral-50">
                     {nextSimplifiableSubtask && simplifyingId === nextSimplifiableSubtask.id
                       ? "Simplifying…"
                       : "Make easier"}
@@ -1249,9 +1280,9 @@ export function TaskEditorForm({
                   className="gap-2"
                 >
                   <TextInput
-                    className="min-h-12 rounded-md border border-primary-500 bg-white px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-md border border-primary-500 bg-white px-4 text-body-lg text-neutral-900 dark:bg-neutral-900 dark:text-neutral-50"
                     placeholder='e.g. "break it down by function" or "step 2 is too big"'
-                    placeholderTextColor={colors.light.textDisabled}
+                    placeholderTextColor={theme.textDisabled}
                     value={refineText}
                     onChangeText={setRefineText}
                     returnKeyType="done"
@@ -1292,10 +1323,10 @@ export function TaskEditorForm({
           {/* Auto-schedule */}
           <View className="flex-row items-center justify-between">
             <View className="flex-1 pr-4">
-              <Text className="text-label font-medium text-neutral-800">
+              <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">
                 Auto-schedule
               </Text>
-              <Text className="mt-0.5 text-caption text-neutral-500">
+              <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
                 Let Ampora find time for this task.
               </Text>
             </View>
@@ -1317,19 +1348,19 @@ export function TaskEditorForm({
             helper={hasSubtasks ? undefined : "Estimated time in minutes"}
           >
             {hasSubtasks ? (
-              <View className="min-h-12 flex-row items-center justify-between rounded-md border border-neutral-200 bg-neutral-50 px-4">
-                <Text className="text-body-lg text-neutral-900">
+              <View className="min-h-12 flex-row items-center justify-between rounded-md border border-neutral-200 bg-neutral-50 px-4 dark:border-neutral-800 dark:bg-neutral-800">
+                <Text className="text-body-lg text-neutral-900 dark:text-neutral-50">
                   {rollupDuration}m
                 </Text>
-                <Text className="text-caption text-neutral-500">from steps</Text>
+                <Text className="text-caption text-neutral-500 dark:text-[#78716C]">from steps</Text>
               </View>
             ) : (
               <TextInput
                 className={`min-h-12 rounded-md border ${inputBorder(
                   "duration"
-                )} bg-white px-4 text-body-lg text-neutral-900`}
+                )} bg-white px-4 text-body-lg text-neutral-900 dark:bg-neutral-900 dark:text-neutral-50`}
                 placeholder="e.g. 30"
-                placeholderTextColor={colors.light.textDisabled}
+                placeholderTextColor={theme.textDisabled}
                 value={
                   draft.durationMin != null && draft.durationMin > 0
                     ? String(draft.durationMin)
@@ -1371,7 +1402,7 @@ export function TaskEditorForm({
                   accessibilityRole="button"
                   accessibilityLabel="Clear due date"
                 >
-                  <Text className="text-label font-medium text-primary-600">
+                  <Text className="text-label font-medium text-primary-600 dark:text-primary-400">
                     Clear deadline
                   </Text>
                 </Pressable>
@@ -1379,12 +1410,12 @@ export function TaskEditorForm({
             ) : (
               <Pressable
                 onPress={() => setShowDuePicker(true)}
-                className="min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-4"
+                className="min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
                 accessibilityRole="button"
                 accessibilityLabel="Set a due date"
               >
-                <Ionicons name="calendar-outline" size={18} color={colors.light.textMuted} />
-                <Text className="ml-2 text-body-lg text-neutral-500">
+                <Ionicons name="calendar-outline" size={18} color={theme.textMuted} />
+                <Text className="ml-2 text-body-lg text-neutral-500 dark:text-[#78716C]">
                   Set a deadline
                 </Text>
               </Pressable>
@@ -1413,7 +1444,7 @@ export function TaskEditorForm({
                   accessibilityRole="button"
                   accessibilityLabel="Clear start-after date"
                 >
-                  <Text className="text-label font-medium text-primary-600">
+                  <Text className="text-label font-medium text-primary-600 dark:text-primary-400">
                     Clear
                   </Text>
                 </Pressable>
@@ -1421,12 +1452,12 @@ export function TaskEditorForm({
             ) : (
               <Pressable
                 onPress={() => patch({ startAfter: Date.now() })}
-                className="min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-4"
+                className="min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
                 accessibilityRole="button"
                 accessibilityLabel="Set a start-after date"
               >
-                <Ionicons name="time-outline" size={18} color={colors.light.textMuted} />
-                <Text className="ml-2 text-body-lg text-neutral-500">
+                <Ionicons name="time-outline" size={18} color={theme.textMuted} />
+                <Text className="ml-2 text-body-lg text-neutral-500 dark:text-[#78716C]">
                   Set a start date
                 </Text>
               </Pressable>
@@ -1436,17 +1467,17 @@ export function TaskEditorForm({
           {/* Split */}
           <View className="flex-row items-center justify-between">
             <View className="flex-1 pr-4">
-              <Text className="text-label font-medium text-neutral-800">
+              <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">
                 Split into sessions
               </Text>
-              <Text className="mt-0.5 text-caption text-neutral-500">
+              <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
                 Allow this task to be broken across multiple blocks.
               </Text>
             </View>
             <Switch
               value={draft.splittable ?? false}
               onValueChange={(splittable) => patch({ splittable })}
-              trackColor={{ true: colors.light.primary, false: colors.light.borderStrong }}
+              trackColor={{ true: theme.primary, false: theme.borderStrong }}
               accessibilityLabel="Split into sessions"
             />
           </View>
@@ -1457,9 +1488,9 @@ export function TaskEditorForm({
               <View className="flex-1">
                 <Field label="Min block (min)">
                   <TextInput
-                    className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-50"
                     placeholder="e.g. 30"
-                    placeholderTextColor={colors.light.textDisabled}
+                    placeholderTextColor={theme.textDisabled}
                     value={draft.minBlockMin != null ? String(draft.minBlockMin) : ""}
                     onChangeText={(text) => {
                       const parsed = parseInt(text, 10);
@@ -1473,9 +1504,9 @@ export function TaskEditorForm({
               <View className="flex-1">
                 <Field label="Max block (min)">
                   <TextInput
-                    className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-50"
                     placeholder="e.g. 90"
-                    placeholderTextColor={colors.light.textDisabled}
+                    placeholderTextColor={theme.textDisabled}
                     value={draft.maxBlockMin != null ? String(draft.maxBlockMin) : ""}
                     onChangeText={(text) => {
                       const parsed = parseInt(text, 10);
@@ -1495,10 +1526,10 @@ export function TaskEditorForm({
           <View className="gap-3">
             <View className="flex-row items-center justify-between">
               <View className="flex-1 pr-3">
-                <Text className="text-label font-medium text-neutral-800">
+                <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">
                   Buffer before
                 </Text>
-                <Text className="mt-0.5 text-caption text-neutral-500">
+                <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
                   Quiet time held before each block
                 </Text>
               </View>
@@ -1515,10 +1546,10 @@ export function TaskEditorForm({
             <Divider />
             <View className="flex-row items-center justify-between">
               <View className="flex-1 pr-3">
-                <Text className="text-label font-medium text-neutral-800">
+                <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">
                   Buffer after
                 </Text>
-                <Text className="mt-0.5 text-caption text-neutral-500">
+                <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
                   Quiet time held after each block
                 </Text>
               </View>
@@ -1567,7 +1598,7 @@ export function TaskEditorForm({
                 className={`flex-row items-center rounded-full border px-3 py-1.5 ${
                   draft.color == null
                     ? "border-primary-300 bg-primary-100"
-                    : "border-neutral-200 bg-white"
+                    : "border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
                 }`}
                 accessibilityRole="button"
                 accessibilityLabel="Smart color, follows list"
@@ -1579,25 +1610,28 @@ export function TaskEditorForm({
                     style={{ backgroundColor: effectiveColor }}
                   />
                 ) : (
-                  <Ionicons name="sparkles-outline" size={13} color={colors.light.primary} />
+                  <Ionicons name="sparkles-outline" size={13} color={theme.primary} />
                 )}
+                {/* Selected rides `bg-primary-100`, an audited pale pair that
+                    is the same on both canvases, so only the resting label
+                    takes a `dark:` step. */}
                 <Text
                   className={`text-caption ${
-                    draft.color == null ? "text-primary-700" : "text-neutral-600"
+                    draft.color == null ? "text-primary-700" : "text-neutral-600 dark:text-neutral-400"
                   }`}
                 >
                   Smart
                 </Text>
               </Pressable>
 
-              {COLOR_SWATCHES.map((color) => {
+              {LIST_COLOR_SWATCHES.map((color) => {
                 const selected = draft.color === color;
                 return (
                   <Pressable
                     key={color}
                     onPress={() => patch({ color })}
                     className={`h-9 w-9 items-center justify-center rounded-full ${
-                      selected ? "border-2 border-neutral-900" : ""
+                      selected ? "border-2 border-neutral-900 dark:border-neutral-50" : ""
                     }`}
                     style={{ backgroundColor: color }}
                     accessibilityRole="button"
@@ -1605,7 +1639,7 @@ export function TaskEditorForm({
                     accessibilityState={{ selected }}
                   >
                     {selected ? (
-                      <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
+                      <Ionicons name="checkmark" size={16} color={theme.primaryForeground} />
                     ) : null}
                   </Pressable>
                 );
@@ -1631,7 +1665,7 @@ export function TaskEditorForm({
             }
           >
             <View className="flex-row items-center justify-between gap-3">
-              <UIText variant="bodyMedium" className="text-neutral-900">
+              <UIText variant="bodyMedium" className="text-neutral-900 dark:text-neutral-50">
                 Put something on the line
               </UIText>
               {/* Visual indicator only. pointerEvents="none" lets the tap
@@ -1641,7 +1675,7 @@ export function TaskEditorForm({
                 <Toggle value={!!stakeOn} onChange={() => {}} a11yLabel="Stake toggle" />
               </View>
             </View>
-            <UIText variant="caption" className="mt-1.5 text-neutral-600">
+            <UIText variant="caption" className="mt-1.5 text-neutral-600 dark:text-neutral-400">
               {stakeSummary ?? "Lock your apps for a focus session"}
             </UIText>
           </Card>
@@ -1650,7 +1684,7 @@ export function TaskEditorForm({
 
       {/* Sticky Save bar — single primary action, disabled when title empty */}
       <View
-        className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3"
+        className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3 dark:border-neutral-800 dark:bg-neutral-900"
         style={shadows.md}
       >
         <Button
@@ -1677,12 +1711,12 @@ export function TaskEditorForm({
           accessibilityLabel="Dismiss"
         >
           <Pressable
-            className="w-full rounded-2xl bg-white p-6"
+            className="w-full rounded-2xl bg-white p-6 dark:bg-neutral-900"
             style={shadows.lg}
             onPress={(e) => e.stopPropagation()}
           >
             <Heading size="h3">Replace your steps?</Heading>
-            <Text className="mt-2 text-body text-neutral-600">
+            <Text className="mt-2 text-body text-neutral-600 dark:text-neutral-400">
               You have progress on these steps. Regenerating will replace the list — completed steps
               won&apos;t carry over unless you keep them.
             </Text>
