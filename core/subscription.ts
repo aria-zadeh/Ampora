@@ -1,6 +1,9 @@
 /**
- * Subscription helpers — Phase 7 (PRD FR-88: Ampora is paid, with a 2-week
- * free trial, monthly/annual plans, billed through Apple IAP).
+ * Subscription helpers — Phase 7 (PRD FR-88: a 2-week free trial, then
+ * monthly/annual plans, billed through Apple IAP). Ampora itself is free to
+ * use, see `core/entitlements.ts` for the freemium split. `isActive` below
+ * is entitlement to the two paid surfaces (the app-lock, AI calls), not
+ * access to the app as a whole any more.
  *
  * Pure functions over `Settings['subscription']`. No I/O, no store, no IAP
  * library — real purchasing (StoreKit / react-native-iap) is a documented later
@@ -68,19 +71,22 @@ export function startTrial(now: number = Date.now()): Subscription {
 
 /**
  * Whether the paywall (`app/paywall.tsx`) may be dismissed — header close,
- * swipe gesture, or the Android hardware back button. FR-88: "Subscription
- * state gates app access." A lapsed trial or subscription must never be
- * dismissible, or the routing gate in `app/_layout.tsx` is theater (a user
- * could dismiss once and never be sent back, since that gate's effect only
- * re-runs when auth/onboarding/subscription STATE changes, not on
- * navigation alone).
+ * swipe gesture, or the Android hardware back button.
  *
- * Currently identical to `isActive` — dismissible exactly when entitled.
- * Named and exported separately so the paywall's own reason for gating reads
- * clearly at the call site, and so this rule is independently unit-tested
- * (`core/__tests__/subscription.test.ts`) rather than only verified by
- * reading the screen's JSX.
+ * Always true. The freemium split (`core/entitlements.ts`) means the app is
+ * free to use, and only the app-lock and AI calls require entitlement, so
+ * the paywall is no longer an access gate for the rest of the app. A lapsed
+ * trial or subscription now lands the user back in the app, not on a wall
+ * (`app/_layout.tsx`'s routing gate no longer redirects to `/paywall` at
+ * all), so nothing needs this screen to be undismissable any more.
+ *
+ * Kept as its own exported function, rather than inlining `true` at every
+ * call site, so `app/paywall.tsx` still reads its dismiss-affordance logic
+ * from one named place, and so a future change to this rule stays
+ * independently unit-tested (`core/__tests__/subscription.test.ts`) rather
+ * than only verified by reading the screen's JSX. Parameters are unused on
+ * purpose, kept for a stable call-site signature.
  */
-export function isPaywallDismissible(subscription: Subscription, now: number = Date.now()): boolean {
-  return isActive(subscription, now)
+export function isPaywallDismissible(_subscription: Subscription, _now: number = Date.now()): boolean {
+  return true
 }

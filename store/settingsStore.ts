@@ -61,6 +61,9 @@ const defaultSettings: Settings = {
   displayName: undefined,
   themePreference: 'system',
   onboardingComplete: false,
+  // Set true by app/onboarding/age-gate.tsx once the user confirms they are
+  // 13+. Only this boolean is ever stored, never the birth date itself.
+  ageVerified13Plus: false,
 
   // Calendar UI preferences (Phase 3). 'agenda' is the phone default (docs/design
   // round, agenda-first); 60 px/hr is the middle-low zoom stop (FR-24). Optional

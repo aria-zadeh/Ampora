@@ -698,6 +698,15 @@ export interface Settings {
   themePreference: 'light' | 'dark' | 'system'
   /** Whether the user has completed the onboarding flow (PRD §8.10). */
   onboardingComplete: boolean
+  /**
+   * Derived from a one-time date-of-birth check in onboarding (PRD FR-87
+   * addendum, App Store Guideline 1.3 / COPPA, `app/onboarding/age-gate.tsx`).
+   * True once the user has confirmed they are at least 13. Optional so
+   * pre-existing persisted Settings load without it. ONLY this boolean is
+   * ever stored, the raw birth date the user enters is never persisted
+   * anywhere, see `core/entitlements.ts#isAtLeast13`.
+   */
+  ageVerified13Plus?: boolean
 
   // -- Calendar UI preferences (Phase 3, PRD FR-23/FR-24). Optional so pre-
   //    existing persisted Settings load without them; the Calendar screen

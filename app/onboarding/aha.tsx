@@ -106,7 +106,7 @@ export default function AhaScreen() {
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <View className="px-6 pt-6">
-          <ProgressDots total={7} current={6} />
+          <ProgressDots total={8} current={7} />
         </View>
         <View className="flex-1 justify-center">
           <EmptyState
@@ -145,7 +145,7 @@ export default function AhaScreen() {
       <View className="flex-1 justify-between px-6">
         <View className="mt-6">
           <Animated.View entering={enter(0)} className="mb-6">
-            <ProgressDots total={7} current={6} />
+            <ProgressDots total={8} current={7} />
           </Animated.View>
 
           <Animated.View entering={enter(0)}>

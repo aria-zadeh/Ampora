@@ -136,7 +136,7 @@ export default function FirstTaskScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={enter(0)} className="mb-6">
-          <ProgressDots total={7} current={5} />
+          <ProgressDots total={8} current={6} />
         </Animated.View>
 
         <Animated.View entering={enter(0)}>

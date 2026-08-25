@@ -53,7 +53,7 @@ export default function NotificationsScreen() {
       <View className="flex-1 justify-between px-6" style={{ paddingTop: 48 }}>
         <View>
           <Animated.View entering={enter(0)} className="mb-6">
-            <ProgressDots total={7} current={4} />
+            <ProgressDots total={8} current={5} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
             <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">

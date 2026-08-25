@@ -31,7 +31,6 @@ import { useSyncStore } from "@/store/syncStore";
 import { useDevAuthBypassed } from "@/store/devAuthStore";
 import { scheduleTaskReminders } from "@/services/notifications";
 import { detectLapse } from "@/core/recovery";
-import { isActive } from "@/core/subscription";
 import { wipeAllData } from "@/core/dataExport";
 import { getCurrentUser, onAuthStateChange } from "@/services/supabase";
 import type { User } from "@supabase/supabase-js";
@@ -40,7 +39,6 @@ export default function RootLayout() {
   const { colorScheme, setColorScheme } = useColorScheme();
   const themePreference = useSettingsStore((s) => s.settings.themePreference);
   const onboardingComplete = useSettingsStore((s) => s.settings.onboardingComplete);
-  const subscription = useSettingsStore((s) => s.settings.subscription);
 
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -144,41 +142,32 @@ export default function RootLayout() {
     };
   }, []);
 
-  // Routing gate (in order): no session → auth; session but not onboarded →
-  // onboarding; onboarded but not entitled (no active plan / no live trial) →
-  // paywall. Once a trial is started or a plan chosen (or dev-bypassed), the
-  // subscription becomes entitled, this effect re-runs and stops redirecting,
-  // and the paywall proceeds into the tabs. Soft gate — local data is
-  // untouched. FR-87: an account is required, no anonymous local-only mode —
-  // in any shipped build `authUser === null` always routes to `/auth`.
+  // Routing gate, in order: no session → auth. Session but not onboarded →
+  // onboarding. That is the whole gate now. Ampora is free to use (the
+  // freemium split lives in `core/entitlements.ts`): a lapsed trial or
+  // subscription no longer redirects anyone to the paywall, it only removes
+  // the two paid surfaces, the app-lock and AI calls, gated separately at
+  // their own call sites, not here. `app/paywall.tsx` is still reachable on
+  // its own terms (an "Upgrade" entry point in Profile) and is always
+  // dismissible now (`core/subscription.ts#isPaywallDismissible`). Soft
+  // gate, local data is untouched. FR-87: an account is required, no
+  // anonymous local-only mode, in any shipped build `authUser === null`
+  // always routes to `/auth`.
   //
-  // `devAuthBypassed` is the single exception. It is on for every local dev run
-  // and, since 2026-08-07, also wherever `EXPO_PUBLIC_DEV_AUTH_BYPASS=1` is set
-  // at build time, which `vercel.json` does for the deployed web preview. So it
-  // is NOT automatically off in a production build any more, see
-  // `constants/featureFlags.ts` for what to remove before shipping.
-  //
-  // It fabricates no session either way, so the sync effect below (gated on a
-  // real `authUser`) still never runs while bypassed, and every cloud call
-  // independently no-ops without a signed-in user.
+  // `devAuthBypassed` is the single exception, and as of 2026-08-24 is
+  // `__DEV__` only (`constants/featureFlags.ts`), so it is always off again
+  // in a production build. It fabricates no session either way, so the sync
+  // effect below (gated on a real `authUser`) still never runs while
+  // bypassed, and every cloud call independently no-ops without a signed-in
+  // user.
   useEffect(() => {
     if (authLoading || !ready) return;
     if (authUser === null && !devAuthBypassed) {
       router.replace("/auth");
     } else if (!onboardingComplete) {
       router.replace("/onboarding/welcome");
-    } else if (!isActive(subscription)) {
-      router.replace("/paywall");
     }
-  }, [
-    authLoading,
-    ready,
-    authUser,
-    devAuthBypassed,
-    onboardingComplete,
-    subscription,
-    router,
-  ]);
+  }, [authLoading, ready, authUser, devAuthBypassed, onboardingComplete, router]);
 
   // Sync app color scheme with the user's theme preference.
   useEffect(() => {

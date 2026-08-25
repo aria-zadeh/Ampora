@@ -13,7 +13,8 @@ import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { ProgressDots } from "./ProgressDots";
 
 /**
- * Onboarding step order (PRD §8.10, 7 steps total):
+ * Onboarding step order (PRD §8.10, PRD FR-87 addendum for step 3, 8 steps
+ * total):
  *   1. Welcome (this screen, dot index 0)
  *   2. Sign in — NOT a screen inside app/onboarding/**. `app/_layout.tsx`'s
  *      root gate already requires a session (Apple/Google/email magic link)
@@ -22,12 +23,16 @@ import { ProgressDots } from "./ProgressDots";
  *      worker — this flow leaves a clean numbering slot for it (dot index 1
  *      is deliberately never shown by any screen in this folder) rather than
  *      re-wiring the auth gate.
- *   3. Name (dot index 2)
- *   4. Scheduling hours / availability (dot index 3)
- *   5. Notifications permission (dot index 4)
- *   6. First task, guided (dot index 5)
- *   7. The aha: stake apps + one locked session (dot index 6)
- * Every ProgressDots below uses total=7 with the index matching this list.
+ *   3. Age gate, 13+ (dot index 2, `age-gate.tsx`) — a date-of-birth check
+ *      before any app data is created. Only a derived boolean
+ *      (`Settings.ageVerified13Plus`) is ever stored, never the birth date.
+ *      Under 13 shows a calm, non-shaming dead end with no way to proceed.
+ *   4. Name (dot index 3)
+ *   5. Scheduling hours / availability (dot index 4)
+ *   6. Notifications permission (dot index 5)
+ *   7. First task, guided (dot index 6)
+ *   8. The aha: stake apps + one locked session (dot index 7)
+ * Every ProgressDots below uses total=8 with the index matching this list.
  */
 
 const VALUE_LINES = [
@@ -70,7 +75,7 @@ export default function WelcomeScreen() {
         {/* Hero */}
         <View className="mt-16">
           <Animated.View entering={enter(0)} className="mb-6">
-            <ProgressDots total={7} current={0} />
+            <ProgressDots total={8} current={0} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
             <Text className="text-overline text-primary-600 uppercase tracking-wide mb-3">
@@ -114,8 +119,8 @@ export default function WelcomeScreen() {
             title="Get started"
             variant="primaryBlue"
             size="lg"
-            onPress={() => router.push("/onboarding/name")}
-            accessibilityLabel="Continue to set up your profile"
+            onPress={() => router.push("/onboarding/age-gate")}
+            accessibilityLabel="Continue to a quick age check"
           />
         </Animated.View>
       </View>

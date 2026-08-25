@@ -1,15 +1,17 @@
 import { Stack } from "expo-router";
 
 /**
- * Onboarding stack (PRD §8.10). Screen order matches the 7-step flow (see the
+ * Onboarding stack (PRD §8.10). Screen order matches the 8-step flow (see the
  * numbering note atop `welcome.tsx` for why step 2 "Sign in" has no file
- * here): welcome -> name -> availability (scheduling hours) -> notifications
- * -> first-task (guided) -> aha (stake apps + one locked session).
+ * here): welcome -> age-gate (13+ check) -> name -> availability (scheduling
+ * hours) -> notifications -> first-task (guided) -> aha (stake apps + one
+ * locked session).
  */
 export default function OnboardingLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
       <Stack.Screen name="welcome" />
+      <Stack.Screen name="age-gate" />
       <Stack.Screen name="name" />
       <Stack.Screen name="availability" />
       <Stack.Screen name="notifications" />

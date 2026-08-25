@@ -1,45 +1,41 @@
 /**
- * Paywall / subscription screen — Phase 7 (PRD FR-88), real purchasing pass.
+ * Paywall / subscription screen — Phase 7 (PRD FR-88), freemium pass
+ * (App Store Guideline 3.1.2 compliance).
  *
- * Ampora is a paid app with a 2-week free trial, then a monthly or annual plan
- * (annual ~10% cheaper per month), billed via the store (Apple In-App
- * Purchase / Google Play Billing) through RevenueCat. This screen:
+ * Ampora itself is free to use. This screen sells entitlement to the two
+ * paid surfaces only, the app-lock and AI calls (the freemium split lives in
+ * `core/entitlements.ts`), a 2-week free trial then a monthly or annual
+ * plan, billed via the store (Apple In-App Purchase / Google Play Billing)
+ * through RevenueCat. This screen:
  * - Before any trial: presents the value, two premium plan cards, and a
  *   single primary "Start free trial" that begins the 14-day LOCAL trial
- *   (core/subscription `startTrial`, persisted via `updateSettings` — the
+ *   (core/subscription `startTrial`, persisted via `updateSettings`, the
  *   trial itself is never a store transaction).
  * - During/after the trial: shows "N days left" (or "Trial ended") and lets
- *   the user pick a plan to continue, which now goes through
- *   `getPurchaseStrategy().purchase()` (core/iap) — a real transaction on a
+ *   the user pick a plan to continue, which goes through
+ *   `getPurchaseStrategy().purchase()` (core/iap), a real transaction on a
  *   native build, a no-op "succeeds" scaffold everywhere else (Windows/web).
- * - Lapsed (a former paid subscription ended): a "Welcome back" variant of the
- *   same plan-picker, never re-offering a free trial.
+ * - Lapsed (a former paid subscription ended): a "Welcome back" variant of
+ *   the same plan picker, never re-offering a free trial.
  * - Active: a calm "you're all set" confirmation.
  *
- * FR-88: "Subscription state gates app access." The screen is dismissible
- * only while genuinely entitled (an active plan, or a trial with time left) —
- * `core/subscription.ts#isPaywallDismissible`, unit-tested there. On a lapsed
- * trial or a lapsed subscription there is no close (X) button, no
- * swipe-to-dismiss (`gestureEnabled: false`), and no "Maybe later" — the
- * paywall gate in `app/_layout.tsx` would otherwise be pure theater (a user
- * could dismiss once and never be sent back, since that gate's effect does
- * not re-run on navigation alone). A `BackHandler` listener additionally
- * swallows the ANDROID HARDWARE back key while non-dismissible, since
- * `gestureEnabled` only covers the swipe gesture — without it a lapsed
- * Android user could still pop this screen with the physical/software back
- * button. "Restore purchases" stays available in every non-active state
- * regardless of dismissibility — that is precisely the recovery path for
- * someone who already paid (e.g. reinstalled) but whose local state does not
- * know it yet, and it must never be blocked behind the same gate that blocks
- * a fresh purchase attempt.
+ * Always dismissible (`core/subscription.ts#isPaywallDismissible`, always
+ * true, unit-tested there). This screen is no longer an access gate,
+ * `app/_layout.tsx`'s routing gate never redirects here, a lapsed trial or
+ * subscription lands the user back in the app instead. The header X, the
+ * swipe gesture, and the Android hardware back key all work in every state.
  *
- * Closing every dismiss path must never trap anyone (too tight is worse than
- * too loose): while non-dismissible, a quiet "More settings" link also stays
- * available, routing to `/settings/all` where sign-out and data deletion
- * already live (§8.11) — so a user who cannot or will not pay can still leave
- * and delete their account, exactly as FR-88/NFR-6 require. Hidden when the
- * screen IS dismissible, since the ordinary tab bar already reaches Settings
- * in that case.
+ * App Store Guideline 3.1.2: the price per plan, the billing period, the
+ * length of the free trial, and plain text that the plan renews
+ * automatically until cancelled are all rendered directly under the primary
+ * buy button, visible without scrolling past it, in every state, not only
+ * pre-trial and not only in Settings or legal text (see `PLAN_PRICING`
+ * below, one named constant rather than scattered literals). Tappable Terms
+ * of Use and Privacy Policy links sit near "Restore purchases", which
+ * itself stays available in every non-active state, the recovery path for
+ * someone who already paid (e.g. reinstalled) but whose local state does
+ * not know it yet. Apple requires "Restore purchases" for every
+ * subscription app.
  *
  * No dark patterns: trial state and what happens at its end are stated
  * plainly, a cancelled purchase is a normal outcome (never a crash or an
@@ -65,11 +61,18 @@ import Animated, {
 } from 'react-native-reanimated'
 
 import { Heading } from '@/components/ui/Heading'
+import { Text as UIText } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import { PressableScale } from '@/components/ui/PressableScale'
 import { FeatureShell } from '@/components/ui/FeatureShell'
 import { useSettingsStore } from '@/store/settingsStore'
-import { startTrial, trialDaysLeft, isActive, isPaywallDismissible } from '@/core/subscription'
+import {
+  startTrial,
+  trialDaysLeft,
+  isActive,
+  isPaywallDismissible,
+  TRIAL_DURATION_DAYS,
+} from '@/core/subscription'
 import { getPurchaseStrategy, PLACEHOLDER_OFFERINGS, type IapOffering, type IapPlan } from '@/core/iap'
 import { FEATURE_FLAGS } from '@/constants/featureFlags'
 import { shadows } from '@/utils/design-tokens'
@@ -93,14 +96,40 @@ interface Plan {
   best?: boolean
 }
 
+/**
+ * Canonical subscription pricing (App Store Guideline 3.1.2: the exact price
+ * and billing period must be visible at the point of purchase, not only in
+ * Settings or legal text). One named constant so these numbers are never
+ * scattered across the screen as bare literals.
+ *
+ * `core/iap`'s `PLACEHOLDER_OFFERINGS` is separate scaffolding for the
+ * not-yet-wired real purchase call (`strategy.purchase()`) and predates this
+ * pricing decision, its own annual placeholder ($74.99) is not what is
+ * actually charged. This is the real price, the plan cards, the compliance
+ * line, and the trial disclaimer all read from it, so the screen can never
+ * show two different numbers for the same plan.
+ */
+const PLAN_PRICING: Record<IapPlan, { amount: number; price: string; period: 'month' | 'year' }> = {
+  monthly: { amount: 6.99, price: '$6.99', period: 'month' },
+  annual: { amount: 39.99, price: '$39.99', period: 'year' },
+}
+
+const ANNUAL_MONTHLY_EQUIVALENT = PLAN_PRICING.annual.amount / 12
+const ANNUAL_SAVINGS_PCT = Math.round(
+  (1 - PLAN_PRICING.annual.amount / (PLAN_PRICING.monthly.amount * 12)) * 100,
+)
+
 function toDisplayPlan(offering: IapOffering): Plan {
   const isAnnual = offering.plan === 'annual'
+  const pricing = PLAN_PRICING[offering.plan]
   return {
     key: offering.plan,
     title: isAnnual ? 'Annual' : 'Monthly',
-    price: offering.localizedPrice,
-    cadence: isAnnual ? 'per year' : 'per month',
-    note: offering.priceNote,
+    price: pricing.price,
+    cadence: `per ${pricing.period}`,
+    note: isAnnual
+      ? `$${ANNUAL_MONTHLY_EQUIVALENT.toFixed(2)}/mo · save ~${ANNUAL_SAVINGS_PCT}%`
+      : undefined,
     best: isAnnual,
   }
 }
@@ -206,12 +235,12 @@ export default function PaywallScreen() {
   const lapsed = subscription.status === 'lapsed'
   const showTrialChip = subscription.status === 'trial' && subscription.trialEndsAt != null
 
-  // FR-88: subscription state gates app access. Dismissible only while
-  // genuinely entitled (an active plan, or a trial with time left) — see the
-  // file docstring for why a lapsed trial/subscription must not be closeable.
-  // Pure rule lives in core/subscription.ts so it is independently tested
-  // (core/__tests__/subscription.test.ts) rather than only verified by
-  // reading this screen's JSX.
+  // Always true (freemium split, see the file docstring). Kept as a computed
+  // value, rather than inlining `true` below, so the header X, the swipe
+  // gesture, the hardware back key, and `close()` all stay driven by one
+  // named rule that lives in core/subscription.ts and is independently
+  // tested there (core/__tests__/subscription.test.ts), not by reading this
+  // screen's JSX.
   const dismissible = useMemo(() => isPaywallDismissible(subscription), [subscription])
 
   // Trial countdown chip tick — a quiet dip+settle whenever the days-left
@@ -268,7 +297,9 @@ export default function PaywallScreen() {
   }, [strategy])
 
   const displayPlans = useMemo(() => offerings.map(toDisplayPlan), [offerings])
-  const selectedDisplayPlan = displayPlans.find((p) => p.key === selectedPlan)
+  // Always sourced from PLAN_PRICING, not the (placeholder) offerings list,
+  // so the compliance line below can never disagree with the plan cards.
+  const selectedPricing = PLAN_PRICING[selectedPlan]
 
   // Keep the selection valid if the fetched offerings don't include whatever
   // was pre-selected (e.g. only one plan is configured in the dashboard).
@@ -278,12 +309,12 @@ export default function PaywallScreen() {
     setSelectedPlan(displayPlans[0].key)
   }, [displayPlans, selectedPlan])
 
-  // Prevent the platform's own swipe-to-dismiss gesture while the paywall
-  // must not be dismissible (FR-88) — the missing header X (below) covers the
-  // tap path, this covers the modal presentation's own interactive gesture.
-  // `useNavigation()`'s default `ScreenOptions` generic is `{}` (no static
-  // navigator context here), so `setOptions` is narrowed locally rather than
-  // relying on an inferred shape.
+  // Keep the platform's own swipe-to-dismiss gesture in sync with
+  // `dismissible` (always true today, see the file docstring) — this covers
+  // the modal presentation's own interactive gesture, the header X (below)
+  // covers the tap path. `useNavigation()`'s default `ScreenOptions` generic
+  // is `{}` (no static navigator context here), so `setOptions` is narrowed
+  // locally rather than relying on an inferred shape.
   useEffect(() => {
     ;(navigation as unknown as { setOptions: (options: { gestureEnabled?: boolean }) => void }).setOptions({
       gestureEnabled: dismissible,
@@ -580,12 +611,17 @@ export default function PaywallScreen() {
             </Text>
           ) : null}
 
-          {showStartTrialCta && selectedDisplayPlan ? (
-            <Text className="mt-3 text-center text-caption text-neutral-500">
-              14 days free, then {selectedDisplayPlan.price} {selectedDisplayPlan.cadence}. Cancel
-              anytime.
-            </Text>
-          ) : null}
+          {/* App Store Guideline 3.1.2: price, billing period, trial length
+              (when a trial is actually on offer), and plain auto-renewal
+              language, always visible right under the buy button, in every
+              state, never gated behind extra taps or only in Settings/legal
+              text. Sourced from PLAN_PRICING (file top), never a scattered
+              literal. */}
+          <UIText variant="caption" className="mt-3 text-center text-neutral-500">
+            {showStartTrialCta
+              ? `${TRIAL_DURATION_DAYS} days free, then ${selectedPricing.price} per ${selectedPricing.period}. Renews automatically until cancelled.`
+              : `${selectedPricing.price} per ${selectedPricing.period}. Renews automatically until cancelled.`}
+          </UIText>
 
           {showTrialChip && daysLeft > 0 ? (
             <PressableScale
@@ -621,26 +657,37 @@ export default function PaywallScreen() {
             </Text>
           </PressableScale>
 
-          {/* Escape hatch for the non-dismissible state (do not trap anyone —
-              NFR-6). Sign-out and account/data deletion live in Settings
-              (§8.11); this is the ONLY way to reach them once the header X,
-              swipe, and hardware back are all closed off. Hidden whenever the
-              screen is dismissible, since the ordinary tab bar already
-              reaches Settings from there — no need for a second path. */}
-          {!dismissible ? (
+          {/* App Store Guideline 3.1.2 also expects Terms of Use / Privacy
+              Policy reachable from the purchase screen itself, not only from
+              Settings. `/legal/terms` and `/legal/privacy` are a concurrent
+              change, this just links the paths. */}
+          <View className="mt-3 flex-row items-center justify-center gap-2">
             <PressableScale
-              onPress={() => router.push('/settings/all')}
+              onPress={() => router.push('/legal/terms')}
               haptic="light"
-              className="mt-3 min-h-[44px] items-center justify-center py-2"
-              accessibilityRole="button"
-              accessibilityLabel="More settings"
-              accessibilityHint="Opens settings, including sign out and deleting your data, without requiring a purchase"
+              className="min-h-[48px] items-center justify-center px-2"
+              accessibilityRole="link"
+              accessibilityLabel="Terms of Use"
             >
-              <Text className="text-label font-medium text-neutral-500">
-                More settings
-              </Text>
+              <UIText variant="captionMedium" className="text-neutral-500 underline">
+                Terms of Use
+              </UIText>
             </PressableScale>
-          ) : null}
+            <UIText variant="caption" className="text-neutral-300">
+              ·
+            </UIText>
+            <PressableScale
+              onPress={() => router.push('/legal/privacy')}
+              haptic="light"
+              className="min-h-[48px] items-center justify-center px-2"
+              accessibilityRole="link"
+              accessibilityLabel="Privacy Policy"
+            >
+              <UIText variant="captionMedium" className="text-neutral-500 underline">
+                Privacy Policy
+              </UIText>
+            </PressableScale>
+          </View>
         </Animated.View>
 
         {/* IAP honesty note */}

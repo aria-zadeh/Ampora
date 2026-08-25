@@ -75,26 +75,26 @@ describe('subscription: isActive', () => {
   })
 })
 
-describe('subscription: isPaywallDismissible (FR-88 gate)', () => {
-  // The exact cases that matter for app/paywall.tsx's non-dismissible state
-  // (no header X, gestureEnabled: false, BackHandler swallowed): a lapsed
-  // subscriber or an expired trial must never be dismissible, or the
-  // routing gate in app/_layout.tsx is pure theater.
-  const cases: [string, Subscription, boolean][] = [
-    ['an active plan', { status: 'active' }, true],
-    ['a trial with time left', { status: 'trial', trialEndsAt: now + MS_PER_DAY }, true],
-    ['a trial that has ended', { status: 'trial', trialEndsAt: now - 1 }, false],
-    ['a brand-new trial with no trialEndsAt yet', { status: 'trial' }, false],
-    ['a lapsed subscription', { status: 'lapsed' }, false],
+describe('subscription: isPaywallDismissible (freemium: paywall is no longer an access gate)', () => {
+  // The paywall used to be non-dismissible for a lapsed/expired subscriber
+  // so the app/_layout.tsx routing gate could not be dismissed-around. That
+  // gate is gone (core/entitlements.ts is the freemium split now), so this
+  // is always true regardless of subscription state.
+  const cases: [string, Subscription][] = [
+    ['an active plan', { status: 'active' }],
+    ['a trial with time left', { status: 'trial', trialEndsAt: now + MS_PER_DAY }],
+    ['a trial that has ended', { status: 'trial', trialEndsAt: now - 1 }],
+    ['a brand-new trial with no trialEndsAt yet', { status: 'trial' }],
+    ['a lapsed subscription', { status: 'lapsed' }],
   ]
 
-  it.each(cases)('%s -> dismissible = %s', (_label, subscription, expected) => {
-    expect(isPaywallDismissible(subscription, now)).toBe(expected)
+  it.each(cases)('%s -> always dismissible', (_label, subscription) => {
+    expect(isPaywallDismissible(subscription, now)).toBe(true)
   })
 
-  it('always agrees with isActive (same rule, named for the paywall call site)', () => {
-    for (const [, subscription] of cases) {
-      expect(isPaywallDismissible(subscription, now)).toBe(isActive(subscription, now))
-    }
+  it('no longer tracks isActive -- a lapsed subscription is entitled to nothing but still dismissible', () => {
+    const lapsed: Subscription = { status: 'lapsed' }
+    expect(isActive(lapsed, now)).toBe(false)
+    expect(isPaywallDismissible(lapsed, now)).toBe(true)
   })
 })

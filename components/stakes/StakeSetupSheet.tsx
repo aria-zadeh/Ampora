@@ -128,8 +128,27 @@ export const REFUSAL_COPY: Record<StartStakeRefusal, string> = {
   paused: "Stakes are paused for today. Resume them any time in Settings.",
   already_active: "You already have a stake running. Finish or release that one first.",
   not_eligible: "This task doesn't fit inside one session, so \"When it's done\" isn't offered here.",
+  // The one refusal the user can act on right now. Stated as a fact about the
+  // plan, not as a nudge, and never as something they did wrong. The screen
+  // that shows this is responsible for offering the way forward, see
+  // `isEntitlementRefusal` below.
+  not_entitled: "Locking your apps is part of the paid plan. Everything else stays free.",
   error: "Something didn't go through. Give it another try.",
 };
+
+/**
+ * Whether a refusal is the business one rather than a wellbeing one.
+ *
+ * Worth its own named helper because the two call for opposite handling. Every
+ * other refusal is final for now, and the honest response is calm copy and
+ * staying put. `not_entitled` is the only one with a way forward, so a screen
+ * showing it should also offer a route to `/paywall`. Getting this backwards in
+ * either direction is bad: nagging someone during quiet hours, or telling a
+ * free user "try again later" about something that will never change on its own.
+ */
+export function isEntitlementRefusal(reason: StartStakeRefusal): boolean {
+  return reason === "not_entitled";
+}
 
 /**
  * `scheduleStake` is fully implemented (it persists the row and posts the cue

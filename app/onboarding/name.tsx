@@ -41,10 +41,11 @@ export default function NameScreen() {
       >
         <View>
           <Animated.View entering={enter(0)} className="mb-6">
-            {/* Dot index 2 of 7 (PRD §8.10): index 1 ("Sign in") already
-                happened via the auth gate before this stack ever mounted —
-                see the numbering note in welcome.tsx. */}
-            <ProgressDots total={7} current={2} />
+            {/* Dot index 3 of 8 (PRD §8.10): index 1 ("Sign in") already
+                happened via the auth gate before this stack ever mounted,
+                and index 2 is the age-gate step — see the numbering note in
+                welcome.tsx. */}
+            <ProgressDots total={8} current={3} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
             <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">

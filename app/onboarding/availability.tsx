@@ -137,7 +137,7 @@ export default function AvailabilityScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={enter(0)} className="mb-6">
-          <ProgressDots total={7} current={3} />
+          <ProgressDots total={8} current={4} />
         </Animated.View>
         <Animated.View entering={enter(0)}>
           <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
