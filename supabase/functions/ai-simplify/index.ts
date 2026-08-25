@@ -10,14 +10,14 @@
  */
 
 import {
-  callGemini,
+  callClaude,
   extractJson,
   getApiKey,
   handlePreflight,
   jsonResponse,
   noKeyResponse,
   readBody,
-} from "../_shared/gemini.ts";
+} from "../_shared/claude.ts";
 
 const SYSTEM = `You make one task step feel impossible to avoid by shrinking it to the smallest concrete start.
 Rules:
@@ -39,12 +39,7 @@ Deno.serve(async (req: Request) => {
     if (!title) return jsonResponse({ error: "invalid_input" });
 
     const user = `STEP: ${title}`;
-    const text = await callGemini(apiKey, {
-      system: SYSTEM,
-      user,
-      maxTokens: 256,
-      temperature: 0.3,
-    });
+    const text = await callClaude(apiKey, { system: SYSTEM, user });
     const raw = extractJson<{ simplified?: string }>(text);
     const simplified = (raw.simplified ?? "").trim();
     if (!simplified) return jsonResponse({ error: "invalid_ai_output" });

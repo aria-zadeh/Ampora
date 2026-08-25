@@ -64,7 +64,7 @@ const ENTITLEMENT_ID = 'premium'
 /**
  * RevenueCat's own guidance is a public API key per store front (a
  * `Stripe`-publishable-key style value, safe to embed client-side, NOT a
- * secret like `GEMINI_API_KEY`). iOS-only for now: the rest of the native
+ * secret like `ANTHROPIC_API_KEY`). iOS-only for now: the rest of the native
  * quarantine (Family Controls / Ignition) is iOS-scoped today too, so an
  * Android key/product setup is left as documented future work rather than
  * guessed at here. Deliberately reads `process.env` directly (not

@@ -7,19 +7,19 @@
  *
  * Grounded per doc 07 Part 1.5/1B: first move 2-5 min, first subtask <= 10 min,
  * deadline-aware granularity, max 8 subtasks, derive from SOURCE when provided.
- * Returns 200 { error: "no_key" } when GEMINI_API_KEY is unset so the app
+ * Returns 200 { error: "no_key" } when ANTHROPIC_API_KEY is unset so the app
  * falls back locally.
  */
 
 import {
-  callGemini,
+  callClaude,
   extractJson,
   getApiKey,
   handlePreflight,
   jsonResponse,
   noKeyResponse,
   readBody,
-} from "../_shared/gemini.ts";
+} from "../_shared/claude.ts";
 
 const SYSTEM = `You break a student task into an ordered checklist they can actually start.
 Hard rules:
@@ -63,7 +63,7 @@ TASK: ${JSON.stringify({
     })}
 SOURCE: ${source}`;
 
-    const text = await callGemini(apiKey, { system: SYSTEM, user, maxTokens: 1024 });
+    const text = await callClaude(apiKey, { system: SYSTEM, user });
     const raw = extractJson<{
       taskTypeKey?: string;
       firstMove?: { text?: string; estimatedMin?: number };

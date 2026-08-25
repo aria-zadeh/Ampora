@@ -5,14 +5,14 @@
  * { title, firstMove, subtasks } shape: a normal Ampora Task whose First move
  * is computed for the CURRENT phase, not the whole project. Backed by a
  * Supabase Edge Function with a LOCAL FALLBACK so it works with no
- * `GEMINI_API_KEY` and never throws to the UI.
+ * `ANTHROPIC_API_KEY` and never throws to the UI.
  *
  * `generateNextTask` is the one capability this file keeps from the project's
  * old, cut conversational assistant (`V2_Changes.md` §6) — it is also the
  * function the nightly pre-built-tomorrow pass (FR-90, not yet built) will
  * call once per active project.
  *
- * AI is Google Gemini (`gemini-2.5-flash`) behind the edge function; the key
+ * AI is Anthropic Claude (`claude-opus-5`) behind the edge function; the key
  * lives server-side. Same defensive contract as `services/ai.ts`: the edge
  * function returns 200 + `{ error: "no_key" }` when the key is missing, so the
  * "no key" and "network failed" paths funnel into the same graceful fallback.

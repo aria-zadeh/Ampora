@@ -14,7 +14,7 @@
  * outcome, and the session budget (FR-84's exact four inputs) — never the
  * whole project. The First move is for THIS session only (small and
  * impossible to fail — doc `03`). Returns 200 { error: "no_key" } when
- * GEMINI_API_KEY is unset so the app falls back locally.
+ * ANTHROPIC_API_KEY is unset so the app falls back locally.
  *
  * This input shape MUST mirror `services/aiProjects.ts#projectPayload`
  * exactly — that is the only client that calls this function. A prior
@@ -22,20 +22,20 @@
  * `progress`/`memory`/`fileNames`/`recentChat`, none of which the current
  * client sends (those belonged to the cut agentic project-chat/file-library
  * model, V2_Changes.md §6) — every field silently read as `undefined`, so
- * once a GEMINI_API_KEY is set this would have generated UNGROUNDED session
- * content instead of a "no_key" fallback or a visible error. Fixed as part
- * of the account-layer task's supabase/functions/ rot sweep.
+ * once an ANTHROPIC_API_KEY is set this would have generated UNGROUNDED
+ * session content instead of a "no_key" fallback or a visible error. Fixed
+ * as part of the account-layer task's supabase/functions/ rot sweep.
  */
 
 import {
-  callGemini,
+  callClaude,
   extractJson,
   getApiKey,
   handlePreflight,
   jsonResponse,
   noKeyResponse,
   readBody,
-} from "../_shared/gemini.ts";
+} from "../_shared/claude.ts";
 
 const SYSTEM = `You generate the NEXT work session for one project inside Ampora, as an ordered checklist the student can start now.
 You are given the project's title, kind, one-line context, percent complete, current phase, the full phase list, the last session's check-in outcome, and a time budget in minutes for this session.
@@ -91,7 +91,7 @@ ${JSON.stringify({
 
 SESSION BUDGET (minutes): ${sessionMin}`;
 
-    const text = await callGemini(apiKey, { system: SYSTEM, user, maxTokens: 1024 });
+    const text = await callClaude(apiKey, { system: SYSTEM, user });
     const raw = extractJson<{
       title?: string;
       firstMove?: { text?: string; estimatedMin?: number };
