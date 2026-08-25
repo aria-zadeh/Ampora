@@ -64,7 +64,7 @@ export function UrgentStrip({ task, nowMs }: UrgentStripProps) {
     [task.due, nowMs]
   );
 
-  const line = `${task.title} · ${urgencyLabel}`;
+  const line = `${task.title}, ${urgencyLabel}`;
 
   return (
     <PressableScale

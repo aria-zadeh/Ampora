@@ -108,7 +108,7 @@ export function NeedsAttention() {
 
   return (
     <Animated.View
-      className="mt-7"
+      className="mt-group"
       entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
     >
       <View className="flex-row items-baseline justify-between mb-4">

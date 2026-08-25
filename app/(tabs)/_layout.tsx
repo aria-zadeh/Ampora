@@ -1,91 +1,28 @@
 import { Tabs } from "expo-router";
 import React from "react";
-import { Ionicons } from "@expo/vector-icons";
-import { SegmentedTabBar } from "@/components/ui/SegmentedTabBar";
-
-// Slightly larger, calmer tab icons. Kept here for parity with the custom
-// tab bar's own icon map, even though SegmentedTabBar renders the icons.
-const TAB_ICON_SIZE = 25;
+import { View } from "react-native";
+import { TopSegmentedNav } from "@/components/ui/SegmentedTabBar";
+import { TAB_ROUTES } from "@/constants/tabRoutes";
 
 export default function TabLayout() {
   return (
-    <Tabs
-      tabBar={(props) => <SegmentedTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      {/* Order and labels are fixed by PRD §8.1: Today · Calendar · Tasks · Focus · Profile. */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Today",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "today" : "today-outline"}
-              size={TAB_ICON_SIZE}
-              color={color}
-            />
-          ),
-          tabBarAccessibilityLabel: "Today tab",
-        }}
-      />
-      <Tabs.Screen
-        name="calendar"
-        options={{
-          title: "Calendar",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "calendar" : "calendar-outline"}
-              size={TAB_ICON_SIZE}
-              color={color}
-            />
-          ),
-          tabBarAccessibilityLabel: "Calendar tab",
-        }}
-      />
-      <Tabs.Screen
-        name="tasks"
-        options={{
-          title: "Tasks",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "list" : "list-outline"}
-              size={TAB_ICON_SIZE}
-              color={color}
-            />
-          ),
-          tabBarAccessibilityLabel: "Tasks tab",
-        }}
-      />
-      <Tabs.Screen
-        name="focus"
-        options={{
-          title: "Focus",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "timer" : "timer-outline"}
-              size={TAB_ICON_SIZE}
-              color={color}
-            />
-          ),
-          tabBarAccessibilityLabel: "Focus tab",
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "person" : "person-outline"}
-              size={TAB_ICON_SIZE}
-              color={color}
-            />
-          ),
-          tabBarAccessibilityLabel: "Profile and settings tab",
-        }}
-      />
-    </Tabs>
+    <View style={{ flex: 1 }}>
+      {/* In-flow top nav, not a floating bottom bar. It owns the top safe
+          area, so the five tab screens below must not also reserve it
+          (each drops its own `top` SafeAreaView edge). */}
+      <TopSegmentedNav />
+      <Tabs tabBar={() => null} screenOptions={{ headerShown: false }}>
+        {TAB_ROUTES.map((route) => (
+          <Tabs.Screen
+            key={route.name}
+            name={route.name}
+            options={{
+              title: route.title,
+              tabBarAccessibilityLabel: route.accessibilityLabel,
+            }}
+          />
+        ))}
+      </Tabs>
+    </View>
   );
 }

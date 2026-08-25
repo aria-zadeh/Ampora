@@ -53,12 +53,23 @@ export interface LockBannerProps {
   session: StakeSession;
   /** Open the panic valve (60s unlock-early flow). */
   onPanic: () => void;
+  /**
+   * `default` (unchanged): the app-wide card, its own "On the line" overline
+   * plus a built-in "Unlock early" pill. This is what `GlobalLockBanner` renders
+   * and it stays pixel-identical regardless of this prop's existence.
+   * `slim`: a single sunken-canvas row, glyph plus one sentence, no overline,
+   * no internal unlock pill. For a host screen (the focus session hero, doc
+   * `design/DECISION_SPEC` D4 item 5) that supplies its own pinned panic-valve
+   * entry instead of this banner's built-in one.
+   * @default "default"
+   */
+  variant?: "default" | "slim";
 }
 
 /** How often the banner re-derives "N min left" on its own (doc `04` §7 wall-clock cap). */
 const TICK_MS = 60_000;
 
-export function LockBanner({ session, onPanic }: LockBannerProps) {
+export function LockBanner({ session, onPanic, variant = "default" }: LockBannerProps) {
   const reduceMotion = useReduceMotion();
   const eligibleApps = useStakesStore(useShallow(selectEligibleApps));
   const selection = useStakesStore(selectStakeSelection);
@@ -120,6 +131,23 @@ export function LockBanner({ session, onPanic }: LockBannerProps) {
     const text = `${subject} ${plural ? "are" : "is"} locked. ${minLabel}.`;
     return { headline: text, a11y: `App lock active. ${text}` };
   }, [namedApps, fallbackCount, minutesLeft]);
+
+  // Slim: one sunken-canvas row, glyph + sentence, no overline, no built-in
+  // panic pill. The host screen supplies its own (doc `design/DECISION_SPEC`
+  // D4 item 5). The `default` branch below is untouched by this addition.
+  if (variant === "slim") {
+    return (
+      <Animated.View
+        entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
+        className="flex-row items-center gap-3 rounded-xl bg-neutral-100 px-3.5 py-3"
+        accessibilityRole="summary"
+        accessibilityLabel={a11y}
+      >
+        <Ionicons name="lock-closed" size={20} color={colors.light.textSecondary} />
+        <Text className="flex-1 text-body text-neutral-800">{headline}</Text>
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View

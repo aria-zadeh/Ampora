@@ -1,27 +1,35 @@
 /**
- * SessionControls — the session's action row (PRD FR-62).
+ * SessionControls, the session's action row (PRD FR-62).
  *
- * One primary action (Done) and three secondaries (Take a break / I'm stuck /
+ * One primary action (Done) and three secondaries (I'm stuck / Take a break /
  * I'm overwhelmed), per the design system's "one primary action per screen"
  * rule. Lifted out of `app/focus/session.tsx` essentially verbatim.
  *
  * "Done" advances the ONE current step. It never releases a lock: a session
  * hold is served by focus time, not by finishing the work early (doc `04` §5,
- * §6) — the store enforces that, and this component deliberately has no path to
- * it either.
+ * §6), the store enforces that, and this component deliberately has no path
+ * to it either.
+ *
+ * Restyled per doc `design/DECISION_SPEC` D3/D4 item 6: Done is blue, not
+ * green (D3, green is reserved for terminal/completed states, never a
+ * control that starts or runs). The three secondaries collapse into one
+ * equal row of quiet, text-only pills: no icons, no warm tint on "I'm
+ * overwhelmed" (that warm tint read as a warning on a control that isn't
+ * one).
  */
 
 import React from "react";
-import { View, Text } from "react-native";
+import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { colors, iconSizes, shadows } from "@/utils/design-tokens";
 
 export interface SessionControlsProps {
   /** Primary: mark the current step done (or finish, when nothing is left). */
   onDone: () => void;
-  /** Nothing left to check off — the primary reads "Finish". */
+  /** Nothing left to check off, the primary reads "Finish". */
   noSteps: boolean;
   onBreak: () => void;
   onStuck: () => void;
@@ -40,77 +48,70 @@ export function SessionControls({
 }: SessionControlsProps) {
   return (
     <View>
-      {/* Primary: Done */}
+      {/* Primary: Done, blue, never green (D3: green is a terminal state only). */}
       <PressableScale
         onPress={onDone}
         haptic="success"
-        className="h-14 flex-row items-center justify-center rounded-xl bg-success-700"
-        style={shadows.md}
+        className="min-h-[52px] flex-row items-center justify-center rounded-md bg-primary-600"
+        style={shadows.xs}
         accessibilityRole="button"
         accessibilityLabel={noSteps ? "Finish session" : "Mark this step done and continue"}
       >
         <Ionicons name="checkmark-circle" size={22} color={colors.light.primaryForeground} />
-        <Text className="ml-2 text-h4 font-semibold text-white">{noSteps ? "Finish" : "Done"}</Text>
+        <Text variant="h4" className="ml-2 text-white">{noSteps ? "Finish" : "Done"}</Text>
       </PressableScale>
 
-      {/* Secondary controls */}
-      <View className="mt-4 gap-3">
-        <View className="flex-row gap-3">
-          <SecondaryButton icon="cafe-outline" label="Take a break" onPress={onBreak} />
-          <SecondaryButton
-            icon="bulb-outline"
-            label={simplifying ? "Thinking…" : "I'm stuck"}
-            onPress={onStuck}
-            disabled={simplifying || noSteps}
-          />
-        </View>
-        <SecondaryButton
-          icon="heart-outline"
-          label="I'm overwhelmed"
-          onPress={onOverwhelmed}
-          tone="warm"
+      {/* Three equal quiet pills, one row, text-only. */}
+      <View className="mt-4 flex-row gap-2">
+        <QuietPill
+          label="I'm stuck"
+          busyLabel="Thinking…"
+          busy={simplifying}
+          onPress={onStuck}
+          disabled={simplifying || noSteps}
         />
+        <QuietPill label="Take a break" onPress={onBreak} />
+        <QuietPill label="I'm overwhelmed" onPress={onOverwhelmed} />
       </View>
     </View>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Secondary control button
+// Quiet pill, one of the three equal secondary controls
 // ---------------------------------------------------------------------------
 
-export function SecondaryButton({
-  icon,
+function QuietPill({
   label,
+  busyLabel,
+  busy = false,
   onPress,
-  disabled,
-  tone = "neutral",
+  disabled = false,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  busyLabel?: string;
+  busy?: boolean;
   onPress: () => void;
   disabled?: boolean;
-  tone?: "neutral" | "warm";
 }) {
-  const warm = tone === "warm";
   return (
     <PressableScale
       onPress={onPress}
       haptic="light"
       disabled={disabled}
-      className={`flex-1 h-12 flex-row items-center justify-center rounded-xl border ${
-        warm ? "bg-warning-100 border-warning-100" : "bg-white border-neutral-200"
-      } ${disabled ? "opacity-50" : ""}`}
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: !!disabled }}
+      className={`flex-1 h-11 items-center justify-center rounded-lg bg-neutral-100 px-2 ${
+        disabled ? "opacity-50" : ""
+      }`}
+      accessibilityRole="button"
+      accessibilityLabel={busy && busyLabel ? busyLabel : label}
+      accessibilityState={{ disabled, busy }}
     >
-      <Ionicons
-        name={icon}
-        size={iconSizes.sm}
-        color={warm ? colors.light.warning : colors.light.textSecondary}
-      />
-      <Text className={`ml-2 text-label font-medium ${warm ? "text-warning-700" : "text-neutral-700"}`}>
-        {label}
+      <Text
+        variant="captionMedium"
+        className="text-neutral-600 text-center"
+        numberOfLines={2}
+      >
+        {busy && busyLabel ? busyLabel : label}
       </Text>
     </PressableScale>
   );

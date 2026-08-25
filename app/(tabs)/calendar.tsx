@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { View, Text } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
   GestureHandlerRootView,
@@ -26,7 +26,6 @@ import { EventActionSheet } from "@/components/calendar/EventActionSheet";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { AddEventModal } from "@/components/ui/AddEventModal";
-import { useTabBarClearance } from "@/components/ui/SegmentedTabBar";
 import {
   DEFAULT_PX_PER_HOUR,
   nearestZoomStop,
@@ -36,7 +35,7 @@ import {
 } from "@/core/calendar";
 import { dayStart } from "@/components/calendar/hours";
 import type { CalEvent, ScheduledBlock } from "@/types";
-import { iconSizes } from "@/utils/design-tokens";
+import { iconSizes, spacing } from "@/utils/design-tokens";
 
 /** Views that render the vertical time grid — pinch-to-zoom applies to these. */
 const TIME_GRID_VIEWS: readonly CalendarView[] = ["day", "3day", "week"];
@@ -66,7 +65,7 @@ function coerceView(value: string | undefined): CalendarView {
  * here; the individual views stay presentational and reusable.
  */
 export default function CalendarScreen() {
-  const tabBarClearance = useTabBarClearance();
+  const insets = useSafeAreaInsets();
 
   // Persisted preferences (optional on Settings; default here when a restored
   // blob predates the fields).
@@ -252,7 +251,7 @@ export default function CalendarScreen() {
   const showEmpty = !hasBlocks && view !== "agenda"; // AgendaView renders its own empty state.
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top"]}>
+    <View className="flex-1 bg-neutral-100">
       <GestureHandlerRootView style={{ flex: 1 }}>
         <CalendarHeader
           view={view}
@@ -288,13 +287,12 @@ export default function CalendarScreen() {
         </View>
 
         {/* The active view, or the global empty state when nothing is scheduled. */}
-        {/* Bottom padding, not a scroll-content inset: the pill tab bar floats */}
-        {/* over content now instead of reserving layout space, and every view */}
-        {/* here (three time grids, month, agenda) owns its own scroller. */}
-        {/* Shortening the shared viewport clears the pill for all five at once */}
-        {/* without touching any of their internal geometry, which is what the */}
-        {/* drag, resize and pinch handlers measure against. */}
-        <View className="flex-1" style={{ paddingBottom: tabBarClearance }}>
+        {/* Bottom padding: a plain safe-area inset plus normal spacing. The nav */}
+        {/* lives in flow above the screen now instead of floating over the */}
+        {/* bottom, so every view here (three time grids, month, agenda, each */}
+        {/* owning its own scroller) only needs to clear the device's own */}
+        {/* gesture bar, not a floating pill. */}
+        <View className="flex-1" style={{ paddingBottom: insets.bottom + spacing.lg }}>
           {showEmpty ? (
             <View className="flex-1 items-center justify-center">
               <EmptyState
@@ -360,7 +358,7 @@ export default function CalendarScreen() {
           }
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

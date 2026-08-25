@@ -1,14 +1,15 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable } from "react-native";
+import { View, TextInput, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import Animated, {
   FadeInDown,
   FadeOut,
   LinearTransition,
 } from "react-native-reanimated";
-import { SubtaskRow } from "@/components/ui/SubtaskRow";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors, shadows } from "@/utils/design-tokens";
+import { Text } from "@/components/ui/Text";
+import { colors, shadows, tabularNums } from "@/utils/design-tokens";
 import { staggerDelay, DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import * as taskLogic from "@/core/task-logic";
@@ -26,6 +27,138 @@ interface SubtaskChecklistProps {
 }
 
 const DEFAULT_ESTIMATE = 15;
+
+/**
+ * One step row: the "quiet card" treatment (doc design decision D4 item 4).
+ * Its own white card (radius 12, xs shadow), a 23px check circle (blue fill +
+ * white check when done, sunken empty circle otherwise), a 15px/500 title
+ * (done: strike-through + textDisabled, weight drops to 400), and a
+ * right-aligned tabular time label. Reorder + delete stay available inside
+ * the same card so no existing affordance is lost.
+ */
+function StepRow({
+  subtask,
+  index,
+  isLast,
+  onToggle,
+  onEditTitle,
+  onDelete,
+  onReorder,
+}: {
+  subtask: Subtask;
+  index: number;
+  isLast: boolean;
+  onToggle: (subtaskId: string) => void;
+  onEditTitle: (subtaskId: string, title: string) => void;
+  onDelete: (subtaskId: string) => void;
+  onReorder: (fromIndex: number, toIndex: number) => void;
+}) {
+  const done = taskLogic.isSubtaskDone(subtask);
+
+  const handleToggle = () => {
+    Haptics.selectionAsync();
+    onToggle(subtask.id);
+  };
+
+  return (
+    <View
+      className="flex-row items-center gap-2 rounded-lg bg-white px-3 py-1"
+      style={shadows.xs}
+      accessibilityLabel={`${subtask.title}, ${subtask.estimatedMin} minutes${done ? ", completed" : ""}`}
+    >
+      {/* Check circle: 44px hit area around a 23px visual circle. */}
+      <Pressable
+        onPress={handleToggle}
+        hitSlop={4}
+        className="h-11 w-11 items-center justify-center"
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: done }}
+        accessibilityLabel={done ? "Mark step incomplete" : "Mark step complete"}
+      >
+        <View
+          className={`h-[23px] w-[23px] items-center justify-center rounded-full ${
+            done ? "bg-primary-600" : "bg-neutral-100"
+          }`}
+        >
+          {done ? <Ionicons name="checkmark" size={13} color={colors.light.primaryForeground} /> : null}
+        </View>
+      </Pressable>
+
+      {/* Title: press-scale + light haptic, matching the prior row's rename entry point. */}
+      <PressableScale
+        onPress={() => onEditTitle(subtask.id, subtask.title)}
+        haptic="light"
+        className="flex-1 py-2"
+        accessibilityRole="button"
+        accessibilityLabel={`Edit step: ${subtask.title}`}
+      >
+        <Text
+          variant={done ? "body" : "bodyMedium"}
+          className={done ? "text-neutral-400 line-through" : "text-neutral-900"}
+          numberOfLines={2}
+        >
+          {subtask.title}
+        </Text>
+      </PressableScale>
+
+      {/* Time */}
+      <Text variant="captionMedium" className="text-neutral-600" style={tabularNums}>
+        {subtask.estimatedMin} min
+      </Text>
+
+      {/* Reorder (arrows, no drag). Each button's real box stays a compact
+          24x28 so the row doesn't grow, but hitSlop brings its effective
+          target to a full 44x44 (doc 02's touch-target floor). The two
+          buttons' hitSlop is asymmetric — generous on the outer edge, and
+          only enough on the shared inner edge to reach the `gap-1` between
+          them — so they meet at that gap instead of overlapping into each
+          other's hit area. */}
+      <View className="flex-col gap-1">
+        <Pressable
+          onPress={() => onReorder(index, index - 1)}
+          disabled={index === 0}
+          hitSlop={{ top: 16, bottom: 4, left: 8, right: 8 }}
+          className="h-6 w-7 items-center justify-center"
+          accessibilityRole="button"
+          accessibilityLabel={`Move ${subtask.title} up`}
+          accessibilityState={{ disabled: index === 0 }}
+        >
+          <Ionicons
+            name="chevron-up"
+            size={14}
+            color={index === 0 ? colors.light.borderStrong : colors.light.textMuted}
+          />
+        </Pressable>
+        <Pressable
+          onPress={() => onReorder(index, index + 1)}
+          disabled={isLast}
+          hitSlop={{ top: 4, bottom: 16, left: 8, right: 8 }}
+          className="h-6 w-7 items-center justify-center"
+          accessibilityRole="button"
+          accessibilityLabel={`Move ${subtask.title} down`}
+          accessibilityState={{ disabled: isLast }}
+        >
+          <Ionicons
+            name="chevron-down"
+            size={14}
+            color={isLast ? colors.light.borderStrong : colors.light.textMuted}
+          />
+        </Pressable>
+      </View>
+
+      {/* Delete */}
+      <Pressable
+        onPress={() => onDelete(subtask.id)}
+        hitSlop={8}
+        className="h-11 w-8 items-center justify-center"
+        accessibilityRole="button"
+        accessibilityLabel={`Delete step: ${subtask.title}`}
+      >
+        <Ionicons name="trash-outline" size={16} color={colors.light.textMuted} />
+      </Pressable>
+    </View>
+  );
+}
 
 export function SubtaskChecklist({
   subtasks,
@@ -56,11 +189,7 @@ export function SubtaskChecklist({
   return (
     <View>
       {subtasks.length > 0 ? (
-        <Animated.View
-          layout={reduceMotion ? undefined : LinearTransition.duration(DURATIONS.base)}
-          className="overflow-hidden rounded-lg border border-neutral-200 bg-white"
-          style={shadows.xs}
-        >
+        <View className="gap-2">
           {subtasks.map((subtask, index) => (
             <Animated.View
               key={subtask.id}
@@ -71,62 +200,26 @@ export function SubtaskChecklist({
               }
               exiting={reduceMotion ? undefined : FadeOut.duration(DURATIONS.fast)}
               layout={reduceMotion ? undefined : LinearTransition.duration(DURATIONS.base)}
-              className="flex-row items-center px-3"
             >
-              <View className="flex-1">
-                <SubtaskRow
-                  subtask={subtask}
-                  editable
-                  onToggle={() => onToggle(subtask.id)}
-                  onEdit={(title) => onEditTitle(subtask.id, title)}
-                  onDelete={() => onDelete(subtask.id)}
-                />
-              </View>
-              {/* Reorder controls (arrows, no drag) */}
-              <View className="ml-1 flex-col">
-                <Pressable
-                  onPress={() => onReorder(index, index - 1)}
-                  disabled={index === 0}
-                  hitSlop={6}
-                  className="h-6 w-8 items-center justify-center"
-                  accessibilityRole="button"
-                  accessibilityLabel={`Move ${subtask.title} up`}
-                  accessibilityState={{ disabled: index === 0 }}
-                >
-                  <Ionicons
-                    name="chevron-up"
-                    size={16}
-                    color={index === 0 ? colors.light.borderStrong : colors.light.textMuted}
-                  />
-                </Pressable>
-                <Pressable
-                  onPress={() => onReorder(index, index + 1)}
-                  disabled={index === subtasks.length - 1}
-                  hitSlop={6}
-                  className="h-6 w-8 items-center justify-center"
-                  accessibilityRole="button"
-                  accessibilityLabel={`Move ${subtask.title} down`}
-                  accessibilityState={{ disabled: index === subtasks.length - 1 }}
-                >
-                  <Ionicons
-                    name="chevron-down"
-                    size={16}
-                    color={index === subtasks.length - 1 ? colors.light.borderStrong : colors.light.textMuted}
-                  />
-                </Pressable>
-              </View>
+              <StepRow
+                subtask={subtask}
+                index={index}
+                isLast={index === subtasks.length - 1}
+                onToggle={onToggle}
+                onEditTitle={onEditTitle}
+                onDelete={onDelete}
+                onReorder={onReorder}
+              />
             </Animated.View>
           ))}
 
-          <View className="flex-row items-center justify-end border-t border-neutral-100 px-3 py-2.5">
-            <Text className="text-caption font-medium text-neutral-500">
-              {subtasks.length} step{subtasks.length === 1 ? "" : "s"} · {total}m total
-            </Text>
-          </View>
-        </Animated.View>
+          <Text variant="caption" className="px-1 text-neutral-500">
+            {subtasks.length} step{subtasks.length === 1 ? "" : "s"} · {total}m total
+          </Text>
+        </View>
       ) : null}
 
-      {/* Add-row input */}
+      {/* Add-row input, unchanged. */}
       <View className="mt-3 flex-row items-center gap-2">
         <TextInput
           className="min-h-12 flex-1 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"

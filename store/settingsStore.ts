@@ -62,11 +62,12 @@ const defaultSettings: Settings = {
   themePreference: 'system',
   onboardingComplete: false,
 
-  // Calendar UI preferences (Phase 3). '3day' is the phone default (FR-23);
-  // 60 px/hr is the middle-low zoom stop (FR-24). Optional on the type so
-  // older persisted Settings still load — the Calendar screen defaults these
-  // when a restored blob predates the fields.
-  calendarView: '3day',
+  // Calendar UI preferences (Phase 3). 'agenda' is the phone default (docs/design
+  // round, agenda-first); 60 px/hr is the middle-low zoom stop (FR-24). Optional
+  // on the type so older persisted Settings still load — the Calendar screen
+  // defaults these when a restored blob predates the fields. A returning user's
+  // own persisted choice always overrides this via MMKV rehydration.
+  calendarView: 'agenda',
   calendarZoomPxPerHour: 60,
 
   // Scheduling defaults (PRD §8.11 / FR-9, FR-11, FR-14). Sensible engine

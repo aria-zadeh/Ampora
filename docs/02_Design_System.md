@@ -68,6 +68,8 @@ The interactive brand color. Used for the main "do it" actions when they are not
 
 Reserved for positive states and "begin/run" affordances. Seen on the START node, the green run button, the `COMPLETED` badges, and active toggles.
 
+> **Superseded 2026-08-07.** The "begin/run" role above moved to blue (`primary`). Green is terminal-only now: completed/done states only, never anything pressable that starts or runs. See §14.7 for the current rule and `docs/09_Decisions.md` for the dated entry.
+
 | Token | Hex | Usage |
 |---|---|---|
 | `success.50` | `#F0FDF4` | Success surface, completed-row tint |
@@ -250,6 +252,7 @@ Sizes are in `px` (React Native uses density-independent points, so these map 1:
 - Body never goes below 15 for primary content and never below 13 for any readable text. (Touch-app legibility floor.)
 - Use `overline` uppercased for the small category tags seen on nodes (`AI WORKER`, `EVALUATION WORKER`, `INPUT SOURCES`). Apply `textTransform: 'uppercase'`.
 - Enable tabular numbers for any column of numbers (`fontVariant: ['tabular-nums']`) so counters and metrics do not jitter.
+- **Consumption path (added 2026-08-07):** `components/ui/Text.tsx` (the `Text` primitive, `variant` prop, mapped via `TYPOGRAPHY_CLASSES`) is the enforced way screens consume this scale. Hand-written `text-* font-*` Tailwind combos are a violation in new code. Parity between this table and the Tailwind classes is parity-tested in `core/__tests__/design-tokens.test.ts`.
 
 ### 2.3 Text color pairing
 
@@ -471,19 +474,18 @@ The `COMPLETED` / `IDLE` / `AI WORKER` pattern. These carry state and category a
 
 The reference shows a sidebar of line icons. Translate this to mobile patterns:
 
-**Bottom tab bar (primary navigation) — AS BUILT, `components/ui/SegmentedTabBar.tsx`:**
+**Top segmented control (primary navigation) — AS BUILT, `TopSegmentedNav` in `components/ui/SegmentedTabBar.tsx`:**
 
-Ampora ships the "Stack" variant of this pattern (`docs/design/stack-reference.html`, decision logged in `09`): a **floating segmented pill**, not a full-width slab.
+Superseded 2026-08-07. Ampora shipped the floating bottom pill described below for one round, then moved navigation to an **in-flow top segmented control**, inside `SafeAreaView edges={["top"]}`, not floating and not full-width-at-the-bottom. Decision and rationale logged in `docs/09_Decisions.md` (2026-08-07 entry).
 
-- One rounded track, `radius.full`, floating: `left`/`right` 18, `bottom` = bottom safe-area inset + 8. Height 48 (a 44px segment row + 2px padding each side).
-- Background `bg.surface` `#FFFFFF`, 1px `border.default`, `shadow.lg` (it genuinely floats, so it earns the heavier tier).
-- 5 segments, `flex: 1`, evenly distributed. At a 390pt width each segment is ~70x44, clearing the 44x44 minimum.
-- Icon-only, 24px. There is no text label, so **every segment carries an `accessibilityLabel`** plus `accessibilityRole="tab"` and `accessibilityState={{ selected }}`.
-- Active: a filled `primary.600` pill behind a `#FFFFFF` glyph (5.2:1, §12). The pill slides on `SPRINGS.tactile`, direct-assigned under reduce-motion. Active state is carried by fill and shape, not hue alone.
-- Inactive: `text.tertiary` `#6F6862` (5.5:1 on white). Do not go lighter — `neutral.400` fails the 3:1 bar for UI glyphs.
-- **It floats over content and reserves no layout space.** Every tab screen must reserve its own bottom clearance with `useTabBarClearance()`, and a FAB on a tab screen needs `liftAboveTabBar`.
+- Lives at the top of the content area, in normal layout flow (it participates in the layout, unlike the old floating pill), inside `SafeAreaView edges={["top"]}`.
+- 5 segments, unchanged surfaces (PRD §8.1): Today, Calendar, Tasks, Focus, Profile.
+- **Active segment shows icon + text label.** Inactive segments are icon-only. This is a deliberate change from the old all-icon pill: status (which tab is active) is carried by fill/shape AND a label, never colour alone.
+- `accessibilityRole="tab"` and `accessibilityState={{ selected }}` on every segment; the active segment's visible label supplements (does not replace) `accessibilityLabel` on the inactive icon-only segments.
+- **`useTopNavClearance()`** replaces `useTabBarClearance()`. Every tab screen reserves its own top clearance with the new hook instead of bottom clearance with the old one.
+- **FAB:** 52px, `radius.full`, ink fill (`colors.light.text`, not the old primary-blue circular FAB), white/inverse icon, bottom-right. Present on Today, Tasks, and Projects (not on every tab, unlike the old FAB which lived wherever the pill's `liftAboveTabBar` was applied).
 
-The older full-width bar (56 + inset, 1px top border, icon + `tiny` label) is superseded and should not be reintroduced.
+Superseded pattern (do not reintroduce), kept here for history: a floating segmented pill at the bottom (`radius.full`, `left`/`right` 18, `bottom` = safe-area inset + 8, height 48, `shadow.lg`, icon-only 24px segments, active = filled `primary.600` pill behind a white glyph, inactive = `text.tertiary` `#6F6862`, floated over content via `useTabBarClearance()` + `liftAboveTabBar`). That pattern itself had already superseded an even older full-width bottom bar (56 + inset, 1px top border, icon + `tiny` label). Neither should be reintroduced.
 
 **Top app bar (screen header):**
 
@@ -1145,18 +1147,23 @@ Every pair touched by the warm shift was recomputed against WCAG 2.1 AA (4.5:1 b
 **The one adjustment made from the original plan values:** dark-mode `textMuted` was set to `#78716C` (Stone-500-on-dark) rather than reusing `textSecondary`'s `#A8A29A`, because the pre-warm scheme had `textMuted` (`#71717A`, 3.67:1 on `#18181B` — caption-tier only) meaningfully lower-contrast than `textSecondary` (`#A1A1AA`, 6.91:1 — body-tier); collapsing them to the same value would have silently upgraded muted text to body-tier contrast everywhere it's used and erased an intentional two-tier hierarchy. `#78716C` preserves the original ratio class (3.65:1, matching the existing dark-tertiary exemption documented in §12) while staying in the warm family. No other hex needed adjustment — the warm ramp and the `listColors` seed values all passed 4.5:1 as given.
 
 ### 14.7 Shape-consistency and color-consistency locks
-**Radius (binding, do not deviate per-screen):**
+**Radius (binding, do not deviate per-screen) — updated 2026-08-07 to shipped reality:**
 
 | Element | Radius | Tailwind |
 |---|---|---|
-| Cards, list items | 12 | `rounded-lg` |
-| Buttons | 10 | `rounded-md` |
+| Cards, list items (rows) | 12 | `rounded-lg` |
+| Feature cards | 18 | `rounded-[18px]` |
+| Focus hero card | 26 | `rounded-[26px]` |
+| Filled primary buttons | 14 | `rounded-[14px]` — **not yet a named `radius.*` token, deliberate** |
 | Inputs | 8-10 | `rounded-sm` to `rounded-md` |
-| Pills / badges | full | `rounded-full` |
 | Modals / sheets | 16 | `rounded-xl` |
-| `FeatureShell` outer / inner | 16 / 12 | `rounded-2xl` outer, `rounded-xl` inner |
+| Pills / badges | full | `rounded-full` |
+
+Non-primary buttons (outline, ghost, quiet/text) are unchanged at 10 (`radius.md`) — only filled primaries moved to 14 this round. The four tiers now in play app-wide are 12 (rows/cards) / 18 (feature cards) / 26 (focus hero) / full (pills), with 14 as a fifth, not-yet-tokenized value scoped to filled primary buttons and 16 for sheets/modals. `FeatureShell` (§14.4) is superseded as the app's feature-card reference by the flat 18 value above; its own outer/inner bezel construction is unchanged where it still renders.
 
 **Color-consistency lock:** primary blue `#2563EB` is the single accent color for interactive "do it" actions across the whole app. Purple `#7C3AED`/`#8B5CF6` is reserved exclusively for distinct semantic meaning (AI/smart/breakdown/project-chat affordances per §13.1) — never as a second general-purpose accent, never interchangeable with blue. Ink is the warm near-black `#1C1917` (an "#18181B-class" value, same role and contrast tier as before, just warm-shifted).
+
+**Blue/green action-color lock (added 2026-08-07):** blue is now the color of everything about to happen or currently happening — Start, Resume, Lock in, Start now, Return to session, Done (as a step-advance), Save, all blue fill with a white label, app-wide. Green is terminal-only: `Completed` pills, the First move done state, "Session served" copy, end-check-in confirmations, and celebration haptics — never on anything pressable that starts or runs. This supersedes §1.3's "green = start/run" framing. Selected states (toggles on, radios, active preset pills, checked step circles) and progress fills (bars, rings) are blue, not green. Logged in `docs/09_Decisions.md` (2026-08-07 entry).
 
 ### 14.8 Motion vocabulary additions
 `utils/design-tokens.ts` `motion.spring.tactile` = `{ damping: 26, mass: 0.8, stiffness: 340 }` — snappier than `spring.default`, for drag pickup/drop and control toggles (e.g. calendar block drag). `motion.duration.drag` = `120`ms — fast drag-follow (block tracking a finger), distinct from settle/entrance durations. Both re-export automatically through `utils/motion.ts` as `SPRINGS.tactile` and `DURATIONS.drag` since those re-export `motion.spring`/`motion.duration` wholesale. `EASINGS` is unchanged — still no bounce/elastic curves anywhere.

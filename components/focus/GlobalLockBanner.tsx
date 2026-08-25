@@ -39,6 +39,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LockBanner } from "@/components/stakes/LockBanner";
 import { PanicValveSheet } from "@/components/stakes/PanicValveSheet";
 import { PressableScale } from "@/components/ui/PressableScale";
+import { useTopNavClearance } from "@/components/ui/SegmentedTabBar";
 import { useStakesStore } from "@/store/stakesStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { colors, iconSizes, shadows, tabularNums } from "@/utils/design-tokens";
@@ -47,12 +48,25 @@ import type { StakeSession } from "@/types";
 /** Routes that already show the lock in context. */
 const SUPPRESSED_PREFIXES = ["/focus/session", "/blindfold"];
 
+/**
+ * The five top-level tab routes (`constants/tabRoutes.ts`), exactly as
+ * `usePathname()` reports them. `TopSegmentedNav` — and the clearance it
+ * demands — only renders on these. Everywhere else (task detail, projects,
+ * settings, paywall) has no top nav to clear, so this banner falls back to a
+ * plain safe-area inset there instead.
+ */
+const TAB_PATHNAMES = new Set(["/", "/calendar", "/tasks", "/focus", "/profile"]);
+
 /** How often the "minutes left" line re-derives. Minute-granularity copy — 20s is plenty. */
 const REFRESH_MS = 20_000;
 
 export function GlobalLockBanner() {
   const pathname = usePathname();
+  const topNavClearance = useTopNavClearance();
   const insets = useSafeAreaInsets();
+  // Only the five tab routes render TopSegmentedNav; everywhere else this
+  // banner floats over a screen with no top nav to clear.
+  const clearance = TAB_PATHNAMES.has(pathname) ? topNavClearance : insets.top + 8;
 
   // Raw field select (Zustand v5 discipline) — no mapping inside the selector.
   const session = useStakesStore((s) => s.activeSession);
@@ -119,7 +133,7 @@ export function GlobalLockBanner() {
         pointerEvents="box-none"
         style={{
           position: "absolute",
-          top: insets.top + 8,
+          top: clearance,
           left: 12,
           right: 12,
         }}

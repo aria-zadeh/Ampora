@@ -7,8 +7,22 @@
  * the app, which this pass could not do.
  */
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { borderRadius, fontFamilies, shadows, spacing, typography } from '@/utils/design-tokens'
+
+// react-native ships raw Flow-annotated source, normally stripped by Metro's
+// babel preset before it reaches JS. This vitest harness runs `core/**`
+// under plain Node with no such transform (see this file's own import of
+// `typography` above, which only reaches react-native through an erased
+// `import type`). components/ui/Text.tsx needs a real value import of RN's
+// Text to render it, so importing that module here would otherwise crash on
+// Flow syntax it was never meant to parse. This test only needs the plain
+// TYPOGRAPHY_CLASSES object, never renders anything, so react-native is safe
+// to stub for this file alone. vi.mock calls are hoisted above the imports
+// below by vitest, so this applies before components/ui/Text.tsx loads.
+vi.mock('react-native', () => ({ Text: 'Text' }))
+
+import { TYPOGRAPHY_CLASSES } from '@/components/ui/Text'
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const tailwind = require('../../tailwind.config.js')
 
@@ -180,6 +194,75 @@ describe('design tokens: tailwind.config.js mirrors `typography`', () => {
     for (const key of ['display', 'h1', 'h2', 'h3', 'h4'] as const) {
       expect(typography[key].letterSpacing, `typography.${key}`).toBeLessThan(0)
     }
+  })
+
+  /**
+   * The consumption path itself. TYPOGRAPHY_CLASSES in components/ui/Text.tsx
+   * is the single place a typography key becomes the Tailwind classes a
+   * screen actually renders. These tests resolve every entry's text-*,
+   * font-* and tracking-* classes back through this same tailwind.config.js
+   * and check the result against `typography` directly, not just against the
+   * string literals in Text.tsx, so a wrong weight or a missing tracking
+   * class fails here even if TYPOGRAPHY_CLASSES and tailwind.config.js
+   * happen to agree with each other while both disagree with typography.
+   */
+  describe('components/ui/Text.tsx: TYPOGRAPHY_CLASSES maps every typography key', () => {
+    const classNames = (entry: string) => entry.split(' ')
+    const byPrefix = (entry: string, prefix: string) =>
+      classNames(entry).find((c) => c.startsWith(prefix))
+
+    it('has exactly one entry per typography key, no extras', () => {
+      expect(Object.keys(TYPOGRAPHY_CLASSES).sort()).toEqual(Object.keys(typography).sort())
+    })
+
+    it('every text-* class names the tailwind fontSize key matching that typography size and line height', () => {
+      for (const key of Object.keys(typography) as (keyof typeof typography)[]) {
+        const style = typography[key]
+        const sizeClass = byPrefix(TYPOGRAPHY_CLASSES[key], 'text-')
+        expect(sizeClass, `TYPOGRAPHY_CLASSES.${key} has no text-* class`).toBeDefined()
+        const sizeKey = sizeClass!.slice('text-'.length)
+        expect(sizeKey, `TYPOGRAPHY_CLASSES.${key} text-* class`).toBe(SIZE_KEYS[key])
+        const entry = tw.fontSize[sizeKey]
+        expect(entry, `tailwind fontSize."${sizeKey}" is missing`).toBeDefined()
+        expect(entry[0], `TYPOGRAPHY_CLASSES.${key} size`).toBe(`${style.fontSize}px`)
+        expect(entry[1].lineHeight, `TYPOGRAPHY_CLASSES.${key} line height`).toBe(`${style.lineHeight}px`)
+      }
+    })
+
+    it('every font-* class resolves through tailwind fontFamily to the same loaded family as that typography entry, catching weight drift', () => {
+      const familyToFontKey: Record<string, string> = {
+        [fontFamilies.regular]: 'sans',
+        [fontFamilies.medium]: 'medium',
+        [fontFamilies.semibold]: 'semibold',
+        [fontFamilies.bold]: 'bold',
+      }
+      for (const key of Object.keys(typography) as (keyof typeof typography)[]) {
+        const style = typography[key]
+        const fontClass = byPrefix(TYPOGRAPHY_CLASSES[key], 'font-')
+        expect(fontClass, `TYPOGRAPHY_CLASSES.${key} has no font-* class`).toBeDefined()
+        const fontKey = fontClass!.slice('font-'.length)
+        expect(fontKey, `TYPOGRAPHY_CLASSES.${key} font-* class`).toBe(familyToFontKey[style.fontFamily])
+        const family = tw.fontFamily[fontKey]
+        expect(family, `tailwind fontFamily."${fontKey}" is missing`).toBeDefined()
+        expect(family[0], `TYPOGRAPHY_CLASSES.${key} resolved family`).toBe(style.fontFamily)
+      }
+    })
+
+    it('carries a tracking-* class resolving to the exact letterSpacing px for every non-zero key, and none when letterSpacing is 0', () => {
+      for (const key of Object.keys(typography) as (keyof typeof typography)[]) {
+        const style = typography[key]
+        const trackingClass = byPrefix(TYPOGRAPHY_CLASSES[key], 'tracking-')
+        if (style.letterSpacing === 0) {
+          expect(trackingClass, `TYPOGRAPHY_CLASSES.${key} should carry no tracking class`).toBeUndefined()
+          continue
+        }
+        expect(trackingClass, `TYPOGRAPHY_CLASSES.${key} is missing a tracking-* class`).toBeDefined()
+        const trackingKey = trackingClass!.slice('tracking-'.length)
+        const px = tw.letterSpacing[trackingKey]
+        expect(px, `tailwind letterSpacing."${trackingKey}" is missing`).toBeDefined()
+        expect(px, `TYPOGRAPHY_CLASSES.${key} tracking value`).toBe(`${style.letterSpacing}px`)
+      }
+    })
   })
 })
 

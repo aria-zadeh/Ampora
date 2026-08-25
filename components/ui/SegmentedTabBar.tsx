@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, View, type LayoutChangeEvent } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -7,175 +7,194 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import {
-  borderRadius,
-  colors,
-  iconSizes,
-  motion,
-  shadows,
-} from "@/utils/design-tokens";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { router, usePathname } from "expo-router";
+import { Text } from "@/components/ui/Text";
+import { borderRadius, colors, iconSizes, motion } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { TAB_ROUTES, type TabRoute } from "@/constants/tabRoutes";
 
-/** Height of the visual pill track (excludes the outer safe-area/gap offset). */
-export const TAB_BAR_TRACK_HEIGHT = 48;
-/** Gap between the pill and the bottom safe-area edge. */
-export const TAB_BAR_GAP = 8;
+/** Height of the visual pill track (a 44px segment row plus 2px padding each side). */
+export const TOP_NAV_TRACK_HEIGHT = 48;
+/** Gap above and below the track, inside the safe area. */
+const TOP_NAV_GAP = 8;
 
 /**
- * Bottom padding a screen must reserve so its content clears the floating
- * pill tab bar. Feed this into a ScrollView/FlashList contentContainerStyle
- * paddingBottom (or similar) on any tab screen.
+ * Vertical space something ELSE floating over routed content (currently only
+ * `GlobalLockBanner`) must clear so it doesn't sit on top of the nav. The nav
+ * itself is in flow now, not floating, so ordinary screens don't need this.
  */
-export function useTabBarClearance(): number {
+export function useTopNavClearance(): number {
   const insets = useSafeAreaInsets();
-  return insets.bottom + TAB_BAR_GAP + TAB_BAR_TRACK_HEIGHT + 12;
+  return insets.top + TOP_NAV_GAP + TOP_NAV_TRACK_HEIGHT + TOP_NAV_GAP;
 }
 
-type IconName = keyof typeof Ionicons.glyphMap;
+/** The active segment gets extra room for its label. Inactive ones stay square-ish. */
+const ACTIVE_FLEX = 2;
+const INACTIVE_FLEX = 1;
+/** Sum of all five segments' flex weights (one active + four inactive) — the
+ *  denominator for the indicator's analytic width/position math below. */
+const TOTAL_FLEX = ACTIVE_FLEX + (TAB_ROUTES.length - 1) * INACTIVE_FLEX;
+/**
+ * The track's own padding (`p-0.5`, 2px). RN positions absolutely-positioned
+ * children (like the sliding indicator below) relative to the parent's
+ * BORDER box, ignoring padding — unlike in-flow children (the segments),
+ * which the padding DOES shift inward. `top`/`bottom` on the indicator
+ * already correct for this on the vertical axis; this constant does the same
+ * job horizontally, folded into the indicator's translateX math below (this
+ * is what the reported ~2px horizontal drift traced back to).
+ */
+const TRACK_PADDING = 2;
 
-/** Icon pair per tab route. Order and names match app/(tabs)/_layout.tsx. */
-function iconFor(routeName: string, focused: boolean): IconName {
-  switch (routeName) {
-    case "index":
-      return focused ? "today" : "today-outline";
+/** First path segment, e.g. "/calendar" -> "calendar", "/" -> "index". */
+function routeNameFromPathname(pathname: string): string {
+  const first = pathname.split("/").filter(Boolean)[0];
+  return first ?? "index";
+}
+
+/** Static href per tab route. Matches the five `(tabs)` group screens exactly. */
+function hrefForRouteName(name: string): "/" | "/calendar" | "/tasks" | "/focus" | "/profile" {
+  switch (name) {
     case "calendar":
-      return focused ? "calendar" : "calendar-outline";
+      return "/calendar";
     case "tasks":
-      return focused ? "list" : "list-outline";
+      return "/tasks";
     case "focus":
-      return focused ? "timer" : "timer-outline";
+      return "/focus";
     case "profile":
-      return focused ? "person" : "person-outline";
+      return "/profile";
     default:
-      return focused ? "ellipse" : "ellipse-outline";
+      return "/";
   }
 }
 
 /**
- * Floating rounded-pill bottom tab bar. Replaces the default expo-router tab
- * bar chrome with five icon-only segments in one track, plus an animated
- * indicator that slides to the active segment.
+ * In-flow top segmented nav. Replaces the old floating bottom pill
+ * (`docs/design/stack-reference.html` `.sf-segnav`) with the same five
+ * routes, now anchored above the tab content instead of floating over it.
+ *
+ * Deviation from the reference, deliberate: the reference marks the active
+ * segment by blue fill alone. Status by colour alone is forbidden (doc 02),
+ * so the active segment also shows its text label next to its icon, and gets
+ * extra flex so the label has room. Inactive segments stay icon-only.
  */
-export function SegmentedTabBar(props: BottomTabBarProps) {
-  const { state, descriptors, navigation, insets } = props;
+export function TopSegmentedNav() {
+  const pathname = usePathname();
   const reduceMotion = useReduceMotion();
-  const [trackWidth, setTrackWidth] = useState(0);
 
-  const segmentWidth =
-    trackWidth > 0 ? (trackWidth - 4) / state.routes.length : 0;
-  const translateX = useSharedValue(0);
+  const activeIndex = useMemo(() => {
+    const name = routeNameFromPathname(pathname);
+    const idx = TAB_ROUTES.findIndex((route) => route.name === name);
+    return idx >= 0 ? idx : 0;
+  }, [pathname]);
+
+  // The track's own content width (its rendered width minus its own
+  // padding) is the one measurement the indicator's geometry needs.
+  // Switching the active segment changes two segments' individual
+  // flex-basis but never the track's own width, so this stays correct
+  // across every tab switch — unlike measuring the active segment directly,
+  // which would momentarily read its STALE (inactive-flex) size until its
+  // own onLayout caught up, springing toward the wrong target and then
+  // correcting a frame later (the reported double-animation).
+  const [trackContentWidth, setTrackContentWidth] = useState(0);
+  const measuredOnce = useRef(false);
+
+  const handleTrackLayout = useCallback((e: LayoutChangeEvent) => {
+    const width = Math.max(0, e.nativeEvent.layout.width - TRACK_PADDING * 2);
+    setTrackContentWidth((prev) => (prev === width ? prev : width));
+  }, []);
+
+  const indicatorX = useSharedValue(0);
+  const indicatorWidth = useSharedValue(0);
 
   useEffect(() => {
-    const target = state.index * segmentWidth;
-    translateX.value = reduceMotion
-      ? target
-      : withSpring(target, motion.spring.tactile);
-  }, [state.index, segmentWidth, reduceMotion, translateX]);
+    if (trackContentWidth <= 0) return;
+    // Every segment shares the same flex weight except the active one, so
+    // its x/width follow directly from the active index and the track
+    // width — no per-segment measurement, and no race between them.
+    const unit = trackContentWidth / TOTAL_FLEX;
+    const targetX = TRACK_PADDING + activeIndex * INACTIVE_FLEX * unit;
+    const targetWidth = ACTIVE_FLEX * unit;
+    if (!measuredOnce.current || reduceMotion) {
+      // First real measurement (or reduce-motion): snap, don't grow in from nothing.
+      indicatorX.value = targetX;
+      indicatorWidth.value = targetWidth;
+      measuredOnce.current = true;
+    } else {
+      indicatorX.value = withSpring(targetX, motion.spring.tactile);
+      indicatorWidth.value = withSpring(targetWidth, motion.spring.tactile);
+    }
+  }, [activeIndex, trackContentWidth, reduceMotion, indicatorX, indicatorWidth]);
 
   const indicatorStyle = useAnimatedStyle(() => ({
-    width: segmentWidth,
-    opacity: trackWidth === 0 ? 0 : 1,
-    transform: [{ translateX: translateX.value }],
+    width: indicatorWidth.value,
+    opacity: indicatorWidth.value === 0 ? 0 : 1,
+    transform: [{ translateX: indicatorX.value }],
   }));
 
-  const handleTrackLayout = (event: LayoutChangeEvent) => {
-    setTrackWidth(event.nativeEvent.layout.width);
-  };
+  const handlePress = useCallback(
+    (route: TabRoute, index: number) => {
+      if (index === activeIndex) return;
+      Haptics.selectionAsync().catch(() => {});
+      router.navigate(hrefForRouteName(route.name));
+    },
+    [activeIndex],
+  );
 
   return (
-    <View
-      style={{
-        position: "absolute",
-        left: 18,
-        right: 18,
-        bottom: insets.bottom + TAB_BAR_GAP,
-        zIndex: 40,
-      }}
-    >
-      <View
-        onLayout={handleTrackLayout}
-        style={[
-          {
-            flexDirection: "row",
-            height: TAB_BAR_TRACK_HEIGHT,
-            padding: 2,
-            borderRadius: borderRadius.full,
-            backgroundColor: colors.light.card,
-            borderWidth: 1,
-            borderColor: colors.light.border,
-          },
-          shadows.lg,
-        ]}
-      >
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            {
-              position: "absolute",
-              top: 2,
-              left: 2,
-              height: TAB_BAR_TRACK_HEIGHT - 4,
-              borderRadius: borderRadius.full,
-              backgroundColor: colors.light.primary,
-            },
-            indicatorStyle,
-          ]}
-        />
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
-          const label =
-            options.tabBarAccessibilityLabel ?? options.title ?? route.name;
-
-          const onPress = () => {
-            const event = navigation.emit({
-              type: "tabPress",
-              target: route.key,
-              canPreventDefault: true,
-            });
-
-            if (!isFocused && !event.defaultPrevented) {
-              Haptics.selectionAsync().catch(() => {});
-              navigation.navigate(route.name, route.params);
-            }
-          };
-
-          const onLongPress = () => {
-            navigation.emit({ type: "tabLongPress", target: route.key });
-          };
-
-          return (
-            <Pressable
-              key={route.key}
-              onPress={onPress}
-              onLongPress={onLongPress}
-              hitSlop={{ top: 2, bottom: 2 }}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isFocused }}
-              accessibilityLabel={label}
-              style={{
-                flex: 1,
-                height: TAB_BAR_TRACK_HEIGHT - 4,
-                alignItems: "center",
-                justifyContent: "center",
+    <SafeAreaView edges={["top"]} className="bg-neutral-100">
+      <View className="px-5 pt-2 pb-2">
+        <View
+          onLayout={handleTrackLayout}
+          className="flex-row items-stretch bg-neutral-100 rounded-full p-0.5"
+          style={{ minHeight: TOP_NAV_TRACK_HEIGHT }}
+        >
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              {
+                position: "absolute",
+                top: TRACK_PADDING,
+                bottom: TRACK_PADDING,
                 borderRadius: borderRadius.full,
-              }}
-            >
-              <Ionicons
-                name={iconFor(route.name, isFocused)}
-                size={iconSizes.lg}
-                color={
-                  isFocused
-                    ? colors.light.primaryForeground
-                    : colors.light.textMuted
-                }
-              />
-            </Pressable>
-          );
-        })}
+                backgroundColor: colors.light.primary,
+              },
+              indicatorStyle,
+            ]}
+          />
+          {TAB_ROUTES.map((route, index) => {
+            const isActive = index === activeIndex;
+            return (
+              <Pressable
+                key={route.name}
+                onPress={() => handlePress(route, index)}
+                hitSlop={{ top: 2, bottom: 2 }}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
+                accessibilityLabel={route.accessibilityLabel}
+                className="min-h-11 flex-row items-center justify-center gap-1.5"
+                style={{ flex: isActive ? ACTIVE_FLEX : INACTIVE_FLEX }}
+              >
+                <Ionicons
+                  name={isActive ? route.iconFocused : route.icon}
+                  size={iconSizes.lg}
+                  color={isActive ? colors.light.primaryForeground : colors.light.textMuted}
+                />
+                {isActive && (
+                  <Text
+                    variant="label"
+                    numberOfLines={1}
+                    maxFontSizeMultiplier={1.2}
+                    className="text-white"
+                  >
+                    {route.title}
+                  </Text>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

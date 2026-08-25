@@ -1,22 +1,33 @@
 /**
- * StepCard — the ONE current step, large (PRD FR-62, doc `03` Part 3.4).
+ * StepCard, the ONE current step, large (PRD FR-62, doc `03` Part 3.4).
  *
  * The session shows a single step at a time: the First move if it is still
  * open, otherwise the next unchecked subtask. The First move is the ON-RAMP,
- * never a gate — completing it reveals the next step and logs "started", and it
- * unlocks nothing (doc `04` §5). This card carries no unlock affordance at all,
- * by design.
+ * never a gate. Completing it reveals the next step and logs "started", and
+ * it unlocks nothing (doc `04` §5). This card carries no unlock affordance at
+ * all, by design.
  *
  * `celebrate` plays the single celebratory beat of the screen (the completion
  * pulse), which reduce-motion turns into a no-op inside `PulseScale`.
+ *
+ * `bare` (doc `design/DECISION_SPEC` D4 item 4): the session hero screen
+ * already supplies its own white card surface, so this drops its own chrome
+ * there and renders as plain centered text instead of a second nested card
+ * (D5's "no second elevated surface inside the hero card"). `stepNumber`/
+ * `stepTotal` feed the "Step N of M" position line that replaces the old
+ * top-of-screen progress bar on that screen. The First move keeps its own
+ * "First move" label instead of a position count, since that framing (the
+ * on-ramp, not a numbered step) is unchanged from before.
  */
 
 import React from "react";
-import { View, Text } from "react-native";
+import { View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
+import { Text } from "@/components/ui/Text";
 import { Heading } from "@/components/ui/Heading";
 import { PulseScale } from "@/components/ui/PulseScale";
+import { tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { NextStep } from "@/core/task-logic";
@@ -49,26 +60,76 @@ export interface StepCardProps {
   /** Plays the one completion pulse when this flips to true. */
   celebrate?: boolean;
   style?: { marginTop?: number };
+  /** 1-indexed position among the task's total steps, for the "Step N of M" line. Omitted (or non-positive) hides the line. */
+  stepNumber?: number;
+  stepTotal?: number;
+  /** Drops the card chrome (white surface/border/padding) for a host screen that already provides one. @default false */
+  bare?: boolean;
 }
 
-export function StepCard({ step, simplerText, celebrate = false, style }: StepCardProps) {
+export function StepCard({
+  step,
+  simplerText,
+  celebrate = false,
+  style,
+  stepNumber,
+  stepTotal,
+  bare = false,
+}: StepCardProps) {
   const reduceMotion = useReduceMotion();
   const noSteps = step.kind === "none";
+  const isFirstMove = step.kind === "first_move";
   const display = simplerText ?? stepText(step);
+  const showPosition = !noSteps && !isFirstMove && stepNumber != null && stepTotal != null && stepTotal > 0;
 
   return (
     <PulseScale trigger={celebrate} style={style}>
       <Animated.View entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}>
-        <View className="rounded-2xl bg-white border border-neutral-200 p-6">
-          <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
-            {noSteps ? "You're done" : stepKindLabel(step)}
-          </Text>
-          <Heading size="h1" className="mt-2">
+        <View
+          className={
+            bare
+              ? "w-full items-center"
+              : "rounded-2xl bg-white border border-neutral-200 p-6"
+          }
+        >
+          {isFirstMove && !noSteps && (
+            <Text
+              variant="overline"
+              className={`text-primary-600 ${bare ? "text-center" : ""}`}
+            >
+              First move
+            </Text>
+          )}
+          {showPosition && (
+            <Text
+              variant="captionMedium"
+              className={`text-neutral-600 ${bare ? "text-center" : ""}`}
+              style={tabularNums}
+            >
+              {`Step ${stepNumber} of ${stepTotal}`}
+            </Text>
+          )}
+          {noSteps && (
+            <Text
+              variant="overline"
+              className={`text-primary-600 ${bare ? "text-center" : ""}`}
+            >
+              You&apos;re done
+            </Text>
+          )}
+          <Heading
+            size={bare ? "h3" : "h1"}
+            className={`mt-2 ${bare ? "text-center" : ""}`}
+            numberOfLines={bare ? 3 : undefined}
+          >
             {noSteps ? "Every step is complete. Nicely done." : display}
           </Heading>
           {simplerText && !noSteps && (
-            <Text className="text-caption text-primary-600 mt-3">
-              Simplified — smaller and easier to just start.
+            <Text
+              variant="caption"
+              className={`text-primary-600 mt-3 ${bare ? "text-center" : ""}`}
+            >
+              Simplified, smaller and easier to just start.
             </Text>
           )}
         </View>

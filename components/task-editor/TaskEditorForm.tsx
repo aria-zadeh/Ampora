@@ -12,12 +12,15 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { Heading } from "@/components/ui/Heading";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StarterActionCard } from "@/components/ui/StarterActionCard";
 import { SkeletonLoader } from "@/components/ui/SkeletonLoader";
+import { Text as UIText } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
-import { colors, shadows } from "@/utils/design-tokens";
+import { colors, shadows, tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { newId } from "@/core/id";
@@ -65,6 +68,18 @@ export interface TaskEditorFormProps {
   onSubmit: (draft: Partial<Task>) => void;
   /** Called when the user cancels (X in the header handles this too). */
   onCancel?: () => void;
+  /**
+   * Stake row (D4 item 7), route-wrapper-owned. All three are optional and
+   * presentational only: the form never reads `stakesStore` itself, it just
+   * renders what the wrapper (which already owns `StakeSetupSheet`) hands it.
+   * Omitted entirely (create mode has no taskId to stake yet) means no stake
+   * card renders.
+   */
+  stakeSummary?: string | null;
+  /** Whether a stake config currently exists for this task (toggle's on/off visual). */
+  stakeOn?: boolean;
+  /** Opens the existing StakeSetupSheet flow already wired in the route wrapper. */
+  onOpenStake?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +107,10 @@ export function asTaskView(draft: Partial<Task>): Task {
   };
 }
 
-const COLOR_SWATCHES = [
+// Exported so other screens that render a stored swatch hex (e.g.
+// `app/task/[id].tsx`'s meta-chip tint) can resolve it back to a `listColors`
+// name by index instead of re-hardcoding these 8 hexes a second time.
+export const COLOR_SWATCHES = [
   "#2563EB",
   "#7C3AED",
   "#16A34A",
@@ -131,16 +149,21 @@ function Field({
 }
 
 /**
- * A grouped white section with header, soft shadow + border. Groups related
- * fields so the form reads as calm blocks rather than one long stream.
+ * A grouped section with header. `boxed` (default true) wraps the fields in
+ * a soft-shadow + border white card, for the form's ordinary editable
+ * groups. Pass `boxed={false}` for a section whose CHILDREN are already
+ * individually carded (e.g. Steps, doc design decision D4 item 4 / D5: "steps
+ * are quiet cards, not a boxed checklist group") so it isn't a card of cards.
  */
 function Section({
   title,
   index = 0,
+  boxed = true,
   children,
 }: {
   title?: string;
   index?: number;
+  boxed?: boolean;
   children: React.ReactNode;
 }) {
   const reduceMotion = useReduceMotion();
@@ -158,8 +181,8 @@ function Section({
         </Text>
       ) : null}
       <View
-        className="gap-5 rounded-2xl border border-neutral-200 bg-white p-5"
-        style={shadows.sm}
+        className={boxed ? "gap-5 rounded-2xl border border-neutral-200 bg-white p-5" : "gap-3"}
+        style={boxed ? shadows.sm : undefined}
       >
         {children}
       </View>
@@ -596,6 +619,9 @@ export function TaskEditorForm({
   initialDraft,
   taskId,
   onSubmit,
+  stakeSummary,
+  stakeOn,
+  onOpenStake,
 }: TaskEditorFormProps) {
   const isEdit = mode === "edit";
   const reduceMotion = useReduceMotion();
@@ -655,6 +681,15 @@ export function TaskEditorForm({
     () => taskLogic.sumEstimatedMin(subtasks),
     [subtasks]
   );
+  // Progress line (D4 item 5), same rollup semantics as taskLogic's
+  // computeDurationMin/computeProgressMin (subtasks override a manual
+  // duration when present), just read from the live state already tracked
+  // above rather than recomputed against the store.
+  const stepsTotalMin = hasSubtasks ? rollupDuration : draft.durationMin ?? 0;
+  const stepsProgress = hasSubtasks ? liveProgressMin / Math.max(stepsTotalMin, 1) : 0;
+  // "Make easier" secondary-row target: the first not-yet-done step, mirroring
+  // the per-step chips' own eligibility filter below.
+  const nextSimplifiableSubtask = subtasks.find((s) => !taskLogic.isSubtaskDone(s));
 
   // --- First move ---------------------------------------------------------
   const [firstMoveText, setFirstMoveText] = useState(
@@ -1090,8 +1125,11 @@ export function TaskEditorForm({
           ) : null}
         </Section>
 
-        {/* --- Steps ---------------------------------------------------- */}
-        <Section title="Steps" index={3}>
+        {/* --- Steps ------------------------------------------------------
+            Unboxed (D5: "steps are quiet cards, not a boxed checklist
+            group"). Each step is its own card (inside SubtaskChecklist),
+            not nested in a second bordered container. --------------------- */}
+        <Section title="Steps" index={3} boxed={false}>
           <SubtaskChecklist
             subtasks={subtasks}
             onAdd={addSubtask}
@@ -1149,9 +1187,62 @@ export function TaskEditorForm({
             </View>
           ) : null}
 
-          {/* AI: Refine — reshape the breakdown from a natural instruction. */}
+          {/* Progress line (D4 item 5): thin blue bar + "N / M min", the
+              same completed-minutes-over-total rollup shown above. */}
+          {hasSubtasks ? (
+            <View className="flex-row items-center gap-2 px-0.5">
+              <View className="flex-1">
+                <ProgressBar progress={stepsProgress} color="bg-primary-600" height={6} />
+              </View>
+              <UIText variant="captionMedium" className="text-neutral-600" style={tabularNums}>
+                {liveProgressMin} / {stepsTotalMin} min
+              </UIText>
+            </View>
+          ) : null}
+
+          {/* AI: Refine / Make easier, secondary row (D4 item 6), two equal
+              quiet buttons. Both wire to EXISTING handlers only. Refine opens
+              the same instruction panel as before (`showRefine`/
+              `handleRefine`, unchanged below). Make easier simplifies the
+              next not-done step via the same `handleSimplifySubtask` each
+              per-step chip above already calls, no new AI call. */}
           {hasBreakdownContent ? (
             <View className="gap-2">
+              <View className="flex-row gap-2.5">
+                <PressableScale
+                  onPress={() => setShowRefine(true)}
+                  haptic="light"
+                  className="h-[46px] flex-1 items-center justify-center rounded-md bg-neutral-100"
+                  accessibilityRole="button"
+                  accessibilityLabel="Refine the steps with an instruction"
+                >
+                  <UIText variant="captionMedium" className="text-neutral-900">
+                    Refine
+                  </UIText>
+                </PressableScale>
+                <PressableScale
+                  onPress={() =>
+                    nextSimplifiableSubtask && handleSimplifySubtask(nextSimplifiableSubtask.id)
+                  }
+                  haptic={nextSimplifiableSubtask ? "selection" : false}
+                  disabled={!nextSimplifiableSubtask || simplifyingId != null}
+                  className="h-[46px] flex-1 items-center justify-center rounded-md bg-neutral-100"
+                  style={!nextSimplifiableSubtask || simplifyingId != null ? { opacity: 0.5 } : undefined}
+                  accessibilityRole="button"
+                  accessibilityLabel="Make the next step easier"
+                  accessibilityState={{
+                    disabled: !nextSimplifiableSubtask || simplifyingId != null,
+                    busy: !!nextSimplifiableSubtask && simplifyingId === nextSimplifiableSubtask.id,
+                  }}
+                >
+                  <UIText variant="captionMedium" className="text-neutral-900">
+                    {nextSimplifiableSubtask && simplifyingId === nextSimplifiableSubtask.id
+                      ? "Simplifying…"
+                      : "Make easier"}
+                  </UIText>
+                </PressableScale>
+              </View>
+
               {showRefine ? (
                 <Animated.View
                   entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
@@ -1191,21 +1282,7 @@ export function TaskEditorForm({
                     />
                   </View>
                 </Animated.View>
-              ) : (
-                <PressableScale
-                  onPress={() => setShowRefine(true)}
-                  haptic="light"
-                  className="flex-row items-center justify-center gap-2 rounded-md border border-neutral-200 bg-white py-3"
-                  style={shadows.xs}
-                  accessibilityRole="button"
-                  accessibilityLabel="Refine the steps with an instruction"
-                >
-                  <Ionicons name="color-wand-outline" size={16} color={colors.light.primary} />
-                  <Text className="text-label font-medium text-primary-600">
-                    Refine with an instruction
-                  </Text>
-                </PressableScale>
-              )}
+              ) : null}
             </View>
           ) : null}
         </Section>
@@ -1536,6 +1613,39 @@ export function TaskEditorForm({
             </View>
           </Field>
         </MoreOptionsSection>
+
+        {/* Stake row (D4 item 7): replaces the old "Put something on the
+            line" banner that used to live in the route wrapper's action bar.
+            Presentational only: the wrapper reads stakesStore and computes
+            stakeSummary/stakeOn, and owns the actual StakeSetupSheet +
+            onOpenStake handler. This just renders what it's given. Hidden
+            once the task is done, matching the old banner's own gate. */}
+        {onOpenStake && draft.status !== "done" ? (
+          <Card
+            onPress={onOpenStake}
+            accessibilityLabel="Put something on the line"
+            accessibilityHint={
+              stakeSummary
+                ? `${stakeSummary}. Opens the lock setup.`
+                : "Lock your apps for a focus session on this task"
+            }
+          >
+            <View className="flex-row items-center justify-between gap-3">
+              <UIText variant="bodyMedium" className="text-neutral-900">
+                Put something on the line
+              </UIText>
+              {/* Visual indicator only. pointerEvents="none" lets the tap
+                  fall through to the Card's own onPress above, so the row
+                  and the toggle both do the exact same thing (D4 item 7). */}
+              <View pointerEvents="none">
+                <Toggle value={!!stakeOn} onChange={() => {}} a11yLabel="Stake toggle" />
+              </View>
+            </View>
+            <UIText variant="caption" className="mt-1.5 text-neutral-600">
+              {stakeSummary ?? "Lock your apps for a focus session"}
+            </UIText>
+          </Card>
+        ) : null}
       </ScrollView>
 
       {/* Sticky Save bar — single primary action, disabled when title empty */}
