@@ -19,6 +19,14 @@
  *
  * RN + NativeWind, web-export safe. No native module imported. Reuses the
  * design system (Heading, Button, PressableScale) and tokens.
+ *
+ * Color: no hardcoded literals. Surfaces/borders/text carry `dark:` variants
+ * from the cheatsheet atop `utils/design-tokens.ts`; the Ionicons `color`
+ * props (which cannot take a class) resolve through `useThemeColors()` so
+ * they track the active scheme. The pastel tint pairs (`bg-*-100` bubbles,
+ * the `bg-primary-50` selected row, the `bg-warning-100` refusal note) are
+ * self-contained audited pairs (doc 02 section 14.6) and deliberately carry
+ * no `dark:` variant.
  */
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -30,9 +38,10 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
-import { colors, shadows } from "@/utils/design-tokens";
+import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useStakesStore, isLockable } from "@/store/stakesStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import type { StakeApp, StakeSelection } from "@/types";
@@ -49,23 +58,42 @@ interface CatalogApp {
   label: string;
   token: string;
   icon: keyof typeof Ionicons.glyphMap;
-  tint: string;
+  /**
+   * Semantic token NAME for the glyph, resolved through `useThemeColors()` at
+   * render rather than stored as a hex. The semantic accents are identical in
+   * both themes (doc 02 section 14.1), but `text` is not: a neutral chip has
+   * to flip from ink to near-white or its glyph disappears on a dark bubble.
+   * Every entry reads from the same place instead of half the list being a
+   * literal and half a token.
+   */
+  tint: "text" | "primary" | "accentStrong" | "dangerStrong" | "warningAccent" | "successAccent";
   tintBg: string;
 }
 
+/**
+ * Four entries used to carry an approximated BRAND hex that sits on no step of
+ * any ramp: Instagram `#C13584`, Snapchat `#CA8A04`, Discord `#6366F1`, and
+ * web browsing `#0891B2`. Snapchat moves onto the warning ramp its own
+ * `bg-warning-100` bubble already belongs to. The other three go neutral (like
+ * TikTok and X already were) rather than borrowing a semantic color: blue is
+ * this very sheet's SELECTED state, so painting unselected rows blue would
+ * blur the one distinction the list has to make, and neither purple (Projects
+ * only) nor green (terminal only) is free to take either. The eight remaining
+ * tints are the exact same values as before, just named.
+ */
 const CATALOG: CatalogApp[] = [
-  { key: "instagram", label: "Instagram", token: "com.burbn.instagram", icon: "logo-instagram", tint: "#C13584", tintBg: "bg-accent-100" },
-  { key: "tiktok", label: "TikTok", token: "com.zhiliaoapp.musically", icon: "musical-notes", tint: "#1C1917", tintBg: "bg-neutral-100" },
-  { key: "youtube", label: "YouTube", token: "com.google.ios.youtube", icon: "logo-youtube", tint: "#DC2626", tintBg: "bg-danger-100" },
-  { key: "x", label: "X (Twitter)", token: "com.atebits.Tweetie2", icon: "logo-twitter", tint: "#1C1917", tintBg: "bg-neutral-100" },
-  { key: "snapchat", label: "Snapchat", token: "com.toyopagroup.picaboo", icon: "logo-snapchat", tint: "#CA8A04", tintBg: "bg-warning-100" },
-  { key: "reddit", label: "Reddit", token: "com.reddit.Reddit", icon: "logo-reddit", tint: "#EA580C", tintBg: "bg-warning-100" },
-  { key: "facebook", label: "Facebook", token: "com.facebook.Facebook", icon: "logo-facebook", tint: "#2563EB", tintBg: "bg-primary-100" },
-  { key: "twitch", label: "Twitch", token: "tv.twitch", icon: "logo-twitch", tint: "#7C3AED", tintBg: "bg-accent-100" },
-  { key: "discord", label: "Discord", token: "com.hammerandchisel.discord", icon: "logo-discord", tint: "#6366F1", tintBg: "bg-primary-100" },
-  { key: "netflix", label: "Netflix", token: "com.netflix.Netflix", icon: "film-outline", tint: "#DC2626", tintBg: "bg-danger-100" },
-  { key: "games", label: "Games", token: "group.games.leisure", icon: "game-controller", tint: "#16A34A", tintBg: "bg-success-100" },
-  { key: "browser_fun", label: "Web browsing", token: "group.web.leisure", icon: "globe-outline", tint: "#0891B2", tintBg: "bg-primary-100" },
+  { key: "instagram", label: "Instagram", token: "com.burbn.instagram", icon: "logo-instagram", tint: "text", tintBg: "bg-neutral-100 dark:bg-neutral-800" },
+  { key: "tiktok", label: "TikTok", token: "com.zhiliaoapp.musically", icon: "musical-notes", tint: "text", tintBg: "bg-neutral-100 dark:bg-neutral-800" },
+  { key: "youtube", label: "YouTube", token: "com.google.ios.youtube", icon: "logo-youtube", tint: "dangerStrong", tintBg: "bg-danger-100" },
+  { key: "x", label: "X (Twitter)", token: "com.atebits.Tweetie2", icon: "logo-twitter", tint: "text", tintBg: "bg-neutral-100 dark:bg-neutral-800" },
+  { key: "snapchat", label: "Snapchat", token: "com.toyopagroup.picaboo", icon: "logo-snapchat", tint: "warningAccent", tintBg: "bg-warning-100" },
+  { key: "reddit", label: "Reddit", token: "com.reddit.Reddit", icon: "logo-reddit", tint: "warningAccent", tintBg: "bg-warning-100" },
+  { key: "facebook", label: "Facebook", token: "com.facebook.Facebook", icon: "logo-facebook", tint: "primary", tintBg: "bg-primary-100" },
+  { key: "twitch", label: "Twitch", token: "tv.twitch", icon: "logo-twitch", tint: "accentStrong", tintBg: "bg-accent-100" },
+  { key: "discord", label: "Discord", token: "com.hammerandchisel.discord", icon: "logo-discord", tint: "text", tintBg: "bg-neutral-100 dark:bg-neutral-800" },
+  { key: "netflix", label: "Netflix", token: "com.netflix.Netflix", icon: "film-outline", tint: "dangerStrong", tintBg: "bg-danger-100" },
+  { key: "games", label: "Games", token: "group.games.leisure", icon: "game-controller", tint: "successAccent", tintBg: "bg-success-100" },
+  { key: "browser_fun", label: "Web browsing", token: "group.web.leisure", icon: "globe-outline", tint: "text", tintBg: "bg-neutral-100 dark:bg-neutral-800" },
 ];
 
 /** Which `platform` value to stamp on chosen StakeApps for this device. */
@@ -107,6 +135,7 @@ export interface AppPickerProps {
  */
 export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const storedApps = useStakesStore((s) => s.apps);
   const setApps = useStakesStore((s) => s.setApps);
   const setSelection = useStakesStore((s) => s.setSelection);
@@ -231,43 +260,47 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
+              className="rounded-t-3xl bg-neutral-100 dark:bg-neutral-950"
               style={shadows.xl}
             >
               <SafeAreaView edges={["bottom"]}>
                 {/* Grabber */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1.5 w-10 rounded-full bg-neutral-300 dark:bg-neutral-700" />
                 </View>
 
                 {/* Header */}
                 <View className="flex-row items-start justify-between px-5 pt-3">
                   <View className="flex-1 pr-3">
-                    <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+                    {/* Accent TEXT on the sheet's neutral canvas, not a fill:
+                        `primary-600` is only 3.82:1 on `neutral-950`, so it
+                        steps to the 400 (7.77:1) on dark, per the accent block
+                        in the `utils/design-tokens.ts` cheatsheet. */}
+                    <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
                       What&apos;s on the line
                     </Text>
                     <Heading size="h3" className="mt-1">
                       Choose apps to lock
                     </Heading>
-                    <Text className="mt-1 text-caption text-neutral-500">
+                    <Text className="mt-1 text-caption text-neutral-500 dark:text-[#78716C]">
                       Pick the apps that pull you away. They go behind your task while a stake is on.
                     </Text>
                   </View>
                   <Pressable
                     onPress={onClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                    className="h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-neutral-900"
                     style={shadows.xs}
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color={colors.light.textSecondary} />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
                 {/* Select-all / clear row */}
                 <View className="flex-row items-center justify-between px-5 pt-3">
-                  <Text className="text-caption font-medium text-neutral-500">
+                  <Text className="text-caption font-medium text-neutral-500 dark:text-[#78716C]">
                     {selectedCount > 0
                       ? `${selectedCount} on the line`
                       : "Nothing selected yet"}
@@ -279,7 +312,10 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                       accessibilityRole="button"
                       accessibilityLabel="Select all apps"
                     >
-                      <Text className="text-label font-medium text-primary-600">Select all</Text>
+                      {/* Same accent-text-on-neutral case as the overline. */}
+                      <Text className="text-label font-medium text-primary-600 dark:text-primary-400">
+                        Select all
+                      </Text>
                     </Pressable>
                     <Pressable
                       onPress={clearAll}
@@ -290,7 +326,9 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                     >
                       <Text
                         className={`text-label font-medium ${
-                          selectedCount === 0 ? "text-neutral-300" : "text-neutral-500"
+                          selectedCount === 0
+                            ? "text-neutral-300 dark:text-neutral-700"
+                            : "text-neutral-500 dark:text-[#78716C]"
                         }`}
                       >
                         Clear
@@ -311,7 +349,9 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                         key={app.key}
                         onPress={() => toggle(app.key)}
                         className={`flex-row items-center gap-3 rounded-xl border p-3.5 ${
-                          isSel ? "border-primary-500 bg-primary-50" : "border-neutral-200 bg-white"
+                          isSel
+                            ? "border-primary-500 bg-primary-50"
+                            : "border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
                         }`}
                         style={isSel ? undefined : shadows.xs}
                         accessibilityRole="checkbox"
@@ -322,28 +362,32 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                         <View
                           className={`h-10 w-10 items-center justify-center rounded-full ${app.tintBg}`}
                         >
-                          <Ionicons name={app.icon} size={20} color={app.tint} />
+                          <Ionicons name={app.icon} size={20} color={theme[app.tint]} />
                         </View>
                         <Text
                           className={`flex-1 text-body-lg font-medium ${
-                            isSel ? "text-primary-700" : "text-neutral-900"
+                            isSel ? "text-primary-700" : "text-neutral-900 dark:text-neutral-50"
                           }`}
                         >
                           {app.label}
                         </Text>
+                        {/* The empty circle is deliberately quiet (1.49:1 light,
+                            1.70:1 dark) and always was. Checked state is also
+                            carried by the row fill, border, label color and
+                            `accessibilityState`, so it is never color alone. */}
                         <Ionicons
                           name={isSel ? "checkmark-circle" : "ellipse-outline"}
                           size={22}
-                          color={isSel ? colors.light.primary : colors.light.borderStrong}
+                          color={isSel ? theme.primary : theme.borderStrong}
                         />
                       </Pressable>
                     );
                   })}
 
                   {/* Platform note — set expectations honestly. */}
-                  <View className="mt-2 flex-row items-start gap-2.5 rounded-xl bg-neutral-100 p-3.5">
-                    <Ionicons name="phone-portrait-outline" size={16} color={colors.light.textMuted} />
-                    <Text className="flex-1 text-caption text-neutral-500">
+                  <View className="mt-2 flex-row items-start gap-2.5 rounded-xl bg-neutral-100 p-3.5 dark:bg-neutral-950">
+                    <Ionicons name="phone-portrait-outline" size={16} color={theme.textMuted} />
+                    <Text className="flex-1 text-caption text-neutral-500 dark:text-[#78716C]">
                       On iPhone, you&apos;ll pick the real apps with Apple&apos;s Screen Time picker once app
                       locking is enabled. This list is a preview of what that feels like.
                     </Text>
@@ -351,13 +395,16 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                 </ScrollView>
 
                 {/* Footer */}
-                <View className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3" style={shadows.md}>
+                <View
+                  className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3 dark:border-neutral-800 dark:bg-neutral-900"
+                  style={shadows.md}
+                >
                   {refusalNote ? (
                     <View
                       className="mb-3 flex-row items-start gap-2 rounded-lg bg-warning-100 px-3 py-2.5"
                       accessibilityRole="alert"
                     >
-                      <Ionicons name="information-circle-outline" size={16} color={colors.light.warningStrong} />
+                      <Ionicons name="information-circle-outline" size={16} color={theme.warningStrong} />
                       <Text className="flex-1 text-caption font-medium text-warning-700">{refusalNote}</Text>
                     </View>
                   ) : null}
@@ -374,7 +421,9 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                     accessibilityRole="button"
                     accessibilityLabel="Cancel"
                   >
-                    <Text className="text-label font-medium text-neutral-500">Cancel</Text>
+                    <Text className="text-label font-medium text-neutral-500 dark:text-[#78716C]">
+                      Cancel
+                    </Text>
                   </Pressable>
                 </View>
               </SafeAreaView>

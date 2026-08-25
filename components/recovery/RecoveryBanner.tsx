@@ -16,6 +16,23 @@
  * RecoverySheet it opens. Drop it near the top of a screen's scroll content and
  * it renders nothing until there's actually a lapse. Reduce-motion aware. RN +
  * NativeWind, web-export safe.
+ *
+ * Color: the whole banner is one audited primary tint pair (`bg-primary-50`
+ * behind `text-primary-900`, doc 02 section 14.6), which is unchanged between
+ * schemes and so carries no `dark:` variant, same as the tinted pills in
+ * `components/settings/StakesSettings.tsx`. There is deliberately no dark
+ * primary tint token to swap in (`colors.dark` has `successLight`/
+ * `warningLight`/`dangerLight`/`accentLight` but no `primaryLight` surface),
+ * and inventing one here would be a new color decision, not a conversion. The
+ * Ionicons `color` props cannot take a class, so they resolve through
+ * `useThemeColors()`.
+ *
+ * That is why `text-primary-600` and `text-primary-900` here take no
+ * `dark:text-primary-400` step, unlike accent text elsewhere: the cheatsheet's
+ * accent rule is about accent text on a NEUTRAL surface, whose contrast moves
+ * with the scheme. Every label in this banner sits on the tint instead, which
+ * does not move, so stepping them lighter would break an audited pair rather
+ * than rescue one.
  */
 
 import React, { useMemo, useState } from 'react'
@@ -29,12 +46,14 @@ import { RecoverySheet } from '@/components/recovery/RecoverySheet'
 import { shadows } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { useRecoveryStore, selectShowRecoveryBanner } from '@/store/recoveryStore'
 import { useScheduleStore, selectAllBlocks } from '@/store/scheduleStore'
 import { countMissedBlocks } from '@/core/recovery'
 
 export function RecoveryBanner() {
   const reduceMotion = useReduceMotion()
+  const theme = useThemeColors()
 
   const show = useRecoveryStore(selectShowRecoveryBanner)
   const dismissBanner = useRecoveryStore((s) => s.dismissBanner)
@@ -60,7 +79,7 @@ export function RecoveryBanner() {
       >
         <View className="flex-row items-start gap-3">
           <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-100">
-            <Ionicons name="refresh-outline" size={18} color="#2563EB" />
+            <Ionicons name="refresh-outline" size={18} color={theme.primary} />
           </View>
           <View className="flex-1">
             <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
@@ -74,7 +93,12 @@ export function RecoveryBanner() {
             </Text>
           </View>
 
-          {/* Quiet dismiss — always available, never demands engagement. */}
+          {/* Quiet dismiss — always available, never demands engagement.
+              Quiet by placement and size, not by fading out: the glyph used to
+              be `primary-400`, which is the step doc 02 section 1.8 reserves
+              for DARK surfaces and lands at 2.34:1 on this `primary-50` tint,
+              under the 3:1 graphical-object bar. `primary` is the same family
+              at 4.75:1. */}
           <Pressable
             onPress={dismissBanner}
             hitSlop={10}
@@ -82,7 +106,7 @@ export function RecoveryBanner() {
             accessibilityLabel="Dismiss"
             className="active:opacity-60"
           >
-            <Ionicons name="close" size={18} color="#60A5FA" />
+            <Ionicons name="close" size={18} color={theme.primary} />
           </Pressable>
         </View>
 
@@ -96,7 +120,9 @@ export function RecoveryBanner() {
             accessibilityLabel="Catch me up"
             accessibilityHint="Opens a preview of a rebuilt plan"
           >
-            <Ionicons name="sparkles-outline" size={16} color="#FFFFFF" />
+            {/* On a `primary-600` fill, which is unchanged between schemes, so
+                the label color is fixed alongside it. */}
+            <Ionicons name="sparkles-outline" size={16} color={theme.primaryForeground} />
             <Text className="text-label font-semibold text-white">Catch me up</Text>
           </PressableScale>
         </View>

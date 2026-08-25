@@ -459,6 +459,41 @@ export const listColors = {
   slate: { bg: "#ECEAE6", text: "#52525B", bar: "#A8A29A" },
 } as const;
 
+/**
+ * The eight swatches a user picks from when colouring a List or a Tag.
+ *
+ * ONE array, shared, because this palette is written by one picker and read
+ * back by another: `List.color` persists the chosen hex, and every picker
+ * draws its "selected" ring by matching a swatch against that stored value.
+ * The palette lived independently in three files
+ * (`components/settings/ListEditorModal.tsx`,
+ * `components/task-editor/ListTagPicker.tsx`,
+ * `components/task-editor/TaskEditorForm.tsx`), and the moment two of them
+ * disagreed on a single entry, a list saved in one picker showed no selection
+ * in the others. Nothing corrupts and nothing gets rewritten, the ring simply
+ * never lights up, which is exactly the kind of bug that survives review.
+ *
+ * These are LIGHT-mode values on purpose, and must not resolve through
+ * `useThemeColors()`. The value is persisted and matched by equality, so it
+ * cannot be allowed to move with the colour scheme or every previously saved
+ * list would stop matching the moment the user switched theme.
+ *
+ * Six come from the semantic ramps. Teal and pink come from `listColors`
+ * (doc 02 §14.3), which exists precisely for list/tag identity colours and
+ * carries steps the semantic ramps have no equivalent for. White-on-swatch
+ * measures 6.14:1 and 6.77:1 respectively.
+ */
+export const LIST_COLOR_SWATCHES = [
+  colors.light.primary,
+  colors.light.accentStrong,
+  colors.light.successAccent,
+  colors.light.warningAccent,
+  colors.light.dangerStrong,
+  listColors.teal.text,
+  listColors.pink.text,
+  colors.light.textSecondary,
+] as const;
+
 export type ListColorName = keyof typeof listColors;
 
 /** Tabular (monospaced-width) numerals so digit columns don't jitter — timers, counters. */
