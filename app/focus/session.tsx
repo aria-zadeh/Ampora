@@ -596,7 +596,10 @@ export default function FocusSessionScreen() {
   // ---------------------------------------------------------------------------
 
   const missing = !taskId || !task;
-  const noSteps = step.kind === "none";
+  // Both "all steps done" and "never had a step" mean there is nothing to mark
+  // done, so the primary reads "Finish" either way. Only StepCard distinguishes
+  // them, because only StepCard congratulates (core/task-logic `NextStep`).
+  const noSteps = step.kind === "none" || step.kind === "empty";
   const doneEarly = task != null && isTaskComplete(task) && ownStake?.hold === "session";
   const enter = reduceMotion ? undefined : FadeIn.duration(DURATIONS.slow);
 

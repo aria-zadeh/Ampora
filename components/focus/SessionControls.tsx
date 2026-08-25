@@ -61,7 +61,18 @@ export function SessionControls({
         <Text variant="h4" className="ml-2 text-white">{noSteps ? "Finish" : "Done"}</Text>
       </PressableScale>
 
-      {/* Three equal quiet pills, one row, text-only. */}
+      {/* Two quiet pills, then the overwhelm valve on its own full-width row.
+          This was one row of three equal pills (DECISION_SPEC D4 item 6). It
+          could not hold the copy: at 390pt each pill is 99pt wide, and
+          "I'm overwhelmed" measures 113pt, "Overwhelmed" 90pt against an
+          87pt content box, so the label wrapped and broke mid-word
+          ("Overwhelme / d"). Shaving padding bought single-digit points of
+          slack and still died at any larger Dynamic Type setting.
+          Giving it a row restores the exact FR-61 phrase, survives text
+          scaling, and matches the valve's actual standing: it is the wellbeing
+          exit, not a third tertiary. Still quiet and text-only, so the "one
+          primary action per screen" rule is untouched. Logged in
+          `docs/09_Decisions.md`. */}
       <View className="mt-4 flex-row gap-2">
         <QuietPill
           label="I'm stuck"
@@ -71,6 +82,8 @@ export function SessionControls({
           disabled={simplifying || noSteps}
         />
         <QuietPill label="Take a break" onPress={onBreak} />
+      </View>
+      <View className="mt-2 flex-row">
         <QuietPill label="I'm overwhelmed" onPress={onOverwhelmed} />
       </View>
     </View>
@@ -83,12 +96,15 @@ export function SessionControls({
 
 function QuietPill({
   label,
+  a11yLabel,
   busyLabel,
   busy = false,
   onPress,
   disabled = false,
 }: {
   label: string;
+  /** Announced instead of `label` when the visible text is an abbreviation. */
+  a11yLabel?: string;
   busyLabel?: string;
   busy?: boolean;
   onPress: () => void;
@@ -103,7 +119,7 @@ function QuietPill({
         disabled ? "opacity-50" : ""
       }`}
       accessibilityRole="button"
-      accessibilityLabel={busy && busyLabel ? busyLabel : label}
+      accessibilityLabel={busy && busyLabel ? busyLabel : (a11yLabel ?? label)}
       accessibilityState={{ disabled, busy }}
     >
       <Text

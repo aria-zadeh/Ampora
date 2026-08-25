@@ -75,12 +75,23 @@ export function withSyncedRollups(task: Task): Task {
 export type NextStep =
   | { kind: 'first_move'; action: StarterAction }
   | { kind: 'subtask'; subtask: Subtask }
+  /** The task HAD steps and every one of them is finished. Earned completion. */
   | { kind: 'none' }
+  /**
+   * The task has no First move and no subtasks at all, so there was never
+   * anything to finish. Distinct from `none` on purpose: collapsing the two
+   * made a brand-new session on an un-broken-down task announce "Every step is
+   * complete. Nicely done." with the full timer still running. Callers that
+   * only care "is there a step to mark done" should treat both the same, but
+   * anything that CONGRATULATES the user must branch on this.
+   */
+  | { kind: 'empty' }
 
 /**
  * The single "current step" a task exposes at any moment (doc 07 Part 3.4):
  * the First move if it exists and isn't done yet, else the first
- * uncompleted subtask (in array order), else none.
+ * uncompleted subtask (in array order), else `none` if steps existed and are
+ * all done, else `empty` if the task never had a step in the first place.
  */
 export function nextStep(task: Task): NextStep {
   if (task.firstMove && !task.firstMove.done) {
@@ -88,7 +99,8 @@ export function nextStep(task: Task): NextStep {
   }
   const nextSubtask = task.subtasks.find((s) => !isSubtaskDone(s))
   if (nextSubtask) return { kind: 'subtask', subtask: nextSubtask }
-  return { kind: 'none' }
+  const everHadAStep = task.firstMove != null || task.subtasks.length > 0
+  return everHadAStep ? { kind: 'none' } : { kind: 'empty' }
 }
 
 // ---------------------------------------------------------------------------

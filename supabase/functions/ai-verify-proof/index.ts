@@ -10,7 +10,7 @@
  * CLEARLY unrelated, and the client treats anything other than an explicit
  * "uncertain" (including no_key, network failure, or any ambiguity) as "pass".
  *
- * Returns 200 { error: "no_key" } when GEMINI_API_KEY is unset so the client
+ * Returns 200 { error: "no_key" } when ANTHROPIC_API_KEY is unset so the client
  * falls back to "pass" locally. Note: proof images live on-device; this text
  * check reasons over the task title plus any caption/note the client provides
  * (it does not upload image bytes). It exists so the pipeline is READY-FOR-KEY;
@@ -18,14 +18,14 @@
  */
 
 import {
-  callGemini,
+  callClaude,
   extractJson,
   getApiKey,
   handlePreflight,
   jsonResponse,
   noKeyResponse,
   readBody,
-} from "../_shared/gemini.ts";
+} from "../_shared/claude.ts";
 
 const SYSTEM = `You are a LENIENT plausibility checker for task-completion proof in Ampora, an app for students who procrastinate and people with ADHD.
 You are shown a task title and a short description of the proof the user attached (a photo/screenshot caption, a note, or a filename). You do NOT grade quality.
@@ -64,12 +64,7 @@ Deno.serve(async (req: Request) => {
     const user = `TASK: ${taskTitle}
 PROOF DESCRIPTION: ${note || fileHint || "an attached image (no caption)"}`;
 
-    const text = await callGemini(apiKey, {
-      system: SYSTEM,
-      user,
-      maxTokens: 64,
-      temperature: 0.1,
-    });
+    const text = await callClaude(apiKey, { system: SYSTEM, user });
     const raw = extractJson<{ verdict?: string }>(text);
     // Only an explicit "uncertain" is surfaced; everything else is "pass".
     const verdict = raw.verdict === "uncertain" ? "uncertain" : "pass";

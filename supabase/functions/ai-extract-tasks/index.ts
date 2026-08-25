@@ -10,14 +10,14 @@
  */
 
 import {
-  callGemini,
+  callClaude,
   extractJson,
   getApiKey,
   handlePreflight,
   jsonResponse,
   noKeyResponse,
   readBody,
-} from "../_shared/gemini.ts";
+} from "../_shared/claude.ts";
 
 const SYSTEM = `You extract discrete, actionable tasks from free-form text (a syllabus, an email, a brain dump).
 Rules:
@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
 TEXT:
 ${text}`;
 
-    const out = await callGemini(apiKey, { system: SYSTEM, user, maxTokens: 1500 });
+    const out = await callClaude(apiKey, { system: SYSTEM, user });
     const raw = extractJson<{ tasks?: unknown[] } | unknown[]>(out);
     const list: unknown[] = Array.isArray(raw)
       ? raw

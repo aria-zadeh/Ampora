@@ -77,7 +77,12 @@ export function StepCard({
   bare = false,
 }: StepCardProps) {
   const reduceMotion = useReduceMotion();
-  const noSteps = step.kind === "none";
+  /** Steps existed and are all finished. The only state that congratulates. */
+  const allDone = step.kind === "none";
+  /** The task never had a step. Nothing was achieved, so nothing is praised. */
+  const noStepsYet = step.kind === "empty";
+  /** Either way there is no step to render, so the step chrome is suppressed. */
+  const noSteps = allDone || noStepsYet;
   const isFirstMove = step.kind === "first_move";
   const display = simplerText ?? stepText(step);
   const showPosition = !noSteps && !isFirstMove && stepNumber != null && stepTotal != null && stepTotal > 0;
@@ -112,9 +117,9 @@ export function StepCard({
           {noSteps && (
             <Text
               variant="overline"
-              className={`text-primary-600 ${bare ? "text-center" : ""}`}
+              className={`${allDone ? "text-primary-600" : "text-neutral-500"} ${bare ? "text-center" : ""}`}
             >
-              You&apos;re done
+              {allDone ? "You're done" : "This session"}
             </Text>
           )}
           <Heading
@@ -122,7 +127,11 @@ export function StepCard({
             className={`mt-2 ${bare ? "text-center" : ""}`}
             numberOfLines={bare ? 3 : undefined}
           >
-            {noSteps ? "Every step is complete. Nicely done." : display}
+            {allDone
+              ? "Every step is complete. Nicely done."
+              : noStepsYet
+                ? "No steps on this one. Just start."
+                : display}
           </Heading>
           {simplerText && !noSteps && (
             <Text

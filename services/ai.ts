@@ -2,10 +2,10 @@
  * AI client — Ampora Phase 4.
  *
  * Thin, defensive client over four Supabase Edge Functions (ai-breakdown,
- * ai-simplify, ai-refine, ai-extract-tasks). AI is Google Gemini
- * (`gemini-2.5-flash`) behind those functions; the key lives server-side, never
+ * ai-simplify, ai-refine, ai-extract-tasks). AI is Anthropic Claude
+ * (`claude-opus-5`) behind those functions; the key lives server-side, never
  * in the client. Every function has a LOCAL FALLBACK so the whole feature set
- * works with no `GEMINI_API_KEY` set and never throws to the UI. The edge
+ * works with no `ANTHROPIC_API_KEY` set and never throws to the UI. The edge
  * functions themselves return 200 with `{ error: "no_key" }` when the key is
  * missing, so the "no key" path and the "network failed" path funnel into the
  * same graceful fallback here.

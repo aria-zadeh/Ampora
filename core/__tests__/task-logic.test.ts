@@ -110,6 +110,25 @@ describe('task-logic: next-step surfacing (doc 07 Part 3.4)', () => {
     const task = makeTask({ firstMove: { id: 'fm', text: 'x', done: true }, subtasks: [] })
     expect(nextStep(task).kind).toBe('none')
   })
+
+  it('returns "none" when there is no First move but every subtask is done', () => {
+    const task = makeTask({ firstMove: undefined, subtasks: [sub({ completedAt: now }), sub({ completedAt: now })] })
+    expect(nextStep(task).kind).toBe('none')
+  })
+
+  it('returns "empty", NOT "none", when the task never had a step at all', () => {
+    // Regression: collapsing this into "none" made a fresh focus session on an
+    // un-broken-down task announce "Every step is complete. Nicely done." with
+    // the whole timer still to run. Earned completion and nothing-to-do are
+    // different states and the UI congratulates only the first.
+    const task = makeTask({ firstMove: undefined, subtasks: [] })
+    expect(nextStep(task).kind).toBe('empty')
+  })
+
+  it('an undone First move still wins over the empty case', () => {
+    const task = makeTask({ firstMove: { id: 'fm', text: 'Open the doc', done: false }, subtasks: [] })
+    expect(nextStep(task).kind).toBe('first_move')
+  })
 })
 
 describe('task-logic: completion (doc 07 Part 3.5)', () => {

@@ -11,14 +11,14 @@
  */
 
 import {
-  callGemini,
+  callClaude,
   extractJson,
   getApiKey,
   handlePreflight,
   jsonResponse,
   noKeyResponse,
   readBody,
-} from "../_shared/gemini.ts";
+} from "../_shared/claude.ts";
 
 const SYSTEM = `You revise an existing task breakdown according to the user's instruction.
 Keep it an ordered checklist they can actually start. Hard rules:
@@ -54,7 +54,7 @@ PREV: ${JSON.stringify({ firstMove: prev.firstMove ?? "", subtasks: prev.subtask
 INSTRUCTION: ${instruction || "improve this breakdown"}
 SOURCE: ${source}`;
 
-    const text = await callGemini(apiKey, { system: SYSTEM, user, maxTokens: 1024 });
+    const text = await callClaude(apiKey, { system: SYSTEM, user });
     const raw = extractJson<{
       firstMove?: { text?: string; estimatedMin?: number };
       subtasks?: { title?: string; estimatedMin?: number }[];
