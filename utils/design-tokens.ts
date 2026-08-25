@@ -108,6 +108,27 @@ export const colors = {
 } as const;
 
 /**
+ * Third-party BRAND marks. Deliberately separate from `colors` above, and
+ * deliberately not theme-aware.
+ *
+ * These are not design decisions this project gets to make: a "Sign in with
+ * Google" button has to carry Google's own blue to satisfy Google's branding
+ * guidelines, and no step of the Stone/blue ramp is a legal substitute for it.
+ * Putting them here rather than inline in `app/auth.tsx` means the
+ * never-hardcode-a-colour rule stays absolute at every call site, with the one
+ * legitimate exception named, explained and greppable in exactly one place.
+ *
+ * They must NOT gain a `dark:` variant or be swapped for a token. A brand mark
+ * that changes colour with the app theme is the bug, not the fix. Contrast
+ * against the surface behind them is handled by the surface, not by altering
+ * the mark.
+ */
+export const brand = {
+  /** Google's logo blue, for the Sign in with Google mark only. */
+  google: "#4285F4",
+} as const;
+
+/**
  * NativeWind `dark:` class mapping cheatsheet. NativeWind's `useColorScheme`
  * (from "nativewind", never "react-native") drives Tailwind's `dark:`
  * variant app-wide (`tailwind.config.js` `darkMode: "class"`); this table is
