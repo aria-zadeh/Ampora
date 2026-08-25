@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useShallow } from "zustand/react/shallow";
 import { useTaskStore } from "@/store/taskStore";
 import { useScheduleStore, selectAllCalEvents } from "@/store/scheduleStore";
@@ -74,6 +75,10 @@ export interface UnschedulableFixSheetProps {
  * the second run a no-op).
  */
 export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixSheetProps) {
+  // Only for the two Ionicons `color` props below, which take a literal
+  // rather than a class. Both values (warningStrong, primary) are identical
+  // in light and dark, so neither needs a `dark:` variant.
+  const theme = useThemeColors();
   const updateTask = useTaskStore((s) => s.updateTask);
   const completeTask = useTaskStore((s) => s.completeTask);
   const recompute = useScheduleStore((s) => s.recompute);
@@ -236,23 +241,26 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
       >
-        <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+        <Pressable className="bg-white rounded-t-2xl p-5 pb-8 dark:bg-neutral-900" onPress={(e) => e.stopPropagation()}>
           <View className="items-center mb-4">
-            <View className="w-10 h-1 rounded-full bg-neutral-200" />
+            <View className="w-10 h-1 rounded-full bg-neutral-200 dark:bg-neutral-800" />
           </View>
 
           <View className="flex-row items-center gap-2">
-            <Ionicons name="alert-circle-outline" size={18} color="#C2410C" />
+            <Ionicons name="alert-circle-outline" size={18} color={theme.warningStrong} />
             <Heading size="h3">Couldn&apos;t schedule</Heading>
           </View>
           {task && (
-            <Text className="text-body text-neutral-500 mt-1 mb-4" numberOfLines={2}>
+            <Text
+              className="text-body text-neutral-500 mt-1 mb-4 dark:text-[#78716C]"
+              numberOfLines={2}
+            >
               {task.title}
             </Text>
           )}
 
           {info && (
-            <Text className="text-body text-neutral-700 mb-6">{info.reason}</Text>
+            <Text className="text-body text-neutral-700 mb-6 dark:text-neutral-300">{info.reason}</Text>
           )}
 
           {confirmDeleteEvent ? (
@@ -270,7 +278,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
                       key={fix.key}
                       title={fix.label}
                       variant="secondary"
-                      icon={<Ionicons name={fix.icon} size={16} color="#2563EB" />}
+                      icon={<Ionicons name={fix.icon} size={16} color={theme.primary} />}
                       onPress={fix.onPress}
                       accessibilityLabel={fix.label}
                       accessibilityHint={fix.hint}
@@ -296,12 +304,12 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
                   </View>
                 ) : (
                   <View
-                    className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 mb-2"
+                    className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 mb-2 dark:border-neutral-800 dark:bg-neutral-900"
                     style={shadows.xs}
                     accessibilityLabel={`"${blockingFix.event.title}" is on your ${SOURCE_LABEL[blockingFix.event.source]} calendar and is in the way. Edit or remove it there to free this time.`}
                   >
                     <Ionicons name="link-outline" size={20} color={colors.light.textMuted} style={{ marginTop: 1 }} />
-                    <Text className="flex-1 text-body text-neutral-600">
+                    <Text className="flex-1 text-body text-neutral-600 dark:text-neutral-400">
                       &quot;{blockingFix.event.title}&quot; on your {SOURCE_LABEL[blockingFix.event.source]}{" "}
                       calendar is in the way. Ampora only reads it — edit or remove it there to free this
                       time.
@@ -311,7 +319,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
               ) : null}
 
               {fixes.length === 0 && !blockingFix ? (
-                <Text className="text-caption text-neutral-500 mb-2">
+                <Text className="text-caption text-neutral-500 mb-2 dark:text-[#78716C]">
                   This clears up on its own once the other task is scheduled or finished — nothing to
                   fix here.
                 </Text>
@@ -350,10 +358,10 @@ function DeleteEventConfirm({
       >
         <Ionicons name="warning-outline" size={20} color={colors.light.dangerStrong} style={{ marginTop: 1 }} />
         <View className="flex-1">
-          <Text className="text-body font-semibold text-neutral-900">
+          <Text className="text-body font-semibold text-neutral-900 dark:text-neutral-50">
             Delete &quot;{event.title}&quot;?
           </Text>
-          <Text className="mt-1 text-caption text-neutral-600">
+          <Text className="mt-1 text-caption text-neutral-600 dark:text-neutral-400">
             This removes it from your calendar for good.
           </Text>
         </View>

@@ -128,12 +128,7 @@ export function CalendarSyncSettings() {
   // --- Web / unsupported: calm explainer, no dead end (FR-64). -------------
   if (status === 'unsupported') {
     return (
-      // `forceLight`: `EmptyState`/`Heading` (components/ui/, outside this
-      // task's touch scope) still hardcode dark-ink text with no `dark:`
-      // counterpart. A `Group` that went dark here would turn that text
-      // dark-on-dark and disappear, so this card is pinned light on purpose
-      // — see the `Group` doc comment in SettingsPrimitives.tsx.
-      <Group forceLight>
+      <Group>
         <EmptyState
           icon="calendar-outline"
           title="Calendar sync needs the phone app"
@@ -153,12 +148,12 @@ export function CalendarSyncSettings() {
     const denied = status === 'denied'
     return (
       <View>
-        {/* `forceLight` — see the comment on the 'unsupported' branch above.
-            This state also sits directly on the screen canvas rather than
-            a Group at all previously, which is worse in dark mode (the
-            un-themed text would sit right on a dark page background), so a
-            forced-light Group wrap is added here too, not only kept. */}
-        <Group forceLight>
+        {/* This state previously sat directly on the screen canvas with no
+            Group at all, which read badly once the canvas could go dark. The
+            Group wrap is kept for that reason. It is no longer pinned light:
+            `EmptyState` and `Heading` are theme-aware now, so a dark card
+            renders their text correctly. */}
+        <Group>
           <EmptyState
             icon="calendar-outline"
             title="See your classes automatically"
@@ -193,8 +188,7 @@ export function CalendarSyncSettings() {
       </Text>
 
       {calendarsLoading && calendars.length === 0 ? null : calendars.length === 0 ? (
-        // `forceLight` — see the comment on the 'unsupported' branch above.
-        <Group forceLight>
+        <Group>
           <EmptyState
             icon="calendar-clear-outline"
             title="No calendars found"

@@ -24,8 +24,15 @@ const sizeClasses: Record<HeadingSize, string> = {
 
 /**
  * Heading primitive — the ONLY way to render screen/section titles so
- * tracking + weight stay consistent. Defaults to neutral-900; pass a
- * `text-*` class via `className` to override the color.
+ * tracking + weight stay consistent. Defaults to the ink pair
+ * `text-neutral-900 dark:text-neutral-50` (`colors.light.text` /
+ * `colors.dark.text`, 17.49:1 on a white card and 16.62:1 on the dark one,
+ * doc 02 §14.6). Pass a `text-*` class via `className` to override the color.
+ *
+ * One gotcha when you do override: give it its own `dark:` class as well. A
+ * bare `text-*` override is a single-class selector and loses to this
+ * default's `dark:` variant, which carries the extra `.dark` class, so in
+ * dark mode an un-paired override is silently ignored.
  *
  * @example <Heading size="h1">Good morning, Aria</Heading>
  */
@@ -37,7 +44,7 @@ export function Heading({
   return (
     <Text
       {...props}
-      className={`text-neutral-900 ${sizeClasses[size]} ${className ?? ""}`}
+      className={`text-neutral-900 dark:text-neutral-50 ${sizeClasses[size]} ${className ?? ""}`}
     />
   );
 }

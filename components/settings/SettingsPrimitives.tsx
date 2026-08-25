@@ -51,28 +51,23 @@ export function SectionFootnote({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Grouped white card with a soft shadow + 1px border (the default card look).
- * Themed dark in dark mode UNLESS `forceLight` is set — used by the handful
- * of call sites (the `EmptyState`-driven CalendarSyncSettings branches) that
- * wrap a `components/ui/EmptyState`/`Heading`, both outside this task's
- * touch scope and both still hardcoded to dark ink text. Forcing those
- * specific cards to stay light keeps that text readable (a light card on a
- * dark screen) instead of silently going dark-on-dark and disappearing.
+ * Grouped white card with a soft shadow + 1px border (the default card look),
+ * themed dark in dark mode.
+ *
+ * This used to carry a `forceLight` escape hatch, pinning a few cards light
+ * because `components/ui/EmptyState` and `Heading` still hardcoded dark ink
+ * with no `dark:` counterpart, so a dark card would have hidden their text.
+ * Those two primitives are theme-aware now, which not only retires the reason
+ * for the hatch but INVERTS it: a card pinned white while the heading inside
+ * it resolves to near-white ink renders at roughly 1.05:1, i.e. invisible.
+ * The hatch and its three call sites went out together. Do not reintroduce
+ * it - if a card needs to stay light, the primitive inside it is the thing to
+ * fix.
  */
-export function Group({
-  children,
-  forceLight = false,
-}: {
-  children: React.ReactNode
-  forceLight?: boolean
-}) {
+export function Group({ children }: { children: React.ReactNode }) {
   return (
     <View
-      className={
-        forceLight
-          ? 'rounded-2xl border border-neutral-200 bg-white px-4'
-          : 'rounded-2xl border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900'
-      }
+      className="rounded-2xl border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
       style={shadows.sm}
     >
       {children}
