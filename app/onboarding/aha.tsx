@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useColorScheme } from "nativewind";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -14,6 +15,7 @@ import { StakeSetupSheet, type ArmedStake } from "@/components/stakes/StakeSetup
 import { gradients, shadows } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { ProgressDots } from "./ProgressDots";
 
 /**
@@ -39,6 +41,10 @@ export default function AhaScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const { taskId } = useLocalSearchParams<{ taskId?: string }>();
+  // Ionicons `color` and LinearGradient `colors` take literal values, never a
+  // `dark:` class. className styling below uses `dark:` variants directly.
+  const theme = useThemeColors();
+  const { colorScheme } = useColorScheme();
 
   const task = useTaskStore((s) => (taskId ? s.tasks[taskId] : undefined));
 
@@ -102,7 +108,7 @@ export default function AhaScreen() {
   if (!task) {
     return (
       <View
-        className="flex-1 bg-neutral-100"
+        className="flex-1 bg-neutral-100 dark:bg-neutral-950"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <View className="px-6 pt-6">
@@ -131,11 +137,16 @@ export default function AhaScreen() {
 
   return (
     <View
-      className="flex-1 bg-neutral-100"
+      className="flex-1 bg-neutral-100 dark:bg-neutral-950"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom + 16 }}
     >
+      {/* `gradients.firstMove` ends on a SOLID white stop, which on a
+          near-black canvas paints a bright panel over the top third of the
+          screen rather than a wash. Dark therefore takes `heroWashDark`, the
+          only dark wash the token set defines (elevated fading to a
+          transparent dark canvas, built entirely from colors.dark values). */}
       <LinearGradient
-        colors={gradients.firstMove}
+        colors={colorScheme === "dark" ? gradients.heroWashDark : gradients.firstMove}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         pointerEvents="none"
@@ -149,13 +160,19 @@ export default function AhaScreen() {
           </Animated.View>
 
           <Animated.View entering={enter(0)}>
-            <Text className="text-overline text-primary-600 uppercase tracking-wide mb-3">
+            {/* Accent TEXT on the canvas, not an accent fill, so doc 02 §1.8's
+                carve-out applies: the ramp keeps its hex values but steps to
+                the 400 tone on a dark surface. At 11px this owes 4.5:1 and
+                primary-600 measures 3.82:1 on the dark canvas; primary-400
+                clears it at 7.77:1. Mirrors components/ui/Button.tsx's `ghost`
+                label, which resolves the same way for the same reason. */}
+            <Text className="text-overline text-primary-600 dark:text-primary-400 uppercase tracking-wide mb-3">
               This is it
             </Text>
-            <Heading size="h1" className="text-neutral-900 max-w-[320px]">
+            <Heading size="h1" className="text-neutral-900 dark:text-neutral-50 max-w-[320px]">
               Lock in your first session
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[330px]">
+            <Text className="text-body-lg text-neutral-600 dark:text-neutral-400 mt-3 leading-6 max-w-[330px]">
               Pick the apps that usually pull you away. They&apos;ll go dark
               while you work on this — and come back the moment you&apos;ve
               earned it.
@@ -164,18 +181,24 @@ export default function AhaScreen() {
 
           <Animated.View
             entering={enter(100 + staggerDelay(0))}
-            className="mt-6 rounded-2xl border border-neutral-200 bg-white p-5"
+            className="mt-6 rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900"
             style={shadows.sm}
           >
-            <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500">
+            <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
               Your task
             </Text>
-            <Heading size="h4" className="mt-1.5 text-neutral-900" numberOfLines={2}>
+            <Heading size="h4" className="mt-1.5 text-neutral-900 dark:text-neutral-50" numberOfLines={2}>
               {task.title}
             </Heading>
             {task.firstMove?.text ? (
+              /* The First move panel keeps its primary-50 tint in both themes,
+                 so every tone inside it stays the light pair it was audited as:
+                 glyph and eyebrow at 4.75:1, the move itself at 16.07:1. None
+                 of the three carries a `dark:` class for that reason — adding
+                 one would put near-white text on a near-white tint. Identical
+                 treatment to the same panel in first-task.tsx. */
               <View className="mt-3.5 flex-row items-start gap-2.5 rounded-lg bg-primary-50 px-3.5 py-3">
-                <Ionicons name="flag-outline" size={16} color="#2563EB" style={{ marginTop: 1 }} />
+                <Ionicons name="flag-outline" size={16} color={theme.primary} style={{ marginTop: 1 }} />
                 <View className="flex-1">
                   <Text className="text-tiny font-semibold uppercase tracking-wide text-primary-600">
                     First move
@@ -194,7 +217,12 @@ export default function AhaScreen() {
             title="Choose apps to lock"
             variant="primaryBlue"
             size="lg"
-            icon={<Ionicons name="lock-closed-outline" size={18} color="#FFFFFF" />}
+            icon={
+              /* Rides inside the filled `primaryBlue` button, whose fill is
+                 opaque and identical in both themes, so the glyph matches that
+                 button's own white label rather than the screen's ink. */
+              <Ionicons name="lock-closed-outline" size={18} color={theme.primaryForeground} />
+            }
             onPress={() => setStakeOpen(true)}
             accessibilityLabel="Choose apps to lock and start a focus session"
             accessibilityHint="Opens the stake setup sheet for this task"

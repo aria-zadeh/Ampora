@@ -117,7 +117,7 @@ function SettingsRow({
             {value}
           </Text>
         ) : null}
-        {/* `theme.textDisabled` replaces a stray, untokenized "#C4C4CC" that
+        {/* `theme.textDisabled` replaces a stray, untokenized grey that
             matched no design-tokens.ts value in either theme. */}
         <Ionicons name="chevron-forward" size={18} color={theme.textDisabled} />
       </View>

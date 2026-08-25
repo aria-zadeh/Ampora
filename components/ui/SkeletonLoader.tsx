@@ -10,7 +10,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { borderRadius } from "@/utils/design-tokens";
+import { borderRadius, shimmer } from "@/utils/design-tokens";
 import { useColorScheme } from "nativewind";
 
 interface SkeletonLoaderProps {
@@ -23,28 +23,6 @@ interface SkeletonLoaderProps {
 
 const SHIMMER_DURATION = 1200;
 const HIGHLIGHT_WIDTH = 120;
-/**
- * Transparent -> highlight -> transparent. The highlight has to be the
- * opposite of the surface it sweeps, so it flips with the theme: white at 55%
- * reads as a lift on the light neutral-200 base, and as a harsh flare on the
- * dark neutral-800 one. The dark pass uses white at 8%, which is the same
- * gesture at the intensity a dark surface can carry.
- *
- * A gradient `colors` prop takes literals and cannot take a class, which is
- * why this resolves through `useThemeColors` rather than a `dark:` variant.
- */
-const HIGHLIGHT_COLORS = {
-  light: [
-    "rgba(255,255,255,0)",
-    "rgba(255,255,255,0.55)",
-    "rgba(255,255,255,0)",
-  ],
-  dark: [
-    "rgba(255,255,255,0)",
-    "rgba(255,255,255,0.08)",
-    "rgba(255,255,255,0)",
-  ],
-} as const;
 
 /**
  * Shimmer placeholder box. A neutral-200 surface with a light highlight sweeping
@@ -59,8 +37,10 @@ export function SkeletonLoader({
   const reduceMotion = useReduceMotion();
   // Imported from "nativewind", never "react-native" (see CLAUDE.md).
   const { colorScheme } = useColorScheme();
-  const highlight =
-    colorScheme === "dark" ? HIGHLIGHT_COLORS.dark : HIGHLIGHT_COLORS.light;
+  // A gradient `colors` prop takes literals and cannot take a `dark:` class,
+  // so the sweep resolves here rather than in className. See `shimmer` in
+  // utils/design-tokens.ts for why the alpha differs per theme.
+  const highlight = colorScheme === "dark" ? shimmer.dark : shimmer.light;
   const [boxWidth, setBoxWidth] = useState(0);
   const progress = useSharedValue(0);
 

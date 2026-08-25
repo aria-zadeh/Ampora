@@ -143,6 +143,34 @@ export const brand = {
  * a product decision, not a mechanical token swap, so it is left for the owner
  * rather than invented. Until then Blindfold stays cream in both themes.
  */
+/**
+ * The skeleton-loader shimmer sweep (`components/ui/SkeletonLoader.tsx`).
+ *
+ * A gradient's `colors` prop takes literal strings and cannot take a class,
+ * so these cannot be expressed as `dark:` variants and would otherwise sit in
+ * the component as bare `rgba()`. Named here so the never-hardcode rule stays
+ * absolute at the call site.
+ *
+ * The highlight has to be the OPPOSITE of the surface it sweeps, which is why
+ * the alpha differs per theme rather than the hue: white at 55% reads as a
+ * lift on the light `neutral-200` base and as a harsh flare on the dark
+ * `neutral-800` one, where 8% is the same gesture at an intensity a dark
+ * surface can carry. Both are alpha over the base rather than a solid, so
+ * neither is a contrast-bearing pair.
+ */
+export const shimmer = {
+  light: [
+    "rgba(255,255,255,0)",
+    "rgba(255,255,255,0.55)",
+    "rgba(255,255,255,0)",
+  ],
+  dark: [
+    "rgba(255,255,255,0)",
+    "rgba(255,255,255,0.08)",
+    "rgba(255,255,255,0)",
+  ],
+} as const;
+
 export const surfaces = {
   blindfold: {
     /** Base wash behind the gradient. */

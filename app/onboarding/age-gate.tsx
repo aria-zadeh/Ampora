@@ -10,9 +10,9 @@ import { Text } from "@/components/ui/Text";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
 import { useSettingsStore } from "@/store/settingsStore";
 import { isAtLeast13 } from "@/core/entitlements";
-import { colors } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { ProgressDots } from "./ProgressDots";
 
 /**
@@ -35,6 +35,11 @@ import { ProgressDots } from "./ProgressDots";
 export default function AgeGateScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
+  // The blocked-state glyph is an Ionicons `color`, a literal prop that cannot
+  // take a `dark:` class. It previously read `colors.light.textSecondary`
+  // outright, which pins it to the light tone on a dark surface; resolving the
+  // active scheme instead is the whole fix.
+  const theme = useThemeColors();
 
   const [dob, setDob] = useState<Date>(() => {
     const d = new Date();
@@ -64,19 +69,22 @@ export default function AgeGateScreen() {
   if (blocked) {
     return (
       <View
-        className="flex-1 items-center justify-center bg-neutral-100 px-8"
+        className="flex-1 items-center justify-center bg-neutral-100 px-8 dark:bg-neutral-950"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom + 24 }}
       >
         <Animated.View entering={enter(0)} className="items-center">
-          <View className="h-16 w-16 items-center justify-center rounded-full bg-neutral-200">
-            <Ionicons name="time-outline" size={30} color={colors.light.textSecondary} />
+          {/* The bubble steps one surface above whatever it lands on, the
+              same pairing the converted settings rows use, so the glyph on it
+              measures 6.11:1 light and 6.00:1 dark. */}
+          <View className="h-16 w-16 items-center justify-center rounded-full bg-neutral-200 dark:bg-neutral-800">
+            <Ionicons name="time-outline" size={30} color={theme.textSecondary} />
           </View>
           <Heading size="h2" className="mt-5 text-center">
             Ampora is for ages 13 and up
           </Heading>
           <Text
             variant="bodyLg"
-            className="mt-3 max-w-[300px] text-center text-neutral-600 leading-6"
+            className="mt-3 max-w-[300px] text-center text-neutral-600 dark:text-neutral-400 leading-6"
           >
             That's a rule we follow closely, not a judgment on you. Come back
             and join us once you turn 13, we'll be here.
@@ -88,7 +96,7 @@ export default function AgeGateScreen() {
 
   return (
     <View
-      className="flex-1 bg-neutral-100"
+      className="flex-1 bg-neutral-100 dark:bg-neutral-950"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom + 24 }}
     >
       <View className="flex-1 justify-between px-6">
@@ -97,13 +105,13 @@ export default function AgeGateScreen() {
             <ProgressDots total={8} current={2} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
-            <Text variant="overline" className="mb-3 text-neutral-500">
+            <Text variant="overline" className="mb-3 text-neutral-500 dark:text-[#78716C]">
               One quick check
             </Text>
             <Heading size="h1" className="max-w-[300px]">
               When's your birthday?
             </Heading>
-            <Text variant="bodyLg" className="mt-3 max-w-[320px] leading-6 text-neutral-600">
+            <Text variant="bodyLg" className="mt-3 max-w-[320px] leading-6 text-neutral-600 dark:text-neutral-400">
               Ampora is for ages 13 and up. We only keep a yes or no from
               this, never the date itself.
             </Text>
@@ -118,7 +126,12 @@ export default function AgeGateScreen() {
               accessibilityLabel="Your date of birth"
             />
             {isFutureDate ? (
-              <Text variant="caption" className="mt-2 text-danger-600">
+              /* Accent TEXT on the canvas, so it steps lighter on dark per
+                 the accent split in the cheatsheet atop
+                 utils/design-tokens.ts: danger-600 is 3.62:1 there, short of
+                 the 4.5:1 a 13px line owes, danger-500 clears it at 5.25:1.
+                 Light is untouched, and the copy itself is unchanged. */
+              <Text variant="caption" className="mt-2 text-danger-600 dark:text-danger-500">
                 That date hasn't happened yet, double check it.
               </Text>
             ) : null}

@@ -5,12 +5,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useColorScheme } from "nativewind";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { requestNotificationPermissions } from "@/services/notifications";
 import { gradients } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { ProgressDots } from "./ProgressDots";
 
 const PROMISES = [
@@ -22,6 +24,10 @@ const PROMISES = [
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
+  // Ionicons `color` and LinearGradient `colors` take literal values, never a
+  // `dark:` class. Everything else here is className-driven.
+  const theme = useThemeColors();
+  const { colorScheme } = useColorScheme();
 
   const handleAllow = async () => {
     await requestNotificationPermissions();
@@ -39,11 +45,13 @@ export default function NotificationsScreen() {
 
   return (
     <View
-      className="flex-1 bg-neutral-100"
+      className="flex-1 bg-neutral-100 dark:bg-neutral-950"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom + 24 }}
     >
+      {/* Dark swaps in the token-built dark wash — the light one is a bright
+          primary-50 tint that glares on a near-black canvas. */}
       <LinearGradient
-        colors={gradients.heroWash}
+        colors={colorScheme === "dark" ? gradients.heroWashDark : gradients.heroWash}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         pointerEvents="none"
@@ -56,13 +64,13 @@ export default function NotificationsScreen() {
             <ProgressDots total={8} current={5} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
-            <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
+            <Text className="text-overline text-neutral-500 dark:text-[#78716C] uppercase tracking-wide mb-3">
               Gentle by default
             </Text>
-            <Heading size="h1" className="text-neutral-900 max-w-[300px]">
+            <Heading size="h1" className="text-neutral-900 dark:text-neutral-50 max-w-[300px]">
               Reminders that respect your focus
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[330px]">
+            <Text className="text-body-lg text-neutral-600 dark:text-neutral-400 mt-3 leading-6 max-w-[330px]">
               We only reach out when it actually helps. No spam, no pressure —
               here’s our promise.
             </Text>
@@ -75,10 +83,15 @@ export default function NotificationsScreen() {
                 entering={enter(120 + staggerDelay(i))}
                 className="flex-row items-center gap-3"
               >
+                {/* The tint bubble keeps its light primary-50 fill in both
+                    themes: it is a self-contained, already-audited pair (doc
+                    02 §14.6), and the glyph on it measures 4.75:1 either way
+                    because `primary` is one value in both token sets. Darkening
+                    the bubble would invent a tint the system does not define. */}
                 <View className="w-9 h-9 rounded-full bg-primary-50 items-center justify-center">
-                  <Ionicons name={item.icon} size={18} color="#2563EB" />
+                  <Ionicons name={item.icon} size={18} color={theme.primary} />
                 </View>
-                <Text className="text-body text-neutral-700 flex-1 leading-6">
+                <Text className="text-body text-neutral-700 dark:text-neutral-300 flex-1 leading-6">
                   {item.text}
                 </Text>
               </Animated.View>

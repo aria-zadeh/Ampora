@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import { useColorScheme } from "nativewind";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { Input } from "@/components/ui/Input";
@@ -16,6 +17,7 @@ import { newId } from "@/core/id";
 import { gradients, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { StarterAction, Subtask } from "@/types";
 import { ProgressDots } from "./ProgressDots";
 
@@ -41,6 +43,10 @@ type Phase = "input" | "loading" | "preview";
 export default function FirstTaskScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
+  // Ionicons `color` and LinearGradient `colors` take literal values, never a
+  // `dark:` class. className styling below uses `dark:` variants directly.
+  const theme = useThemeColors();
+  const { colorScheme } = useColorScheme();
 
   const [raw, setRaw] = useState("");
   const [phase, setPhase] = useState<Phase>("input");
@@ -118,10 +124,12 @@ export default function FirstTaskScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-neutral-100"
+      className="flex-1 bg-neutral-100 dark:bg-neutral-950"
     >
+      {/* Dark swaps in the token-built dark wash — the light one is a bright
+          primary-50 tint that glares on a near-black canvas. */}
       <LinearGradient
-        colors={gradients.heroWash}
+        colors={colorScheme === "dark" ? gradients.heroWashDark : gradients.heroWash}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         pointerEvents="none"
@@ -140,13 +148,13 @@ export default function FirstTaskScreen() {
         </Animated.View>
 
         <Animated.View entering={enter(0)}>
-          <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
+          <Text className="text-overline text-neutral-500 dark:text-[#78716C] uppercase tracking-wide mb-3">
             Let&apos;s try one for real
           </Text>
-          <Heading size="h1" className="text-neutral-900 max-w-[320px]">
+          <Heading size="h1" className="text-neutral-900 dark:text-neutral-50 max-w-[320px]">
             Add one real assignment
           </Heading>
-          <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[330px]">
+          <Text className="text-body-lg text-neutral-600 dark:text-neutral-400 mt-3 leading-6 max-w-[330px]">
             Type something you actually have to do. Watch Ampora break it into
             a first move you can start in minutes.
           </Text>
@@ -167,11 +175,16 @@ export default function FirstTaskScreen() {
               accessibilityHint="Ampora will break it into a first move and steps"
             />
 
+            {/* Both chips are tint badges — a primary-50 fill with a matched
+                primary-700 label (6.16:1) and a primary-600 glyph (4.75:1).
+                Doc 02 §14.6 signs those pairs off as self-contained, so they
+                keep the light tint in both themes rather than inventing a
+                darker one the token set does not define. */}
             {preview && (preview.due != null || preview.durationMin != null) ? (
               <View className="mt-3 flex-row flex-wrap gap-2">
                 {preview.due != null ? (
                   <View className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5">
-                    <Ionicons name="calendar-outline" size={14} color="#2563EB" />
+                    <Ionicons name="calendar-outline" size={14} color={theme.primary} />
                     <Text className="text-caption font-medium text-primary-700">
                       Due {new Date(preview.due).toLocaleDateString([], { month: "short", day: "numeric" })}
                     </Text>
@@ -179,7 +192,7 @@ export default function FirstTaskScreen() {
                 ) : null}
                 {preview.durationMin != null ? (
                   <View className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5">
-                    <Ionicons name="time-outline" size={14} color="#2563EB" />
+                    <Ionicons name="time-outline" size={14} color={theme.primary} />
                     <Text className="text-caption font-medium text-primary-700">
                       {preview.durationMin} min
                     </Text>
@@ -193,17 +206,28 @@ export default function FirstTaskScreen() {
             entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInDown.duration(DURATIONS.base)}
             className="mt-8 gap-4"
           >
-            <View className="rounded-2xl border border-neutral-200 bg-white p-5" style={shadows.sm}>
-              <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500">
+            <View
+              className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900"
+              style={shadows.sm}
+            >
+              <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
                 Your task
               </Text>
-              <Heading size="h4" className="mt-1.5 text-neutral-900">
+              <Heading size="h4" className="mt-1.5 text-neutral-900 dark:text-neutral-50">
                 {resolvedTitle}
               </Heading>
 
               {breakdown ? (
+                /* The First move panel keeps its primary-50 tint in both
+                   themes, so every tone inside it stays the light pair it was
+                   audited as: glyph and eyebrow at 4.75:1, the move itself at
+                   16.07:1. That is why none of the three carries a `dark:`
+                   class — adding one here would put near-white text on a
+                   near-white tint. Same call the converted
+                   components/settings/StakesSettings.tsx makes for its
+                   selected primary-tinted pills. */
                 <View className="mt-4 flex-row items-start gap-2.5 rounded-lg bg-primary-50 px-3.5 py-3">
-                  <Ionicons name="flag-outline" size={16} color="#2563EB" style={{ marginTop: 1 }} />
+                  <Ionicons name="flag-outline" size={16} color={theme.primary} style={{ marginTop: 1 }} />
                   <View className="flex-1">
                     <Text className="text-tiny font-semibold uppercase tracking-wide text-primary-600">
                       First move
@@ -219,20 +243,31 @@ export default function FirstTaskScreen() {
                 <View className="mt-4 gap-2.5">
                   {breakdown.subtasks.map((s, i) => (
                     <View key={`${s.title}-${i}`} className="flex-row items-center gap-2.5">
-                      <View className="h-5 w-5 items-center justify-center rounded-full border border-neutral-300">
-                        <Text className="text-tiny font-semibold text-neutral-500">{i + 1}</Text>
+                      <View className="h-5 w-5 items-center justify-center rounded-full border border-neutral-300 dark:border-neutral-700">
+                        <Text className="text-tiny font-semibold text-neutral-500 dark:text-[#78716C]">
+                          {i + 1}
+                        </Text>
                       </View>
-                      <Text className="flex-1 text-body text-neutral-700" numberOfLines={2}>
+                      <Text className="flex-1 text-body text-neutral-700 dark:text-neutral-300" numberOfLines={2}>
                         {s.title}
                       </Text>
-                      <Text className="text-caption text-neutral-400">{s.estimatedMin} min</Text>
+                      {/* The per-step estimate is deliberately the quietest
+                          thing in the row, and the disabled-tier pairing keeps
+                          it exactly as quiet in dark as it already is in light
+                          (2.53:1 light, 2.29:1 dark). Reading it is never
+                          required to act: the step title beside it carries the
+                          content, and the parent duration is restated on the
+                          task itself. */}
+                      <Text className="text-caption text-neutral-400 dark:text-neutral-600">
+                        {s.estimatedMin} min
+                      </Text>
                     </View>
                   ))}
                 </View>
               ) : null}
 
               {breakdown?.isFallback ? (
-                <Text className="mt-4 text-caption text-neutral-400">
+                <Text className="mt-4 text-caption text-neutral-400 dark:text-neutral-600">
                   {breakdown.note ?? "Showing general steps for now."}
                 </Text>
               ) : null}
