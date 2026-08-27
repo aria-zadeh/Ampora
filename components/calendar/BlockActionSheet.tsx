@@ -247,7 +247,7 @@ export function BlockActionSheet({
                     <Heading size="h3" numberOfLines={2}>
                       {title}
                     </Heading>
-                    <Text className="mt-1 text-caption text-neutral-500">{timeRange}</Text>
+                    <Text className="mt-1 text-caption text-ink-muted">{timeRange}</Text>
                   </View>
                   <Pressable
                     onPress={onClose}
@@ -269,7 +269,7 @@ export function BlockActionSheet({
                         key={o.key}
                         onPress={() => handlePostpone(o.at)}
                         haptic={false}
-                        className="flex-1 items-center gap-1 rounded-lg border border-neutral-200 bg-raised px-2 py-3"
+                        className="flex-1 items-center gap-1 rounded-lg border border-line bg-raised px-2 py-3"
                         accessibilityRole="button"
                         accessibilityLabel={`Postpone to ${describeInstant(o.at, nowMs)}`}
                       >
@@ -289,7 +289,7 @@ export function BlockActionSheet({
                     }}
                     haptic={false}
                     className={`mt-2 flex-row items-center gap-3 rounded-lg border px-4 py-3 ${
-                      pickingTime ? 'border-primary-300 bg-primary-50' : 'border-neutral-200 bg-raised'
+                      pickingTime ? 'border-primary-300 bg-primary-50' : 'border-line bg-raised'
                     }`}
                     accessibilityRole="button"
                     accessibilityLabel="Pick a specific time to postpone to"
@@ -307,11 +307,11 @@ export function BlockActionSheet({
                   {pickingTime ? (
                     <Animated.View
                       entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
-                      className="mt-2 rounded-lg border border-neutral-200 bg-raised p-3"
+                      className="mt-2 rounded-lg border border-line bg-raised p-3"
                     >
                       <View className="flex-row gap-2">
                         <View className="flex-1">
-                          <Text className="mb-1 px-1 text-caption font-medium text-neutral-500">Day</Text>
+                          <Text className="mb-1 px-1 text-caption font-medium text-ink-muted">Day</Text>
                           <DateTimePickerCrossPlatform
                             mode="date"
                             value={draft}
@@ -321,7 +321,7 @@ export function BlockActionSheet({
                           />
                         </View>
                         <View className="flex-1">
-                          <Text className="mb-1 px-1 text-caption font-medium text-neutral-500">Time</Text>
+                          <Text className="mb-1 px-1 text-caption font-medium text-ink-muted">Time</Text>
                           <DateTimePickerCrossPlatform
                             mode="time"
                             value={draft}
@@ -393,9 +393,9 @@ type Tint = 'neutral' | 'primary' | 'success' | 'danger'
 /** Theme-driven tint lookup — icon colors resolve from `useThemeColors()` so every row stays correct in both themes. */
 function getTintStyles(theme: ReturnType<typeof useThemeColors>): Record<Tint, { icon: string; iconBg: string; text: string }> {
   return {
-    neutral: { icon: theme.textSecondary, iconBg: 'bg-neutral-100', text: 'text-neutral-900' },
-    primary: { icon: theme.primary, iconBg: 'bg-primary-100', text: 'text-neutral-900' },
-    success: { icon: theme.success, iconBg: 'bg-success-100', text: 'text-neutral-900' },
+    neutral: { icon: theme.textSecondary, iconBg: 'bg-canvas', text: 'text-ink' },
+    primary: { icon: theme.primary, iconBg: 'bg-primary-100', text: 'text-ink' },
+    success: { icon: theme.success, iconBg: 'bg-success-100', text: 'text-ink' },
     danger: { icon: theme.danger, iconBg: 'bg-danger-100', text: 'text-danger-700' },
   }
 }
@@ -432,10 +432,10 @@ export function ActionRow({
       disabled={disabled}
       className={`flex-row items-center gap-3 rounded-lg border px-4 py-3 ${
         disabled
-          ? 'border-neutral-200 bg-raised opacity-60'
+          ? 'border-line bg-raised opacity-60'
           : active
             ? 'border-primary-300 bg-primary-50'
-            : 'border-neutral-200 bg-raised'
+            : 'border-line bg-raised'
       }`}
       accessibilityRole={active != null ? 'switch' : 'button'}
       accessibilityLabel={blurb ? `${label}. ${blurb}` : label}
@@ -447,7 +447,7 @@ export function ActionRow({
       <View className="flex-1">
         <Text className={`text-body-lg font-medium ${t.text}`}>{label}</Text>
         {blurb ? (
-          <Text className="mt-0.5 text-caption text-neutral-500" numberOfLines={2}>
+          <Text className="mt-0.5 text-caption text-ink-muted" numberOfLines={2}>
             {blurb}
           </Text>
         ) : null}

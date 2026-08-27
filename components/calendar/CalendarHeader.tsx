@@ -1,10 +1,11 @@
 import React, { useCallback, useMemo } from 'react'
-import { View, Text } from 'react-native'
+import { View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { Heading } from '@/components/ui/Heading'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PressableScale } from '@/components/ui/PressableScale'
+import { Text } from '@/components/ui/Text'
 import { useThemeColors } from '@/hooks/useThemeColors'
 import { dayStart, isSameDay } from './hours'
 
@@ -95,7 +96,7 @@ export function CalendarHeader({
   }, [isToday, onDateChange])
 
   return (
-    <View testID={testID} className="px-5 pt-2 pb-3 bg-neutral-100">
+    <View testID={testID} className="px-5 pt-2 pb-3 bg-canvas">
       <View className="flex-row items-center justify-between mb-3">
         <Heading size="h2" className="flex-1" numberOfLines={1}>
           {title}
@@ -112,12 +113,10 @@ export function CalendarHeader({
             accessibilityLabel="Go to today"
             accessibilityState={{ disabled: isToday }}
             className={`mx-1 px-3 h-9 rounded-full items-center justify-center border ${
-              isToday ? 'border-neutral-200 bg-neutral-100' : 'border-neutral-300 bg-white'
+              isToday ? 'border-line bg-canvas' : 'border-line-strong bg-surface'
             }`}
           >
-            <Text
-              className={`text-label font-medium ${isToday ? 'text-neutral-500' : 'text-neutral-700'}`}
-            >
+            <Text variant="label" className={isToday ? 'text-ink-muted' : 'text-ink-secondary'}>
               Today
             </Text>
           </PressableScale>
@@ -152,7 +151,7 @@ function NavButton({
       haptic={false}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className="w-9 h-9 rounded-full items-center justify-center bg-white border border-neutral-200"
+      className="w-9 h-9 rounded-full items-center justify-center bg-surface border border-line"
     >
       <Ionicons name={icon} size={18} color={theme.textSecondary} />
     </PressableScale>

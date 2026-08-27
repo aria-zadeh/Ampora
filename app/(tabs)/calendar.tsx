@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { View, Text } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
@@ -26,6 +26,7 @@ import { EventActionSheet } from "@/components/calendar/EventActionSheet";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { AddEventModal } from "@/components/ui/AddEventModal";
+import { Text } from "@/components/ui/Text";
 import {
   DEFAULT_PX_PER_HOUR,
   nearestZoomStop,
@@ -385,10 +386,10 @@ function ActionButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      className="flex-row items-center gap-1.5 px-3 h-9 rounded-full bg-white border border-neutral-200"
+      className="flex-row items-center gap-1.5 px-3 h-9 rounded-full bg-surface border border-line"
     >
       <Ionicons name={icon} size={iconSizes.xs} color={theme.primary} />
-      <Text className="text-caption font-medium text-primary-600">{label}</Text>
+      <Text variant="captionMedium" className="text-primary-600">{label}</Text>
     </PressableScale>
   );
 }
@@ -412,7 +413,7 @@ function ZoomStepper({
 
   return (
     <View
-      className="flex-row items-center rounded-full bg-white border border-neutral-200"
+      className="flex-row items-center rounded-full bg-surface border border-line"
       accessibilityRole="adjustable"
       accessibilityLabel="Time grid zoom"
       accessibilityValue={{ text: `Level ${idx + 1} of ${ZOOM_STOPS_PX_PER_HOUR.length}` }}

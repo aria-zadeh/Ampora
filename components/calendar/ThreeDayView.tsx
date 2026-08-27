@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView } from 'react-native'
+import { View, ScrollView } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 
 import { currentTimeTop, pxPerMinFromHour } from '@/core/calendar'
@@ -15,6 +15,7 @@ import { DayBlocksLayer } from './DayView'
 import { AllDayStripRow } from './AllDayStrip'
 import { EventActionSheet } from './EventActionSheet'
 import { AddEventModal } from '@/components/ui/AddEventModal'
+import { Text } from '@/components/ui/Text'
 import type { CalEvent } from '@/types'
 import { useGridScrollController, type GridScrollController } from './gridScroll'
 import {
@@ -63,7 +64,12 @@ interface ThreeDayViewProps {
   testID?: string
 }
 
-/** Weekday-abbrev + day-number header for one column (PRD FR-23 "horizontal day headers"). */
+/**
+ * Weekday-abbrev + day-number header for one column (PRD FR-23 "horizontal
+ * day headers"). Matches the week grid's own `DayHeader` (2026-08-26
+ * remeasure, week-view.pdf): 13pt weekday, current day tinted
+ * `primary-light`, the date inside a 28x28 `bg-primary` pill on today.
+ */
 function DayHeader({
   dayStartMs,
   isToday,
@@ -76,11 +82,7 @@ function DayHeader({
   const dayNum = d.getDate()
   return (
     <View className="flex-1 items-center py-2" accessibilityRole="header">
-      <Text
-        className={`text-tiny font-medium uppercase ${
-          isToday ? 'text-primary-600' : 'text-neutral-500'
-        }`}
-      >
+      <Text variant="caption" className={isToday ? 'text-primary-400' : 'text-ink-muted'}>
         {weekday}
       </Text>
       <View
@@ -88,11 +90,7 @@ function DayHeader({
           isToday ? 'bg-primary-600' : ''
         }`}
       >
-        <Text
-          className={`text-label font-semibold ${
-            isToday ? 'text-primary-foreground' : 'text-neutral-800'
-          }`}
-        >
+        <Text variant="label" className={isToday ? 'text-primary-foreground' : ''}>
           {dayNum}
         </Text>
       </View>
@@ -234,7 +232,7 @@ export function ThreeDayView({
   return (
     <View style={{ flex: 1 }} testID={testID}>
       {/* Sticky header row: an empty gutter spacer + the three day headers. */}
-      <View className="flex-row border-b border-neutral-200 bg-neutral-100">
+      <View className="flex-row border-b border-line bg-canvas">
         <View style={{ width: GUTTER_WIDTH }} />
         <View className="flex-1 flex-row">
           {dayStarts.map((ds) => (
@@ -285,7 +283,8 @@ export function ThreeDayView({
                       className="items-end pr-2"
                     >
                       <Text
-                        className="text-tiny text-neutral-500"
+                        variant="tiny"
+                        className="text-ink-muted"
                         style={{ marginTop: -6 }}
                         accessibilityLabel={hourLabelLong(hour)}
                         allowFontScaling

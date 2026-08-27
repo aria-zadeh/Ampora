@@ -330,10 +330,10 @@ function DayCard({
 
   return (
     <Animated.View entering={entering} style={{ marginTop: index === 0 ? 0 : spacing.group }}>
-      <Text variant="overline" className="text-neutral-500 px-0.5 pb-1.5" style={tabularNums}>
+      <Text variant="overline" className="text-ink-muted px-0.5 pb-1.5" style={tabularNums}>
         {section.label}
       </Text>
-      <View className="bg-white rounded-lg px-4 pt-0.5 pb-1">
+      <View className="bg-surface rounded-xl px-4 pt-0.5 pb-1">
         {section.nodes.map((node, i) => {
           // Borderless when it's the day's first row, or when it immediately
           // follows the now-line (avoids a double divider directly under it).
@@ -392,8 +392,8 @@ interface ChipData {
 /** A single sunken-pill chip, 13px/500, optionally leading with a small glyph. */
 function Chip({ label, icon, tone = 'neutral' }: ChipData) {
   const theme = useThemeColors()
-  const bg = tone === 'warning' ? 'bg-warning-100' : 'bg-neutral-100'
-  const fg = tone === 'warning' ? 'text-warning-700' : 'text-neutral-600'
+  const bg = tone === 'warning' ? 'bg-warning-100' : 'bg-canvas'
+  const fg = tone === 'warning' ? 'text-warning-700' : 'text-ink-secondary'
   return (
     <View className={`flex-row items-center gap-1 rounded-full px-2 py-1 ${bg}`}>
       {icon ? (
@@ -463,7 +463,7 @@ function TaskRow({
     .join(', ')
 
   return (
-    <View className={first ? undefined : 'border-t border-neutral-200'}>
+    <View className={first ? undefined : 'border-t border-line'}>
       <PressableScale
         onPress={onPress ? () => onPress(block) : undefined}
         haptic="light"
@@ -482,7 +482,7 @@ function TaskRow({
 
         <Text
           variant="captionMedium"
-          className="text-neutral-600"
+          className="text-ink-secondary"
           style={[tabularNums, { width: TIME_COL_WIDTH }]}
         >
           {timeLabel}
@@ -491,7 +491,7 @@ function TaskRow({
         <Text
           variant="bodyMedium"
           numberOfLines={1}
-          className={`flex-1 ${done ? 'text-neutral-500 line-through' : ''}`}
+          className={`flex-1 ${done ? 'text-ink-muted line-through' : ''}`}
         >
           {task.title}
         </Text>
@@ -531,7 +531,7 @@ function EventRow({
   const a11yLabel = `Event: ${event.title}${event.allDay ? ', all day' : `, ${timeLabel}`}`
 
   return (
-    <View className={first ? undefined : 'border-t border-neutral-200'}>
+    <View className={first ? undefined : 'border-t border-line'}>
       <PressableScale
         onPress={onPress ? () => onPress(event) : undefined}
         haptic="light"
@@ -549,7 +549,7 @@ function EventRow({
 
         <Text
           variant="captionMedium"
-          className="text-neutral-600"
+          className="text-ink-secondary"
           style={[tabularNums, { width: TIME_COL_WIDTH }]}
         >
           {timeLabel}

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, ScrollView } from 'react-native'
+import { View, ScrollView } from 'react-native'
+import { Text } from '@/components/ui/Text'
 import {
   currentTimeTop,
   pxPerMinFromHour,
@@ -181,7 +182,8 @@ export function TimeGrid({
                   <View style={{ width: GUTTER_WIDTH }} className="items-end pr-2">
                     {/* Nudge the label up so it centers on the line, not below it. */}
                     <Text
-                      className="text-tiny text-neutral-500"
+                      variant="tiny"
+                      className="text-ink-muted"
                       style={{ marginTop: -6 }}
                       accessibilityLabel={hourLabelLong(hour)}
                       allowFontScaling

@@ -804,17 +804,17 @@ function DraggableBlock({
             ]}
           >
             <View
-              className="flex-row items-center rounded-full bg-neutral-900 px-3 py-1"
+              className="flex-row items-center rounded-full bg-ink px-3 py-1"
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
             >
-              {/* Deliberately inverted from `neutral-900`/canvas rather than a
-                  plain surface pairing: this floating pill needs to pop
-                  against the block underneath it in EITHER theme, so it
-                  always reads as the opposite extreme of the canvas (a
-                  near-white chip in dark mode, a near-black one in light
-                  mode) — not a flat "card + primary text" pairing, which
-                  would go bg #F2F2F7 + text #F2F2F7 (invisible) in dark. */}
+              {/* Deliberately inverted from `ink`/canvas rather than a plain
+                  surface pairing: this floating pill needs to pop against the
+                  block underneath it in EITHER theme, so it always reads as
+                  the opposite extreme of the canvas (a near-white chip in
+                  dark mode, a near-black one in light mode) — not a flat
+                  "card + primary text" pairing, which would go bg #F2F2F7 +
+                  text #F2F2F7 (invisible) in dark. */}
               <Text style={tabularNums} className="text-caption font-semibold text-canvas">
                 {pillLabel}
               </Text>
@@ -1281,9 +1281,9 @@ function ResizeHandle({ align }: { align: 'top' | 'bottom' }) {
           width: 24,
           height: 3,
           borderRadius: 999,
-          // Muted text at ~28% alpha — a faint mark that reads against any of
-          // CalendarBlock's tint colors (success/warning/danger/neutral) in
-          // either theme, replacing a fixed light-mode-only grey.
+          // Muted text at ~28% alpha — a faint mark that reads against
+          // CalendarBlock's flat `bg-raised` fill in either theme, replacing
+          // a fixed light-mode-only grey.
           backgroundColor: `${theme.textMuted}47`,
         }}
       />
@@ -1306,7 +1306,7 @@ function EllipsisButton() {
         justifyContent: 'center',
         borderRadius: 999,
         // Raised-surface wash (not a fixed white) so the chip still pops off
-        // whatever tint color the underlying block carries, in either theme.
+        // the block's flat `bg-raised` fill, in either theme.
         backgroundColor: `${theme.elevated}B8`,
       }}
     >

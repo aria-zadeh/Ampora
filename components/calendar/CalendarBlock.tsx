@@ -1,19 +1,21 @@
 import React, { useMemo } from 'react'
-import { View, Text, type DimensionValue } from 'react-native'
+import { View, type DimensionValue } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import type { ScheduledBlock, CalEvent, Task } from '@/types'
 import { slackColor } from '@/core/scheduler'
 import { PressableScale } from '@/components/ui/PressableScale'
+import { Text } from '@/components/ui/Text'
 import { useThemeColors } from '@/hooks/useThemeColors'
 import { formatBlockTimeRange } from './hours'
 
 /**
  * Deadline-slack visual mapping (PRD §9.5.5 / doc 02 §13.2). Color is NEVER the
- * sole signal — every block also carries a status dot and the block is labeled,
+ * sole signal — "getting close" and "at risk" carry a distinct GLYPH, not just a
+ * differently coloured dot, and every block is labeled,
  * satisfying NFR-5 / §8.12. Events use a neutral treatment (no deadline slack).
  * Maps to the semantic success/warning/danger tokens (never the raw ramp) so
  * every tone stays correct in both themes — resolved theme-side inside the
- * component (see the `style` useMemo below), since the accent/tint/dot hexes
+ * component (see the `style` useMemo below), since the accent/dot hexes
  * depend on the active color scheme.
  */
 const SLACK_LABELS = {
@@ -72,8 +74,9 @@ function remainingSteps(task?: Task): number {
  *
  * - Absolutely positioned via `top`/`height`/`left`/`width` (the caller runs
  *   the geometry + overlap math from `core/calendar`).
- * - Soft tinted surface + a strong left accent bar in the deadline-slack color
- *   (neutral for events); a status dot repeats the signal for a11y.
+ * - Flat `bg-raised` surface (no per-status tint) plus a strong left accent
+ *   bar in the deadline-slack color (neutral for events); a status dot
+ *   repeats the signal for a11y.
  * - Dynamic typography (§8.7): time+title at >=44px, title-only 28–44px,
  *   ~6 chars when very short or in a dense (<56px wide) column. Never clips —
  *   always ellipsizes.
@@ -101,20 +104,23 @@ export function CalendarBlock({
   const nowMs = now ?? Date.now()
   const theme = useThemeColors()
 
-  // Theme-driven deadline-slack style (accent bar / status dot / soft tint).
-  // Events get a neutral treatment — no deadline slack applies to them.
+  // Theme-driven deadline-slack style (accent border / status dot). The
+  // container itself is a flat `bg-raised` tile (2026-08-26 remeasure,
+  // week-view.pdf) — the per-status tint wash this used to carry is gone, so
+  // slack/event status lives in the border + the 6x6 dot + the a11y label
+  // below ("never color alone", doc 02 §13.2).
   const style = useMemo(() => {
     if (isEvent) {
-      return { accent: theme.textMuted, tint: theme.surfaceGhost, dot: theme.textMuted, label: EVENT_LABEL }
+      return { accent: theme.textMuted, dot: theme.textMuted, label: EVENT_LABEL, glyph: null }
     }
     const slack = task ? slackColor(task, nowMs) : 'green'
     if (slack === 'red') {
-      return { accent: theme.danger, tint: theme.dangerLight, dot: theme.danger, label: SLACK_LABELS.red }
+      return { accent: theme.danger, dot: theme.danger, label: SLACK_LABELS.red, glyph: 'alert-circle' as const }
     }
     if (slack === 'amber') {
-      return { accent: theme.warning, tint: theme.warningLight, dot: theme.warning, label: SLACK_LABELS.amber }
+      return { accent: theme.warning, dot: theme.warning, label: SLACK_LABELS.amber, glyph: 'time' as const }
     }
-    return { accent: theme.success, tint: theme.successLight, dot: theme.success, label: SLACK_LABELS.green }
+    return { accent: theme.success, dot: theme.success, label: SLACK_LABELS.green, glyph: null }
   }, [isEvent, task, nowMs, theme])
 
   const title = event?.title ?? task?.title ?? 'Untitled'
@@ -145,16 +151,14 @@ export function CalendarBlock({
 
   const surface = (
       <View
-        className="flex-1 rounded-lg overflow-hidden flex-row"
+        className="flex-1 rounded-tile overflow-hidden flex-row bg-raised"
         style={[
           {
-            backgroundColor: style.tint,
             borderWidth: 1,
-            // Events read as fixed/external by SHAPE, not just their neutral
-            // tint (FR-1, FR-12; doc 02 "never color alone") — a dashed
-            // border reads as "placed here, not scheduled by the engine"
-            // regardless of hue, on top of the distinct EVENT_STYLE tint and
-            // the calendar glyph below.
+            // Events read as fixed/external by SHAPE, not just color (FR-1,
+            // FR-12; doc 02 "never color alone") — a dashed border reads as
+            // "placed here, not scheduled by the engine" regardless of hue,
+            // on top of the calendar glyph below.
             borderStyle: isEvent ? 'dashed' : 'solid',
             borderColor: isEvent ? theme.border : `${style.accent}33`,
             opacity: done ? 0.6 : 1,
@@ -174,11 +178,7 @@ export function CalendarBlock({
           // real width, at any typeface, and unlike the slice they leave a
           // visible signal that there is more title than is shown.
           <View className="flex-1 px-1 py-0.5 justify-center">
-            <Text
-              numberOfLines={1}
-              ellipsizeMode="tail"
-              className="text-tiny font-medium text-neutral-800"
-            >
+            <Text variant="tiny" numberOfLines={1} ellipsizeMode="tail">
               {title}
             </Text>
           </View>
@@ -186,20 +186,38 @@ export function CalendarBlock({
           <View className="flex-1 px-2 py-1 justify-start">
             {/* Header row: status dot + title (title-only when 28–44px). */}
             <View className="flex-row items-center">
-              <View
-                className="rounded-full mr-1.5"
-                style={{ width: 6, height: 6, backgroundColor: style.dot }}
-              />
+              {/*
+                docs/02 13.2: colour is never the only signal. "Getting close"
+                and "at risk" swap the dot for a glyph, so the two states a user
+                actually needs to notice differ in SHAPE, not just hue - which
+                is what makes them readable to a colour-blind user at a 6px dot
+                size. Comfortable and plain events keep the quiet dot; giving
+                every block an icon would crowd a 28px row for no signal.
+              */}
+              {style.glyph ? (
+                <Ionicons
+                  name={style.glyph}
+                  size={10}
+                  color={style.dot}
+                  style={{ marginRight: 4 }}
+                />
+              ) : (
+                <View
+                  className="rounded-full mr-1.5"
+                  style={{ width: 6, height: 6, backgroundColor: style.dot }}
+                />
+              )}
               {showTitle ? (
                 <Text
+                  variant="tiny"
                   numberOfLines={1}
-                  className={`flex-1 text-caption font-semibold ${done ? 'text-neutral-500 line-through' : 'text-neutral-900'}`}
+                  className={`flex-1 ${done ? 'text-ink-muted line-through' : ''}`}
                 >
                   {title}
                 </Text>
               ) : (
                 // Very short (<28px): title only, single line, no dot crowding.
-                <Text numberOfLines={1} className="flex-1 text-tiny font-medium text-neutral-800">
+                <Text variant="tiny" numberOfLines={1} className="flex-1">
                   {title}
                 </Text>
               )}
@@ -208,12 +226,12 @@ export function CalendarBlock({
             {/* Time + meta only when tall enough (§8.7 >= 44px). */}
             {showTime ? (
               <View className="flex-row items-center mt-0.5">
-                <Text numberOfLines={1} className="text-tiny text-neutral-500 flex-shrink">
+                <Text variant="micro" numberOfLines={1} className="text-ink-secondary flex-shrink">
                   {timeRange}
                 </Text>
                 {steps > 0 ? (
-                  <View className="ml-1.5 px-1.5 py-px rounded-full bg-white/70 border border-neutral-200">
-                    <Text className="text-tiny font-medium text-neutral-600">{steps} steps</Text>
+                  <View className="ml-1.5 px-1.5 py-px rounded-full bg-surface/70 border border-line">
+                    <Text variant="tiny" className="text-ink-secondary">{steps} steps</Text>
                   </View>
                 ) : null}
               </View>
@@ -221,7 +239,7 @@ export function CalendarBlock({
 
             {/* Progress fill (FR-18) — only when there's room and progress exists. */}
             {progressFraction > 0 && height >= H_FULL ? (
-              <View className="mt-1 h-0.75 rounded-full overflow-hidden bg-white/60">
+              <View className="mt-1 h-0.75 rounded-full overflow-hidden bg-surface/60">
                 <View
                   className="h-full rounded-full"
                   style={{ width: `${progressFraction * 100}%`, backgroundColor: style.accent }}

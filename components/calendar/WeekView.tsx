@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, ScrollView, useWindowDimensions } from 'react-native'
+import { View, ScrollView, useWindowDimensions } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 import {
   blockGeometry,
@@ -14,6 +14,7 @@ import { useScheduleStore, selectAllBlocks, selectAllCalEvents } from '@/store/s
 import { useTaskStore } from '@/store/taskStore'
 import type { CalEvent, ScheduledBlock } from '@/types'
 import { CalendarBlock } from './CalendarBlock'
+import { Text } from '@/components/ui/Text'
 import {
   GUTTER_WIDTH,
   HOURS_IN_DAY,
@@ -27,8 +28,7 @@ import {
 
 const MS_PER_DAY = 86_400_000
 
-/** Weekday header glyphs (single letter) + accessible long names. */
-const WEEKDAY_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+/** Accessible long weekday names, indexed by `Date#getDay()`. The visible glyph is a locale `{weekday:'short'}` abbreviation instead (matches ThreeDayView's own header). */
 const WEEKDAY_LONG = [
   'Sunday',
   'Monday',
@@ -47,8 +47,11 @@ const WEEKDAY_LONG = [
  */
 const MIN_DAY_COL_WIDTH = 44
 
-/** Sticky header height (weekday letter + date number). */
-const HEADER_HEIGHT = 52
+/** Sticky header height (weekday abbreviation + date number pill). */
+const HEADER_HEIGHT = 56
+
+/** Ghost-slot minimum height (px) — smaller gaps read as visual noise, so they render as bare canvas instead of a sliver placeholder. */
+const MIN_GHOST_HEIGHT = 4
 
 /** All-day strip: chip height, gap between stacked chips, and the max stacked rows before collapsing to "+N" (mirrors MonthView's MAX_DOTS overflow treatment). */
 const ALLDAY_CHIP_H = 22
@@ -87,6 +90,52 @@ interface DayColumn {
   dayStartMs: number
   isToday: boolean
   laid: LaidOutItem<WeekGridItem>[]
+}
+
+/**
+ * The vertical spans NOT covered by any of `ranges` (2026-08-26 remeasure,
+ * week-view.pdf: an empty slot renders as a deliberate `bg-surface-hairline`
+ * placeholder, "the visual distinction between a real block and open space",
+ * rather than blank canvas). Pure geometry over data the column already has —
+ * no store reads, no gesture involvement. Gaps under {@link MIN_GHOST_HEIGHT}
+ * are dropped as visual noise.
+ */
+function ghostGaps(
+  ranges: { top: number; height: number }[],
+  totalHeight: number
+): { top: number; height: number }[] {
+  if (ranges.length === 0) {
+    return totalHeight >= MIN_GHOST_HEIGHT ? [{ top: 0, height: totalHeight }] : []
+  }
+  const merged: { top: number; bottom: number }[] = []
+  for (const r of [...ranges].sort((a, b) => a.top - b.top)) {
+    const bottom = r.top + r.height
+    const last = merged[merged.length - 1]
+    if (last && r.top <= last.bottom) {
+      last.bottom = Math.max(last.bottom, bottom)
+    } else {
+      merged.push({ top: r.top, bottom })
+    }
+  }
+  const gaps: { top: number; height: number }[] = []
+  let cursor = 0
+  for (const m of merged) {
+    if (m.top - cursor >= MIN_GHOST_HEIGHT) gaps.push({ top: cursor, height: m.top - cursor })
+    cursor = Math.max(cursor, m.bottom)
+  }
+  if (totalHeight - cursor >= MIN_GHOST_HEIGHT) gaps.push({ top: cursor, height: totalHeight - cursor })
+  return gaps
+}
+
+/** A placeholder for empty grid time — decorative only, never intercepts a tap/drag meant for the grid underneath. */
+function GhostSlot({ top, height }: { top: number; height: number }) {
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: 'absolute', top, height, left: 2, right: 2 }}
+      className="rounded-md bg-surface-hairline"
+    />
+  )
 }
 
 /**
@@ -218,7 +267,7 @@ export function WeekView({
       {/* Sticky-style header row (weekday + date). Rendered outside the vertical
           scroll so it stays pinned. */}
       <View
-        className="flex-row border-b border-neutral-200 bg-neutral-100"
+        className="flex-row border-b border-line bg-canvas"
         style={{ height: HEADER_HEIGHT }}
       >
         {days.map((day) => (
@@ -257,55 +306,71 @@ export function WeekView({
 
           {/* Per-day columns. */}
           <View className="flex-row" style={{ height: totalHeight }}>
-            {days.map((day) => (
-              <View
-                key={day.dayStartMs}
-                style={{ width: colWidth, height: totalHeight }}
-                className={`border-l border-line ${day.isToday ? 'bg-primary-50/40' : ''}`}
-              >
-                {day.laid.map((laid) => {
-                  const item = laid.item
-                  const isTask = item.kind === 'task'
-                  const { top, height } = blockGeometry(item.start, item.end, day.dayStartMs, pxPerMin)
-                  // Inner block width after the overlap fraction, minus a hair of
-                  // padding — this measured width drives CalendarBlock's dense mode.
-                  const measuredWidth = colWidth * laid.widthFraction - 4
-                  return isTask ? (
-                    <CalendarBlock
-                      key={item.id}
-                      block={item.block}
-                      task={tasks[item.block.taskId]}
-                      top={top}
-                      height={height}
-                      left={`${laid.xFraction * 100}%`}
-                      width={`${laid.widthFraction * 100}%`}
-                      measuredWidth={measuredWidth}
-                      now={now}
-                      onPress={onBlockPress ? () => onBlockPress(item.block) : undefined}
-                      testID={`week-block-${item.id}`}
-                    />
-                  ) : (
-                    <CalendarBlock
-                      key={item.id}
-                      event={item.event}
-                      top={top}
-                      height={height}
-                      left={`${laid.xFraction * 100}%`}
-                      width={`${laid.widthFraction * 100}%`}
-                      measuredWidth={measuredWidth}
-                      now={now}
-                      onPress={onEventPress ? () => onEventPress(item.event) : undefined}
-                      testID={`week-event-${item.id}`}
-                    />
-                  )
-                })}
+            {days.map((day) => {
+              // Geometry once per item — reused for both the ghost-gap sweep
+              // below and the block itself, instead of recomputing it twice.
+              const placed = day.laid.map((laid) => ({
+                laid,
+                ...blockGeometry(laid.item.start, laid.item.end, day.dayStartMs, pxPerMin),
+              }))
+              const gaps = ghostGaps(placed, totalHeight)
 
-                {/* Per-column current-time line, only on today. */}
-                {day.isToday ? (
-                  <NowLine dayStartMs={day.dayStartMs} pxPerMin={pxPerMin} totalHeight={totalHeight} />
-                ) : null}
-              </View>
-            ))}
+              return (
+                <View
+                  key={day.dayStartMs}
+                  style={{ width: colWidth, height: totalHeight }}
+                  className={`border-l border-line ${day.isToday ? 'bg-primary-50/40' : ''}`}
+                >
+                  {/* Empty time reads as a deliberate placeholder, not blank
+                      space (2026-08-26 remeasure, week-view.pdf). Behind the
+                      real blocks so it can never visually or hit-test over one. */}
+                  {gaps.map((g, i) => (
+                    <GhostSlot key={`ghost-${i}`} top={g.top} height={g.height} />
+                  ))}
+
+                  {placed.map(({ laid, top, height }) => {
+                    const item = laid.item
+                    const isTask = item.kind === 'task'
+                    // Inner block width after the overlap fraction, minus a hair of
+                    // padding — this measured width drives CalendarBlock's dense mode.
+                    const measuredWidth = colWidth * laid.widthFraction - 4
+                    return isTask ? (
+                      <CalendarBlock
+                        key={item.id}
+                        block={item.block}
+                        task={tasks[item.block.taskId]}
+                        top={top}
+                        height={height}
+                        left={`${laid.xFraction * 100}%`}
+                        width={`${laid.widthFraction * 100}%`}
+                        measuredWidth={measuredWidth}
+                        now={now}
+                        onPress={onBlockPress ? () => onBlockPress(item.block) : undefined}
+                        testID={`week-block-${item.id}`}
+                      />
+                    ) : (
+                      <CalendarBlock
+                        key={item.id}
+                        event={item.event}
+                        top={top}
+                        height={height}
+                        left={`${laid.xFraction * 100}%`}
+                        width={`${laid.widthFraction * 100}%`}
+                        measuredWidth={measuredWidth}
+                        now={now}
+                        onPress={onEventPress ? () => onEventPress(item.event) : undefined}
+                        testID={`week-event-${item.id}`}
+                      />
+                    )
+                  })}
+
+                  {/* Per-column current-time line, only on today. */}
+                  {day.isToday ? (
+                    <NowLine dayStartMs={day.dayStartMs} pxPerMin={pxPerMin} totalHeight={totalHeight} />
+                  ) : null}
+                </View>
+              )
+            })}
           </View>
         </View>
       </ScrollView>
@@ -319,10 +384,10 @@ export function WeekView({
         {/* Header spacer aligns the gutter with the day-header row + all-day strip. */}
         <View
           style={{ height: HEADER_HEIGHT + stripHeight }}
-          className="items-center justify-end border-b border-neutral-200 bg-neutral-100 pb-0.5"
+          className="items-center justify-end border-b border-line bg-canvas pb-0.5"
         >
           {stripHeight > 0 ? (
-            <Text className="text-tiny text-neutral-500" numberOfLines={1}>
+            <Text variant="tiny" className="text-ink-muted" numberOfLines={1}>
               All day
             </Text>
           ) : null}
@@ -367,7 +432,7 @@ function AllDayStrip({
   onEventPress?: (event: CalEvent) => void
 }) {
   return (
-    <View className="flex-row border-b border-neutral-200 bg-neutral-100" style={{ height: stripHeight }}>
+    <View className="flex-row border-b border-line bg-canvas" style={{ height: stripHeight }}>
       {allDayByDay.map((dayEvents, i) => {
         const shown = dayEvents.slice(0, ALLDAY_MAX_ROWS)
         const overflow = dayEvents.length - shown.length
@@ -391,7 +456,8 @@ function AllDayStrip({
             </View>
             {overflow > 0 ? (
               <Text
-                className="text-tiny text-neutral-500"
+                variant="tiny"
+                className="text-ink-muted"
                 numberOfLines={1}
                 accessibilityLabel={`${overflow} more all-day event${overflow === 1 ? '' : 's'}`}
               >
@@ -405,7 +471,13 @@ function AllDayStrip({
   )
 }
 
-/** Weekday letter + date number; today gets a primary ring + filled date pill. */
+/**
+ * Weekday abbreviation + date number (2026-08-26 remeasure, week-view.pdf:
+ * 13pt weekday, current day tinted `primary-light`; the date sits inside a
+ * 28x28 `bg-primary` pill on today). The locale `{weekday:'short'}` glyph
+ * matches ThreeDayView's own header instead of a single disambiguating-poor
+ * letter (T/T, S/S).
+ */
 function DayHeader({
   dayStartMs,
   isToday,
@@ -418,23 +490,22 @@ function DayHeader({
   const d = new Date(dayStartMs)
   const dayOfWeek = d.getDay()
   const dateNum = d.getDate()
+  const weekdayShort = d.toLocaleDateString(undefined, { weekday: 'short' })
   return (
     <View
       style={{ width }}
       className="items-center justify-center py-1"
       accessibilityLabel={`${WEEKDAY_LONG[dayOfWeek]} ${dateNum}${isToday ? ', today' : ''}`}
     >
-      <Text className="text-tiny font-medium text-neutral-500 mb-0.5">
-        {WEEKDAY_SHORT[dayOfWeek]}
+      <Text variant="caption" className={`mb-0.5 ${isToday ? 'text-primary-400' : 'text-ink-muted'}`}>
+        {weekdayShort}
       </Text>
       <View
         className={`w-7 h-7 rounded-full items-center justify-center ${
           isToday ? 'bg-primary-600' : ''
         }`}
       >
-        <Text
-          className={`text-caption font-semibold ${isToday ? 'text-primary-foreground' : 'text-neutral-800'}`}
-        >
+        <Text variant="label" className={isToday ? 'text-primary-foreground' : ''}>
           {dateNum}
         </Text>
       </View>
@@ -489,7 +560,8 @@ function GutterLabels({
             style={{ top: hour * pxPerHour - 6, left: 0 }}
           >
             <Text
-              className="text-tiny text-neutral-500"
+              variant="tiny"
+              className="text-ink-muted"
               accessibilityLabel={hourLabelLong(hour)}
               allowFontScaling
             >

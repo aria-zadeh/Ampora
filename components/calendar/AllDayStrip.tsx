@@ -15,9 +15,10 @@
  * only.
  */
 import React, { useMemo, useState } from 'react'
-import { View, Text, type LayoutChangeEvent } from 'react-native'
+import { View, type LayoutChangeEvent } from 'react-native'
 import type { CalEvent } from '@/types'
 import { CalendarBlock } from './CalendarBlock'
+import { Text } from '@/components/ui/Text'
 import { GUTTER_WIDTH } from './hours'
 import {
   ALLDAY_CHIP_H,
@@ -76,7 +77,8 @@ function AllDayChipsRow({
             </View>
             {overflow > 0 ? (
               <Text
-                className="text-tiny text-neutral-500"
+                variant="tiny"
+                className="text-ink-muted"
                 numberOfLines={1}
                 accessibilityLabel={`${overflow} more all-day event${overflow === 1 ? '' : 's'}`}
               >
@@ -114,9 +116,9 @@ export function AllDayStripRow({ dayStarts, events, onEventPress, testIDPrefix }
   if (stripHeight === 0) return null
 
   return (
-    <View className="flex-row border-b border-neutral-200 bg-neutral-100" testID={`${testIDPrefix}-row`}>
+    <View className="flex-row border-b border-line bg-canvas" testID={`${testIDPrefix}-row`}>
       <View style={{ width: GUTTER_WIDTH, height: stripHeight }} className="items-end justify-center pr-2">
-        <Text className="text-tiny text-neutral-500" numberOfLines={1}>
+        <Text variant="tiny" className="text-ink-muted" numberOfLines={1}>
           All day
         </Text>
       </View>
