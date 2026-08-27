@@ -28,9 +28,10 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
 import { useSettingsStore } from '@/store/settingsStore'
 import { getNotificationPermissionStatus } from '@/services/notifications'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { colors, shadows } from '@/utils/design-tokens'
+import { shadows } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import {
   SectionLabel,
   SectionFootnote,
@@ -58,6 +59,8 @@ function formatRate(perHour: number): string {
  */
 function PermissionNudge() {
   const reduceMotion = useReduceMotion()
+  // Ionicons `color` takes a literal, never a `dark:` class.
+  const theme = useThemeColors()
   const dismissed = useSettingsStore((s) => s.settings.notificationNudgeDismissed)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
   const [status, setStatus] = useState<'granted' | 'denied' | 'undetermined' | 'unsupported'>(
@@ -94,18 +97,18 @@ function PermissionNudge() {
     <Animated.View
       entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.base)}
       exiting={reduceMotion ? undefined : FadeOut.duration(DURATIONS.fast)}
-      className="mb-6 rounded-2xl border border-warning-100 bg-white p-4"
+      className="mb-6 rounded-2xl border border-warning-100 bg-white p-4 dark:bg-neutral-900"
       style={shadows.sm}
     >
       <View className="flex-row items-start">
         <View className="h-9 w-9 items-center justify-center rounded-full bg-warning-100">
-          <Ionicons name="notifications-off-outline" size={18} color={colors.light.warningStrong} />
+          <Ionicons name="notifications-off-outline" size={18} color={theme.warningStrong} />
         </View>
         <View className="ml-3 flex-1">
-          <Text className="text-body-lg font-medium text-neutral-900">
+          <Text className="text-body-lg font-medium text-neutral-900 dark:text-neutral-50">
             Notifications are off
           </Text>
-          <Text className="mt-1 text-body text-neutral-500">
+          <Text className="mt-1 text-body text-neutral-500 dark:text-[#78716C]">
             Turn them on in Settings to get first-move nudges and deadline
             reminders. Ampora still works fine without them.
           </Text>
@@ -117,7 +120,7 @@ function PermissionNudge() {
               accessibilityRole="button"
               accessibilityLabel="Open device settings to turn on notifications"
             >
-              <Text className="text-label font-semibold text-primary-600">
+              <Text className="text-label font-semibold text-primary-600 dark:text-primary-400">
                 Open Settings
               </Text>
             </PressableScale>
@@ -128,7 +131,7 @@ function PermissionNudge() {
               accessibilityRole="button"
               accessibilityLabel="Dismiss this notice"
             >
-              <Text className="text-label font-medium text-neutral-500">Dismiss</Text>
+              <Text className="text-label font-medium text-neutral-500 dark:text-[#78716C]">Dismiss</Text>
             </PressableScale>
           </View>
         </View>
@@ -138,6 +141,8 @@ function PermissionNudge() {
 }
 
 export function NotificationSettings() {
+  // For the `iconTint` values below, which land on Ionicons' `color` prop.
+  const theme = useThemeColors()
   const maxPerHour = useSettingsStore((s) => s.settings.maxNotificationsPerHour)
   const quietHours = useSettingsStore((s) => s.settings.quietHours)
   const reminderKinds = useSettingsStore((s) => s.settings.reminderKinds)
@@ -167,7 +172,7 @@ export function NotificationSettings() {
     <View>
       <PermissionNudge />
 
-      <Text className="mb-4 text-body text-neutral-500">
+      <Text className="mb-4 text-body text-neutral-500 dark:text-[#78716C]">
         Ampora keeps reminders rare and well-timed. Fewer nudges you actually
         notice beat a stream you learn to ignore.
       </Text>
@@ -177,7 +182,7 @@ export function NotificationSettings() {
       <Group>
         <Row
           icon="flash-outline"
-          iconTint={colors.light.primary}
+          iconTint={theme.primary}
           iconBg="bg-primary-50"
           label="First-move nudge"
           sublabel="A gentle prompt at your best focus time"
@@ -191,7 +196,7 @@ export function NotificationSettings() {
         />
         <Row
           icon="alert-circle-outline"
-          iconTint={colors.light.warningAccent}
+          iconTint={theme.warningAccent}
           iconBg="bg-warning-100"
           label="Deadline approaching"
           sublabel="A heads-up about 12 hours before it's due"
@@ -205,7 +210,7 @@ export function NotificationSettings() {
         />
         <Row
           icon="heart-outline"
-          iconTint={colors.light.accentStrong}
+          iconTint={theme.accentStrong}
           iconBg="bg-accent-100"
           label="Motivation nudge"
           sublabel="A warm check-in if a task sits untouched a day"
@@ -231,7 +236,7 @@ export function NotificationSettings() {
       <Group>
         <Row
           icon="notifications-outline"
-          iconTint={colors.light.primary}
+          iconTint={theme.primary}
           iconBg="bg-primary-50"
           label="Reminders per hour"
           sublabel={
@@ -268,7 +273,7 @@ export function NotificationSettings() {
           label="No reminders during"
           sublabel="Reminders and stakes both rest in this window"
           trailing={
-            <Text className="text-body font-medium text-neutral-500">
+            <Text className="text-body font-medium text-neutral-500 dark:text-[#78716C]">
               {quietLabel}
             </Text>
           }

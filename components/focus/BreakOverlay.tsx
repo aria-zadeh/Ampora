@@ -21,8 +21,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { colors, iconSizes, tabularNums } from "@/utils/design-tokens";
+import { iconSizes, tabularNums } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 /** Calm prompts, one picked per break. Never instructional-nagging. */
 const BREAK_PROMPTS: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
@@ -43,6 +44,8 @@ export interface BreakOverlayProps {
 
 export function BreakOverlay({ visible, minutes = 5, onResume, lockActive = false }: BreakOverlayProps) {
   const reduceMotion = useReduceMotion();
+  // Ionicons `color` takes a literal and cannot take a `dark:` class.
+  const theme = useThemeColors();
   const totalSec = Math.max(30, Math.round(minutes * 60));
 
   const [remaining, setRemaining] = useState(totalSec);
@@ -93,22 +96,31 @@ export function BreakOverlay({ visible, minutes = 5, onResume, lockActive = fals
       statusBarTranslucent
       onRequestClose={onResume}
     >
-      <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
+      <SafeAreaView className="flex-1 bg-neutral-100 dark:bg-neutral-950" edges={["top", "bottom"]}>
         <View className="flex-1 items-center justify-center px-8">
+          {/* The tinted disc keeps ONE value in both themes, and that is
+              deliberate rather than an oversight. It is a self-contained
+              audited pair: #2563EB on primary-100 does not move when the
+              canvas behind it does. The alternatives are both worse on a
+              low-stimulation surface — a neutral-800 bubble drops the glyph
+              to 2.93:1, under the 3:1 graphical-object bar, and primary-900
+              (#1E3A8A) is close enough to the glyph's own blue to erase it.
+              So the one bright element on this screen stays the calm blue
+              breathing prompt, which is also the only prominent thing here. */}
           <View className="h-20 w-20 items-center justify-center rounded-full bg-primary-100">
-            <Ionicons name={prompt.icon} size={iconSizes.xl} color={colors.light.primary} />
+            <Ionicons name={prompt.icon} size={iconSizes.xl} color={theme.primary} />
           </View>
 
           <Heading size="h2" className="mt-6 text-center">
             Take a breather
           </Heading>
-          <Text className="mt-2 max-w-[300px] text-center text-body text-neutral-600 leading-6">
+          <Text className="mt-2 max-w-[300px] text-center text-body text-neutral-600 dark:text-neutral-400 leading-6">
             {prompt.text}
           </Text>
 
           <View className="mt-10 items-center">
             <Text
-              className="font-bold text-neutral-900"
+              className="font-bold text-neutral-900 dark:text-neutral-50"
               style={{ fontSize: 56, lineHeight: 62, ...tabularNums }}
               accessibilityRole="timer"
               accessibilityLabel={`${mm} minutes ${ss} seconds of break left`}
@@ -123,11 +135,11 @@ export function BreakOverlay({ visible, minutes = 5, onResume, lockActive = fals
           {/* The honesty line. Without it, a user reasonably assumes break time
               is serving their lock. */}
           <View
-            className="mt-8 flex-row items-start gap-2 rounded-2xl bg-white border border-neutral-200 px-4 py-3"
+            className="mt-8 flex-row items-start gap-2 rounded-2xl bg-white border border-neutral-200 px-4 py-3 dark:bg-neutral-900 dark:border-neutral-800"
             accessibilityRole="summary"
           >
-            <Ionicons name="pause-circle-outline" size={iconSizes.sm} color={colors.light.textSecondary} />
-            <Text className="flex-1 text-caption text-neutral-600 leading-5">
+            <Ionicons name="pause-circle-outline" size={iconSizes.sm} color={theme.textSecondary} />
+            <Text className="flex-1 text-caption text-neutral-600 dark:text-neutral-400 leading-5">
               {lockActive
                 ? "Your session timer is paused, so break time doesn't count toward your lock. Your apps stay on the line."
                 : "Your session timer is paused. Break time doesn't count as focus time."}
@@ -141,7 +153,7 @@ export function BreakOverlay({ visible, minutes = 5, onResume, lockActive = fals
             variant="primaryBlue"
             size="lg"
             onPress={onResume}
-            icon={<Ionicons name="arrow-forward" size={iconSizes.sm} color={colors.light.primaryForeground} />}
+            icon={<Ionicons name="arrow-forward" size={iconSizes.sm} color={theme.primaryForeground} />}
             accessibilityLabel="End the break and resume your session"
           />
         </View>

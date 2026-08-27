@@ -20,7 +20,7 @@ import React, { useMemo } from 'react'
 import { View, Text } from 'react-native'
 import { useSettingsStore } from '@/store/settingsStore'
 import type { Settings } from '@/types'
-import { colors } from '@/utils/design-tokens'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import {
   SectionLabel,
   SectionFootnote,
@@ -103,6 +103,11 @@ function summarizeDayRange(days: number[]): string {
 // ---------------------------------------------------------------------------
 
 export function SchedulingSettings() {
+  // Only the `iconTint` values below need this: they land on Ionicons' `color`
+  // prop, which takes a literal and cannot take a `dark:` class. Every other
+  // surface on this screen comes from SettingsPrimitives, which is already
+  // theme-aware.
+  const theme = useThemeColors()
   const settings = useSettingsStore((s) => s.settings)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
 
@@ -134,7 +139,7 @@ export function SchedulingSettings() {
 
   return (
     <View>
-      <Text className="mb-4 text-body text-neutral-500">
+      <Text className="mb-4 text-body text-neutral-500 dark:text-[#78716C]">
         Defaults for how Ampora places new tasks on your calendar. Any task can
         still override these on its own.
       </Text>
@@ -144,7 +149,7 @@ export function SchedulingSettings() {
       <Group>
         <Row
           icon="chevron-back-outline"
-          iconTint={colors.light.primary}
+          iconTint={theme.primary}
           iconBg="bg-primary-50"
           label="Buffer before"
           sublabel="Quiet time held before each block"
@@ -162,7 +167,7 @@ export function SchedulingSettings() {
         />
         <Row
           icon="chevron-forward-outline"
-          iconTint={colors.light.primary}
+          iconTint={theme.primary}
           iconBg="bg-primary-50"
           label="Buffer after"
           sublabel="Quiet time held after each block"
@@ -307,7 +312,7 @@ export function SchedulingSettings() {
           <Row
             key={line}
             icon={i === 0 ? 'time-outline' : 'ellipse-outline'}
-            iconTint={colors.light.successAccent}
+            iconTint={theme.successAccent}
             iconBg="bg-success-100"
             label={line}
             isLast={i === hoursSummary.length - 1}

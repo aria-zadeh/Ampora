@@ -41,7 +41,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors, iconSizes, shadows } from "@/utils/design-tokens";
+import { iconSizes, shadows } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export interface SessionControlsProps {
   /** Primary: mark the current step done (or finish, when nothing is left). */
@@ -66,6 +67,13 @@ export function SessionControls({
   onOverwhelmed,
   onParkThought,
 }: SessionControlsProps) {
+  // Ionicons `color` takes a literal, never a `dark:` class. Only the
+  // checkmark on the filled blue primary needs one here, and
+  // `primaryForeground` is #FFFFFF in BOTH token sets: the fill is opaque, so
+  // the white-on-blue pair measures 5.17:1 whichever canvas is behind it
+  // (doc 02 §14.1/§14.6). Resolving it through the hook rather than hardcoding
+  // `colors.light.*` keeps the rule absolute without changing a pixel.
+  const theme = useThemeColors();
   return (
     <View>
       {/* Primary: Done, blue, never green (D3: green is a terminal state only). */}
@@ -77,7 +85,7 @@ export function SessionControls({
         accessibilityRole="button"
         accessibilityLabel={noSteps ? "Finish session" : "Mark this step done and continue"}
       >
-        <Ionicons name="checkmark-circle" size={22} color={colors.light.primaryForeground} />
+        <Ionicons name="checkmark-circle" size={22} color={theme.primaryForeground} />
         <Text variant="h4" className="ml-2 text-white">{noSteps ? "Finish" : "Done"}</Text>
       </PressableScale>
 
@@ -143,7 +151,14 @@ function QuietPill({
       onPress={onPress}
       haptic="light"
       disabled={disabled}
-      className={`flex-1 h-11 items-center justify-center rounded-lg bg-neutral-100 px-2 ${
+      /* Quiet inset on the session's own white card, so dark steps to the
+         ELEVATED neutral (neutral-800), not the canvas one. Going darker than
+         the card would sink these controls into it; elevated lifts them the
+         same way neutral-100 lifts off white today. `opacity-50` for disabled
+         is left theme-agnostic on purpose, exactly as `components/ui/Button`
+         documents: it composites the whole pill against whichever canvas is
+         behind it, and disabled controls are WCAG-exempt regardless. */
+      className={`flex-1 h-11 items-center justify-center rounded-lg bg-neutral-100 px-2 dark:bg-neutral-800 ${
         disabled ? "opacity-50" : ""
       }`}
       accessibilityRole="button"
@@ -151,9 +166,12 @@ function QuietPill({
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled, busy }}
     >
+      {/* neutral-600 -> neutral-400 is the cheatsheet's textSecondary pair.
+          #A8A29A on the elevated dark pill (#292524) measures 5.99:1, clear
+          of the 4.5:1 body bar these labels owe. */}
       <Text
         variant="captionMedium"
-        className="text-neutral-600 text-center"
+        className="text-neutral-600 dark:text-neutral-400 text-center"
         numberOfLines={2}
       >
         {busy && busyLabel ? busyLabel : label}

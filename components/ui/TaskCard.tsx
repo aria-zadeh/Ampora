@@ -11,9 +11,10 @@ import { PressableScale } from "./PressableScale";
 import { PulseScale } from "./PulseScale";
 import { ProgressBar } from "./ProgressBar";
 import { Badge } from "./Badge";
-import { shadows, listColors, tabularNums, colors, type ListColorName } from "@/utils/design-tokens";
+import { shadows, listColors, tabularNums, type ListColorName } from "@/utils/design-tokens";
 import { EASINGS, DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task } from "@/types";
 
 export interface TaskCardProps {
@@ -93,6 +94,10 @@ function TaskCardImpl({
   lifted = false,
 }: TaskCardProps) {
   const reduceMotion = useReduceMotion();
+  // Two Ionicons `color`s below take literal values and cannot take a
+  // `dark:` class, so they resolve the active scheme here. Everything else
+  // in this card is className-driven and uses `dark:` variants directly.
+  const theme = useThemeColors();
   const isDone = task.status === "done";
   const subtaskCount = task.subtasks.length;
   const hasSubtasks = subtaskCount > 0;
@@ -154,13 +159,23 @@ function TaskCardImpl({
           accessibilityLabel={isDone ? "Mark task incomplete" : "Mark task complete"}
           hitSlop={8}
         >
+          {/* Checked is a FILLED accent under a white checkmark, so it keeps
+              one value in both themes (doc 02 §14.1) — the fill is opaque
+              and white-on-primary stays 5.17:1 whatever is behind the card.
+              Unchecked is the neutral borderStrong row, and worth being
+              honest about: at 1.38:1 on the light canvas it already misses
+              the 3:1 a control boundary owes, and dark lands at 1.92:1, so
+              dark is the better of the two. Raising it is a light-mode
+              design change rather than a dark-mode fix, so it is not made
+              here; the control is 44x44, labelled, and announces
+              `accessibilityState.checked` either way. */}
           <View
             className={`w-7 h-7 rounded-full items-center justify-center ${
-              isDone ? "bg-primary-600" : "border-2 border-neutral-300"
+              isDone ? "bg-primary-600" : "border-2 border-neutral-300 dark:border-neutral-700"
             }`}
           >
             <Animated.View style={checkAnimatedStyle}>
-              <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
+              <Ionicons name="checkmark" size={16} color={theme.primaryForeground} />
             </Animated.View>
           </View>
         </Pressable>
@@ -180,7 +195,10 @@ function TaskCardImpl({
           barColor ? { borderTopLeftRadius: 12, borderBottomLeftRadius: 12 } : null,
           lifted ? { transform: [{ scale: 1.02 }], shadowOpacity: 0.16, shadowRadius: 16 } : null,
         ]}
-        className="flex-1 flex-row bg-white border border-neutral-200 rounded-lg min-h-14 overflow-hidden"
+        // Cheatsheet card + border rows. The hairline is decorative in both
+        // themes (1.25:1 light, 1.15:1 dark), the same exemption
+        // `components/ui/Card.tsx` and Button's `secondary` variant document.
+        className="flex-1 flex-row bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg min-h-14 overflow-hidden"
         accessibilityRole="button"
         accessibilityLabel={`Task: ${task.title}.${dueLabel ? ` ${dueLabel}.` : ""}${
           hasSubtasks ? ` ${doneSubtaskCount} of ${subtaskCount} steps.` : ""
@@ -199,9 +217,18 @@ function TaskCardImpl({
         <View className="flex-1 p-4">
           {/* Title + optional overdue badge */}
           <View className="flex-row items-start justify-between">
+            {/* The done tone steps to textSecondary rather than mirroring
+                textMuted, because this is 15px body copy and not the 13px
+                caption tier the bespoke dark textMuted value is signed off
+                for: neutral-400 is 6.91:1 on the dark card where textMuted
+                would be 3.65:1, under the 4.5:1 body bar. The strike-through
+                (not the tone) is what actually marks completion, so nothing
+                here is carried by colour alone. */}
             <Text
               className={`flex-1 text-body font-medium ${
-                isDone ? "line-through text-neutral-500" : "text-neutral-900"
+                isDone
+                  ? "line-through text-neutral-500 dark:text-neutral-400"
+                  : "text-neutral-900 dark:text-neutral-50"
               }`}
               numberOfLines={2}
               ellipsizeMode="tail"
@@ -222,11 +249,26 @@ function TaskCardImpl({
             accessibilityElementsHidden
             importantForAccessibility="no"
           >
+            {/* Both meta labels are 13px, the caption tier the bespoke dark
+                textMuted value is audited for (3.65:1 on the dark card, doc
+                02 §14.6). Spelled as the arbitrary literal the
+                `utils/design-tokens.ts` cheatsheet prescribes, never
+                `dark:text-neutral-500` (3.19:1). `tabularNums` is untouched
+                so the counts stay column-aligned. */}
             {dueLabel && !isOverdue && (
-              <Text style={tabularNums} className="text-caption text-neutral-500" numberOfLines={1}>
+              <Text
+                style={tabularNums}
+                className="text-caption text-neutral-500 dark:text-[#78716C]"
+                numberOfLines={1}
+              >
                 {dueLabel}
               </Text>
             )}
+            {/* Caller-supplied List identity colour, deliberately not
+                theme-resolved for the same reason as `Chip`'s dot: the hex
+                is persisted and matched by equality, so it cannot move with
+                the scheme. Decorative — the meta row carries no state that
+                this dot alone announces. */}
             {listColor && (
               <View
                 className="w-2.5 h-2.5 rounded-full"
@@ -234,19 +276,37 @@ function TaskCardImpl({
               />
             )}
             {hasSubtasks && (
-              <Text style={tabularNums} className="text-caption text-neutral-500">
+              <Text
+                style={tabularNums}
+                className="text-caption text-neutral-500 dark:text-[#78716C]"
+              >
                 {doneSubtaskCount}/{subtaskCount}
               </Text>
             )}
+            {/* The 6px dot is a decorative bullet beside its own label and
+                stays put; the LABEL is accent text on a neutral surface, so
+                it takes the §1.8 step: primary-600 is 3.38:1 on the dark
+                card, short of the 4.5:1 a 13px line owes, and primary-400
+                clears it at 6.88:1. */}
             {hasFirstMove && (
               <View className="flex-row items-center gap-1">
                 <View className="w-1.5 h-1.5 rounded-full bg-primary-500" />
-                <Text className="text-caption text-primary-600">First move</Text>
+                <Text className="text-caption text-primary-600 dark:text-primary-400">
+                  First move
+                </Text>
               </View>
             )}
+            {/* Purple is Projects-only, and this is the shape that keeps it
+                inside its known limit: an OPAQUE accent-100 tint with an
+                accentStrong glyph on it (4.80:1), self-contained, so neither
+                half moves with the theme and no `dark:` variant applies. The
+                ramp has no step reaching 4.5:1 on a dark surface (#7C3AED is
+                3.07:1, #8B5CF6 4.13:1, there is no 400), so purple must
+                never become reading text on dark — see the KNOWN LIMIT note
+                in `utils/design-tokens.ts`. It is not one here. */}
             {hasProject && (
               <View className="w-4 h-4 rounded-full bg-accent-100 items-center justify-center">
-                <Ionicons name="rocket-outline" size={10} color={colors.light.accentStrong} />
+                <Ionicons name="rocket-outline" size={10} color={theme.accentStrong} />
               </View>
             )}
           </View>

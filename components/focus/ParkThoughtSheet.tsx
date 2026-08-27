@@ -29,9 +29,10 @@ import { Text } from "@/components/ui/Text";
 import { Heading } from "@/components/ui/Heading";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { colors, shadows } from "@/utils/design-tokens";
+import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export interface ParkThoughtSheetProps {
   visible: boolean;
@@ -43,6 +44,8 @@ export interface ParkThoughtSheetProps {
 
 export function ParkThoughtSheet({ visible, onClose, onSubmit }: ParkThoughtSheetProps) {
   const reduceMotion = useReduceMotion();
+  // Ionicons `color` takes a literal and cannot take a `dark:` class.
+  const theme = useThemeColors();
   const [text, setText] = useState("");
 
   // Fresh field every time the sheet opens (mirrors `BrainDumpSheet` /
@@ -94,13 +97,13 @@ export function ParkThoughtSheet({ visible, onClose, onSubmit }: ParkThoughtShee
               // sheets already read as one family at 3xl. One sheet at a
               // different radius reads as a bug, not as a quieter tier. The
               // doc is what is stale here, not the convention.
-              className="rounded-t-3xl bg-neutral-100"
+              className="rounded-t-3xl bg-neutral-100 dark:bg-neutral-950"
               style={shadows.xl}
             >
               <SafeAreaView edges={["bottom"]}>
                 {/* Grabber */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1.5 w-10 rounded-full bg-neutral-300 dark:bg-neutral-700" />
                 </View>
 
                 <View className="flex-row items-center justify-between px-5 pb-1 pt-3">
@@ -108,18 +111,18 @@ export function ParkThoughtSheet({ visible, onClose, onSubmit }: ParkThoughtShee
                   <Pressable
                     onPress={handleClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                    className="h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-neutral-900"
                     style={shadows.xs}
                     accessibilityRole="button"
                     accessibilityLabel="Close park a thought"
                     accessibilityHint="Closes without saving"
                   >
-                    <Ionicons name="close" size={20} color={colors.light.textSecondary} />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
                 <View className="px-5 pb-5 pt-2">
-                  <Text variant="caption" className="mb-3 text-neutral-500">
+                  <Text variant="caption" className="mb-3 text-neutral-500 dark:text-[#78716C]">
                     It goes straight to your Inbox for later. The timer keeps running.
                   </Text>
                   <Input

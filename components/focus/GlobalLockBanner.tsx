@@ -42,7 +42,8 @@ import { PressableScale } from "@/components/ui/PressableScale";
 import { useTopNavClearance } from "@/components/ui/SegmentedTabBar";
 import { useStakesStore } from "@/store/stakesStore";
 import { useSettingsStore } from "@/store/settingsStore";
-import { colors, iconSizes, shadows, tabularNums } from "@/utils/design-tokens";
+import { iconSizes, shadows, tabularNums } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { StakeSession } from "@/types";
 
 /** Routes that already show the lock in context. */
@@ -61,6 +62,8 @@ const TAB_PATHNAMES = new Set(["/", "/calendar", "/tasks", "/focus", "/profile"]
 const REFRESH_MS = 20_000;
 
 export function GlobalLockBanner() {
+  // Ionicons `color` takes a literal and cannot take a `dark:` class.
+  const theme = useThemeColors();
   const pathname = usePathname();
   const topNavClearance = useTopNavClearance();
   const insets = useSafeAreaInsets();
@@ -138,13 +141,20 @@ export function GlobalLockBanner() {
           right: 12,
         }}
       >
-        <View className="rounded-2xl bg-neutral-100" style={shadows.lg}>
+        {/* One continuous slab: `LockBanner` renders its own bordered
+            rounded-2xl block on top of this, and the "time left / back to
+            session" strip below shares the same fill, so the two MUST carry
+            identical surface classes or a seam appears where the strip
+            starts. `LockBanner` already ships `bg-neutral-100
+            dark:bg-neutral-950`, so this matches it exactly rather than
+            picking an independently-reasonable step. */}
+        <View className="rounded-2xl bg-neutral-100 dark:bg-neutral-950" style={shadows.lg}>
           <LockBanner session={session} onPanic={() => setPanicSession(session)} />
 
           <View className="flex-row items-center gap-3 px-4 pb-3 pt-2">
             <View className="flex-1 flex-row items-center gap-1.5">
-              <Ionicons name="time-outline" size={iconSizes.xs} color={colors.light.textSecondary} />
-              <Text className="flex-1 text-caption text-neutral-600" style={tabularNums}>
+              <Ionicons name="time-outline" size={iconSizes.xs} color={theme.textSecondary} />
+              <Text className="flex-1 text-caption text-neutral-600 dark:text-neutral-400" style={tabularNums}>
                 {line}
               </Text>
             </View>
@@ -160,10 +170,13 @@ export function GlobalLockBanner() {
                   : "Focus time only counts inside the session, so reopen it to serve the rest"
               }
             >
+              {/* White glyph on the opaque primary-600 fill, one value in
+                  both themes: the fill does not move, so the pair stays at
+                  the audited 5.17:1 on either canvas (doc 02 §14.1/§14.6). */}
               <Ionicons
                 name="arrow-forward"
                 size={iconSizes.xs}
-                color={colors.light.primaryForeground}
+                color={theme.primaryForeground}
               />
               <Text className="text-caption font-semibold text-white">Back to session</Text>
             </PressableScale>

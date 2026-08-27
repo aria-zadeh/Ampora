@@ -2,7 +2,8 @@ import React, { useMemo } from "react";
 import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { shadows, colors } from "@/utils/design-tokens";
+import { shadows } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task } from "@/types";
 
 /**
@@ -59,6 +60,11 @@ interface UrgentStripProps {
 }
 
 export function UrgentStrip({ task, nowMs }: UrgentStripProps) {
+  // The dot is painted through a `style` backgroundColor rather than a class
+  // (see its comment below), so it is one of the literal-taking props that
+  // has to resolve the scheme here. `warningAccent` is unchanged between
+  // themes, and the ring it sits in is an audited tint pair, so nothing moves.
+  const theme = useThemeColors();
   const urgencyLabel = useMemo(
     () => formatUrgency(task.due as number, nowMs),
     [task.due, nowMs]
@@ -70,7 +76,7 @@ export function UrgentStrip({ task, nowMs }: UrgentStripProps) {
     <PressableScale
       onPress={() => router.push(`/task/${task.id}`)}
       haptic="light"
-      className="min-h-11 flex-row items-center gap-2.5 rounded-lg bg-white px-4 py-3"
+      className="min-h-11 flex-row items-center gap-2.5 rounded-lg bg-white px-4 py-3 dark:bg-neutral-900"
       style={shadows.sm}
       accessibilityRole="button"
       accessibilityLabel={`${task.title}, ${urgencyLabel}`}
@@ -81,10 +87,13 @@ export function UrgentStrip({ task, nowMs }: UrgentStripProps) {
       <View className="h-3.5 w-3.5 items-center justify-center rounded-full bg-warning-100">
         <View
           className="h-2 w-2 rounded-full"
-          style={{ backgroundColor: colors.light.warningAccent }}
+          style={{ backgroundColor: theme.warningAccent }}
         />
       </View>
-      <Text className="flex-1 text-body font-semibold text-neutral-900" numberOfLines={2}>
+      <Text
+        className="flex-1 text-body font-semibold text-neutral-900 dark:text-neutral-50"
+        numberOfLines={2}
+      >
         {line}
       </Text>
     </PressableScale>

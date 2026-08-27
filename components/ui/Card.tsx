@@ -27,11 +27,30 @@ interface StaticCardProps
 
 type CardProps = TappableCardProps | StaticCardProps;
 
-/** Base surface classes per variant (shadow comes from style={shadows.*}). */
+/**
+ * Base surface classes per variant (shadow comes from style={shadows.*}).
+ *
+ * Pure neutral ramp, so every entry flips wholesale — these are the
+ * cheatsheet's card / border / elevated rows in `utils/design-tokens.ts`,
+ * nothing invented. `default` and `elevated` differ only by elevation
+ * (`variantShadow` below), never by surface, which is why they carry the
+ * same classes in both themes.
+ *
+ * The hairline border is decorative in BOTH themes and always was:
+ * neutral-200 on white is 1.25:1 and neutral-800 on the dark card is 1.15:1,
+ * neither anywhere near the 3:1 a load-bearing boundary would owe. That is
+ * the same deliberate exemption `components/ui/Button.tsx`'s `secondary`
+ * variant documents, and the card's content carries the contrast.
+ *
+ * Shadows are left alone on purpose: they are RN style props (warm Stone
+ * `#292524` at low opacity, doc 02 §14.2) that composite to nothing on a
+ * near-black canvas. Elevation in dark is carried by the surface step, not
+ * by the shadow, which is exactly why `flat` sits one step off the others.
+ */
 const variantClasses: Record<CardVariant, string> = {
-  default: "bg-white border border-neutral-200",
-  elevated: "bg-white border border-neutral-200",
-  flat: "bg-neutral-50",
+  default: "bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800",
+  elevated: "bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800",
+  flat: "bg-neutral-50 dark:bg-neutral-800",
 };
 
 /** Elevation per variant; flat gets none. */

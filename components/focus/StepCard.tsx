@@ -94,13 +94,22 @@ export function StepCard({
           className={
             bare
               ? "w-full items-center"
-              : "rounded-2xl bg-white border border-neutral-200 p-6"
+              : "rounded-2xl bg-white border border-neutral-200 p-6 dark:bg-neutral-900 dark:border-neutral-800"
           }
         >
+          {/* Every accent/neutral override below carries its OWN `dark:`
+              class. `components/ui/Text` defaults to
+              `text-neutral-900 dark:text-neutral-50`, and a caller's bare
+              `text-*` is a single-class selector that beats the light default
+              but loses to the `dark:` one — so an unpaired override silently
+              reverts to near-white ink on dark. These are all TEXT on a
+              neutral surface, not fills, so they step lighter per doc 02
+              §1.8: primary-600 (3.38:1 on the dark card, under the 4.5:1 body
+              bar) becomes primary-400 (6.88:1). */}
           {isFirstMove && !noSteps && (
             <Text
               variant="overline"
-              className={`text-primary-600 ${bare ? "text-center" : ""}`}
+              className={`text-primary-600 dark:text-primary-400 ${bare ? "text-center" : ""}`}
             >
               First move
             </Text>
@@ -108,7 +117,7 @@ export function StepCard({
           {showPosition && (
             <Text
               variant="captionMedium"
-              className={`text-neutral-600 ${bare ? "text-center" : ""}`}
+              className={`text-neutral-600 dark:text-neutral-400 ${bare ? "text-center" : ""}`}
               style={tabularNums}
             >
               {`Step ${stepNumber} of ${stepTotal}`}
@@ -117,7 +126,7 @@ export function StepCard({
           {noSteps && (
             <Text
               variant="overline"
-              className={`${allDone ? "text-primary-600" : "text-neutral-500"} ${bare ? "text-center" : ""}`}
+              className={`${allDone ? "text-primary-600 dark:text-primary-400" : "text-neutral-500 dark:text-[#78716C]"} ${bare ? "text-center" : ""}`}
             >
               {allDone ? "You're done" : "This session"}
             </Text>
@@ -136,7 +145,7 @@ export function StepCard({
           {simplerText && !noSteps && (
             <Text
               variant="caption"
-              className={`text-primary-600 mt-3 ${bare ? "text-center" : ""}`}
+              className={`text-primary-600 dark:text-primary-400 mt-3 ${bare ? "text-center" : ""}`}
             >
               Simplified, smaller and easier to just start.
             </Text>
