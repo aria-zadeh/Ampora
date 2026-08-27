@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest'
-import { borderRadius, fontFamilies, shadows, spacing, typography } from '@/utils/design-tokens'
+import { borderRadius, colors, fontFamilies, shadows, spacing, typography } from '@/utils/design-tokens'
 
 // react-native ships raw Flow-annotated source, normally stripped by Metro's
 // babel preset before it reaches JS. This vitest harness runs `core/**`
@@ -284,5 +284,113 @@ describe('design tokens: spacing gains an 18px grouping step', () => {
     expect(spacing['3xl']).toBe(40)
     expect(spacing['4xl']).toBe(48)
     expect(spacing['5xl']).toBe(64)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Dark mode: the neutral-ramp `dark:` cheatsheet documented above `spacing`
+// in utils/design-tokens.ts. Screens reproduce `colors.dark` with NativeWind
+// `dark:` classes against the ONE shared neutral ramp in tailwind.config.js
+// (it is not itself theme-aware — there is no separate "dark neutral ramp"),
+// so this is what actually guarantees a `dark:bg-neutral-900` in some screen
+// really does mean `colors.dark.card`, rather than two things that merely
+// happened to agree on the day they were written.
+// ---------------------------------------------------------------------------
+
+describe('design tokens: dark mode neutral-ramp cheatsheet stays true', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const neutral = require('../../tailwind.config.js').theme.extend.colors.neutral
+
+  it('every mapped light-mode semantic color sits at the documented neutral step', () => {
+    expect(colors.light.card).toBe(neutral[0])
+    expect(colors.light.elevated).toBe(neutral[50])
+    expect(colors.light.background).toBe(neutral[100])
+    expect(colors.light.text).toBe(neutral[900])
+    expect(colors.light.textStrong).toBe(neutral[700])
+    expect(colors.light.textSecondary).toBe(neutral[600])
+    expect(colors.light.textMuted).toBe(neutral[500])
+    expect(colors.light.textDisabled).toBe(neutral[400])
+    expect(colors.light.border).toBe(neutral[200])
+    expect(colors.light.borderStrong).toBe(neutral[300])
+  })
+
+  it('every mapped dark-mode semantic color sits at the documented neutral step, EXCEPT textMuted', () => {
+    expect(colors.dark.card).toBe(neutral[900])
+    expect(colors.dark.elevated).toBe(neutral[800])
+    expect(colors.dark.background).toBe(neutral[950])
+    expect(colors.dark.text).toBe(neutral[50])
+    expect(colors.dark.textStrong).toBe(neutral[300])
+    expect(colors.dark.textSecondary).toBe(neutral[400])
+    expect(colors.dark.textDisabled).toBe(neutral[600])
+    expect(colors.dark.border).toBe(neutral[800])
+    expect(colors.dark.borderStrong).toBe(neutral[700])
+  })
+
+  it('dark textMuted is the documented bespoke value, deliberately off-ramp (doc 02 §14.6)', () => {
+    // Reproduced in JSX as the arbitrary-value class `dark:text-[#78716C]`,
+    // never `dark:text-neutral-500` (neutral[500] is measurably lower
+    // contrast on a dark card — see the contrast assertions below).
+    expect(colors.dark.textMuted).toBe('#78716C')
+    expect(colors.dark.textMuted).not.toBe(neutral[500])
+  })
+
+  it('primary is UNCHANGED between themes (doc 02 §14.1) — #2563EB clears AA for a filled button label in both; the lighter primary-500 that briefly lived here failed white-on-primary at 3.68:1 (see the WCAG describe block below)', () => {
+    expect(colors.dark.primary).toBe(colors.light.primary)
+    expect(colors.dark.primary).toBe('#2563EB')
+  })
+
+  it('success/warning/danger/accent "strong"/"accent" text tones are UNCHANGED between themes, so they never need a dark: variant', () => {
+    expect(colors.dark.successAccent).toBe(colors.light.successAccent)
+    expect(colors.dark.successStrong).toBe(colors.light.successStrong)
+    expect(colors.dark.warningAccent).toBe(colors.light.warningAccent)
+    expect(colors.dark.warningStrong).toBe(colors.light.warningStrong)
+    expect(colors.dark.dangerStrong).toBe(colors.light.dangerStrong)
+    expect(colors.dark.accentStrong).toBe(colors.light.accentStrong)
+  })
+})
+
+/**
+ * WCAG 2.1 relative-luminance contrast, computed directly rather than
+ * imported, so this file has no new runtime dependency. Verifies the SAME
+ * pairs doc 02 §14.6 audited for light mode also clear their bar in dark —
+ * a tripwire against a future edit to `colors.dark` quietly breaking a ratio
+ * nothing else here would catch (this table is the only place per-role
+ * dark-mode contrast is checked at all).
+ */
+describe('design tokens: WCAG AA holds for colors.dark text-on-surface pairs', () => {
+  function channel(c: number): number {
+    const s = c / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  }
+  function luminance(hex: string): number {
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+    if (!m) throw new Error(`not a #rrggbb hex: ${hex}`)
+    const [r, g, b] = [m[1], m[2], m[3]].map((h) => channel(parseInt(h, 16)))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  function contrast(a: string, b: string): number {
+    const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+    return (l1 + 0.05) / (l2 + 0.05)
+  }
+
+  it('body text (colors.dark.text) on the dark card clears 4.5:1', () => {
+    expect(contrast(colors.dark.text, colors.dark.card)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('secondary text (colors.dark.textSecondary) on the dark card clears 4.5:1', () => {
+    expect(contrast(colors.dark.textSecondary, colors.dark.card)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('strong text (colors.dark.textStrong) on the dark card clears 4.5:1', () => {
+    expect(contrast(colors.dark.textStrong, colors.dark.card)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('muted text (colors.dark.textMuted) on the dark card clears the 3:1 caption-tier bar it is documented and used as (doc 02 §14.6)', () => {
+    expect(contrast(colors.dark.textMuted, colors.dark.card)).toBeGreaterThanOrEqual(3)
+  })
+
+  it('primary-on-card and white-on-primary both clear their bars in dark mode', () => {
+    expect(contrast(colors.dark.primary, colors.dark.card)).toBeGreaterThanOrEqual(3) // large/UI-glyph bar
+    expect(contrast('#FFFFFF', colors.dark.primary)).toBeGreaterThanOrEqual(4.5) // filled-button label
   })
 })

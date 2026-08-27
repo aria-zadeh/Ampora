@@ -10,7 +10,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { borderRadius } from "@/utils/design-tokens";
+import { borderRadius, shimmer } from "@/utils/design-tokens";
+import { useColorScheme } from "nativewind";
 
 interface SkeletonLoaderProps {
   width?: DimensionValue;
@@ -22,12 +23,6 @@ interface SkeletonLoaderProps {
 
 const SHIMMER_DURATION = 1200;
 const HIGHLIGHT_WIDTH = 120;
-// Transparent -> light highlight -> transparent, tuned for a neutral-200 base.
-const HIGHLIGHT_COLORS = [
-  "rgba(255,255,255,0)",
-  "rgba(255,255,255,0.55)",
-  "rgba(255,255,255,0)",
-] as const;
 
 /**
  * Shimmer placeholder box. A neutral-200 surface with a light highlight sweeping
@@ -40,6 +35,12 @@ export function SkeletonLoader({
   style,
 }: SkeletonLoaderProps) {
   const reduceMotion = useReduceMotion();
+  // Imported from "nativewind", never "react-native" (see CLAUDE.md).
+  const { colorScheme } = useColorScheme();
+  // A gradient `colors` prop takes literals and cannot take a `dark:` class,
+  // so the sweep resolves here rather than in className. See `shimmer` in
+  // utils/design-tokens.ts for why the alpha differs per theme.
+  const highlight = colorScheme === "dark" ? shimmer.dark : shimmer.light;
   const [boxWidth, setBoxWidth] = useState(0);
   const progress = useSharedValue(0);
 
@@ -66,7 +67,7 @@ export function SkeletonLoader({
   return (
     <View
       onLayout={(e) => setBoxWidth(e.nativeEvent.layout.width)}
-      className="bg-neutral-200 overflow-hidden"
+      className="bg-neutral-200 overflow-hidden dark:bg-neutral-800"
       style={[{ width, height, borderRadius: radius }, style]}
       accessibilityLabel="Loading"
     >
@@ -84,7 +85,7 @@ export function SkeletonLoader({
           ]}
         >
           <LinearGradient
-            colors={HIGHLIGHT_COLORS}
+            colors={highlight}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={{ flex: 1 }}

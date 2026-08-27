@@ -1,5 +1,5 @@
 {
-  "buildCommand": "EXPO_PUBLIC_DEV_AUTH_BYPASS=1 npx expo export -p web --clear",
+  "buildCommand": "npx expo export -p web --clear",
   "outputDirectory": "dist",
   "framework": null,
   "rewrites": [

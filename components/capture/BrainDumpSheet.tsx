@@ -70,6 +70,7 @@ import { colors, shadows, listColors, tabularNums } from "@/utils/design-tokens"
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { List } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 // ---------------------------------------------------------------------------
 // Local formatting helpers (mirrors app/(tabs)/tasks.tsx's quick-add preview,
@@ -162,6 +163,10 @@ export interface BrainDumpSheetProps {
 type Mode = "record" | "processing" | "preview";
 
 export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors()
   const reduceMotion = useReduceMotion();
   const voice = useVoiceCapture();
   const createTask = useTaskStore((s) => s.createTask);
@@ -291,9 +296,9 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
       onRequestClose={handleClose}
       presentationStyle={Platform.OS === "ios" ? "pageSheet" : undefined}
     >
-      <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
+      <SafeAreaView className="flex-1 bg-neutral-100 dark:bg-neutral-950" edges={["top", "bottom"]}>
         <View
-          className="flex-row items-center justify-between border-b border-neutral-200 bg-white px-5 py-3.5"
+          className="flex-row items-center justify-between border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-5 py-3.5"
           style={shadows.xs}
         >
           <View className="min-w-11">
@@ -304,7 +309,7 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
               accessibilityRole="button"
               accessibilityLabel="Close Brain dump"
             >
-              <Ionicons name="close" size={24} color={colors.light.text} />
+              <Ionicons name="close" size={24} color={theme.text} />
             </PressableScale>
           </View>
           <Heading size="h3">Brain dump</Heading>
@@ -350,16 +355,20 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
 // ---------------------------------------------------------------------------
 
 function UnavailablePanel({ onClose }: { onClose: () => void }) {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors()
   return (
     <View className="flex-1 items-center justify-center px-8">
-      <View className="w-16 h-16 rounded-full bg-neutral-100 items-center justify-center mb-5">
-        <Ionicons name="mic-off-outline" size={32} color={colors.light.textDisabled} />
+      <View className="w-16 h-16 rounded-full bg-neutral-100 dark:bg-neutral-950 items-center justify-center mb-5">
+        <Ionicons name="mic-off-outline" size={32} color={theme.textDisabled} />
       </View>
       <Heading size="h4" className="text-center">
-        Voice capture isn't available here
+        Voice capture isn&apos;t available here
       </Heading>
-      <Text className="text-body text-neutral-500 text-center mt-2 max-w-[280px]">
-        This device or browser doesn't support on-device speech recognition. You can still type your tasks below.
+      <Text className="text-body text-neutral-500 dark:text-[#78716C] text-center mt-2 max-w-[280px]">
+        This device or browser doesn&apos;t support on-device speech recognition. You can still type your tasks below.
       </Text>
       <View className="mt-6">
         <Button title="Type instead" variant="primaryBlue" onPress={onClose} />
@@ -434,7 +443,7 @@ function RecordPanel({
     return (
       <View className="flex-1 items-center justify-center px-8">
         <ActivityIndicator size="large" color={colors.light.primary} />
-        <Text className="text-body text-neutral-500 text-center mt-4">{statusLabel}</Text>
+        <Text className="text-body text-neutral-500 dark:text-[#78716C] text-center mt-4">{statusLabel}</Text>
       </View>
     );
   }
@@ -442,14 +451,14 @@ function RecordPanel({
   return (
     <View className="flex-1 items-center justify-center px-8">
       <Text
-        className="text-body font-medium text-neutral-700 text-center"
+        className="text-body font-medium text-neutral-700 dark:text-neutral-300 text-center"
         accessibilityLiveRegion="polite"
       >
         {statusLabel}
       </Text>
 
       {isRecording && (
-        <Text style={tabularNums} className="text-h2 font-semibold text-neutral-900 mt-2 mb-1">
+        <Text style={tabularNums} className="text-h2 font-semibold text-neutral-900 dark:text-neutral-50 mt-2 mb-1">
           {formatElapsed(elapsedSec)}
         </Text>
       )}
@@ -466,7 +475,7 @@ function RecordPanel({
       {isRecording && <LevelMeter level={level} reduceMotion={reduceMotion} />}
 
       {isRecording && (transcript || interim) ? (
-        <Text className="text-body text-neutral-500 text-center mt-5 max-w-[300px]" numberOfLines={3}>
+        <Text className="text-body text-neutral-500 dark:text-[#78716C] text-center mt-5 max-w-[300px]" numberOfLines={3}>
           {transcript}
           {interim ? ` ${interim}` : ""}
         </Text>
@@ -504,6 +513,9 @@ function MicButton({
   onPress: () => void;
   reduceMotion: boolean;
 }) {
+  // Only for the literal-colour props below, which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors()
   const pulse = useSharedValue(1);
 
   useEffect(() => {
@@ -544,7 +556,7 @@ function MicButton({
             borderRadius: 44,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: recording ? colors.light.text : colors.light.primary,
+            backgroundColor: recording ? theme.text : colors.light.primary,
           },
           shadows.md,
           animatedStyle,
@@ -629,7 +641,7 @@ function PreviewPanel({
   return (
     <View className="flex-1">
       <View className="px-5 pt-4 pb-2">
-        <Text className="text-body text-neutral-500">
+        <Text className="text-body text-neutral-500 dark:text-[#78716C]">
           {drafts.length === 1
             ? "Here's what I heard. Edit or drop it, then add it."
             : `Here's what I heard — split into ${drafts.length} tasks. Edit or drop any, then add them.`}
@@ -651,7 +663,7 @@ function PreviewPanel({
           />
         ))}
       </ScrollView>
-      <View className="px-5 pt-3 pb-2 gap-2.5 border-t border-neutral-200 bg-white" style={shadows.xs}>
+      <View className="px-5 pt-3 pb-2 gap-2.5 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900" style={shadows.xs}>
         <Button
           title={validCount > 0 ? `Add ${validCount} ${validCount === 1 ? "task" : "tasks"}` : "Add tasks"}
           variant="primaryBlue"
@@ -684,6 +696,9 @@ function DraftRowCard({
   onChangeText: (key: string, text: string) => void;
   onRemove: (key: string) => void;
 }) {
+  // Only for the literal-colour props below, which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors()
   const resolved = useMemo(() => resolveDraft(row, Date.now()), [row]);
   const matchedList = useMemo(() => {
     if (!resolved.list) return null;
@@ -696,7 +711,7 @@ function DraftRowCard({
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 40).duration(DURATIONS.base)}
-      className="bg-white rounded-lg border border-neutral-200 p-3"
+      className="bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-800 p-3"
       style={shadows.xs}
     >
       <View className="flex-row items-center gap-2">
@@ -715,7 +730,7 @@ function DraftRowCard({
           accessibilityRole="button"
           accessibilityLabel={`Drop task: ${resolved.title || row.text || "untitled"}`}
         >
-          <Ionicons name="trash-outline" size={18} color={colors.light.textDisabled} />
+          <Ionicons name="trash-outline" size={18} color={theme.textDisabled} />
         </Pressable>
       </View>
       {hasChips && (

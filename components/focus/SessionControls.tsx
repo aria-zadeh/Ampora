@@ -1,9 +1,10 @@
 /**
  * SessionControls, the session's action row (PRD FR-62).
  *
- * One primary action (Done) and three secondaries (I'm stuck / Take a break /
- * I'm overwhelmed), per the design system's "one primary action per screen"
- * rule. Lifted out of `app/focus/session.tsx` essentially verbatim.
+ * One primary action (Done) and four secondaries (I'm stuck / Take a break /
+ * Park a thought / I'm overwhelmed), per the design system's "one primary
+ * action per screen" rule. Lifted out of `app/focus/session.tsx` essentially
+ * verbatim.
  *
  * "Done" advances the ONE current step. It never releases a lock: a session
  * hold is served by focus time, not by finishing the work early (doc `04` §5,
@@ -12,10 +13,26 @@
  *
  * Restyled per doc `design/DECISION_SPEC` D3/D4 item 6: Done is blue, not
  * green (D3, green is reserved for terminal/completed states, never a
- * control that starts or runs). The three secondaries collapse into one
- * equal row of quiet, text-only pills: no icons, no warm tint on "I'm
- * overwhelmed" (that warm tint read as a warning on a control that isn't
- * one).
+ * control that starts or runs). The secondaries are quiet, text-only pills:
+ * no icons, no warm tint on "I'm overwhelmed" (that warm tint read as a
+ * warning on a control that isn't one).
+ *
+ * LAYOUT: two rows of two, not one row of three or four stacked rows.
+ * DECISION_SPEC D4 item 6 originally called for one row of three equal pills,
+ * which could not hold the copy: at 390pt a third-width pill is 99pt with an
+ * 87pt content box, and "I'm overwhelmed" measures 113pt, so it wrapped and
+ * broke mid-word ("Overwhelme / d"). Trimming padding bought single-digit
+ * points and would still have failed at larger Dynamic Type.
+ *
+ * Giving the valve its own full-width row fixed that, and adding "Park a
+ * thought" the same way produced four stacked full-width pills, which looked
+ * repetitive and heavy on screen. Two rows of two is what actually reads well:
+ * each pill is ~175pt, which fits the 113pt worst-case label with real slack
+ * to spare, so it survives text scaling far better than three-across ever did.
+ *
+ * Note the earlier claim that the valve deserved its own row on hierarchy
+ * grounds was reasoning backwards from a layout fix. The valve is reachable
+ * and clearly labelled here, which is what FR-61 actually asks for.
  */
 
 import React from "react";
@@ -24,7 +41,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors, iconSizes, shadows } from "@/utils/design-tokens";
+import { iconSizes, shadows } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export interface SessionControlsProps {
   /** Primary: mark the current step done (or finish, when nothing is left). */
@@ -36,6 +54,8 @@ export interface SessionControlsProps {
   /** True while the AI simplify call is in flight. */
   simplifying: boolean;
   onOverwhelmed: () => void;
+  /** Opens the "Park a thought" capture sheet. Never touches the timer or the lock. */
+  onParkThought: () => void;
 }
 
 export function SessionControls({
@@ -45,7 +65,15 @@ export function SessionControls({
   onStuck,
   simplifying,
   onOverwhelmed,
+  onParkThought,
 }: SessionControlsProps) {
+  // Ionicons `color` takes a literal, never a `dark:` class. Only the
+  // checkmark on the filled blue primary needs one here, and
+  // `primaryForeground` is #FFFFFF in BOTH token sets: the fill is opaque, so
+  // the white-on-blue pair measures 5.17:1 whichever canvas is behind it
+  // (doc 02 §14.1/§14.6). Resolving it through the hook rather than hardcoding
+  // `colors.light.*` keeps the rule absolute without changing a pixel.
+  const theme = useThemeColors();
   return (
     <View>
       {/* Primary: Done, blue, never green (D3: green is a terminal state only). */}
@@ -57,7 +85,7 @@ export function SessionControls({
         accessibilityRole="button"
         accessibilityLabel={noSteps ? "Finish session" : "Mark this step done and continue"}
       >
-        <Ionicons name="checkmark-circle" size={22} color={colors.light.primaryForeground} />
+        <Ionicons name="checkmark-circle" size={22} color={theme.primaryForeground} />
         <Text variant="h4" className="ml-2 text-white">{noSteps ? "Finish" : "Done"}</Text>
       </PressableScale>
 
@@ -83,7 +111,12 @@ export function SessionControls({
         />
         <QuietPill label="Take a break" onPress={onBreak} />
       </View>
-      <View className="mt-2 flex-row">
+      <View className="mt-2 flex-row gap-2">
+        <QuietPill
+          label="Park a thought"
+          accessibilityHint="Saves a quick note to your Inbox and keeps the timer running"
+          onPress={onParkThought}
+        />
         <QuietPill label="I'm overwhelmed" onPress={onOverwhelmed} />
       </View>
     </View>
@@ -91,12 +124,13 @@ export function SessionControls({
 }
 
 // ---------------------------------------------------------------------------
-// Quiet pill, one of the three equal secondary controls
+// Quiet pill, one of the four equal secondary controls
 // ---------------------------------------------------------------------------
 
 function QuietPill({
   label,
   a11yLabel,
+  accessibilityHint,
   busyLabel,
   busy = false,
   onPress,
@@ -105,6 +139,8 @@ function QuietPill({
   label: string;
   /** Announced instead of `label` when the visible text is an abbreviation. */
   a11yLabel?: string;
+  /** Extra VoiceOver/TalkBack context for a non-obvious action. */
+  accessibilityHint?: string;
   busyLabel?: string;
   busy?: boolean;
   onPress: () => void;
@@ -115,16 +151,27 @@ function QuietPill({
       onPress={onPress}
       haptic="light"
       disabled={disabled}
-      className={`flex-1 h-11 items-center justify-center rounded-lg bg-neutral-100 px-2 ${
+      /* Quiet inset on the session's own white card, so dark steps to the
+         ELEVATED neutral (neutral-800), not the canvas one. Going darker than
+         the card would sink these controls into it; elevated lifts them the
+         same way neutral-100 lifts off white today. `opacity-50` for disabled
+         is left theme-agnostic on purpose, exactly as `components/ui/Button`
+         documents: it composites the whole pill against whichever canvas is
+         behind it, and disabled controls are WCAG-exempt regardless. */
+      className={`flex-1 h-11 items-center justify-center rounded-lg bg-neutral-100 px-2 dark:bg-neutral-800 ${
         disabled ? "opacity-50" : ""
       }`}
       accessibilityRole="button"
       accessibilityLabel={busy && busyLabel ? busyLabel : (a11yLabel ?? label)}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled, busy }}
     >
+      {/* neutral-600 -> neutral-400 is the cheatsheet's textSecondary pair.
+          #A8A29A on the elevated dark pill (#292524) measures 5.99:1, clear
+          of the 4.5:1 body bar these labels owe. */}
       <Text
         variant="captionMedium"
-        className="text-neutral-600 text-center"
+        className="text-neutral-600 dark:text-neutral-400 text-center"
         numberOfLines={2}
       >
         {busy && busyLabel ? busyLabel : label}

@@ -39,7 +39,8 @@ import {
   selectStakeSelection,
 } from "@/store/stakesStore";
 import { useListStore } from "@/store/listStore";
-import { colors, shadows, tabularNums } from "@/utils/design-tokens";
+import { shadows, tabularNums } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task, StakeApp } from "@/types";
 
 interface TodayFocusCardProps {
@@ -77,6 +78,10 @@ function describeLockSubject(namedApps: StakeApp[], fallbackCount: number): stri
  * change it. Glyph plus words always, never colour alone.
  */
 function LockChip({ task }: { task: Task }) {
+  // For the padlock glyph's Ionicons `color` only. `textSecondary` is one of
+  // the tokens that genuinely inverts, and this chip is how an armed lock is
+  // advertised on Today, so it must not fade out on a dark card.
+  const theme = useThemeColors();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   // Raw field selects (Zustand v5 discipline), SCALARS for the active
@@ -157,13 +162,13 @@ function LockChip({ task }: { task: Task }) {
       <Pressable
         onPress={handlePress}
         hitSlop={6}
-        className="mt-2.5 h-8 flex-row items-center self-start gap-1.5 rounded-full bg-neutral-100 px-3 active:opacity-70"
+        className="mt-2.5 h-8 flex-row items-center self-start gap-1.5 rounded-full bg-neutral-100 px-3 active:opacity-70 dark:bg-neutral-800"
         accessibilityRole="button"
         accessibilityLabel={a11yLabel}
         accessibilityHint="Opens lock settings for this task"
       >
-        <Ionicons name="lock-closed-outline" size={14} color={colors.light.textSecondary} />
-        <Text variant="label" className="text-neutral-600" numberOfLines={1}>
+        <Ionicons name="lock-closed-outline" size={14} color={theme.textSecondary} />
+        <Text variant="label" className="text-neutral-600 dark:text-neutral-400" numberOfLines={1}>
           {label}
         </Text>
       </Pressable>
@@ -232,14 +237,14 @@ export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
   const firstMoveText = task.firstMove.text;
 
   return (
-    <View className="rounded-2xl bg-white p-4" style={shadows.md}>
-      <Text variant="overline" className="text-neutral-500">
-        Today's focus
+    <View className="rounded-2xl bg-white p-4 dark:bg-neutral-900" style={shadows.md}>
+      <Text variant="overline" className="text-neutral-500 dark:text-[#78716C]">
+        Today&apos;s focus
       </Text>
       <Heading size="h3" className="mt-1.5" numberOfLines={2}>
         {task.title}
       </Heading>
-      <Text variant="caption" className="mt-1 text-neutral-600" style={tabularNums}>
+      <Text variant="caption" className="mt-1 text-neutral-600 dark:text-neutral-400" style={tabularNums}>
         {metaLine}
       </Text>
 
@@ -248,11 +253,15 @@ export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
       {/* First move: display only here. Completing it happens inside the
           session, never on Today (doc `04` §5: it is the on-ramp, never
           the unlock condition). */}
-      <View className="mt-3.5 rounded-[14px] bg-neutral-100 p-3">
-        <Text variant="overline" className="text-primary-600">
+      <View className="mt-3.5 rounded-[14px] bg-neutral-100 p-3 dark:bg-neutral-800">
+        {/* Accent TEXT on a neutral panel, so it has to step lighter on dark:
+            primary-600 measures 2.93:1 on neutral-800, under even the 3:1
+            glyph bar, while primary-400 restores it to 5.97:1 (cheatsheet,
+            utils/design-tokens.ts, doc 02 section 1.8). */}
+        <Text variant="overline" className="text-primary-600 dark:text-primary-400">
           First move
         </Text>
-        <Text variant="bodyMedium" className="mt-1.5 text-neutral-800">
+        <Text variant="bodyMedium" className="mt-1.5 text-neutral-800 dark:text-neutral-200">
           {firstMoveText}
         </Text>
       </View>
@@ -278,7 +287,7 @@ export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
           accessibilityLabel="Not now"
           accessibilityHint="Shows a different task to focus on"
         >
-          <Text variant="bodyMedium" className="text-neutral-600">
+          <Text variant="bodyMedium" className="text-neutral-600 dark:text-neutral-400">
             Not now
           </Text>
         </PressableScale>

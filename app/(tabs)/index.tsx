@@ -23,9 +23,10 @@ import { FAB } from "@/components/ui/FAB";
 import { Heading } from "@/components/ui/Heading";
 import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors, shadows, iconSizes, tabularNums } from "@/utils/design-tokens";
+import { shadows, iconSizes, tabularNums } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task, ScheduledBlock, List } from "@/types";
 
 /** Time-of-day greeting. */
@@ -110,12 +111,12 @@ function UpNextRow({ row }: { row: UpNextRowData }) {
       onPress={() => router.push(`/task/${task.id}`)}
       haptic="light"
       style={shadows.sm}
-      className="min-h-11 flex-row items-center gap-3 rounded-lg bg-white px-4 py-3"
+      className="min-h-11 flex-row items-center gap-3 rounded-lg bg-white px-4 py-3 dark:bg-neutral-900"
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
       accessibilityHint="Opens this task"
     >
-      <Text variant="captionMedium" className="w-14 text-neutral-600" style={tabularNums}>
+      <Text variant="captionMedium" className="w-14 text-neutral-600 dark:text-neutral-400" style={tabularNums}>
         {timeLabel}
       </Text>
       {list?.color ? (
@@ -130,7 +131,7 @@ function UpNextRow({ row }: { row: UpNextRowData }) {
         {task.title}
       </Text>
       {list?.name ? (
-        <Text variant="caption" className="text-neutral-600" numberOfLines={1}>
+        <Text variant="caption" className="text-neutral-600 dark:text-neutral-400" numberOfLines={1}>
           {list.name}
         </Text>
       ) : null}
@@ -140,6 +141,12 @@ function UpNextRow({ row }: { row: UpNextRowData }) {
 
 export default function HomeScreen() {
   const reduceMotion = useReduceMotion();
+  // Resolves `colors.light` / `colors.dark` for the one prop on this screen
+  // that takes a literal color rather than a class (the Ionicons tint).
+  // Primary is identical in both themes (doc 02 §14.1), so this reads the
+  // same value either way, and going through the hook keeps the call site
+  // honest instead of pinning it to one scheme's token set.
+  const theme = useThemeColors();
 
   const tasks = useTaskStore((s) => s.tasks);
   const lists = useListStore((s) => s.lists);
@@ -249,7 +256,7 @@ export default function HomeScreen() {
   const cardEntering = reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base);
 
   return (
-    <View className="flex-1 bg-neutral-100">
+    <View className="flex-1 bg-neutral-100 dark:bg-neutral-950">
       <ScrollView
         className="flex-1"
         contentContainerClassName="px-5 pb-32"
@@ -263,7 +270,7 @@ export default function HomeScreen() {
                 {greetingLine}
               </Heading>
               {subLine ? (
-                <Text variant="body" className="mt-1 text-neutral-600">
+                <Text variant="body" className="mt-1 text-neutral-600 dark:text-neutral-400">
                   {subLine}
                 </Text>
               ) : null}
@@ -283,9 +290,15 @@ export default function HomeScreen() {
                 <Ionicons
                   name="sparkles-outline"
                   size={iconSizes.xs}
-                  color={colors.light.primary}
+                  color={theme.primary}
                 />
-                <Text variant="captionMedium" className="text-primary-600">
+                {/* The accent is restated on the dark side rather than
+                    varied: `components/ui/Text.tsx` defaults to the ink pair
+                    `text-neutral-900 dark:text-neutral-50`, and a bare
+                    `text-*` override loses to that `dark:` half on
+                    specificity. Same blue in both themes (doc 02 §14.1),
+                    just held at the specificity the default now occupies. */}
+                <Text variant="captionMedium" className="text-primary-600 dark:text-primary-600">
                   Rebuild
                 </Text>
               </Pressable>
@@ -312,7 +325,7 @@ export default function HomeScreen() {
             remains the full schedule view. */}
         {upNextRows.length > 0 && (
           <Animated.View entering={cardEntering} className="mt-group">
-            <Text variant="overline" className="px-0.5 text-neutral-500">
+            <Text variant="overline" className="px-0.5 text-neutral-500 dark:text-[#78716C]">
               Up next
             </Text>
             <View className="mt-2 gap-2">
@@ -372,8 +385,8 @@ export default function HomeScreen() {
           accessibilityLabel="I'm overwhelmed"
           accessibilityHint="Opens one calm step at a time"
         >
-          <Text variant="bodyMedium" className="text-neutral-600">
-            I'm overwhelmed
+          <Text variant="bodyMedium" className="text-neutral-600 dark:text-neutral-400">
+            I&apos;m overwhelmed
           </Text>
         </PressableScale>
       </ScrollView>

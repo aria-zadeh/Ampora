@@ -7,6 +7,7 @@ import { PressableScale } from "@/components/ui/PressableScale";
 import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface MoreOptionsSectionProps {
   children: React.ReactNode;
@@ -23,6 +24,9 @@ export function MoreOptionsSection({
   children,
   defaultExpanded = false,
 }: MoreOptionsSectionProps) {
+  // Only for the literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`), which cannot take a `dark:` class.
+  const theme = useThemeColors();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const reduceMotion = useReduceMotion();
 
@@ -36,22 +40,22 @@ export function MoreOptionsSection({
       <PressableScale
         onPress={toggle}
         haptic={false}
-        className="flex-row items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3.5"
+        className="flex-row items-center justify-between rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3.5"
         style={shadows.xs}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel="More options"
       >
         <View className="flex-row items-center gap-2">
-          <Ionicons name="options-outline" size={18} color={colors.light.textSecondary} />
-          <Text className="text-body-lg font-semibold text-neutral-900">
+          <Ionicons name="options-outline" size={18} color={theme.textSecondary} />
+          <Text className="text-body-lg font-semibold text-neutral-900 dark:text-neutral-50">
             More options
           </Text>
         </View>
         <Ionicons
           name={expanded ? "chevron-up" : "chevron-down"}
           size={18}
-          color={colors.light.textDisabled}
+          color={theme.textDisabled}
         />
       </PressableScale>
 

@@ -45,7 +45,7 @@ import {
   SectionFootnote,
   Toggle,
 } from '@/components/settings/SettingsPrimitives'
-import { colors } from '@/utils/design-tokens'
+import { useThemeColors } from '@/hooks/useThemeColors'
 
 /** "Synced just now" / "Synced 12m ago" / "Synced 3h ago" / a short date past a day. */
 function formatSyncedAt(ms: number | null): string {
@@ -61,6 +61,7 @@ function formatSyncedAt(ms: number | null): string {
 }
 
 export function CalendarSyncSettings() {
+  const theme = useThemeColors()
   const calendarSyncCalendarIds = useSettingsStore((s) => s.calendarSyncCalendarIds)
   const setCalendarSyncCalendarIds = useSettingsStore((s) => s.setCalendarSyncCalendarIds)
   const externalEventsSyncedAt = useScheduleStore((s) => s.externalEventsSyncedAt)
@@ -147,11 +148,18 @@ export function CalendarSyncSettings() {
     const denied = status === 'denied'
     return (
       <View>
-        <EmptyState
-          icon="calendar-outline"
-          title="See your classes automatically"
-          subtitle="Ampora reads your calendar so it never schedules study sessions over your classes or existing events. It only reads — Ampora never adds, changes, or deletes anything on your calendar."
-        />
+        {/* This state previously sat directly on the screen canvas with no
+            Group at all, which read badly once the canvas could go dark. The
+            Group wrap is kept for that reason. It is no longer pinned light:
+            `EmptyState` and `Heading` are theme-aware now, so a dark card
+            renders their text correctly. */}
+        <Group>
+          <EmptyState
+            icon="calendar-outline"
+            title="See your classes automatically"
+            subtitle="Ampora reads your calendar so it never schedules study sessions over your classes or existing events. It only reads — Ampora never adds, changes, or deletes anything on your calendar."
+          />
+        </Group>
         <View className="mt-2 items-center">
           <Button
             title={denied ? 'Open Settings' : 'Allow calendar access'}
@@ -174,7 +182,7 @@ export function CalendarSyncSettings() {
   // --- Granted: per-calendar picker. ----------------------------------------
   return (
     <View>
-      <Text className="mb-4 text-body text-neutral-500">
+      <Text className="mb-4 text-body text-neutral-500 dark:text-[#78716C]">
         Choose which calendars count as busy time. Ampora only reads them — it
         never changes anything on your device calendar.
       </Text>
@@ -193,8 +201,8 @@ export function CalendarSyncSettings() {
             <Row
               key={cal.id}
               icon="calendar-outline"
-              iconTint={cal.color || colors.light.textSecondary}
-              iconBg="bg-neutral-100"
+              iconTint={cal.color || theme.textSecondary}
+              iconBg="bg-neutral-100 dark:bg-neutral-800"
               label={cal.title}
               sublabel={cal.sourceName}
               isLast={i === calendars.length - 1}
@@ -216,7 +224,7 @@ export function CalendarSyncSettings() {
       </SectionFootnote>
 
       <View className="mt-4 flex-row items-center justify-between px-1">
-        <Text className="text-caption text-neutral-500">
+        <Text className="text-caption text-neutral-500 dark:text-[#78716C]">
           {formatSyncedAt(externalEventsSyncedAt)}
         </Text>
         <View className="flex-row items-center">
@@ -239,7 +247,7 @@ export function CalendarSyncSettings() {
             accessibilityLabel="Disconnect all calendars"
             accessibilityHint="Stops syncing every calendar; you can reconnect any time"
           >
-            <Text className="text-label font-medium text-neutral-500">Disconnect</Text>
+            <Text className="text-label font-medium text-neutral-500 dark:text-[#78716C]">Disconnect</Text>
           </PressableScale>
         </View>
       </View>

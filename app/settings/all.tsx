@@ -27,7 +27,7 @@ import { NotificationSettings } from '@/components/settings/NotificationSettings
 import { DataSettings } from '@/components/settings/DataSettings'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
-import { colors } from '@/utils/design-tokens'
+import { useThemeColors } from '@/hooks/useThemeColors'
 
 /** A titled section wrapper with a staggered entrance. */
 function Section({
@@ -56,11 +56,16 @@ function Section({
 }
 
 export default function AllSettingsScreen() {
+  // For the back chevron's Ionicons `color`, which takes a literal and cannot
+  // take a `dark:` class. `text` is one of the tokens that genuinely moves
+  // (#1C1917 light / #FAF9F7 dark), so pinning it light would leave the only
+  // way off this screen invisible on a dark canvas.
+  const theme = useThemeColors()
   const insets = useSafeAreaInsets()
   const reduceMotion = useReduceMotion()
 
   return (
-    <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-neutral-100 dark:bg-neutral-950" style={{ paddingTop: insets.top }}>
       {/* Header with back */}
       <View className="flex-row items-center px-5 pb-2 pt-2">
         <PressableScale
@@ -70,7 +75,7 @@ export default function AllSettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color={colors.light.text} />
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
         </PressableScale>
       </View>
 
@@ -83,13 +88,13 @@ export default function AllSettingsScreen() {
           entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
           className="pt-2"
         >
-          <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+          <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
             Settings
           </Text>
           <Heading size="h1" className="mt-1">
             More settings
           </Heading>
-          <Text className="mt-1.5 text-body text-neutral-500">
+          <Text className="mt-1.5 text-body text-neutral-500 dark:text-[#78716C]">
             Fine-tune how Ampora plans, nudges, and stores your work.
           </Text>
         </Animated.View>

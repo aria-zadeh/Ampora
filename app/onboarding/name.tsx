@@ -33,7 +33,7 @@ export default function NameScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-neutral-100"
+      className="flex-1 bg-neutral-100 dark:bg-neutral-950"
     >
       <View
         className="flex-1 justify-between px-6"
@@ -41,19 +41,20 @@ export default function NameScreen() {
       >
         <View>
           <Animated.View entering={enter(0)} className="mb-6">
-            {/* Dot index 2 of 7 (PRD §8.10): index 1 ("Sign in") already
-                happened via the auth gate before this stack ever mounted —
-                see the numbering note in welcome.tsx. */}
-            <ProgressDots total={7} current={2} />
+            {/* Dot index 3 of 8 (PRD §8.10): index 1 ("Sign in") already
+                happened via the auth gate before this stack ever mounted,
+                and index 2 is the age-gate step — see the numbering note in
+                welcome.tsx. */}
+            <ProgressDots total={8} current={3} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
-            <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
+            <Text className="text-overline text-neutral-500 dark:text-[#78716C] uppercase tracking-wide mb-3">
               A quick hello
             </Text>
-            <Heading size="h1" className="text-neutral-900 max-w-[300px]">
+            <Heading size="h1" className="text-neutral-900 dark:text-neutral-50 max-w-[300px]">
               What should we call you?
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[320px]">
+            <Text className="text-body-lg text-neutral-600 dark:text-neutral-400 mt-3 leading-6 max-w-[320px]">
               Just a first name — we’ll use it to keep things personal.
             </Text>
           </Animated.View>

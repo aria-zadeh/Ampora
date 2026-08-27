@@ -68,9 +68,10 @@ import {
   type StartStakeRefusal,
 } from "@/store/stakesStore";
 import { computeDurationMin } from "@/core/task-logic";
-import { colors, iconSizes, shadows, tabularNums } from "@/utils/design-tokens";
+import { iconSizes, shadows, tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { StakeSession, Task } from "@/types";
 
 /** Quick-lock length presets (D1: "15 . 25 . 45", 45 default). Within `SESSION_MIN_BOUNDS` (15..50). */
@@ -132,6 +133,10 @@ export function FocusHeroCard({
   onOpenSetup,
 }: FocusHeroCardProps) {
   const reduceMotion = useReduceMotion();
+  // Ionicons `color` takes a literal and cannot take a `dark:` class, so every
+  // glyph below resolves the active scheme through this. Everything else on
+  // this card is className-driven and uses `dark:` variants directly.
+  const theme = useThemeColors();
 
   const allTasks = useTaskStore((s) => s.tasks);
   const lists = useListStore((s) => s.lists);
@@ -320,24 +325,30 @@ export function FocusHeroCard({
   const selectedListName = selectedTask?.listId ? lists[selectedTask.listId]?.name : undefined;
 
   return (
-    <View className="rounded-3xl bg-white p-5" style={shadows.lg}>
+    /* The tab's hero surface. It is a CARD, not the canvas, so it takes the
+       card pair (white -> neutral-900) while `app/(tabs)/focus.tsx` behind it
+       owns the canvas pair (neutral-100 -> neutral-950). Quiet rows nested
+       INSIDE it therefore step to the elevated neutral (neutral-800) rather
+       than the canvas one, or they would sink into the card instead of
+       lifting off it the way neutral-100 lifts off white today. */
+    <View className="rounded-3xl bg-white p-5 dark:bg-neutral-900" style={shadows.lg}>
       {mode === "active" && (
         <View accessibilityRole="summary" accessibilityLabel="Session running">
-          <Text variant="overline" className="text-neutral-500">
+          <Text variant="overline" className="text-neutral-500 dark:text-[#78716C]">
             Session running
           </Text>
-          <Text variant="h3" className="mt-2 text-neutral-900" numberOfLines={2}>
+          <Text variant="h3" className="mt-2 text-neutral-900 dark:text-neutral-50" numberOfLines={2}>
             {activeTask?.title ?? "Focus session"}
           </Text>
           {minutesLeftLabel !== "" && (
-            <Text variant="captionMedium" className="mt-1 text-neutral-500" style={tabularNums}>
+            <Text variant="captionMedium" className="mt-1 text-neutral-500 dark:text-[#78716C]" style={tabularNums}>
               {minutesLeftLabel}
             </Text>
           )}
           {activeStakeSnapshot && subject && (
             <View className="flex-row items-center mt-2.5">
-              <Ionicons name="lock-closed-outline" size={iconSizes.xs} color={colors.light.textSecondary} />
-              <Text variant="caption" className="ml-1.5 text-neutral-500" numberOfLines={1}>
+              <Ionicons name="lock-closed-outline" size={iconSizes.xs} color={theme.textSecondary} />
+              <Text variant="caption" className="ml-1.5 text-neutral-500 dark:text-[#78716C]" numberOfLines={1}>
                 {`${subject} locked`}
               </Text>
             </View>
@@ -365,7 +376,12 @@ export function FocusHeroCard({
               accessibilityLabel="Unlock early"
               accessibilityHint="Opens a 60 second breather before your apps come back"
             >
-              <Text variant="bodyMedium" className="text-neutral-500">
+              {/* The panic valve's entry point on this card. Deliberately
+                  quiet rather than dim: it keeps the exact same tone in both
+                  themes (the sanctioned textMuted pair, 5.48:1 light and
+                  3.65:1 dark), full 44pt target, and a labelled hint. Nothing
+                  in this pass lowers its prominence or contrast (FR-42). */}
+              <Text variant="bodyMedium" className="text-neutral-500 dark:text-[#78716C]">
                 Unlock early
               </Text>
             </PressableScale>
@@ -375,23 +391,23 @@ export function FocusHeroCard({
 
       {mode === "armed" && scheduledStake && (
         <View accessibilityRole="summary" accessibilityLabel="Scheduled lock">
-          <Text variant="overline" className="text-neutral-500">
+          <Text variant="overline" className="text-neutral-500 dark:text-[#78716C]">
             Scheduled lock
           </Text>
-          <Text variant="h3" className="mt-2 text-neutral-900">
+          <Text variant="h3" className="mt-2 text-neutral-900 dark:text-neutral-50">
             {`Locks at ${scheduledTimeLabel}`}
           </Text>
-          <Text variant="captionMedium" className="mt-1 text-neutral-500" style={tabularNums}>
+          <Text variant="captionMedium" className="mt-1 text-neutral-500 dark:text-[#78716C]" style={tabularNums}>
             {`in ${countdownMin} min`}
           </Text>
 
           <View className="mt-4">
-            <Text variant="bodyMedium" className="text-neutral-800" numberOfLines={1}>
+            <Text variant="bodyMedium" className="text-neutral-800 dark:text-neutral-100" numberOfLines={1}>
               {scheduledTask?.title ?? "Untitled task"}
             </Text>
             <View className="flex-row items-center mt-1.5">
-              <Ionicons name="lock-closed-outline" size={iconSizes.xs} color={colors.light.textSecondary} />
-              <Text variant="caption" className="ml-1.5 text-neutral-500" numberOfLines={1}>
+              <Ionicons name="lock-closed-outline" size={iconSizes.xs} color={theme.textSecondary} />
+              <Text variant="caption" className="ml-1.5 text-neutral-500 dark:text-[#78716C]" numberOfLines={1}>
                 {subject ?? "Choose what to lock"}
               </Text>
             </View>
@@ -418,7 +434,7 @@ export function FocusHeroCard({
               accessibilityRole="button"
               accessibilityLabel="Edit this scheduled lock"
             >
-              <Text variant="bodyMedium" className="text-neutral-500">
+              <Text variant="bodyMedium" className="text-neutral-500 dark:text-[#78716C]">
                 Edit
               </Text>
             </PressableScale>
@@ -430,7 +446,7 @@ export function FocusHeroCard({
               accessibilityLabel="Cancel lock"
               accessibilityHint="Cancels instantly, no confirmation"
             >
-              <Text variant="bodyMedium" className="text-neutral-500">
+              <Text variant="bodyMedium" className="text-neutral-500 dark:text-[#78716C]">
                 Cancel lock
               </Text>
             </PressableScale>
@@ -440,7 +456,7 @@ export function FocusHeroCard({
 
       {mode === "idle" && (
         <View>
-          <Text variant="overline" className="text-neutral-500">
+          <Text variant="overline" className="text-neutral-500 dark:text-[#78716C]">
             Focus session
           </Text>
 
@@ -448,7 +464,7 @@ export function FocusHeroCard({
           <PressableScale
             onPress={() => setPickerOpen(true)}
             haptic="light"
-            className="mt-3 flex-row items-center rounded-xl bg-neutral-100 px-4 py-3"
+            className="mt-3 flex-row items-center rounded-xl bg-neutral-100 px-4 py-3 dark:bg-neutral-800"
             accessibilityRole="button"
             accessibilityLabel={
               selectedTask ? `Task: ${selectedTask.title}. ${taskMetaLine(selectedTask, selectedListName)}` : "Choose a task"
@@ -456,13 +472,13 @@ export function FocusHeroCard({
             accessibilityHint="Opens a list to choose a different task"
           >
             <View className="flex-1 pr-3">
-              <Text variant="bodyMedium" className="text-neutral-900" numberOfLines={1}>
+              <Text variant="bodyMedium" className="text-neutral-900 dark:text-neutral-50" numberOfLines={1}>
                 {selectedTask?.title ?? "Choose a task"}
               </Text>
               {selectedTask && (
                 <Text
                   variant="caption"
-                  className="text-neutral-500 mt-0.5"
+                  className="text-neutral-500 dark:text-[#78716C] mt-0.5"
                   numberOfLines={1}
                   style={tabularNums}
                 >
@@ -470,23 +486,23 @@ export function FocusHeroCard({
                 </Text>
               )}
             </View>
-            <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.textMuted} />
+            <Ionicons name="chevron-forward" size={iconSizes.sm} color={theme.textMuted} />
           </PressableScale>
 
           {/* On the line: what is at stake. */}
           <PressableScale
             onPress={() => setAppPickerOpen(true)}
             haptic="light"
-            className="mt-2.5 flex-row items-center rounded-xl bg-neutral-100 px-4 py-3"
+            className="mt-2.5 flex-row items-center rounded-xl bg-neutral-100 px-4 py-3 dark:bg-neutral-800"
             accessibilityRole="button"
             accessibilityLabel={subject ? `On the line: ${subject}` : "Choose what to lock"}
             accessibilityHint="Opens the app picker"
           >
-            <Ionicons name="lock-closed-outline" size={iconSizes.sm} color={colors.light.textSecondary} />
-            <Text variant="bodyMedium" className="flex-1 ml-2.5 text-neutral-900" numberOfLines={1}>
+            <Ionicons name="lock-closed-outline" size={iconSizes.sm} color={theme.textSecondary} />
+            <Text variant="bodyMedium" className="flex-1 ml-2.5 text-neutral-900 dark:text-neutral-50" numberOfLines={1}>
               {subject ?? "Choose what to lock"}
             </Text>
-            <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.textMuted} />
+            <Ionicons name="chevron-forward" size={iconSizes.sm} color={theme.textMuted} />
           </PressableScale>
 
           {/* Length: for how long. */}
@@ -500,7 +516,7 @@ export function FocusHeroCard({
                     onPress={() => setLengthMin(min)}
                     haptic="selection"
                     className={`min-h-11 px-4 rounded-full items-center justify-center ${
-                      isSelected ? "bg-primary-600" : "bg-neutral-100"
+                      isSelected ? "bg-primary-600" : "bg-neutral-100 dark:bg-neutral-800"
                     }`}
                     accessibilityRole="button"
                     accessibilityLabel={`${min} minutes`}
@@ -508,7 +524,7 @@ export function FocusHeroCard({
                   >
                     <Text
                       variant="captionMedium"
-                      className={isSelected ? "text-white" : "text-neutral-600"}
+                      className={isSelected ? "text-white" : "text-neutral-600 dark:text-neutral-400"}
                       style={tabularNums}
                     >
                       {min}
@@ -526,7 +542,7 @@ export function FocusHeroCard({
               accessibilityLabel="More options"
               accessibilityHint="Opens hold, schedule, and verification settings"
             >
-              <Text variant="captionMedium" className="text-neutral-500">
+              <Text variant="captionMedium" className="text-neutral-500 dark:text-[#78716C]">
                 More options
               </Text>
             </PressableScale>
@@ -535,12 +551,17 @@ export function FocusHeroCard({
           {/* Refusal, calm and specific, never silent (doc `04` §9.10). Icon
               plus words, never colour alone. Mirrors StakeSetupSheet's own
               refusal block so the wording matches wherever a stake refuses. */}
+          {/* The tint and its ink are a self-contained audited pair (doc 02
+              §14.6): warning-700 on warning-100 is 4.52:1 and neither moves
+              with the canvas, so this block correctly carries no `dark:`
+              variant. Same treatment as StakeSetupSheet's matching refusal
+              block, so the two read identically wherever a stake refuses. */}
           {primaryRefusal && (
             <View
               className="mt-3 flex-row items-start gap-2 rounded-lg bg-warning-100 px-3 py-2.5"
               accessibilityRole="alert"
             >
-              <Ionicons name="information-circle-outline" size={iconSizes.xs} color={colors.light.warningStrong} />
+              <Ionicons name="information-circle-outline" size={iconSizes.xs} color={theme.warningStrong} />
               <Text variant="caption" className="flex-1 text-warning-700">
                 {REFUSAL_COPY[primaryRefusal]}
               </Text>
@@ -576,7 +597,18 @@ export function FocusHeroCard({
               accessibilityRole="button"
               accessibilityLabel="Start without locking"
             >
-              <Text variant="bodyMedium" className={!selectedTask ? "text-neutral-400" : "text-neutral-500"}>
+              {/* Disabled ink uses the textDisabled pair (neutral-400 ->
+                  neutral-600), which is intentionally low in BOTH themes and
+                  WCAG-exempt as a disabled control, mirroring what
+                  `colors.*.textDisabled` documents about itself. */}
+              <Text
+                variant="bodyMedium"
+                className={
+                  !selectedTask
+                    ? "text-neutral-400 dark:text-neutral-600"
+                    : "text-neutral-500 dark:text-[#78716C]"
+                }
+              >
                 Start without locking
               </Text>
             </PressableScale>
@@ -603,12 +635,12 @@ export function FocusHeroCard({
             <Pressable onPress={() => {}}>
               <Animated.View
                 entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-                className="max-h-[70%] rounded-t-3xl bg-neutral-100"
+                className="max-h-[70%] rounded-t-3xl bg-neutral-100 dark:bg-neutral-950"
                 style={shadows.xl}
               >
                 <SafeAreaView edges={["bottom"]}>
                   <View className="items-center pt-3">
-                    <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                    <View className="h-1.5 w-10 rounded-full bg-neutral-300 dark:bg-neutral-700" />
                   </View>
                   <View className="px-5 pt-3 pb-2">
                     <Heading size="h4">Choose a task</Heading>

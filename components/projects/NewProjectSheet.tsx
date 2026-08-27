@@ -23,6 +23,7 @@ import { PressableScale } from "@/components/ui/PressableScale";
 import { kindMeta, PROJECT_ACCENT } from "./projectUtils";
 import { colors, iconSizes } from "@/utils/design-tokens";
 import type { ProjectKind } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 const KINDS: ProjectKind[] = ["deliverable", "study"];
 
@@ -33,6 +34,10 @@ interface NewProjectSheetProps {
 }
 
 export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetProps) {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors();
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<ProjectKind>("deliverable");
   const [contextLine, setContextLine] = useState("");
@@ -88,33 +93,33 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
         accessibilityLabel="Dismiss new project"
       >
         <Pressable
-          className="bg-white rounded-t-2xl p-5 pb-8"
+          className="bg-white dark:bg-neutral-900 rounded-t-2xl p-5 pb-8"
           onPress={(e) => e.stopPropagation()}
           // Swallow key events (web) so a space/enter in a child input never
           // bubbles to the backdrop Pressable and dismisses the sheet.
           onStartShouldSetResponder={() => true}
         >
           <View className="items-center mb-4">
-            <View className="w-10 h-1 rounded-full bg-neutral-200" />
+            <View className="w-10 h-1 rounded-full bg-neutral-200 dark:bg-neutral-800" />
           </View>
 
           <Heading size="h3">New project</Heading>
-          <Text className="text-body text-neutral-500 mt-1 mb-5">
+          <Text className="text-body text-neutral-500 dark:text-[#78716C] mt-1 mb-5">
             Bigger than a task — Ampora tracks it and hands you each next session.
           </Text>
 
           {/* Title */}
-          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+          <Text className="text-overline font-semibold text-neutral-500 dark:text-[#78716C] uppercase tracking-wide mb-2">
             Name
           </Text>
-          <View className="flex-row items-center bg-white border border-neutral-200 rounded-md min-h-12 px-3 mb-5">
-            <Ionicons name="bookmark-outline" size={iconSizes.md} color={colors.light.textDisabled} />
+          <View className="flex-row items-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md min-h-12 px-3 mb-5">
+            <Ionicons name="bookmark-outline" size={iconSizes.md} color={theme.textDisabled} />
             <TextInput
               value={title}
               onChangeText={setTitle}
               placeholder="e.g. Study for SciOly Remote Sensing"
-              placeholderTextColor={colors.light.textDisabled}
-              className="flex-1 ml-2 text-body-lg text-neutral-900"
+              placeholderTextColor={theme.textDisabled}
+              className="flex-1 ml-2 text-body-lg text-neutral-900 dark:text-neutral-50"
               returnKeyType="next"
               autoFocus
               accessibilityLabel="Project name"
@@ -122,7 +127,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
           </View>
 
           {/* Kind chooser */}
-          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+          <Text className="text-overline font-semibold text-neutral-500 dark:text-[#78716C] uppercase tracking-wide mb-2">
             Type
           </Text>
           <View className="gap-2 mb-5">
@@ -138,28 +143,28 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
                   accessibilityState={{ selected: active }}
                   accessibilityLabel={`${meta.label}. ${meta.blurb}`}
                   className={`flex-row items-center rounded-xl border px-3 py-3 ${
-                    active ? "bg-accent-100 border-accent-600" : "bg-white border-neutral-200"
+                    active ? "bg-accent-100 border-accent-600" : "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800"
                   }`}
                 >
                   <View
                     className="w-9 h-9 rounded-full items-center justify-center"
-                    style={{ backgroundColor: active ? PROJECT_ACCENT : colors.light.background }}
+                    style={{ backgroundColor: active ? PROJECT_ACCENT : theme.background }}
                   >
                     <Ionicons
                       name={meta.icon}
                       size={iconSizes.md}
-                      color={active ? colors.light.primaryForeground : colors.light.textMuted}
+                      color={active ? colors.light.primaryForeground : theme.textMuted}
                     />
                   </View>
                   <View className="flex-1 ml-3">
                     <Text
                       className={`text-body font-semibold ${
-                        active ? "text-accent-700" : "text-neutral-900"
+                        active ? "text-accent-700" : "text-neutral-900 dark:text-neutral-50"
                       }`}
                     >
                       {meta.label}
                     </Text>
-                    <Text className="text-caption text-neutral-500 mt-0.5">{meta.blurb}</Text>
+                    <Text className="text-caption text-neutral-500 dark:text-[#78716C] mt-0.5">{meta.blurb}</Text>
                   </View>
                   {active && (
                     <Ionicons name="checkmark-circle" size={iconSizes.lg} color={PROJECT_ACCENT} />
@@ -170,16 +175,16 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
           </View>
 
           {/* Optional one-paragraph context line (doc `06` §2) */}
-          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+          <Text className="text-overline font-semibold text-neutral-500 dark:text-[#78716C] uppercase tracking-wide mb-2">
             Context (optional)
           </Text>
-          <View className="bg-white border border-neutral-200 rounded-md px-3 py-2.5 mb-6">
+          <View className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md px-3 py-2.5 mb-6">
             <TextInput
               value={contextLine}
               onChangeText={setContextLine}
               placeholder="e.g. MLA format, topic is Cold War containment, 5 pages"
-              placeholderTextColor={colors.light.textDisabled}
-              className="text-body text-neutral-900 min-h-[44px]"
+              placeholderTextColor={theme.textDisabled}
+              className="text-body text-neutral-900 dark:text-neutral-50 min-h-[44px]"
               multiline
               textAlignVertical="top"
               accessibilityLabel="Project context"

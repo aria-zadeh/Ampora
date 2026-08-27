@@ -68,49 +68,48 @@ export const FEATURE_FLAGS = {
   /**
    * Sign-in bypass. When true, `app/auth.tsx` renders a "Skip sign-in" button
    * and `app/_layout.tsx` stops redirecting an unauthenticated launch to
-   * `/auth`. Exists so the app is openable while sign-in is being sorted out.
+   * `/auth`. Exists so the app is openable during local development while
+   * sign-in is being sorted out.
    *
-   * True in two cases:
-   *   1. `__DEV__` — any local dev run, always.
-   *   2. `EXPO_PUBLIC_DEV_AUTH_BYPASS === '1'` — an explicit opt-in that works
-   *      in PRODUCTION builds too. `vercel.json` sets it for the deployed web
-   *      preview, at Aria's explicit request (2026-08-07), because that URL is
-   *      not public-facing yet and sign-in was blocking all use of it.
+   * `__DEV__` only, always. Do not add a production or build-time opt-in
+   * back here.
    *
-   * **Read this before shipping.** Case 2 means this is NOT automatically off
-   * in a release build any more. Before any TestFlight or App Store submission,
-   * remove `EXPO_PUBLIC_DEV_AUTH_BYPASS` from `vercel.json` and from any build
-   * environment. An App Store build is unaffected today only because nothing
-   * sets the variable for it, which is a fact about the build config rather
-   * than a guarantee in the code.
+   * History, so this does not come back by accident. From 2026-08-07 to
+   * 2026-08-24 this also read `EXPO_PUBLIC_DEV_AUTH_BYPASS === '1'`, an
+   * explicit opt-in that `vercel.json` set on the deployed web preview's
+   * build command, at Aria's request, because that URL was not public-facing
+   * yet and sign-in was blocking all use of it. It fabricated no session, no
+   * user id and no JWT, so cloud sync never ran and every cloud call in
+   * `services/supabase.ts` independently no-op'd, and RLS would have
+   * rejected the calls regardless, so a visitor got an empty local-only app
+   * and could not reach anyone else's data. It was still a production escape
+   * hatch around FR-87's "no anonymous mode" requirement, so it had to come
+   * out before any public or App-Store-facing build. Removed 2026-08-24
+   * along with the `EXPO_PUBLIC_DEV_AUTH_BYPASS=1` prefix in `vercel.json`'s
+   * build command. If the deployed preview ever needs to be reachable again
+   * without a real sign-in, treat that as a fresh product decision, not a
+   * flag to flip back on.
    *
-   * Two things about that `vercel.json` build command, both learned by breaking
-   * it, so this is the place they are written down rather than there:
+   * Two things about that `vercel.json` build command, both learned by
+   * breaking it and still relevant to any future `EXPO_PUBLIC_*` build-time
+   * variable, so they stay written down here rather than only in a commit
+   * message:
    *
-   *   - **`vercel.json` cannot carry comments.** Not `//`, and not `_comment_`
-   *     keys either: Vercel validates the file against a strict schema and
-   *     fails the whole deploy with "should NOT have additional property". A
-   *     first attempt at documenting the variable inline did exactly that and
-   *     broke both the preview and production deploys. Explain it here instead.
-   *   - **The `--clear` in that command is load-bearing, not caution.**
-   *     `babel-preset-expo` inlines `EXPO_PUBLIC_*` at transform time, but
-   *     Metro's transform cache is not keyed on those values, so a cached build
-   *     silently reuses whatever the variable was on the previous run. Verified
-   *     2026-08-07: the same command without `--clear` inlined this flag to
-   *     `false` despite the variable being set, and the button did not render.
-   *
-   * What limits the damage, and why case 2 is defensible on a preview URL: the
-   * bypass fabricates NO session. There is no user id and no JWT, so cloud sync
-   * never runs (`app/_layout.tsx`'s sync effect is gated on a real `authUser`),
-   * every cloud call in `services/supabase.ts` independently no-ops, and RLS
-   * would reject the calls regardless. Someone who opens the deployed URL and
-   * taps the button gets an empty local-only app in their own browser. They
-   * cannot reach anyone else's data. It is still not the anonymous local-only
-   * mode FR-87 forbids, because it is a build-time escape hatch rather than a
-   * product mode, and no shipped store build enables it.
+   *   - **`vercel.json` cannot carry comments.** Not `//`, and not
+   *     `_comment_` keys either. Vercel validates the file against a strict
+   *     schema and fails the whole deploy with "should NOT have additional
+   *     property". Explain any build command choices here instead.
+   *   - **The `--clear` in that command is load-bearing, not caution, and
+   *     stays even now that the variable is gone.** `babel-preset-expo`
+   *     inlines `EXPO_PUBLIC_*` at transform time, but Metro's transform
+   *     cache is not keyed on those values, so a cached build silently
+   *     reuses whatever a variable was on the previous run. Verified
+   *     2026-08-07 on this exact flag: the same command without `--clear`
+   *     inlined it to `false` despite the variable being set, and the button
+   *     did not render. That transform-cache problem applies to any
+   *     `EXPO_PUBLIC_*` variable this project adds later, not only this one.
    */
-  DEV_BYPASS_AUTH:
-    __DEV__ || process.env.EXPO_PUBLIC_DEV_AUTH_BYPASS === '1',
+  DEV_BYPASS_AUTH: __DEV__,
 } as const
 
 export type FeatureFlags = typeof FEATURE_FLAGS

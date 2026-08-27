@@ -1,45 +1,41 @@
 /**
- * Paywall / subscription screen — Phase 7 (PRD FR-88), real purchasing pass.
+ * Paywall / subscription screen — Phase 7 (PRD FR-88), freemium pass
+ * (App Store Guideline 3.1.2 compliance).
  *
- * Ampora is a paid app with a 2-week free trial, then a monthly or annual plan
- * (annual ~10% cheaper per month), billed via the store (Apple In-App
- * Purchase / Google Play Billing) through RevenueCat. This screen:
+ * Ampora itself is free to use. This screen sells entitlement to the two
+ * paid surfaces only, the app-lock and AI calls (the freemium split lives in
+ * `core/entitlements.ts`), a 2-week free trial then a monthly or annual
+ * plan, billed via the store (Apple In-App Purchase / Google Play Billing)
+ * through RevenueCat. This screen:
  * - Before any trial: presents the value, two premium plan cards, and a
  *   single primary "Start free trial" that begins the 14-day LOCAL trial
- *   (core/subscription `startTrial`, persisted via `updateSettings` — the
+ *   (core/subscription `startTrial`, persisted via `updateSettings`, the
  *   trial itself is never a store transaction).
  * - During/after the trial: shows "N days left" (or "Trial ended") and lets
- *   the user pick a plan to continue, which now goes through
- *   `getPurchaseStrategy().purchase()` (core/iap) — a real transaction on a
+ *   the user pick a plan to continue, which goes through
+ *   `getPurchaseStrategy().purchase()` (core/iap), a real transaction on a
  *   native build, a no-op "succeeds" scaffold everywhere else (Windows/web).
- * - Lapsed (a former paid subscription ended): a "Welcome back" variant of the
- *   same plan-picker, never re-offering a free trial.
+ * - Lapsed (a former paid subscription ended): a "Welcome back" variant of
+ *   the same plan picker, never re-offering a free trial.
  * - Active: a calm "you're all set" confirmation.
  *
- * FR-88: "Subscription state gates app access." The screen is dismissible
- * only while genuinely entitled (an active plan, or a trial with time left) —
- * `core/subscription.ts#isPaywallDismissible`, unit-tested there. On a lapsed
- * trial or a lapsed subscription there is no close (X) button, no
- * swipe-to-dismiss (`gestureEnabled: false`), and no "Maybe later" — the
- * paywall gate in `app/_layout.tsx` would otherwise be pure theater (a user
- * could dismiss once and never be sent back, since that gate's effect does
- * not re-run on navigation alone). A `BackHandler` listener additionally
- * swallows the ANDROID HARDWARE back key while non-dismissible, since
- * `gestureEnabled` only covers the swipe gesture — without it a lapsed
- * Android user could still pop this screen with the physical/software back
- * button. "Restore purchases" stays available in every non-active state
- * regardless of dismissibility — that is precisely the recovery path for
- * someone who already paid (e.g. reinstalled) but whose local state does not
- * know it yet, and it must never be blocked behind the same gate that blocks
- * a fresh purchase attempt.
+ * Always dismissible (`core/subscription.ts#isPaywallDismissible`, always
+ * true, unit-tested there). This screen is no longer an access gate,
+ * `app/_layout.tsx`'s routing gate never redirects here, a lapsed trial or
+ * subscription lands the user back in the app instead. The header X, the
+ * swipe gesture, and the Android hardware back key all work in every state.
  *
- * Closing every dismiss path must never trap anyone (too tight is worse than
- * too loose): while non-dismissible, a quiet "More settings" link also stays
- * available, routing to `/settings/all` where sign-out and data deletion
- * already live (§8.11) — so a user who cannot or will not pay can still leave
- * and delete their account, exactly as FR-88/NFR-6 require. Hidden when the
- * screen IS dismissible, since the ordinary tab bar already reaches Settings
- * in that case.
+ * App Store Guideline 3.1.2: the price per plan, the billing period, the
+ * length of the free trial, and plain text that the plan renews
+ * automatically until cancelled are all rendered directly under the primary
+ * buy button, visible without scrolling past it, in every state, not only
+ * pre-trial and not only in Settings or legal text (see `PLAN_PRICING`
+ * below, one named constant rather than scattered literals). Tappable Terms
+ * of Use and Privacy Policy links sit near "Restore purchases", which
+ * itself stays available in every non-active state, the recovery path for
+ * someone who already paid (e.g. reinstalled) but whose local state does
+ * not know it yet. Apple requires "Restore purchases" for every
+ * subscription app.
  *
  * No dark patterns: trial state and what happens at its end are stated
  * plainly, a cancelled purchase is a normal outcome (never a crash or an
@@ -63,18 +59,27 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated'
+import { useColorScheme } from 'nativewind'
 
 import { Heading } from '@/components/ui/Heading'
+import { Text as UIText } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import { PressableScale } from '@/components/ui/PressableScale'
 import { FeatureShell } from '@/components/ui/FeatureShell'
 import { useSettingsStore } from '@/store/settingsStore'
-import { startTrial, trialDaysLeft, isActive, isPaywallDismissible } from '@/core/subscription'
+import {
+  startTrial,
+  trialDaysLeft,
+  isActive,
+  isPaywallDismissible,
+  TRIAL_DURATION_DAYS,
+} from '@/core/subscription'
 import { getPurchaseStrategy, PLACEHOLDER_OFFERINGS, type IapOffering, type IapPlan } from '@/core/iap'
 import { FEATURE_FLAGS } from '@/constants/featureFlags'
-import { shadows } from '@/utils/design-tokens'
+import { colors, gradients, shadows } from '@/utils/design-tokens'
 import { DURATIONS, SPRINGS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 
 // ---------------------------------------------------------------------------
 // Plan display shape. Populated from `PurchaseStrategy.getOfferings()` (real
@@ -93,14 +98,40 @@ interface Plan {
   best?: boolean
 }
 
+/**
+ * Canonical subscription pricing (App Store Guideline 3.1.2: the exact price
+ * and billing period must be visible at the point of purchase, not only in
+ * Settings or legal text). One named constant so these numbers are never
+ * scattered across the screen as bare literals.
+ *
+ * `core/iap`'s `PLACEHOLDER_OFFERINGS` is separate scaffolding for the
+ * not-yet-wired real purchase call (`strategy.purchase()`) and predates this
+ * pricing decision, its own annual placeholder ($74.99) is not what is
+ * actually charged. This is the real price, the plan cards, the compliance
+ * line, and the trial disclaimer all read from it, so the screen can never
+ * show two different numbers for the same plan.
+ */
+const PLAN_PRICING: Record<IapPlan, { amount: number; price: string; period: 'month' | 'year' }> = {
+  monthly: { amount: 6.99, price: '$6.99', period: 'month' },
+  annual: { amount: 39.99, price: '$39.99', period: 'year' },
+}
+
+const ANNUAL_MONTHLY_EQUIVALENT = PLAN_PRICING.annual.amount / 12
+const ANNUAL_SAVINGS_PCT = Math.round(
+  (1 - PLAN_PRICING.annual.amount / (PLAN_PRICING.monthly.amount * 12)) * 100,
+)
+
 function toDisplayPlan(offering: IapOffering): Plan {
   const isAnnual = offering.plan === 'annual'
+  const pricing = PLAN_PRICING[offering.plan]
   return {
     key: offering.plan,
     title: isAnnual ? 'Annual' : 'Monthly',
-    price: offering.localizedPrice,
-    cadence: isAnnual ? 'per year' : 'per month',
-    note: offering.priceNote,
+    price: pricing.price,
+    cadence: `per ${pricing.period}`,
+    note: isAnnual
+      ? `$${ANNUAL_MONTHLY_EQUIVALENT.toFixed(2)}/mo · save ~${ANNUAL_SAVINGS_PCT}%`
+      : undefined,
     best: isAnnual,
   }
 }
@@ -132,7 +163,19 @@ function PlanCard({
       {/* Nested "focal card" treatment (doc 02 v3) — sanctioned use, plan
           cards are one of the few true focal moments in the app. The
           selection state rings the OUTER shell in accent when chosen, since
-          FeatureShell's own bezel is a fixed neutral wash. */}
+          FeatureShell's own bezel is a fixed neutral wash.
+
+          THEME NOTE, and it is the reason nothing inside this card carries a
+          `dark:` class: `components/ui/FeatureShell.tsx` renders its inner
+          content surface as a hardcoded `bg-white` in both themes. So a plan
+          card is a deliberate light island on a dark screen, exactly like the
+          `forceLight` cards in components/settings/SettingsPrimitives.tsx.
+          Every tone in here is therefore pinned to the LIGHT token set, via
+          `colors.light.*` rather than `useThemeColors()`. Resolving them
+          through the active scheme instead would put near-white ink and a
+          near-white radio on a white surface — invisible controls, which is
+          strictly worse than the literals this pass removed. Ink measures
+          17.49:1 on that surface and the selected tick 5.70:1. */}
       <FeatureShell
         className={selected ? 'border-accent-600' : ''}
         style={shadows.sm}
@@ -161,7 +204,7 @@ function PlanCard({
             <Ionicons
               name={selected ? 'checkmark-circle' : 'ellipse-outline'}
               size={18}
-              color={selected ? '#7C3AED' : '#D7D3CC'}
+              color={selected ? colors.light.accentStrong : colors.light.borderStrong}
             />
             <Text
               className={`ml-1.5 text-caption ${
@@ -185,6 +228,11 @@ export default function PaywallScreen() {
   const insets = useSafeAreaInsets()
   const reduceMotion = useReduceMotion()
   const navigation = useNavigation()
+  // Ionicons `color` and LinearGradient `colors` take literal values and
+  // cannot take a `dark:` class, so they resolve the active scheme here.
+  // className styling below uses `dark:` variants directly.
+  const theme = useThemeColors()
+  const { colorScheme } = useColorScheme()
 
   const subscription = useSettingsStore((s) => s.settings.subscription)
   const updateSettings = useSettingsStore((s) => s.updateSettings)
@@ -206,12 +254,12 @@ export default function PaywallScreen() {
   const lapsed = subscription.status === 'lapsed'
   const showTrialChip = subscription.status === 'trial' && subscription.trialEndsAt != null
 
-  // FR-88: subscription state gates app access. Dismissible only while
-  // genuinely entitled (an active plan, or a trial with time left) — see the
-  // file docstring for why a lapsed trial/subscription must not be closeable.
-  // Pure rule lives in core/subscription.ts so it is independently tested
-  // (core/__tests__/subscription.test.ts) rather than only verified by
-  // reading this screen's JSX.
+  // Always true (freemium split, see the file docstring). Kept as a computed
+  // value, rather than inlining `true` below, so the header X, the swipe
+  // gesture, the hardware back key, and `close()` all stay driven by one
+  // named rule that lives in core/subscription.ts and is independently
+  // tested there (core/__tests__/subscription.test.ts), not by reading this
+  // screen's JSX.
   const dismissible = useMemo(() => isPaywallDismissible(subscription), [subscription])
 
   // Trial countdown chip tick — a quiet dip+settle whenever the days-left
@@ -268,7 +316,9 @@ export default function PaywallScreen() {
   }, [strategy])
 
   const displayPlans = useMemo(() => offerings.map(toDisplayPlan), [offerings])
-  const selectedDisplayPlan = displayPlans.find((p) => p.key === selectedPlan)
+  // Always sourced from PLAN_PRICING, not the (placeholder) offerings list,
+  // so the compliance line below can never disagree with the plan cards.
+  const selectedPricing = PLAN_PRICING[selectedPlan]
 
   // Keep the selection valid if the fetched offerings don't include whatever
   // was pre-selected (e.g. only one plan is configured in the dashboard).
@@ -278,12 +328,12 @@ export default function PaywallScreen() {
     setSelectedPlan(displayPlans[0].key)
   }, [displayPlans, selectedPlan])
 
-  // Prevent the platform's own swipe-to-dismiss gesture while the paywall
-  // must not be dismissible (FR-88) — the missing header X (below) covers the
-  // tap path, this covers the modal presentation's own interactive gesture.
-  // `useNavigation()`'s default `ScreenOptions` generic is `{}` (no static
-  // navigator context here), so `setOptions` is narrowed locally rather than
-  // relying on an inferred shape.
+  // Keep the platform's own swipe-to-dismiss gesture in sync with
+  // `dismissible` (always true today, see the file docstring) — this covers
+  // the modal presentation's own interactive gesture, the header X (below)
+  // covers the tap path. `useNavigation()`'s default `ScreenOptions` generic
+  // is `{}` (no static navigator context here), so `setOptions` is narrowed
+  // locally rather than relying on an inferred shape.
   useEffect(() => {
     ;(navigation as unknown as { setOptions: (options: { gestureEnabled?: boolean }) => void }).setOptions({
       gestureEnabled: dismissible,
@@ -405,16 +455,22 @@ export default function PaywallScreen() {
   // -------------------------------------------------------------------------
   if (active && subscription.status === 'active') {
     return (
-      <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
+      <View
+        className="flex-1 bg-neutral-100 dark:bg-neutral-950"
+        style={{ paddingTop: insets.top }}
+      >
         <PaywallHeader onClose={close} dismissible={dismissible} />
         <View className="flex-1 items-center justify-center px-8">
+          {/* Tint bubble with a matched glyph — a self-contained audited pair
+              (doc 02 §14.6) at 4.80:1, unchanged by the theme because
+              `accentStrong` is one value in both token sets. */}
           <View className="h-16 w-16 items-center justify-center rounded-full bg-accent-100">
-            <Ionicons name="checkmark-circle" size={36} color="#7C3AED" />
+            <Ionicons name="checkmark-circle" size={36} color={theme.accentStrong} />
           </View>
           <Heading size="h2" className="mt-5 text-center">
-            You're all set
+            You&apos;re all set
           </Heading>
-          <Text className="mt-2 text-center text-body text-neutral-500">
+          <Text className="mt-2 text-center text-body text-neutral-500 dark:text-neutral-400">
             Your {subscription.plan ?? 'Ampora'} subscription is active. Thanks for
             being here.
           </Text>
@@ -456,10 +512,32 @@ export default function PaywallScreen() {
   const busy = purchaseState !== 'idle'
 
   return (
-    <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
-      {/* Accent wash behind the hero */}
+    <View
+      className="flex-1 bg-neutral-100 dark:bg-neutral-950"
+      style={{ paddingTop: insets.top }}
+    >
+      {/*
+        Accent wash behind the hero, rebuilt from tokens with the rendered
+        result held as close to identical as the token set allows. The old
+        pair was a bare violet tint plus the transparent endpoint of the
+        PRE-warm canvas, a stale value doc 02 §14.1 already retired (it should
+        have moved to the warm canvas when the spine did).
+        `accentLight` is the token for exactly this pale-violet tint and sits
+        within a handful of 8-bit steps of the value it replaces, so the wash
+        looks the same. The transparent stops come from the two `gradients`
+        entries that already define them per theme, indexed rather than
+        retyped so they can never drift from the canvas they fade into.
+
+        Dark uses `colors.dark.accentLight`, a deep violet, so the paywall
+        keeps its purple identity in both themes rather than losing it or
+        borrowing the blue `heroWash`. See the report note on that purple.
+      */}
       <LinearGradient
-        colors={['#F3EEFF', 'rgba(244,244,245,0)']}
+        colors={
+          colorScheme === 'dark'
+            ? ([colors.dark.accentLight, gradients.heroWashDark[1]] as const)
+            : ([colors.light.accentLight, gradients.fade[0]] as const)
+        }
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         pointerEvents="none"
@@ -479,7 +557,7 @@ export default function PaywallScreen() {
           className="pt-4"
         >
           <View className="h-14 w-14 items-center justify-center rounded-2xl bg-accent-100">
-            <Ionicons name="sparkles" size={26} color="#7C3AED" />
+            <Ionicons name="sparkles" size={26} color={theme.accentStrong} />
           </View>
 
           {showTrialChip ? (
@@ -498,7 +576,9 @@ export default function PaywallScreen() {
           <Heading size="h1" className={showTrialChip ? 'mt-3' : 'mt-5'}>
             {heroTitle}
           </Heading>
-          <Text className="mt-2 text-body-lg text-neutral-500">{heroSubtitle}</Text>
+          <Text className="mt-2 text-body-lg text-neutral-500 dark:text-neutral-400">
+            {heroSubtitle}
+          </Text>
         </Animated.View>
 
         {/* Value list */}
@@ -506,7 +586,7 @@ export default function PaywallScreen() {
           entering={
             reduceMotion ? undefined : FadeInDown.delay(60).duration(DURATIONS.base)
           }
-          className="mt-7 rounded-2xl border border-neutral-200 bg-white p-5"
+          className="mt-7 rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900"
           style={shadows.sm}
         >
           {VALUE_POINTS.map((point, i) => (
@@ -515,9 +595,11 @@ export default function PaywallScreen() {
               className={`flex-row items-center ${i === 0 ? '' : 'mt-3.5'}`}
             >
               <View className="h-8 w-8 items-center justify-center rounded-full bg-accent-100">
-                <Ionicons name={point.icon} size={16} color="#7C3AED" />
+                <Ionicons name={point.icon} size={16} color={theme.accentStrong} />
               </View>
-              <Text className="ml-3 flex-1 text-body text-neutral-800">{point.text}</Text>
+              <Text className="ml-3 flex-1 text-body text-neutral-800 dark:text-neutral-200">
+                {point.text}
+              </Text>
             </View>
           ))}
         </Animated.View>
@@ -529,7 +611,7 @@ export default function PaywallScreen() {
           }
           className="mt-7"
         >
-          <Text className="mb-3 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+          <Text className="mb-3 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
             Choose a plan
           </Text>
           <View className="flex-row gap-3">
@@ -574,18 +656,39 @@ export default function PaywallScreen() {
           {purchaseMessage ? (
             <Text
               accessibilityLiveRegion="polite"
-              className="mt-3 text-center text-caption text-neutral-500"
+              className="mt-3 text-center text-caption text-neutral-500 dark:text-neutral-400"
             >
               {purchaseMessage}
             </Text>
           ) : null}
 
-          {showStartTrialCta && selectedDisplayPlan ? (
-            <Text className="mt-3 text-center text-caption text-neutral-500">
-              14 days free, then {selectedDisplayPlan.price} {selectedDisplayPlan.cadence}. Cancel
-              anytime.
-            </Text>
-          ) : null}
+          {/* App Store Guideline 3.1.2: price, billing period, trial length
+              (when a trial is actually on offer), and plain auto-renewal
+              language, always visible right under the buy button, in every
+              state, never gated behind extra taps or only in Settings/legal
+              text. Sourced from PLAN_PRICING (file top), never a scattered
+              literal.
+
+              CONTRAST NOTE: this is a required legal disclosure, so it takes
+              the SECONDARY tone on dark (neutral-400, 7.81:1 on the dark
+              canvas) rather than the muted tier the cheatsheet pairs with
+              neutral-500. The muted tone is signed off at 3.65-4.12:1 as
+              caption-tier decoration; a price and an auto-renewal statement
+              are neither decorative nor optional reading, and burying them is
+              exactly what Guideline 3.1.2 forbids. Light is unchanged.
+
+              `UIText` now defaults to `text-neutral-900 dark:text-neutral-50`,
+              and a bare `text-*` override beats its light default but NOT its
+              `dark:` variant — hence the explicit `dark:` class here and on
+              every UIText override below. */}
+          <UIText
+            variant="caption"
+            className="mt-3 text-center text-neutral-500 dark:text-neutral-400"
+          >
+            {showStartTrialCta
+              ? `${TRIAL_DURATION_DAYS} days free, then ${selectedPricing.price} per ${selectedPricing.period}. Renews automatically until cancelled.`
+              : `${selectedPricing.price} per ${selectedPricing.period}. Renews automatically until cancelled.`}
+          </UIText>
 
           {showTrialChip && daysLeft > 0 ? (
             <PressableScale
@@ -595,7 +698,11 @@ export default function PaywallScreen() {
               accessibilityRole="button"
               accessibilityLabel="Maybe later"
             >
-              <Text className="text-label font-medium text-neutral-500">Maybe later</Text>
+              {/* A real control's label, so it takes the secondary tone on
+                  dark (7.81:1) rather than the caption-tier muted one. */}
+              <Text className="text-label font-medium text-neutral-500 dark:text-neutral-400">
+                Maybe later
+              </Text>
             </PressableScale>
           ) : null}
 
@@ -614,37 +721,68 @@ export default function PaywallScreen() {
             accessibilityHint="Checks for a previous purchase on this account and unlocks it if found"
             accessibilityState={{ busy: purchaseState === 'restoring' }}
           >
+            {/* Apple requires this control to be findable, so its enabled
+                label takes the secondary tone on dark (7.81:1), not the
+                caption-tier muted one. The busy tone is the disabled state of
+                the same control and stays deliberately quiet in both themes
+                (1.49:1 light, 1.92:1 dark, the mirrored borderStrong pairing)
+                — WCAG-exempt as a disabled control, and `accessibilityState`
+                on the Pressable above announces the busy state independently
+                of colour. */}
             <Text
-              className={`text-label font-medium ${busy ? 'text-neutral-300' : 'text-neutral-500'}`}
+              className={`text-label font-medium ${
+                busy ? 'text-neutral-300 dark:text-neutral-700' : 'text-neutral-500 dark:text-neutral-400'
+              }`}
             >
               {purchaseState === 'restoring' ? 'Restoring…' : 'Restore purchases'}
             </Text>
           </PressableScale>
 
-          {/* Escape hatch for the non-dismissible state (do not trap anyone —
-              NFR-6). Sign-out and account/data deletion live in Settings
-              (§8.11); this is the ONLY way to reach them once the header X,
-              swipe, and hardware back are all closed off. Hidden whenever the
-              screen is dismissible, since the ordinary tab bar already
-              reaches Settings from there — no need for a second path. */}
-          {!dismissible ? (
+          {/* App Store Guideline 3.1.2 also expects Terms of Use / Privacy
+              Policy reachable from the purchase screen itself, not only from
+              Settings. `/legal/terms` and `/legal/privacy` are a concurrent
+              change, this just links the paths. */}
+          <View className="mt-3 flex-row items-center justify-center gap-2">
             <PressableScale
-              onPress={() => router.push('/settings/all')}
+              onPress={() => router.push('/legal/terms')}
               haptic="light"
-              className="mt-3 min-h-[44px] items-center justify-center py-2"
-              accessibilityRole="button"
-              accessibilityLabel="More settings"
-              accessibilityHint="Opens settings, including sign out and deleting your data, without requiring a purchase"
+              className="min-h-[48px] items-center justify-center px-2"
+              accessibilityRole="link"
+              accessibilityLabel="Terms of Use"
             >
-              <Text className="text-label font-medium text-neutral-500">
-                More settings
-              </Text>
+              <UIText
+                variant="captionMedium"
+                className="text-neutral-500 dark:text-neutral-400 underline"
+              >
+                Terms of Use
+              </UIText>
             </PressableScale>
-          ) : null}
+            {/* Purely a separator between two labelled links — decorative in
+                both themes, mirrored borderStrong pairing. */}
+            <UIText variant="caption" className="text-neutral-300 dark:text-neutral-700">
+              ·
+            </UIText>
+            <PressableScale
+              onPress={() => router.push('/legal/privacy')}
+              haptic="light"
+              className="min-h-[48px] items-center justify-center px-2"
+              accessibilityRole="link"
+              accessibilityLabel="Privacy Policy"
+            >
+              <UIText
+                variant="captionMedium"
+                className="text-neutral-500 dark:text-neutral-400 underline"
+              >
+                Privacy Policy
+              </UIText>
+            </PressableScale>
+          </View>
         </Animated.View>
 
         {/* IAP honesty note */}
-        <Text className="mt-6 text-center text-caption text-neutral-500 leading-5">
+        {/* Billing copy, so it keeps the secondary tone on dark alongside the
+            Guideline 3.1.2 line above rather than dropping to caption-tier. */}
+        <Text className="mt-6 text-center text-caption text-neutral-500 dark:text-neutral-400 leading-5">
           {strategy.kind === 'native'
             ? 'Billing runs through the App Store. Cancel anytime in your device Settings.'
             : Platform.OS === 'ios'
@@ -654,17 +792,17 @@ export default function PaywallScreen() {
 
         {/* Dev-only bypass — stripped from production (FEATURE_FLAGS is __DEV__-gated). */}
         {FEATURE_FLAGS.DEV_BYPASS_PAYWALL ? (
-          <View className="mt-6 border-t border-dashed border-neutral-200 pt-5">
+          <View className="mt-6 border-t border-dashed border-neutral-200 pt-5 dark:border-neutral-800">
             <PressableScale
               onPress={handleDevBypass}
               haptic="selection"
-              className="flex-row items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white py-3"
+              className="flex-row items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white py-3 dark:border-neutral-800 dark:bg-neutral-900"
               accessibilityRole="button"
               accessibilityLabel="Skip payment and enter the app (developer only)"
               accessibilityHint="Marks your subscription active locally without a purchase"
             >
-              <Ionicons name="construct-outline" size={16} color="#6F6862" />
-              <Text className="text-label font-medium text-neutral-600">
+              <Ionicons name="construct-outline" size={16} color={theme.textMuted} />
+              <Text className="text-label font-medium text-neutral-600 dark:text-neutral-400">
                 Skip / bypass payment (dev)
               </Text>
             </PressableScale>
@@ -684,6 +822,9 @@ const VALUE_POINTS: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
 
 /** Shared close (X) header for the paywall. Renders an inert same-size spacer instead of a button when not dismissible (FR-88) — never a dead tap target. */
 function PaywallHeader({ onClose, dismissible }: { onClose: () => void; dismissible: boolean }) {
+  // Ionicons `color` cannot take a `dark:` class, so the glyph resolves the
+  // active scheme itself.
+  const theme = useThemeColors()
   return (
     <View className="flex-row items-center justify-end px-4 pb-1 pt-1">
       {dismissible ? (
@@ -694,7 +835,9 @@ function PaywallHeader({ onClose, dismissible }: { onClose: () => void; dismissi
           accessibilityRole="button"
           accessibilityLabel="Close"
         >
-          <Ionicons name="close" size={24} color="#57534E" />
+          {/* The only control in the header, so it carries real weight rather
+              than a decorative tint: 7.06:1 light, 7.81:1 dark. */}
+          <Ionicons name="close" size={24} color={theme.textSecondary} />
         </PressableScale>
       ) : (
         <View className="h-11 w-11" />

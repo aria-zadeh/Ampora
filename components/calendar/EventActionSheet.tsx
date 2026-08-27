@@ -31,6 +31,7 @@ import { Heading } from '@/components/ui/Heading'
 import { shadows } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { ActionRow } from './BlockActionSheet'
 import { formatBlockTimeRange } from './hours'
 import type { CalEvent } from '@/types'
@@ -61,6 +62,10 @@ export interface EventActionSheetProps {
 
 export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: EventActionSheetProps) {
   const reduceMotion = useReduceMotion()
+  // Only for the two Ionicons tints below — an icon `color` prop cannot take a
+  // `dark:` class, so it reads the resolved scheme instead. Everything painted
+  // through `className` uses `dark:` variants directly.
+  const theme = useThemeColors()
 
   if (!event) return null
 
@@ -96,13 +101,13 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
+              className="rounded-t-3xl bg-neutral-100 dark:bg-neutral-950"
               style={shadows.xl}
             >
               <SafeAreaView edges={['bottom']}>
                 {/* Grabber */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1.5 w-10 rounded-full bg-neutral-300 dark:bg-neutral-700" />
                 </View>
 
                 {/* Header: event title + time range */}
@@ -111,17 +116,19 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
                     <Heading size="h3" numberOfLines={2}>
                       {event.title}
                     </Heading>
-                    <Text className="mt-1 text-caption text-neutral-500">{timeRange}</Text>
+                    <Text className="mt-1 text-caption text-neutral-500 dark:text-[#78716C]">
+                      {timeRange}
+                    </Text>
                   </View>
                   <Pressable
                     onPress={onClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                    className="h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-neutral-900"
                     style={shadows.xs}
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#57534E" />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
@@ -135,12 +142,12 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
                     // Device-synced: clearly external, never pretending to be
                     // ours (FR-22 — read-only, write-back out of scope).
                     <View
-                      className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3"
+                      className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900"
                       style={shadows.xs}
                       accessibilityLabel={`Synced from ${SOURCE_LABEL[event.source]}. Edit or delete it there.`}
                     >
-                      <Ionicons name="link-outline" size={20} color="#6F6862" style={{ marginTop: 1 }} />
-                      <Text className="flex-1 text-body text-neutral-600">
+                      <Ionicons name="link-outline" size={20} color={theme.textMuted} style={{ marginTop: 1 }} />
+                      <Text className="flex-1 text-body text-neutral-600 dark:text-neutral-400">
                         Synced from {SOURCE_LABEL[event.source]}. Edit or delete it there — Ampora only reads it
                         to keep this time free.
                       </Text>

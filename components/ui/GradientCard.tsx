@@ -27,7 +27,7 @@ export function GradientCard({
 }: GradientCardProps) {
   return (
     <View
-      className={`bg-white border border-neutral-200 rounded-2xl overflow-hidden ${
+      className={`bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden ${
         className ?? ""
       }`}
       style={[shadows.sm, style]}

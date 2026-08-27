@@ -7,7 +7,11 @@
  *
  * Everything here is presentation only — no store access, no side effects.
  * RN + NativeWind, web-export safe. Values come from the design tokens; no
- * hardcoded colors beyond the Ionicons `color` prop (which cannot take a class).
+ * hardcoded colors beyond the Ionicons `color` prop and the Reanimated
+ * `useAnimatedStyle` backgrounds (neither can take a `dark:` class), both of
+ * which resolve through `useThemeColors()` so they track the active scheme.
+ * className-driven color (background/border/text) uses `dark:` variants
+ * directly — see the cheatsheet atop `utils/design-tokens.ts`.
  */
 
 import React, { useEffect } from 'react'
@@ -19,9 +23,10 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated'
-import { colors, shadows } from '@/utils/design-tokens'
+import { shadows } from '@/utils/design-tokens'
 import { EASINGS, DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 
 // ---------------------------------------------------------------------------
 // Section header + grouped card
@@ -30,7 +35,7 @@ import { useReduceMotion } from '@/hooks/useReduceMotion'
 /** Uppercase overline section label, matched to the Profile screen. */
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Text className="mb-2 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+    <Text className="mb-2 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
       {children}
     </Text>
   )
@@ -39,15 +44,30 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
 /** A calm caption under a card, for the "why" / reassurance copy. */
 export function SectionFootnote({ children }: { children: React.ReactNode }) {
   return (
-    <Text className="ml-1 mt-2 text-caption text-neutral-500">{children}</Text>
+    <Text className="ml-1 mt-2 text-caption text-neutral-500 dark:text-[#78716C]">
+      {children}
+    </Text>
   )
 }
 
-/** Grouped white card with a soft shadow + 1px border (the default card look). */
+/**
+ * Grouped white card with a soft shadow + 1px border (the default card look),
+ * themed dark in dark mode.
+ *
+ * This used to carry a `forceLight` escape hatch, pinning a few cards light
+ * because `components/ui/EmptyState` and `Heading` still hardcoded dark ink
+ * with no `dark:` counterpart, so a dark card would have hidden their text.
+ * Those two primitives are theme-aware now, which not only retires the reason
+ * for the hatch but INVERTS it: a card pinned white while the heading inside
+ * it resolves to near-white ink renders at roughly 1.05:1, i.e. invisible.
+ * The hatch and its three call sites went out together. Do not reintroduce
+ * it - if a card needs to stay light, the primitive inside it is the thing to
+ * fix.
+ */
 export function Group({ children }: { children: React.ReactNode }) {
   return (
     <View
-      className="rounded-2xl border border-neutral-200 bg-white px-4"
+      className="rounded-2xl border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
       style={shadows.sm}
     >
       {children}
@@ -62,8 +82,8 @@ export function Group({ children }: { children: React.ReactNode }) {
 /** A settings row: leading icon bubble, label + optional sublabel, trailing slot. */
 export function Row({
   icon,
-  iconTint = colors.light.textSecondary,
-  iconBg = 'bg-neutral-100',
+  iconTint,
+  iconBg = 'bg-neutral-100 dark:bg-neutral-800',
   label,
   sublabel,
   trailing,
@@ -77,19 +97,22 @@ export function Row({
   trailing?: React.ReactNode
   isLast?: boolean
 }) {
+  const theme = useThemeColors()
   return (
     <View
       className={`flex-row items-center py-3.5 ${
-        isLast ? '' : 'border-b border-neutral-100'
+        isLast ? '' : 'border-b border-neutral-100 dark:border-neutral-800'
       }`}
     >
       <View className={`h-9 w-9 items-center justify-center rounded-full ${iconBg}`}>
-        <Ionicons name={icon} size={18} color={iconTint} />
+        <Ionicons name={icon} size={18} color={iconTint ?? theme.textSecondary} />
       </View>
       <View className="ml-3 flex-1 pr-3">
-        <Text className="text-body-lg text-neutral-900">{label}</Text>
+        <Text className="text-body-lg text-neutral-900 dark:text-neutral-50">{label}</Text>
         {sublabel ? (
-          <Text className="mt-0.5 text-caption text-neutral-500">{sublabel}</Text>
+          <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
+            {sublabel}
+          </Text>
         ) : null}
       </View>
       {trailing}
@@ -125,6 +148,7 @@ export function Stepper({
 }) {
   const atMin = value <= min
   const atMax = value >= max
+  const theme = useThemeColors()
 
   const bump = (dir: -1 | 1) => {
     const next = Math.min(max, Math.max(min, value + dir * step))
@@ -139,17 +163,17 @@ export function Stepper({
         onPress={() => bump(-1)}
         disabled={atMin}
         hitSlop={6}
-        className={`h-9 w-9 items-center justify-center rounded-full border border-neutral-200 ${
+        className={`h-9 w-9 items-center justify-center rounded-full border border-neutral-200 dark:border-neutral-700 ${
           atMin ? 'opacity-40' : 'active:opacity-60'
         }`}
         accessibilityRole="button"
         accessibilityLabel={`Decrease ${a11yLabel}`}
         accessibilityState={{ disabled: atMin }}
       >
-        <Ionicons name="remove" size={18} color={colors.light.text} />
+        <Ionicons name="remove" size={18} color={theme.text} />
       </Pressable>
       <Text
-        className="mx-3 min-w-[64px] text-center text-body-lg font-semibold text-neutral-900"
+        className="mx-3 min-w-[64px] text-center text-body-lg font-semibold text-neutral-900 dark:text-neutral-50"
         accessibilityLabel={`${a11yLabel}: ${format(value)}`}
       >
         {format(value)}
@@ -158,14 +182,14 @@ export function Stepper({
         onPress={() => bump(1)}
         disabled={atMax}
         hitSlop={6}
-        className={`h-9 w-9 items-center justify-center rounded-full border border-neutral-200 ${
+        className={`h-9 w-9 items-center justify-center rounded-full border border-neutral-200 dark:border-neutral-700 ${
           atMax ? 'opacity-40' : 'active:opacity-60'
         }`}
         accessibilityRole="button"
         accessibilityLabel={`Increase ${a11yLabel}`}
         accessibilityState={{ disabled: atMax }}
       >
-        <Ionicons name="add" size={18} color={colors.light.text} />
+        <Ionicons name="add" size={18} color={theme.text} />
       </Pressable>
     </View>
   )
@@ -187,6 +211,7 @@ export function InlineSegmented<T extends string>({
   onChange: (key: T) => void
   a11yLabel: string
 }) {
+  const theme = useThemeColors()
   const select = (key: T) => {
     if (key === value) return
     Haptics.selectionAsync().catch(() => {})
@@ -194,7 +219,7 @@ export function InlineSegmented<T extends string>({
   }
   return (
     <View
-      className="flex-row rounded-lg border border-neutral-200 bg-neutral-100 p-0.5"
+      className="flex-row rounded-lg border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 p-0.5"
       accessibilityLabel={a11yLabel}
     >
       {options.map((opt) => {
@@ -204,7 +229,7 @@ export function InlineSegmented<T extends string>({
             key={opt.key}
             onPress={() => select(opt.key)}
             className="min-h-9 items-center justify-center rounded-md px-3 py-1.5"
-            style={active ? [{ backgroundColor: colors.light.card }, shadows.xs] : undefined}
+            style={active ? [{ backgroundColor: theme.elevated }, shadows.xs] : undefined}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             accessibilityLabel={`${opt.label}${active ? ', selected' : ''}`}
@@ -212,8 +237,8 @@ export function InlineSegmented<T extends string>({
             <Text
               className={
                 active
-                  ? 'text-label font-semibold text-neutral-900'
-                  : 'text-label font-medium text-neutral-500'
+                  ? 'text-label font-semibold text-neutral-900 dark:text-neutral-50'
+                  : 'text-label font-medium text-neutral-500 dark:text-[#78716C]'
               }
             >
               {opt.label}
@@ -248,6 +273,7 @@ export function Toggle({
   disabled?: boolean
 }) {
   const reduceMotion = useReduceMotion()
+  const theme = useThemeColors()
   const progress = useSharedValue(value ? 1 : 0)
 
   useEffect(() => {
@@ -257,9 +283,16 @@ export function Toggle({
       : withTiming(target, { duration: DURATIONS.fast, easing: EASINGS.standard })
   }, [value, reduceMotion, progress])
 
-  const trackStyle = useAnimatedStyle(() => ({
-    backgroundColor: progress.value > 0.5 ? colors.light.primary : colors.light.border,
-  }))
+  // `theme` in the dependency array makes this worklet re-derive when the
+  // color scheme flips — a plain hook return isn't itself reactive to
+  // Reanimated the way a SharedValue is, so without the explicit deps this
+  // would freeze at whichever scheme was active on first mount.
+  const trackStyle = useAnimatedStyle(
+    () => ({
+      backgroundColor: progress.value > 0.5 ? theme.primary : theme.border,
+    }),
+    [theme]
+  )
   const thumbStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: progress.value * 20 }],
   }))

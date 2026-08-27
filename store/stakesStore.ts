@@ -40,6 +40,7 @@ import {
   isAllAppsCategory,
   isNeverLockCategory,
 } from '@/core/blocking/limits'
+import { canUseLock } from '@/core/entitlements'
 import { newId } from '@/core/id'
 import { nextOccurrenceOnOrAfter } from '@/core/recurrence'
 import { decideAutoArm } from '@/core/stakeAutoArm'
@@ -184,6 +185,13 @@ export type StartStakeRefusal =
   | 'no_selection'
   /** `until_done` was requested for a task that does not fit one capped session. */
   | 'not_eligible'
+  /**
+   * The lock is the paid half of the freemium split (FR-88) and this user is
+   * not entitled. The ONLY refusal here that is a business rule rather than a
+   * wellbeing one, and the only one a caller should answer by routing to
+   * `/paywall` instead of showing calm copy and staying put.
+   */
+  | 'not_entitled'
   /** Defensive catch-all: something unexpected went wrong arming (never crashes the UI). */
   | 'error'
 
@@ -558,9 +566,26 @@ export const useStakesStore = create<StakesState>()(
         return Math.max(1, Math.round(clampTo(wanted, { min: floor, max: ceiling }, settings.defaultSessionMin)))
       }
 
-      /** The wellbeing gates, in the order §9.10 requires. Shared by `canStartStake` and `startStake`. */
+      /**
+       * The wellbeing gates, in the order §9.10 requires. Shared by
+       * `canStartStake` and `startStake`.
+       *
+       * Entitlement is checked FIRST, ahead of every wellbeing rule, for one
+       * reason: the refusals differ in what the caller should do about them. A
+       * wellbeing refusal is final for now and the honest answer is calm copy
+       * and staying put. `not_entitled` is the one the user can act on, and
+       * telling someone "quiet hours" when the real answer is "this is a paid
+       * feature" would be a lie of omission.
+       *
+       * This is the single choke point for the paid lock. Every screen arms
+       * through `startStake`, so gating here means no surface can bypass it,
+       * the same property the wellbeing caps already rely on.
+       */
       const wellbeingGate = (now: number): CanStartStakeResult => {
         const state = get()
+        if (!canUseLock(currentSettings().subscription, now)) {
+          return { ok: false, reason: 'not_entitled' }
+        }
         if (state.activeSession) return { ok: false, reason: 'already_active' }
         if (state.stakesPausedUntil != null && now < state.stakesPausedUntil) {
           return { ok: false, reason: 'paused' }
@@ -668,6 +693,16 @@ export const useStakesStore = create<StakesState>()(
             // --- Gate BEFORE locking (§9.10). Order is deliberate: identity and
             //     config validity first (cheap, and not wellbeing decisions),
             //     then the wellbeing core in its documented order. ---
+
+            // Entitlement first of all (FR-88). The lock is the paid half of the
+            // freemium split, and this must mirror `canStartStake`'s gate or the
+            // pre-flight and the real arm would disagree: a screen would show
+            // "you're good to go", then the arm would refuse for a different
+            // reason. Every screen arms through here, so this is the choke point
+            // no surface can route around.
+            if (!canUseLock(settings.subscription, now)) {
+              return { ok: false, reason: 'not_entitled' }
+            }
 
             if (state.activeSession) return { ok: false, reason: 'already_active' }
 
@@ -783,6 +818,14 @@ export const useStakesStore = create<StakesState>()(
           try {
             const settings = currentSettings()
             const state = get()
+
+            // Entitlement, same as `startStake` (FR-88). Checked at SCHEDULE
+            // time and again at arm time, because a stake scheduled today can
+            // fire days later and entitlement can lapse in between. Refusing
+            // here just stops an unentitled user from queueing one at all.
+            if (!canUseLock(settings.subscription, Date.now())) {
+              return { ok: false, reason: 'not_entitled' }
+            }
 
             if (!hasSelection(state.selection)) return { ok: false, reason: 'no_selection' }
 

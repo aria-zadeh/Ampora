@@ -61,6 +61,7 @@ import { SessionNotice } from "@/components/focus/SessionNotice";
 import { SessionTimer } from "@/components/focus/SessionTimer";
 import { StepCard, stepText, stepId } from "@/components/focus/StepCard";
 import { SessionControls } from "@/components/focus/SessionControls";
+import { ParkThoughtSheet } from "@/components/focus/ParkThoughtSheet";
 import { AmbientAudioPicker } from "@/components/focus/AmbientAudioPicker";
 import { BreakOverlay } from "@/components/focus/BreakOverlay";
 import { EndCheckInSheet, type CheckInAnswer } from "@/components/focus/EndCheckInSheet";
@@ -72,6 +73,7 @@ import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { NextStep } from "@/core/task-logic";
 import type { StakeSession, Task } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 /** Shortest bounded session we will ever run, in minutes. */
 const MIN_SESSION_MIN = 5;
@@ -104,6 +106,10 @@ function taskCompletionFraction(task: Task): number {
 }
 
 export default function FocusSessionScreen() {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors()
   const reduceMotion = useReduceMotion();
   const params = useLocalSearchParams<{
     taskId?: string;
@@ -126,6 +132,7 @@ export default function FocusSessionScreen() {
   const setSubtaskCompleted = useTaskStore((s) => s.setSubtaskCompleted);
   const updateTask = useTaskStore((s) => s.updateTask);
   const completeTask = useTaskStore((s) => s.completeTask);
+  const createTask = useTaskStore((s) => s.createTask);
 
   // -- Focus session store --
   const startSession = useSessionStore((s) => s.startSession);
@@ -177,6 +184,14 @@ export default function FocusSessionScreen() {
   const [simplifying, setSimplifying] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [servedStake, setServedStake] = useState(false);
+  // "Park a thought" (intrusive-thought capture, WHY: the #1 way an ADHD
+  // session dies is a stray thought pulling the user out to go act on it).
+  // Both flags are PURELY local UI state. Neither is wired into the
+  // timer's `held` gate below, and neither touches `sessionStore` or
+  // `stakesStore`, so opening the sheet or showing the confirmation can
+  // never pause the clock, end the session, or release the lock.
+  const [parkThoughtOpen, setParkThoughtOpen] = useState(false);
+  const [parkedNotice, setParkedNotice] = useState(false);
 
   const endedRef = useRef(false);
   const startedRef = useRef(false);
@@ -187,6 +202,14 @@ export default function FocusSessionScreen() {
   useEffect(() => {
     ownStakeIdRef.current = ownStakeId;
   }, [ownStakeId]);
+
+  /** Auto-hides the "parked" confirmation; cleared on unmount and re-armed per thought. */
+  const parkedNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (parkedNoticeTimerRef.current) clearTimeout(parkedNoticeTimerRef.current);
+    };
+  }, []);
 
   // The shape of the stake we were running, remembered across its release so
   // "Keep going" can offer the same terms again. By the time the check-in is
@@ -499,6 +522,34 @@ export default function FocusSessionScreen() {
     router.push(taskId ? `/blindfold?taskId=${taskId}` : "/blindfold");
   }, [taskId]);
 
+  /** Opens the capture sheet. Local UI state only, see the flags' own comment above. */
+  const handleParkThought = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setParkThoughtOpen(true);
+  }, []);
+
+  /**
+   * Parks one thought as a plain Inbox task (FR-5). The ONLY effect of this
+   * handler: `createTask` with just a title (no duration, no due date, no
+   * `autoSchedule`) is exactly what `taskStore.createTask` treats as a
+   * detail-less capture, so it comes back `isInbox: true`, `autoSchedule:
+   * false`, no subtasks, no First move, never touching the scheduler. This
+   * function calls nothing from `sessionStore` or `stakesStore`, so the timer
+   * and any lock are untouched by construction, not by careful discipline.
+   * Optimistic and fire-and-forget: the sheet has already closed itself by
+   * the time this runs, and a second (or third) thought in the same session
+   * just re-arms the same confirmation.
+   */
+  const handleParkThoughtSubmit = useCallback(
+    (text: string) => {
+      createTask({ title: text });
+      setParkedNotice(true);
+      if (parkedNoticeTimerRef.current) clearTimeout(parkedNoticeTimerRef.current);
+      parkedNoticeTimerRef.current = setTimeout(() => setParkedNotice(false), 2600);
+    },
+    [createTask]
+  );
+
   const pickAudio = useCallback(
     (kind: FocusAudio) => {
       Haptics.selectionAsync().catch(() => {});
@@ -604,23 +655,23 @@ export default function FocusSessionScreen() {
   const enter = reduceMotion ? undefined : FadeIn.duration(DURATIONS.slow);
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
+    <SafeAreaView className="flex-1 bg-neutral-100 dark:bg-neutral-950" edges={["top", "bottom"]}>
       {/* One white hero card, inset 18 on the canvas, warm elevated shadow.
           Doc `design/DECISION_SPEC` D4 item 1. `shadows.lg` per
           `utils/design-tokens.ts`'s own pairing of `lg` with `rounded-3xl`
           (26) hero surfaces. Fills to the bottom inset. */}
       <View style={{ flex: 1, margin: spacing.group }}>
-        <View className="flex-1 overflow-hidden rounded-3xl bg-white" style={shadows.lg}>
+        <View className="flex-1 overflow-hidden rounded-3xl bg-white dark:bg-neutral-900" style={shadows.lg}>
           {/* Header: state + task title + close (kept, 44px target). */}
           <View className="flex-row items-center justify-between px-5 pt-4 pb-1">
             <View className="flex-1 pr-3">
               <Text
                 variant="overline"
-                className={timer.ticking ? "text-neutral-600" : "text-warning-700"}
+                className={timer.ticking ? "text-neutral-600 dark:text-neutral-400" : "text-warning-700"}
               >
                 {timer.ticking ? "Focusing" : "Paused"}
               </Text>
-              <Text variant="label" className="text-neutral-600 mt-0.5" numberOfLines={1}>
+              <Text variant="label" className="text-neutral-600 dark:text-neutral-400 mt-0.5" numberOfLines={1}>
                 {task?.title ?? "Focus session"}
               </Text>
             </View>
@@ -636,7 +687,7 @@ export default function FocusSessionScreen() {
                   : "Closes this session"
               }
             >
-              <Ionicons name="close" size={26} color={colors.light.text} />
+              <Ionicons name="close" size={26} color={theme.text} />
             </PressableScale>
           </View>
 
@@ -663,7 +714,7 @@ export default function FocusSessionScreen() {
                 <Animated.View entering={enter} className="w-full items-center">
                   <Text
                     variant="overline"
-                    className="text-neutral-500 text-center"
+                    className="text-neutral-500 dark:text-[#78716C] text-center"
                     style={tabularNums}
                   >
                     {`Session ${sessionOrdinal} of ${sessionCount}`}
@@ -704,7 +755,7 @@ export default function FocusSessionScreen() {
                       onPanic={() => setPanicOpen(true)}
                       variant="slim"
                     />
-                    <Text variant="caption" className="mt-2 px-1 text-neutral-500 text-center">
+                    <Text variant="caption" className="mt-2 px-1 text-neutral-500 dark:text-[#78716C] text-center">
                       Leaving this screen keeps your apps locked. A banner will show the time left
                       and the way out.
                     </Text>
@@ -731,6 +782,17 @@ export default function FocusSessionScreen() {
                   />
                 )}
 
+                {/* "Park a thought" confirmation. Calm, one line, auto-hides
+                    (handleParkThoughtSubmit above). No celebration and no
+                    green: this is a routine save, not a completion. */}
+                {parkedNotice && (
+                  <SessionNotice
+                    icon="bookmark-outline"
+                    className="mt-5 w-full"
+                    text="Saved to your Inbox for later."
+                  />
+                )}
+
                 <View className="mt-8 w-full">
                   <SessionControls
                     onDone={handleDone}
@@ -739,6 +801,7 @@ export default function FocusSessionScreen() {
                     onStuck={handleStuck}
                     simplifying={simplifying}
                     onOverwhelmed={handleOverwhelmed}
+                    onParkThought={handleParkThought}
                   />
                 </View>
 
@@ -765,7 +828,7 @@ export default function FocusSessionScreen() {
                     accessibilityLabel="Unlock early"
                     accessibilityHint="Opens a 60 second breather before your apps come back"
                   >
-                    <Text variant="bodyMedium" className="text-neutral-600 underline">
+                    <Text variant="bodyMedium" className="text-neutral-600 dark:text-neutral-400 underline">
                       Unlock early
                     </Text>
                   </PressableScale>
@@ -792,6 +855,15 @@ export default function FocusSessionScreen() {
         unlocked={servedStake}
         onAnswer={handleCheckIn}
         onDismiss={handleCheckInDismiss}
+      />
+
+      {/* "Park a thought": intrusive-thought capture. Deliberately outside
+          the timer's `held` gate above. Opening or submitting this sheet
+          must never pause the clock, end the session, or touch the lock. */}
+      <ParkThoughtSheet
+        visible={parkThoughtOpen}
+        onClose={() => setParkThoughtOpen(false)}
+        onSubmit={handleParkThoughtSubmit}
       />
 
       {/* Panic valve — 60s breather, then the store releases the lock. */}

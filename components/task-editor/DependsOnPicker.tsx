@@ -5,6 +5,7 @@ import { Chip } from "@/components/ui/Chip";
 import { useTaskStore } from "@/store/taskStore";
 import { colors } from "@/utils/design-tokens";
 import type { Task } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface DependsOnPickerProps {
   /** Task ids this task depends on. */
@@ -15,6 +16,9 @@ interface DependsOnPickerProps {
 }
 
 export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProps) {
+  // Only for the literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`), which cannot take a `dark:` class.
+  const theme = useThemeColors();
   const tasks = useTaskStore((s) => s.tasks);
   const [query, setQuery] = useState("");
 
@@ -55,12 +59,12 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
         </View>
       ) : null}
 
-      <View className="mb-2 min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-3">
-        <Ionicons name="search" size={16} color={colors.light.textDisabled} />
+      <View className="mb-2 min-h-12 flex-row items-center rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3">
+        <Ionicons name="search" size={16} color={theme.textDisabled} />
         <TextInput
-          className="ml-2 flex-1 text-body-lg text-neutral-900"
+          className="ml-2 flex-1 text-body-lg text-neutral-900 dark:text-neutral-50"
           placeholder="Search tasks"
-          placeholderTextColor={colors.light.textDisabled}
+          placeholderTextColor={theme.textDisabled}
           value={query}
           onChangeText={setQuery}
           accessibilityLabel="Search tasks to depend on"
@@ -68,12 +72,12 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
       </View>
 
       {candidates.length === 0 ? (
-        <Text className="px-1 py-2 text-caption text-neutral-500">
+        <Text className="px-1 py-2 text-caption text-neutral-500 dark:text-[#78716C]">
           {query.trim() ? "No matching tasks" : "No other tasks yet"}
         </Text>
       ) : (
         <ScrollView
-          className="max-h-56 rounded-lg border border-neutral-200 bg-white"
+          className="max-h-56 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900"
           nestedScrollEnabled
           keyboardShouldPersistTaps="handled"
         >
@@ -83,14 +87,14 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
               <Pressable
                 key={t.id}
                 onPress={() => toggle(t.id)}
-                className="flex-row items-center border-b border-neutral-100 px-3 py-3"
+                className="flex-row items-center border-b border-neutral-100 dark:border-neutral-800 px-3 py-3"
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: selected }}
                 accessibilityLabel={t.title}
               >
                 <View
                   className={`mr-3 h-5 w-5 items-center justify-center rounded ${
-                    selected ? "bg-primary-600" : "border-2 border-neutral-300"
+                    selected ? "bg-primary-600" : "border-2 border-neutral-300 dark:border-neutral-700"
                   }`}
                 >
                   {selected ? (
@@ -98,7 +102,7 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
                   ) : null}
                 </View>
                 <Text
-                  className="flex-1 text-body text-neutral-900"
+                  className="flex-1 text-body text-neutral-900 dark:text-neutral-50"
                   numberOfLines={1}
                 >
                   {t.title}

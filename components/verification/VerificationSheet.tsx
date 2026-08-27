@@ -57,6 +57,7 @@ import { useProofStore } from "@/store/proofStore";
 import { useStakesStore, type CompleteVia } from "@/store/stakesStore";
 import { SESSION_MIN_BOUNDS } from "@/core/blocking/limits";
 import type { Proof, Task } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 // ---------------------------------------------------------------------------
 // Optional, graceful integrations (never hard-required)
@@ -215,12 +216,19 @@ function MethodTile({
   onPress: () => void;
   right?: React.ReactNode;
 }) {
+  // Only for the literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, SVG stroke) which cannot take a `dark:`
+  // class. Must live INSIDE the component: an identical call sat at
+  // module scope here until 2026-08-27 and would have thrown
+  // "Invalid hook call" at import. tsc cannot see that, eslint's
+  // react-hooks/rules-of-hooks can, which is why lint is a real gate.
+  const theme = useThemeColors()
   return (
     <PressableScale
       onPress={onPress}
       haptic="selection"
       className={`flex-row items-center gap-3 rounded-xl border p-3.5 ${
-        active ? "border-primary-500 bg-primary-50" : "border-neutral-200 bg-white"
+        active ? "border-primary-500 bg-primary-50" : "border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900"
       }`}
       style={active ? undefined : shadows.xs}
       accessibilityRole="radio"
@@ -229,22 +237,22 @@ function MethodTile({
     >
       <View
         className={`h-10 w-10 items-center justify-center rounded-full ${
-          active ? "bg-primary-100" : "bg-neutral-100"
+          active ? "bg-primary-100" : "bg-neutral-100 dark:bg-neutral-950"
         }`}
       >
-        <Ionicons name={option.icon} size={20} color={active ? colors.light.primary : colors.light.textMuted} />
+        <Ionicons name={option.icon} size={20} color={active ? colors.light.primary : theme.textMuted} />
       </View>
       <View className="flex-1">
-        <Text className={`text-body-lg font-medium ${active ? "text-primary-700" : "text-neutral-900"}`}>
+        <Text className={`text-body-lg font-medium ${active ? "text-primary-700 dark:text-primary-400" : "text-neutral-900 dark:text-neutral-50"}`}>
           {option.title}
         </Text>
-        <Text className="mt-0.5 text-caption text-neutral-500">{option.blurb}</Text>
+        <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">{option.blurb}</Text>
       </View>
       {right ?? (
         <Ionicons
           name={active ? "radio-button-on" : "radio-button-off"}
           size={20}
-          color={active ? colors.light.primary : colors.light.borderStrong}
+          color={active ? colors.light.primary : theme.borderStrong}
         />
       )}
     </PressableScale>
@@ -252,6 +260,10 @@ function MethodTile({
 }
 
 export function VerificationSheet({ visible, task, onClose, onCompleted }: VerificationSheetProps) {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors()
   const reduceMotion = useReduceMotion();
 
   const completeTask = useTaskStore((s) => s.completeTask);
@@ -438,37 +450,37 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
           <Pressable onPress={() => {}} accessibilityElementsHidden={false}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
+              className="rounded-t-3xl bg-neutral-100 dark:bg-neutral-950"
               style={shadows.xl}
             >
               <SafeAreaView edges={["bottom"]}>
                 {/* Grabber */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1.5 w-10 rounded-full bg-neutral-300 dark:bg-neutral-700" />
                 </View>
 
                 {/* Header */}
                 <View className="flex-row items-start justify-between px-5 pt-3">
                   <View className="flex-1 pr-3">
-                    <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+                    <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
                       Mark done
                     </Text>
                     <Heading size="h3" className="mt-1" numberOfLines={2}>
                       {task.title}
                     </Heading>
-                    <Text className="mt-1 text-caption text-neutral-500">
+                    <Text className="mt-1 text-caption text-neutral-500 dark:text-[#78716C]">
                       Choose how you want to keep yourself honest. You can always change it.
                     </Text>
                   </View>
                   <Pressable
                     onPress={handleClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                    className="h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-neutral-900"
                     style={shadows.xs}
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color={colors.light.textSecondary} />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
@@ -478,14 +490,14 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                 {untilDoneStake ? (
                   <View className="mx-5 mt-3 flex-row items-center gap-2.5 rounded-xl border border-primary-100 bg-primary-50 px-3.5 py-3">
                     <Ionicons name="lock-open-outline" size={16} color={colors.light.primary} />
-                    <Text className="flex-1 text-caption font-medium text-primary-700">
+                    <Text className="flex-1 text-caption font-medium text-primary-700 dark:text-primary-400">
                       This task has apps on the line. Completing it here unlocks them.
                     </Text>
                   </View>
                 ) : sessionHoldStake ? (
-                  <View className="mx-5 mt-3 flex-row items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3.5 py-3">
-                    <Ionicons name="lock-closed-outline" size={16} color={colors.light.textMuted} />
-                    <Text className="flex-1 text-caption font-medium text-neutral-600">
+                  <View className="mx-5 mt-3 flex-row items-center gap-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3.5 py-3">
+                    <Ionicons name="lock-closed-outline" size={16} color={theme.textMuted} />
+                    <Text className="flex-1 text-caption font-medium text-neutral-600 dark:text-neutral-400">
                       Your apps stay locked for this session. Completing the task here won&apos;t unlock them — the session timer does.
                     </Text>
                   </View>
@@ -527,20 +539,20 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                   {method === "focus_time" ? (
                     <Animated.View
                       entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
-                      className="rounded-xl border border-neutral-200 bg-white p-4"
+                      className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4"
                       style={shadows.xs}
                     >
                       {focusPassed ? (
                         <View className="flex-row items-center gap-2">
                           <Ionicons name="checkmark-circle" size={18} color={colors.light.successAccent} />
-                          <Text className="flex-1 text-caption text-neutral-600">
+                          <Text className="flex-1 text-caption text-neutral-600 dark:text-neutral-400">
                             You focused {focusedMin}m — that clears the {requiredFocusMin}m needed. Nice.
                           </Text>
                         </View>
                       ) : (
                         <View className="flex-row items-center gap-2">
-                          <Ionicons name="time-outline" size={18} color={colors.light.textMuted} />
-                          <Text className="flex-1 text-caption text-neutral-600">
+                          <Ionicons name="time-outline" size={18} color={theme.textMuted} />
+                          <Text className="flex-1 text-caption text-neutral-600 dark:text-neutral-400">
                             {focusedMin}m focused so far. Start a focus session to reach {requiredFocusMin}m — or complete anyway below.
                           </Text>
                         </View>
@@ -551,7 +563,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                   {imageMethod ? (
                     <Animated.View
                       entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
-                      className="rounded-xl border border-neutral-200 bg-white p-4"
+                      className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4"
                       style={shadows.xs}
                     >
                       {imageUri ? (
@@ -569,38 +581,38 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                             accessibilityRole="button"
                             accessibilityLabel="Choose a different image"
                           >
-                            <Text className="text-label font-medium text-primary-600">
+                            <Text className="text-label font-medium text-primary-600 dark:text-primary-400">
                               Choose a different image
                             </Text>
                           </Pressable>
-                          <Text className="text-caption text-neutral-500">
+                          <Text className="text-caption text-neutral-500 dark:text-[#78716C]">
                             The check is a light nudge, not a grader — it accepts unless the image is clearly unrelated.
                           </Text>
                         </View>
                       ) : picker ? (
                         <Pressable
                           onPress={pickImage}
-                          className="min-h-24 items-center justify-center rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4"
+                          className="min-h-24 items-center justify-center rounded-lg border border-dashed border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 p-4"
                           accessibilityRole="button"
                           accessibilityLabel="Add a proof image"
                         >
-                          <Ionicons name="image-outline" size={26} color={colors.light.textMuted} />
-                          <Text className="mt-2 text-label font-medium text-neutral-600">
+                          <Ionicons name="image-outline" size={26} color={theme.textMuted} />
+                          <Text className="mt-2 text-label font-medium text-neutral-600 dark:text-neutral-400">
                             Add an image
                           </Text>
                         </Pressable>
                       ) : (
                         <View className="gap-2">
                           <View className="flex-row items-center gap-2">
-                            <Ionicons name="information-circle-outline" size={18} color={colors.light.textMuted} />
-                            <Text className="flex-1 text-caption text-neutral-600">
+                            <Ionicons name="information-circle-outline" size={18} color={theme.textMuted} />
+                            <Text className="flex-1 text-caption text-neutral-600 dark:text-neutral-400">
                               Image capture isn&apos;t available on this device. You can complete now and attach proof later.
                             </Text>
                           </View>
                           <Pressable
                             onPress={() => setAttachLater(true)}
                             className={`self-start rounded-full px-3 py-1.5 ${
-                              attachLater ? "bg-primary-100" : "bg-neutral-100"
+                              attachLater ? "bg-primary-100" : "bg-neutral-100 dark:bg-neutral-950"
                             }`}
                             accessibilityRole="button"
                             accessibilityState={{ selected: attachLater }}
@@ -608,7 +620,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                           >
                             <Text
                               className={`text-caption font-medium ${
-                                attachLater ? "text-primary-700" : "text-neutral-600"
+                                attachLater ? "text-primary-700 dark:text-primary-400" : "text-neutral-600 dark:text-neutral-400"
                               }`}
                             >
                               Attach later
@@ -621,7 +633,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                 </ScrollView>
 
                 {/* Footer — primary action + always-available override */}
-                <View className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3" style={shadows.md}>
+                <View className="border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-5 pb-2 pt-3" style={shadows.md}>
                   <Button
                     title={primaryLabel}
                     variant="success"
@@ -645,7 +657,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                       accessibilityRole="button"
                       accessibilityLabel="Complete anyway without verification"
                     >
-                      <Text className="text-label font-medium text-neutral-500">
+                      <Text className="text-label font-medium text-neutral-500 dark:text-[#78716C]">
                         Complete anyway
                       </Text>
                     </Pressable>

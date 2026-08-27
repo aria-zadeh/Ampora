@@ -20,6 +20,8 @@
 
 import { supabase } from "@/services/supabase";
 import { parseQuickAdd } from "@/core/quick-add";
+import { canUseAI } from "@/core/entitlements";
+import { useSettingsStore } from "@/store/settingsStore";
 import type { Task } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -72,13 +74,34 @@ export interface ProofPlausibilityResult {
 
 /**
  * Invoke a Supabase Edge Function and return its parsed JSON body, or null if
- * the call errored, returned nothing, or the server reported it has no API key
- * (`{ error: "no_key" }`). Never throws — callers treat null as "use fallback".
+ * the caller is not entitled, the call errored, returned nothing, or the server
+ * reported it has no API key (`{ error: "no_key" }`). Never throws, callers
+ * treat null as "use fallback".
+ *
+ * ENTITLEMENT (FR-88). AI is the paid half of the freemium split, and this is
+ * the single choke point every AI call goes through, so gating here covers all
+ * six functions at once and no caller can route around it.
+ *
+ * It gates by returning null, deliberately, rather than by throwing or by
+ * surfacing a paywall from inside a service. A free user still gets a real
+ * breakdown, just the on-device generic one the app already shows whenever the
+ * key is unset or the network is down, under the honest "showing general steps"
+ * banner that path already carries. So the free tier degrades to something
+ * useful instead of to an error, the "never surface an AI failure to the UI"
+ * rule holds, and not being subscribed is not treated as a failure at all.
+ * Selling the upgrade is the UI's job, at a moment the user chose.
  */
 async function invokeEdge<T = unknown>(
   name: string,
   body: Record<string, unknown>
 ): Promise<T | null> {
+  try {
+    if (!canUseAI(useSettingsStore.getState().settings.subscription)) return null;
+  } catch {
+    // An unreadable store must not take AI down for a paying user, and must not
+    // hand a free one the paid path either. Fall back, same as any other miss.
+    return null;
+  }
   try {
     const { data, error } = await supabase.functions.invoke(name, { body });
     if (error) return null;

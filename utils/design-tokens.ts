@@ -28,6 +28,16 @@ export const colors = {
 
     success: "#22C55E",
     successLight: "#DCFCE7",
+    // The SUBTLE wash, one step below the `.100` `*Light` above.
+    // These exist for LARGE tinted surfaces that sit behind reading text,
+    // specifically the calendar's slack blocks. On the `.100` step a
+    // `neutral-500` time label lands at 4.49:1 on danger, a hair under AA,
+    // which forces the label a step darker and makes the whole block read
+    // more saturated than the design intends. On these `.50` steps the same
+    // label clears at 5.01 to 5.23:1 and the block keeps its quiet wash.
+    // Use ONLY for a large tinted area. A small badge keeps the audited
+    // `.100` tint plus `.700` text pairing, which is already correct.
+    successSubtle: "#F0FDF4",
     // success.600 — icon-chip glyphs on a success.100 tint, clears the 3:1
     // graphical-object bar (doc 02 section 6.3/12). Icons only, not body text.
     successAccent: "#16A34A",
@@ -36,6 +46,7 @@ export const colors = {
     successStrong: "#15803D",
     warning: "#F97316",
     warningLight: "#FFEDD5",
+    warningSubtle: "#FFF7ED",
     // warning.600 — icon-chip glyphs on a warning.100 tint, clears the 3:1
     // graphical-object bar. Icons only, not body text (3.6:1 on white).
     warningAccent: "#EA580C",
@@ -44,6 +55,7 @@ export const colors = {
     warningStrong: "#C2410C",
     danger: "#EF4444",
     dangerLight: "#FEE2E2",
+    dangerSubtle: "#FEF2F2",
     // red.600 — action.destructive: filled button/strong text, white label
     // 4.83:1 (doc 02 section 1.7/14.6). NOT the same as the danger.500 accent.
     dangerStrong: "#DC2626",
@@ -58,7 +70,14 @@ export const colors = {
     accentStrong: "#7C3AED",
   },
   dark: {
-    primary: "#3B82F6",
+    // Same #2563EB as light, per doc 02 §14.1 ("Primary UNCHANGED"). This was
+    // briefly the lighter Tailwind primary-500 (#3B82F6) — a plausible-looking
+    // choice for a dark canvas — but dark mode had zero live effect anywhere
+    // in the app until this pass, so the value had never actually been
+    // rendered, and it fails AA for a filled button's white label at 3.68:1
+    // (core/__tests__/design-tokens.test.ts caught it; #2563EB clears 5.17:1,
+    // matching the light-mode audit in doc 02 §14.6).
+    primary: "#2563EB",
     primaryLight: "#60A5FA",
     primaryDark: "#2563EB",
     primaryForeground: "#FFFFFF",
@@ -80,14 +99,21 @@ export const colors = {
 
     success: "#22C55E",
     successLight: "#14361F",
+    // No separate dark step: the dark tints are already near-black washes,
+    // and going subtler would make the slack colour indistinguishable from
+    // the card. Aliased to the same value so a caller can name `*Subtle`
+    // uniformly without branching on theme.
+    successSubtle: "#14361F",
     successAccent: "#16A34A",
     successStrong: "#15803D",
     warning: "#F97316",
     warningLight: "#3A230F",
+    warningSubtle: "#3A230F",
     warningAccent: "#EA580C",
     warningStrong: "#C2410C",
     danger: "#EF4444",
     dangerLight: "#3A1616",
+    dangerSubtle: "#3A1616",
     dangerStrong: "#DC2626",
 
     border: "#292524",
@@ -99,6 +125,148 @@ export const colors = {
     accentStrong: "#7C3AED",
   },
 } as const;
+
+/**
+ * Third-party BRAND marks. Deliberately separate from `colors` above, and
+ * deliberately not theme-aware.
+ *
+ * These are not design decisions this project gets to make: a "Sign in with
+ * Google" button has to carry Google's own blue to satisfy Google's branding
+ * guidelines, and no step of the Stone/blue ramp is a legal substitute for it.
+ * Putting them here rather than inline in `app/auth.tsx` means the
+ * never-hardcode-a-colour rule stays absolute at every call site, with the one
+ * legitimate exception named, explained and greppable in exactly one place.
+ *
+ * They must NOT gain a `dark:` variant or be swapped for a token. A brand mark
+ * that changes colour with the app theme is the bug, not the fix. Contrast
+ * against the surface behind them is handled by the surface, not by altering
+ * the mark.
+ */
+export const brand = {
+  /** Google's logo blue, for the Sign in with Google mark only. */
+  google: "#4285F4",
+} as const;
+
+/**
+ * Bespoke surfaces that are deliberately NOT on the neutral spine.
+ *
+ * `blindfold` is the calm-down takeover (`app/blindfold.tsx`): a warm cream
+ * wash chosen for low stimulation rather than to match the app canvas, which
+ * is why that file previously carried a comment exempting itself from the
+ * colour rule outright. Naming the values here keeps the rule absolute and
+ * makes the exception greppable, without changing a single rendered pixel.
+ *
+ * OPEN DESIGN QUESTION, deliberately not answered here: there is no dark
+ * counterpart. A full-screen cream takeover while the rest of the app is dark
+ * would be jarring, but picking the dark treatment for a wellbeing surface is
+ * a product decision, not a mechanical token swap, so it is left for the owner
+ * rather than invented. Until then Blindfold stays cream in both themes.
+ */
+/**
+ * The skeleton-loader shimmer sweep (`components/ui/SkeletonLoader.tsx`).
+ *
+ * A gradient's `colors` prop takes literal strings and cannot take a class,
+ * so these cannot be expressed as `dark:` variants and would otherwise sit in
+ * the component as bare `rgba()`. Named here so the never-hardcode rule stays
+ * absolute at the call site.
+ *
+ * The highlight has to be the OPPOSITE of the surface it sweeps, which is why
+ * the alpha differs per theme rather than the hue: white at 55% reads as a
+ * lift on the light `neutral-200` base and as a harsh flare on the dark
+ * `neutral-800` one, where 8% is the same gesture at an intensity a dark
+ * surface can carry. Both are alpha over the base rather than a solid, so
+ * neither is a contrast-bearing pair.
+ */
+export const shimmer = {
+  light: [
+    "rgba(255,255,255,0)",
+    "rgba(255,255,255,0.55)",
+    "rgba(255,255,255,0)",
+  ],
+  dark: [
+    "rgba(255,255,255,0)",
+    "rgba(255,255,255,0.08)",
+    "rgba(255,255,255,0)",
+  ],
+} as const;
+
+export const surfaces = {
+  blindfold: {
+    /** Base wash behind the gradient. */
+    base: "#FFFBF5",
+    /** Top of the soft vertical gradient, settling into `base`. */
+    gradientTop: "#FFF3E6",
+  },
+} as const;
+
+/**
+ * NativeWind `dark:` class mapping cheatsheet. NativeWind's `useColorScheme`
+ * (from "nativewind", never "react-native") drives Tailwind's `dark:`
+ * variant app-wide (`tailwind.config.js` `darkMode: "class"`); this table is
+ * what a screen should actually WRITE to reproduce `colors.light` /
+ * `colors.dark` above exactly, since the neutral ramp in `tailwind.config.js`
+ * is one flat set of steps shared by both themes (it is not itself
+ * theme-aware) — "dark mode" for a neutral surface is really just picking a
+ * different step of the same ramp:
+ *
+ *   bg-white           dark:bg-neutral-900     (card)
+ *   bg-neutral-50      dark:bg-neutral-800     (elevated)
+ *   bg-neutral-100     dark:bg-neutral-950     (background/canvas)
+ *   text-neutral-900   dark:text-neutral-50    (text)
+ *   text-neutral-700   dark:text-neutral-300   (textStrong)
+ *   text-neutral-600   dark:text-neutral-400   (textSecondary)
+ *   text-neutral-400   dark:text-neutral-600   (textDisabled)
+ *   border-neutral-200 dark:border-neutral-800 (border)
+ *   border-neutral-300 dark:border-neutral-700 (borderStrong)
+ *
+ * `textMuted` is the one exception: `colors.dark.textMuted` (`#78716C`) is a
+ * deliberately bespoke value (doc 02 §14.6 "Stone-500-on-dark") that does not
+ * sit on any exact step of the shared neutral ramp — `neutral.500`
+ * (`#6F6862`) is close but measurably lower contrast (3.19:1 vs the audited
+ * 3.65:1 on a dark card). Reproduce it with the literal step: `text-neutral-500
+ * dark:text-[#78716C]`. Semantic accent colors (primary/success/warning/
+ * danger/accent) are UNCHANGED between themes (doc 02 §14.1) and never need a
+ * `dark:` variant. Small pastel tint badges (e.g. `bg-success-100` paired
+ * with `text-success-700`) are self-contained, already-audited pairs (doc 02
+ * §14.6) that stay correct without a `dark:` variant too — leave them as-is
+ * rather than inventing a darker tint for them.
+ *
+ * ACCENTS: the "no `dark:` variant" rule above is about accent SURFACES, and
+ * it is easy to over-apply. Split it by what the accent is doing:
+ *
+ *   - A FILLED accent (button fill, badge fill, toggle track) keeps one value
+ *     in both themes. The fill is opaque, so its white label's contrast does
+ *     not move when the page behind it does. No `dark:` variant. Correct.
+ *   - Accent TEXT or a small accent glyph sitting DIRECTLY on a neutral
+ *     surface does move, and on dark it lands short. Measured against the
+ *     dark card (`#1C1917`) and dark canvas (`#0C0A09`):
+ *
+ *       primary-600 #2563EB   3.38 / 3.82   clears 3:1, FAILS the 4.5:1 body bar
+ *       primary-400 #60A5FA   6.88 / 7.77   passes
+ *       danger-600  #DC2626   3.62          clears 3:1, FAILS 4.5:1
+ *       danger-500  #EF4444   4.65 / 5.25   passes
+ *
+ *     So accent text on dark steps lighter, exactly as doc 02 §1.8 puts it
+ *     ("use the 400 step where you used 600 on light"):
+ *
+ *       text-primary-600  dark:text-primary-400
+ *       text-danger-600   dark:text-danger-500
+ *
+ *     An accent used purely as a large glyph or icon only owes 3:1, so the
+ *     600 step is already fine there and needs no variant.
+ *
+ * KNOWN LIMIT, do not paper over it: the accent purple has no step that
+ * reaches 4.5:1 on a dark surface. accentStrong `#7C3AED` measures 3.07:1 and
+ * accent `#8B5CF6` 4.13:1, and the ramp has no 400. Purple is Projects-only
+ * and is used as a glyph or a tint rather than as reading text, which is
+ * within the 3:1 glyph bar, so this is a constraint rather than a live
+ * failure. If purple is ever needed as body text on dark, the ramp needs a
+ * lighter step first, it cannot be solved at the call site.
+ *
+ * `core/__tests__/design-tokens.test.ts` asserts this table against
+ * `tailwind.config.js`'s neutral ramp and `colors.dark`, so a future edit to
+ * either side gets a named failure instead of silent drift.
+ */
 
 export const spacing = {
   xs: 4,
@@ -295,6 +463,16 @@ export const gradients = {
   firstMove: ["#EFF6FF", "#FFFFFF"],
   successTint: ["#F0FDF4", "#FFFFFF"],
   fade: ["rgba(247,246,243,0)", "#F7F6F3"],
+  /**
+   * Dark-mode counterpart to `heroWash`. The light wash is a bright blue
+   * tint (`primary-50`), which reads as jarring directly on a dark canvas —
+   * so this is built entirely from existing `colors.dark` values (elevated
+   * fading to a transparent background), never a newly invented hex, per a
+   * warm near-black surface fading to nothing rather than a bright color.
+   * Pick between the two with `useThemeColors`'s resolved scheme, e.g.
+   * `colors={scheme === "dark" ? gradients.heroWashDark : gradients.heroWash}`.
+   */
+  heroWashDark: ["#292524", "rgba(12,10,9,0)"],
 } as const;
 
 /** Layout constants (px) for screen padding, content width, card rhythm. */
@@ -327,6 +505,41 @@ export const listColors = {
   indigo: { bg: "#E6E9FD", text: "#3730A3", bar: "#8B93E8" },
   slate: { bg: "#ECEAE6", text: "#52525B", bar: "#A8A29A" },
 } as const;
+
+/**
+ * The eight swatches a user picks from when colouring a List or a Tag.
+ *
+ * ONE array, shared, because this palette is written by one picker and read
+ * back by another: `List.color` persists the chosen hex, and every picker
+ * draws its "selected" ring by matching a swatch against that stored value.
+ * The palette lived independently in three files
+ * (`components/settings/ListEditorModal.tsx`,
+ * `components/task-editor/ListTagPicker.tsx`,
+ * `components/task-editor/TaskEditorForm.tsx`), and the moment two of them
+ * disagreed on a single entry, a list saved in one picker showed no selection
+ * in the others. Nothing corrupts and nothing gets rewritten, the ring simply
+ * never lights up, which is exactly the kind of bug that survives review.
+ *
+ * These are LIGHT-mode values on purpose, and must not resolve through
+ * `useThemeColors()`. The value is persisted and matched by equality, so it
+ * cannot be allowed to move with the colour scheme or every previously saved
+ * list would stop matching the moment the user switched theme.
+ *
+ * Six come from the semantic ramps. Teal and pink come from `listColors`
+ * (doc 02 §14.3), which exists precisely for list/tag identity colours and
+ * carries steps the semantic ramps have no equivalent for. White-on-swatch
+ * measures 6.14:1 and 6.77:1 respectively.
+ */
+export const LIST_COLOR_SWATCHES = [
+  colors.light.primary,
+  colors.light.accentStrong,
+  colors.light.successAccent,
+  colors.light.warningAccent,
+  colors.light.dangerStrong,
+  listColors.teal.text,
+  listColors.pink.text,
+  colors.light.textSecondary,
+] as const;
 
 export type ListColorName = keyof typeof listColors;
 

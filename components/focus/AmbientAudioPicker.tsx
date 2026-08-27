@@ -13,9 +13,10 @@ import Animated, { FadeIn } from "react-native-reanimated";
 
 import { PressableScale } from "@/components/ui/PressableScale";
 import { AUDIO_PICKER_OPTIONS, type FocusAudio } from "@/utils/audioConfig";
-import { colors, iconSizes } from "@/utils/design-tokens";
+import { iconSizes } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export interface AmbientAudioPickerProps {
   /** The currently selected ambient kind ("none" when silent). */
@@ -25,6 +26,8 @@ export interface AmbientAudioPickerProps {
 
 export function AmbientAudioPicker({ current, onPick }: AmbientAudioPickerProps) {
   const reduceMotion = useReduceMotion();
+  // Ionicons `color` takes a literal and cannot take a `dark:` class.
+  const theme = useThemeColors();
   const [open, setOpen] = useState(false);
 
   return (
@@ -37,7 +40,7 @@ export function AmbientAudioPicker({ current, onPick }: AmbientAudioPickerProps)
       <PressableScale
         onPress={() => setOpen((o) => !o)}
         haptic="selection"
-        className="flex-row items-center justify-between gap-3 px-4 h-12 rounded-xl bg-white border border-neutral-200"
+        className="flex-row items-center justify-between gap-3 px-4 h-12 rounded-xl bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800"
         accessibilityRole="button"
         accessibilityLabel="Ambient sound"
         accessibilityState={{ expanded: open }}
@@ -46,18 +49,18 @@ export function AmbientAudioPicker({ current, onPick }: AmbientAudioPickerProps)
           <Ionicons
             name="musical-notes-outline"
             size={iconSizes.sm}
-            color={colors.light.textSecondary}
+            color={theme.textSecondary}
           />
-          <Text className="text-label font-medium text-neutral-700">Ambient sound</Text>
+          <Text className="text-label font-medium text-neutral-700 dark:text-neutral-300">Ambient sound</Text>
         </View>
         <View className="flex-row items-center gap-1">
-          <Text className="text-caption text-neutral-500 capitalize">
+          <Text className="text-caption text-neutral-500 dark:text-[#78716C] capitalize">
             {current === "none" ? "Off" : current}
           </Text>
           <Ionicons
             name={open ? "chevron-up" : "chevron-down"}
             size={iconSizes.sm}
-            color={colors.light.textMuted}
+            color={theme.textMuted}
           />
         </View>
       </PressableScale>
@@ -77,8 +80,14 @@ export function AmbientAudioPicker({ current, onPick }: AmbientAudioPickerProps)
                   setOpen(false);
                 }}
                 haptic={false}
+                /* The SELECTED chip is a filled accent, so it keeps one value
+                   in both themes and its white label stays at the audited
+                   5.17:1 (doc 02 §14.1). Only the resting chip is an ordinary
+                   card and flips per the cheatsheet. */
                 className={`flex-row items-center gap-1.5 px-3.5 h-10 rounded-full border ${
-                  active ? "bg-primary-600 border-primary-600" : "bg-white border-neutral-200"
+                  active
+                    ? "bg-primary-600 border-primary-600"
+                    : "bg-white border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800"
                 }`}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
@@ -87,10 +96,10 @@ export function AmbientAudioPicker({ current, onPick }: AmbientAudioPickerProps)
                 <Ionicons
                   name={opt.icon as keyof typeof Ionicons.glyphMap}
                   size={iconSizes.sm}
-                  color={active ? colors.light.primaryForeground : colors.light.textSecondary}
+                  color={active ? theme.primaryForeground : theme.textSecondary}
                 />
                 <Text
-                  className={`text-label font-medium ${active ? "text-white" : "text-neutral-700"}`}
+                  className={`text-label font-medium ${active ? "text-white" : "text-neutral-700 dark:text-neutral-300"}`}
                 >
                   {opt.label}
                 </Text>

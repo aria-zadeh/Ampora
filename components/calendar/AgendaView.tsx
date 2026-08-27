@@ -17,6 +17,7 @@ import { Text } from '@/components/ui/Text'
 import { colors, shadows, spacing, listColors, tabularNums, type ListColorName } from '@/utils/design-tokens'
 import { DURATIONS, staggerDelay } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { dayStart, formatClockTime } from './hours'
 
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -325,10 +326,17 @@ function DayCard({
 
   return (
     <Animated.View entering={entering} style={{ marginTop: index === 0 ? 0 : spacing.group }}>
-      <Text variant="overline" className="text-neutral-500 px-0.5 pb-1.5" style={tabularNums}>
+      <Text
+        variant="overline"
+        className="text-neutral-500 dark:text-[#78716C] px-0.5 pb-1.5"
+        style={tabularNums}
+      >
         {section.label}
       </Text>
-      <View className="bg-white rounded-lg px-4 pt-0.5 pb-1" style={shadows.xs}>
+      <View
+        className="bg-white dark:bg-neutral-900 rounded-lg px-4 pt-0.5 pb-1"
+        style={shadows.xs}
+      >
         {section.nodes.map((node, i) => {
           // Borderless when it's the day's first row, or when it immediately
           // follows the now-line (avoids a double divider directly under it).
@@ -370,7 +378,15 @@ function NowDivider({ time }: { time: number }) {
       accessibilityLabel={label}
     >
       <View className="flex-1 h-[2px] rounded-full bg-primary-600" />
-      <Text variant="captionMedium" className="text-primary-600" style={tabularNums}>
+      {/* The rule either side is a filled graphical object and owes 3:1, so it
+          keeps primary-600 in both themes. This label is 13px text and owes
+          4.5:1, which primary-600 misses on a dark surface (3.38:1 on the
+          card), so only the text steps to the 400 tier per doc 02 section 1.8. */}
+      <Text
+        variant="captionMedium"
+        className="text-primary-600 dark:text-primary-400"
+        style={tabularNums}
+      >
         {label}
       </Text>
       <View className="flex-1 h-[2px] rounded-full bg-primary-600" />
@@ -386,15 +402,23 @@ interface ChipData {
 
 /** A single sunken-pill chip, 13px/500, optionally leading with a small glyph. */
 function Chip({ label, icon, tone = 'neutral' }: ChipData) {
-  const bg = tone === 'warning' ? 'bg-warning-100' : 'bg-neutral-100'
-  const fg = tone === 'warning' ? 'text-warning-700' : 'text-neutral-600'
+  // Only for the Ionicons `color` prop below, which takes a literal rather
+  // than a class. The warning tone stays pinned light because it sits on the
+  // audited `warning-100` tint, which does not move between themes.
+  const theme = useThemeColors()
+  // The warning chip is a small pastel tint badge: `bg-warning-100` with
+  // `text-warning-700` is a self-contained audited pair (doc 02 section 14.6)
+  // that stays correct in both themes, so it takes no `dark:` variant. Only
+  // the NEUTRAL chip rides the page's own neutral ramp and has to move.
+  const bg = tone === 'warning' ? 'bg-warning-100' : 'bg-neutral-100 dark:bg-neutral-800'
+  const fg = tone === 'warning' ? 'text-warning-700' : 'text-neutral-600 dark:text-neutral-400'
   return (
     <View className={`flex-row items-center gap-1 rounded-full px-2 py-1 ${bg}`}>
       {icon ? (
         <Ionicons
           name={icon}
           size={11}
-          color={tone === 'warning' ? colors.light.warningStrong : colors.light.textSecondary}
+          color={tone === 'warning' ? colors.light.warningStrong : theme.textSecondary}
         />
       ) : null}
       <Text variant="captionMedium" className={fg}>
@@ -456,7 +480,7 @@ function TaskRow({
     .join(', ')
 
   return (
-    <View className={first ? undefined : 'border-t border-neutral-200'}>
+    <View className={first ? undefined : 'border-t border-neutral-200 dark:border-neutral-800'}>
       <PressableScale
         onPress={onPress ? () => onPress(block) : undefined}
         haptic="light"
@@ -475,7 +499,7 @@ function TaskRow({
 
         <Text
           variant="captionMedium"
-          className="text-neutral-600"
+          className="text-neutral-600 dark:text-neutral-400"
           style={[tabularNums, { width: TIME_COL_WIDTH }]}
         >
           {timeLabel}
@@ -484,7 +508,7 @@ function TaskRow({
         <Text
           variant="bodyMedium"
           numberOfLines={1}
-          className={`flex-1 ${done ? 'text-neutral-500 line-through' : ''}`}
+          className={`flex-1 ${done ? 'text-neutral-500 dark:text-neutral-400 line-through' : ''}`}
         >
           {task.title}
         </Text>
@@ -523,7 +547,7 @@ function EventRow({
   const a11yLabel = `Event: ${event.title}${event.allDay ? ', all day' : `, ${timeLabel}`}`
 
   return (
-    <View className={first ? undefined : 'border-t border-neutral-200'}>
+    <View className={first ? undefined : 'border-t border-neutral-200 dark:border-neutral-800'}>
       <PressableScale
         onPress={onPress ? () => onPress(event) : undefined}
         haptic="light"
@@ -541,7 +565,7 @@ function EventRow({
 
         <Text
           variant="captionMedium"
-          className="text-neutral-600"
+          className="text-neutral-600 dark:text-neutral-400"
           style={[tabularNums, { width: TIME_COL_WIDTH }]}
         >
           {timeLabel}

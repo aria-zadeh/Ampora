@@ -5,7 +5,7 @@
  *  - Reads ANTHROPIC_API_KEY from the environment. If missing, the caller
  *    returns 200 with { error: "no_key" } so the app falls back locally.
  *  - Calls the Claude Messages API with a strict JSON-output prompt (model
- *    "claude-opus-5") via the official Anthropic SDK.
+ *    "claude-sonnet-5") via the official Anthropic SDK.
  *  - Parses/validates the JSON before returning it.
  *  - Always sends CORS headers (the app runs on web too).
  *
@@ -23,9 +23,20 @@ import Anthropic from "npm:@anthropic-ai/sdk";
 
 /**
  * Model id for all breakdown/extraction/chat calls. Exact string, no date
- * suffix appended, never substitute a different model.
+ * suffix appended.
+ *
+ * Sonnet, on every function, by owner decision (2026-08-24, logged in
+ * `docs/09_Decisions.md`). Not a cost accident and not a default to drift off:
+ * Opus is not to be used here at any point, and neither is Haiku. If a future
+ * change needs a different tier, it needs Aria's say-so first. Sonnet 4.6
+ * (`claude-sonnet-4-6`) is the only sanctioned alternative.
+ *
+ * The request shape below is identical across the Sonnet 5 and Opus families,
+ * so this is a one-line swap either way: adaptive thinking, effort in
+ * `output_config`, and no `budget_tokens`, `temperature`, or assistant prefill
+ * (all three are rejected with a 400 on this model).
  */
-export const MODEL = "claude-opus-5";
+export const MODEL = "claude-sonnet-5";
 
 export const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",

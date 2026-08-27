@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 import { PressableScale } from "@/components/ui/PressableScale";
@@ -113,7 +114,7 @@ export function NeedsAttention() {
     >
       <View className="flex-row items-baseline justify-between mb-4">
         <Heading size="h3">Needs attention</Heading>
-        <Text className="text-caption text-neutral-500">
+        <Text className="text-caption text-neutral-500 dark:text-[#78716C]">
           {rows.length} {rows.length === 1 ? "item" : "items"}
         </Text>
       </View>
@@ -153,10 +154,14 @@ function MissedCard({
 }) {
   const { block, task } = row;
   const when = useMemo(() => formatWhenDue(block.start, now), [block.start, now]);
+  // Only for the two Ionicons `color` props below, which take a literal rather
+  // than a class. Both values (warningStrong, primaryForeground) are identical
+  // in light and dark, so neither needs a `dark:` variant.
+  const theme = useThemeColors();
 
   return (
     <View
-      className="bg-white border border-neutral-200 rounded-lg p-4"
+      className="bg-white border border-neutral-200 rounded-lg p-4 dark:bg-neutral-900 dark:border-neutral-800"
       style={shadows.sm}
     >
       <View className="flex-row items-start gap-3">
@@ -166,16 +171,16 @@ function MissedCard({
           accessibilityElementsHidden
           importantForAccessibility="no"
         >
-          <Ionicons name="time-outline" size={16} color="#C2410C" />
+          <Ionicons name="time-outline" size={16} color={theme.warningStrong} />
         </View>
         <View className="flex-1">
           <Text
-            className="text-body font-medium text-neutral-900"
+            className="text-body font-medium text-neutral-900 dark:text-neutral-50"
             numberOfLines={2}
           >
             {task.title}
           </Text>
-          <Text className="mt-0.5 text-caption text-neutral-500">
+          <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
             Was planned {when}
           </Text>
         </View>
@@ -192,18 +197,18 @@ function MissedCard({
           accessibilityLabel={`Reschedule ${task.title}`}
           accessibilityHint="Finds a new time for the remaining work"
         >
-          <Ionicons name="refresh-outline" size={16} color="#FFFFFF" />
+          <Ionicons name="refresh-outline" size={16} color={theme.primaryForeground} />
           <Text className="text-label font-semibold text-white">Reschedule</Text>
         </PressableScale>
         <PressableScale
           onPress={onLetGo}
           haptic="selection"
-          className="min-h-11 flex-row items-center justify-center rounded-md border border-neutral-200 bg-white px-4"
+          className="min-h-11 flex-row items-center justify-center rounded-md border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
           accessibilityRole="button"
           accessibilityLabel={`Let it go: ${task.title}`}
           accessibilityHint="Clears this reminder without changing the task"
         >
-          <Text className="text-label font-medium text-neutral-600">Let it go</Text>
+          <Text className="text-label font-medium text-neutral-600 dark:text-neutral-400">Let it go</Text>
         </PressableScale>
       </View>
     </View>

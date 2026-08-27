@@ -7,7 +7,8 @@ import { useTaskStore } from "@/store/taskStore";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { TaskEditorForm } from "@/components/task-editor/TaskEditorForm";
-import { colors, shadows } from "@/utils/design-tokens";
+import { shadows } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task } from "@/types";
 
 /**
@@ -16,6 +17,10 @@ import type { Task } from "@/types";
  * until Save (Save is the single primary action).
  */
 export default function NewTaskScreen() {
+  // For the close glyph's Ionicons `color`, which takes a literal and cannot
+  // take a `dark:` class. `text` inverts between schemes, so pinning it light
+  // would leave the only way out of this modal invisible on a dark header.
+  const theme = useThemeColors();
   const createTask = useTaskStore((s) => s.createTask);
 
   const initialDraft: Partial<Task> = {
@@ -34,10 +39,10 @@ export default function NewTaskScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
+    <SafeAreaView className="flex-1 bg-neutral-100 dark:bg-neutral-950" edges={["top", "bottom"]}>
       {/* Modal header */}
       <View
-        className="flex-row items-center justify-between border-b border-neutral-200 bg-white px-5 py-3.5"
+        className="flex-row items-center justify-between border-b border-neutral-200 bg-white px-5 py-3.5 dark:border-neutral-800 dark:bg-neutral-900"
         style={shadows.xs}
       >
         <View className="min-w-11">
@@ -48,7 +53,7 @@ export default function NewTaskScreen() {
             accessibilityRole="button"
             accessibilityLabel="Cancel"
           >
-            <Ionicons name="close" size={24} color={colors.light.text} />
+            <Ionicons name="close" size={24} color={theme.text} />
           </PressableScale>
         </View>
         <Heading size="h3">New task</Heading>

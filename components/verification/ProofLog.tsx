@@ -34,19 +34,26 @@ import { useSessionStore } from "@/store/sessionStore";
 import { useStakesStore } from "@/store/stakesStore";
 import { useTaskStore } from "@/store/taskStore";
 import type { Proof } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 // ---------------------------------------------------------------------------
 // Method presentation
 // ---------------------------------------------------------------------------
 
+type ColorToken = keyof typeof colors.light;
+
 const METHOD_META: Record<
   Proof["method"],
-  { icon: keyof typeof Ionicons.glyphMap; label: string; tint: string; bg: string }
+  { icon: keyof typeof Ionicons.glyphMap; label: string; tint: ColorToken; bg: string }
 > = {
-  focus_time: { icon: "timer-outline", label: "Focus time", tint: colors.light.primary, bg: "bg-primary-100" },
-  photo: { icon: "camera-outline", label: "Photo", tint: colors.light.accentStrong, bg: "bg-accent-100" },
-  screenshot: { icon: "phone-portrait-outline", label: "Screenshot", tint: colors.light.accentStrong, bg: "bg-accent-100" },
-  honor: { icon: "hand-left-outline", label: "Honor", tint: colors.light.textMuted, bg: "bg-neutral-100" },
+  // `tint` names a TOKEN rather than holding a value, because this is a module
+  // constant and so cannot read a theme hook. Only `textMuted` actually moves
+  // between the two token sets (primary and accentStrong are identical in
+  // both), but naming all four keeps the table honest about what it holds.
+  focus_time: { icon: "timer-outline", label: "Focus time", tint: "primary", bg: "bg-primary-100" },
+  photo: { icon: "camera-outline", label: "Photo", tint: "accentStrong", bg: "bg-accent-100" },
+  screenshot: { icon: "phone-portrait-outline", label: "Screenshot", tint: "accentStrong", bg: "bg-accent-100" },
+  honor: { icon: "hand-left-outline", label: "Honor", tint: "textMuted", bg: "bg-neutral-100 dark:bg-neutral-950" },
 };
 
 /** A short "3:40 PM · Jul 1" style stamp; locale-formatted, never crashes. */
@@ -83,7 +90,7 @@ function ProofRow({
       entering={
         reduceMotion ? undefined : FadeInDown.delay(staggerDelay(index)).duration(DURATIONS.base)
       }
-      className="flex-row items-center gap-3 rounded-xl border border-neutral-200 bg-white p-3"
+      className="flex-row items-center gap-3 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3"
       style={shadows.xs}
       accessibilityLabel={`${meta.label} proof for ${taskTitle}, ${formatWhen(proof.at)}`}
     >
@@ -104,10 +111,10 @@ function ProofRow({
 
       {/* Task + method + time */}
       <View className="flex-1">
-        <Text className="text-body-lg font-medium text-neutral-900" numberOfLines={1}>
+        <Text className="text-body-lg font-medium text-neutral-900 dark:text-neutral-50" numberOfLines={1}>
           {taskTitle}
         </Text>
-        <Text className="mt-0.5 text-caption text-neutral-500" numberOfLines={1}>
+        <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]" numberOfLines={1}>
           {meta.label} · {formatWhen(proof.at)}
         </Text>
       </View>

@@ -16,6 +16,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import { useColorScheme } from "nativewind";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { Input } from "@/components/ui/Input";
@@ -25,9 +26,10 @@ import {
   signInWithGoogle,
   isAppleSignInAvailable,
 } from "@/services/supabase";
-import { shadows, gradients } from "@/utils/design-tokens";
+import { brand, colors, shadows, gradients } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRouter } from "expo-router";
 import { FEATURE_FLAGS } from "@/constants/featureFlags";
 import { useDevAuthStore } from "@/store/devAuthStore";
@@ -75,6 +77,11 @@ export default function AuthScreen() {
   const [socialError, setSocialError] = useState<string | null>(null);
   const [appleAvailable, setAppleAvailable] = useState(false);
   const reduceMotion = useReduceMotion();
+  // Ionicons `color`, ActivityIndicator `color` and LinearGradient `colors`
+  // all take literal values and cannot take a `dark:` class, so they resolve
+  // the active scheme here. className styling uses `dark:` variants directly.
+  const theme = useThemeColors();
+  const { colorScheme } = useColorScheme();
   const cooldownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isValidEmail = email.includes("@") && email.includes(".");
@@ -163,11 +170,13 @@ export default function AuthScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-neutral-100"
+      className="flex-1 bg-neutral-100 dark:bg-neutral-950"
     >
-      {/* Hero gradient wash behind the brand block */}
+      {/* Hero gradient wash behind the brand block. Dark swaps in the
+          token-built dark wash — the light one is a bright primary-50 tint
+          that glares on a near-black canvas. */}
       <LinearGradient
-        colors={gradients.heroWash}
+        colors={colorScheme === "dark" ? gradients.heroWashDark : gradients.heroWash}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         pointerEvents="none"
@@ -183,24 +192,27 @@ export default function AuthScreen() {
           {/* Brand block */}
           <Animated.View entering={enter(0)} className="mb-14">
             <View
-              className="w-14 h-14 rounded-2xl bg-white items-center justify-center mb-6 border border-neutral-200"
+              className="w-14 h-14 rounded-2xl bg-white items-center justify-center mb-6 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800"
               style={shadows.sm}
             >
+              {/* `primary` is one value in both token sets, so the mark reads
+                  4.75:1 on the light card and 3.38:1 on the dark one, clear of
+                  the 3:1 graphical-object bar either way. */}
               <Ionicons
                 name="aperture"
                 size={30}
-                color="#2563EB"
+                color={theme.primary}
                 accessibilityLabel="Ampora app icon"
               />
             </View>
             <Heading
               size="display"
-              className="text-neutral-900"
+              className="text-neutral-900 dark:text-neutral-50"
               accessibilityRole="header"
             >
               Ampora
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 max-w-[320px] leading-6">
+            <Text className="text-body-lg text-neutral-600 dark:text-neutral-400 mt-3 max-w-[320px] leading-6">
               Built for brains that work differently. Sign in and pick up right
               where you left off.
             </Text>
@@ -216,7 +228,12 @@ export default function AuthScreen() {
           <Animated.View entering={enter(45)} className="gap-3 mb-6">
             {socialError && (
               <View accessibilityLiveRegion="polite">
-                <Text className="text-caption text-danger-600 text-center">
+                {/* Accent TEXT on the canvas, so it steps lighter on dark per
+                    the accent split in the cheatsheet atop
+                    utils/design-tokens.ts: danger-600 is 3.62:1 there, short
+                    of the 4.5:1 a 13px line owes, danger-500 clears it at
+                    5.25:1. Light is untouched. */}
+                <Text className="text-caption text-danger-600 dark:text-danger-500 text-center">
                   {socialError}
                 </Text>
               </View>
@@ -236,11 +253,18 @@ export default function AuthScreen() {
                   busy: socialLoading === "apple",
                 }}
               >
+                {/* Apple's button is black with a white mark and label in BOTH
+                    themes, and stays that way on purpose: it is a branded
+                    control governed by Apple's Sign in with Apple guidelines,
+                    not an Ampora surface, so it never flips with the app
+                    theme. `primaryForeground` is white in both token sets, so
+                    it names the tone without pinning a literal, and the pair
+                    measures 21:1 either way. */}
                 {socialLoading === "apple" ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={theme.primaryForeground} />
                 ) : (
                   <>
-                    <Ionicons name="logo-apple" size={19} color="#FFFFFF" />
+                    <Ionicons name="logo-apple" size={19} color={theme.primaryForeground} />
                     <Text className="text-label font-medium text-white ml-2">
                       Sign in with Apple
                     </Text>
@@ -262,11 +286,21 @@ export default function AuthScreen() {
                 busy: socialLoading === "google",
               }}
             >
+              {/* Google's button is the sanctioned LIGHT variant, and it stays
+                  light in both themes for the same reason Apple's stays black:
+                  Google's branding guidelines define the permitted surface and
+                  mark, and an app-themed recolour of either is off-spec. So
+                  the fill, label and spinner are pinned to the light token set
+                  rather than resolved through `theme` — resolving them would
+                  put a near-white spinner and label on the white button in
+                  dark mode. `brand.google` is the mark's own blue, held apart
+                  from `colors` precisely so it can never gain a `dark:`
+                  variant. Ink on the white fill measures 17.49:1. */}
               {socialLoading === "google" ? (
-                <ActivityIndicator color="#1C1917" />
+                <ActivityIndicator color={colors.light.text} />
               ) : (
                 <>
-                  <Ionicons name="logo-google" size={18} color="#4285F4" />
+                  <Ionicons name="logo-google" size={18} color={brand.google} />
                   <Text className="text-label font-medium text-neutral-900 ml-2">
                     Sign in with Google
                   </Text>
@@ -292,22 +326,26 @@ export default function AuthScreen() {
                   useDevAuthStore.getState().enableBypass();
                   router.replace("/");
                 }}
-                className="min-h-[48px] flex-row items-center justify-center rounded-md border border-dashed border-neutral-300 px-5"
+                className="min-h-[48px] flex-row items-center justify-center rounded-md border border-dashed border-neutral-300 px-5 dark:border-neutral-700"
                 accessibilityRole="button"
                 accessibilityLabel="Skip sign-in, development only"
                 accessibilityHint="Opens the app with no account and no cloud sync. Not available in released builds."
               >
-                <Ionicons name="construct-outline" size={16} color="#78716C" />
-                <Text className="text-label font-medium text-neutral-500 ml-2">
+                {/* Glyph and label now resolve to the SAME muted tone in each
+                    theme. They did not before: the glyph was a stray literal
+                    one step off its own label, and the value it carried is the
+                    dark-mode muted tone, not the light one. */}
+                <Ionicons name="construct-outline" size={16} color={theme.textMuted} />
+                <Text className="text-label font-medium text-neutral-500 dark:text-[#78716C] ml-2">
                   Skip sign-in (dev)
                 </Text>
               </Pressable>
             )}
 
             <View className="flex-row items-center my-1">
-              <View className="flex-1 h-px bg-neutral-200" />
-              <Text className="text-caption text-neutral-500 mx-3">or</Text>
-              <View className="flex-1 h-px bg-neutral-200" />
+              <View className="flex-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+              <Text className="text-caption text-neutral-500 dark:text-[#78716C] mx-3">or</Text>
+              <View className="flex-1 h-px bg-neutral-200 dark:bg-neutral-800" />
             </View>
           </Animated.View>
 
@@ -315,26 +353,31 @@ export default function AuthScreen() {
           {screenState === "success" ? (
             <Animated.View
               entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.slow)}
-              className="bg-white border border-neutral-200 rounded-2xl p-6 gap-3"
+              className="bg-white border border-neutral-200 rounded-2xl p-6 gap-3 dark:bg-neutral-900 dark:border-neutral-800"
               style={shadows.sm}
               accessibilityLiveRegion="polite"
             >
+              {/* Tint bubble with a matched glyph — a self-contained audited
+                  pair (doc 02 §14.6), 4.75:1 in both themes, so it keeps the
+                  light tint rather than inventing a darker one. */}
               <View className="w-11 h-11 rounded-full bg-primary-50 items-center justify-center">
                 <Ionicons
                   name="mail-outline"
                   size={22}
-                  color="#2563EB"
+                  color={theme.primary}
                   accessibilityLabel="Mail icon"
                 />
               </View>
               <Heading size="h4">Check your email</Heading>
-              <Text className="text-body text-neutral-600 leading-6">
+              <Text className="text-body text-neutral-600 dark:text-neutral-400 leading-6">
                 We sent a sign-in link to{" "}
-                <Text className="text-neutral-900 font-medium">{email.trim()}</Text>
+                <Text className="text-neutral-900 dark:text-neutral-50 font-medium">
+                  {email.trim()}
+                </Text>
                 . Tap it and you are in — no password needed.
               </Text>
-              <Text className="text-caption text-neutral-500">
-                The link expires in 1 hour. Didn't get it? Check spam, or resend
+              <Text className="text-caption text-neutral-500 dark:text-[#78716C]">
+                The link expires in 1 hour. Didn&apos;t get it? Check spam, or resend
                 below.
               </Text>
 
@@ -352,9 +395,20 @@ export default function AuthScreen() {
                     : "Sends another sign-in link to the same email address"
                 }
               >
+                {/* A hand-rolled ghost text button, so its enabled label
+                    resolves the way components/ui/Button.tsx's `ghost` variant
+                    now does: primary-600 is 3.38:1 on the dark card, short of
+                    the 4.5:1 a 14px label owes, primary-400 clears it at
+                    6.88:1. The cooldown label is the DISABLED state of that
+                    same control and stays at the muted tier, which is
+                    WCAG-exempt — and the remaining seconds are also spoken
+                    through `accessibilityHint` on the Pressable above, so the
+                    quiet tone is never the only way to read them. */}
                 <Text
                   className={`text-label font-medium ${
-                    cooldown > 0 ? "text-neutral-500" : "text-primary-600"
+                    cooldown > 0
+                      ? "text-neutral-500 dark:text-[#78716C]"
+                      : "text-primary-600 dark:text-primary-400"
                   }`}
                 >
                   {cooldownLabel}

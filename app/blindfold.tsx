@@ -46,7 +46,7 @@ import { LockBanner } from "@/components/stakes/LockBanner";
 import { PanicValveSheet } from "@/components/stakes/PanicValveSheet";
 import { DURATIONS, EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { colors } from "@/utils/design-tokens";
+import { colors, surfaces } from "@/utils/design-tokens";
 import type { StakeSession, Task } from "@/types";
 import type { NextStep } from "@/core/task-logic";
 
@@ -145,10 +145,13 @@ export default function BlindfoldScreen() {
     : FadeIn.duration(DURATIONS.slower).easing(EASINGS.standard);
 
   return (
-    <View className="flex-1" style={{ backgroundColor: "#FFFBF5" }}>
-      {/* Warm, soft wash — low stimulation. Inline hex (any color allowed). */}
+    <View className="flex-1" style={{ backgroundColor: surfaces.blindfold.base }}>
+      {/* Warm, soft wash — low stimulation. Deliberately off the neutral
+          spine, and named in `utils/design-tokens.ts` under `surfaces` rather
+          than left as a bare literal. See that comment for why it has no dark
+          counterpart yet. */}
       <LinearGradient
-        colors={["#FFF3E6", "#FFFBF5"]}
+        colors={[surfaces.blindfold.gradientTop, surfaces.blindfold.base]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         pointerEvents="none"

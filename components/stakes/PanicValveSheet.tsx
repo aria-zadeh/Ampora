@@ -27,9 +27,10 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { colors, shadows } from "@/utils/design-tokens";
+import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useStakesStore } from "@/store/stakesStore";
 import type { StakeSession } from "@/types";
 
@@ -48,6 +49,12 @@ export interface PanicValveSheetProps {
 
 export function PanicValveSheet({ visible, session, onClose, onReleased }: PanicValveSheetProps) {
   const reduceMotion = useReduceMotion();
+  // Ionicons `color` takes a literal and cannot take a `dark:` class, so the
+  // three glyphs below resolve the active scheme here. Every value they read
+  // is a semantic accent that is UNCHANGED between themes (doc 02 section
+  // 14.1), so this changes no rendered pixel today - it is what keeps them
+  // correct if the token ever gains a dark step.
+  const theme = useThemeColors();
   const panicValve = useStakesStore((s) => s.panicValve);
 
   const [remaining, setRemaining] = useState(PANIC_COUNTDOWN_SEC);
@@ -125,25 +132,25 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
+              className="rounded-t-3xl bg-neutral-100 dark:bg-neutral-950"
               style={shadows.xl}
             >
               <SafeAreaView edges={["bottom"]}>
                 {/* Grabber */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1.5 w-10 rounded-full bg-neutral-300 dark:bg-neutral-700" />
                 </View>
 
                 <View className="items-center px-6 pt-6">
                   {/* Calm icon — a breath, not an alarm. */}
                   <View className="h-16 w-16 items-center justify-center rounded-full bg-primary-100">
-                    <Ionicons name="leaf-outline" size={30} color={colors.light.primary} />
+                    <Ionicons name="leaf-outline" size={30} color={theme.primary} />
                   </View>
 
                   <Heading size="h2" className="mt-5 text-center">
                     {done ? "Your apps are back" : "Take a breath"}
                   </Heading>
-                  <Text className="mt-2 text-center text-body text-neutral-600 leading-6">
+                  <Text className="mt-2 text-center text-body leading-6 text-neutral-600 dark:text-neutral-400">
                     {done
                       ? "No guilt — you can pick the task back up whenever you're ready."
                       : "Locked apps come back in 60 seconds. Take a breath, or head back to your task."}
@@ -153,21 +160,21 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                   {!done ? (
                     <View className="mt-7 items-center">
                       <Text
-                        className="text-neutral-900 font-bold"
+                        className="font-bold text-neutral-900 dark:text-neutral-50"
                         style={{ fontSize: 56, lineHeight: 60, fontVariant: ["tabular-nums"] }}
                         accessibilityRole="timer"
                         accessibilityLabel={`${remaining} seconds until your apps unlock`}
                       >
                         {remaining}
                       </Text>
-                      <Text className="mt-1 text-caption text-neutral-500">seconds</Text>
+                      <Text className="mt-1 text-caption text-neutral-500 dark:text-[#78716C]">seconds</Text>
                       <View className="mt-4 w-full">
                         <ProgressBar progress={progress} color="bg-primary-500" height={6} />
                       </View>
                     </View>
                   ) : (
                     <View className="mt-7 h-14 items-center justify-center">
-                      <Ionicons name="checkmark-circle-outline" size={40} color={colors.light.primary} />
+                      <Ionicons name="checkmark-circle-outline" size={40} color={theme.primary} />
                     </View>
                   )}
                 </View>
@@ -190,10 +197,10 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                         variant="primaryBlue"
                         size="lg"
                         onPress={handleBackToTask}
-                        icon={<Ionicons name="arrow-back" size={18} color={colors.light.primaryForeground} />}
+                        icon={<Ionicons name="arrow-back" size={18} color={theme.primaryForeground} />}
                         accessibilityLabel="Cancel the unlock and go back to your task"
                       />
-                      <Text className="pb-1 text-center text-caption text-neutral-500">
+                      <Text className="pb-1 text-center text-caption text-neutral-500 dark:text-[#78716C]">
                         Or just wait — the apps unlock on their own.
                       </Text>
                     </>

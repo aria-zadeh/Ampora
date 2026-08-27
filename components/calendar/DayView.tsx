@@ -37,6 +37,7 @@ import {
 } from '@/store/scheduleStore'
 import { useTaskStore } from '@/store/taskStore'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { EASINGS, DURATIONS, SPRINGS } from '@/utils/motion'
 import { shadows, tabularNums } from '@/utils/design-tokens'
 import { TimeGrid } from './TimeGrid'
@@ -802,12 +803,15 @@ function DraggableBlock({
             ]}
           >
             <View
-              className="flex-row items-center rounded-full bg-neutral-900 px-3 py-1"
+              className="flex-row items-center rounded-full bg-neutral-900 px-3 py-1 dark:bg-neutral-50"
               style={shadows.sm}
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
             >
-              <Text style={tabularNums} className="text-caption font-semibold text-white">
+              <Text
+                style={tabularNums}
+                className="text-caption font-semibold text-white dark:text-neutral-900"
+              >
                 {pillLabel}
               </Text>
             </View>
@@ -1255,7 +1259,15 @@ export function DayView({ date, pxPerHour, onBlockPress, now, testID }: DayViewP
 // calendar block internals live in one file.
 // ---------------------------------------------------------------------------
 
-/** A faint centered grip line drawn inside an edge-zone (top or bottom). */
+/**
+ * A faint centered grip line drawn inside an edge-zone (top or bottom).
+ *
+ * The grip sits ON the block, whose fill flips with the scheme, so the line
+ * has to flip with it: a dark warm gray on the light tint, a light one on the
+ * dark tint. Both are the strong-text step at ~30% — the previous value was
+ * the same idea written as a cool-Zinc literal, from before the warm spine
+ * (doc 02 §14.1).
+ */
 function ResizeHandle({ align }: { align: 'top' | 'bottom' }) {
   return (
     <View
@@ -1268,11 +1280,11 @@ function ResizeHandle({ align }: { align: 'top' | 'bottom' }) {
       }}
     >
       <View
+        className="bg-neutral-700/30 dark:bg-neutral-300/30"
         style={{
           width: 24,
           height: 3,
           borderRadius: 999,
-          backgroundColor: 'rgba(63,63,70,0.28)',
         }}
       />
     </View>
@@ -1284,18 +1296,22 @@ function ResizeHandle({ align }: { align: 'top' | 'bottom' }) {
  * GestureDetector). Purely visual so it never competes with the body gesture.
  */
 function EllipsisButton() {
+  // The bubble is a translucent card tone over the block's own fill, so it
+  // tracks the scheme with the block. The glyph is an Ionicons `color` prop
+  // and cannot take a `dark:` class, hence the resolved token.
+  const theme = useThemeColors()
   return (
     <View
+      className="bg-white/70 dark:bg-neutral-900/70"
       style={{
         width: 22,
         height: 22,
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 999,
-        backgroundColor: 'rgba(255,255,255,0.72)',
       }}
     >
-      <Ionicons name="ellipsis-horizontal" size={14} color="#57534E" />
+      <Ionicons name="ellipsis-horizontal" size={14} color={theme.textSecondary} />
     </View>
   )
 }

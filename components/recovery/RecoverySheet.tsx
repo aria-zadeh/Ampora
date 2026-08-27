@@ -13,6 +13,12 @@
  * language, nothing that blames. Just: here's the plan, one tap, moving on.
  * Everything is reversible-feeling and calm. Reduce-motion aware. RN +
  * NativeWind, web-export safe.
+ *
+ * Color: no hardcoded literals. Surfaces/borders/text carry `dark:` variants
+ * from the cheatsheet atop `utils/design-tokens.ts`; the Ionicons `color`
+ * props (which cannot take a class) resolve through `useThemeColors()`. The
+ * `bg-primary-100`/`bg-success-100` icon bubbles are self-contained audited
+ * tint pairs (doc 02 section 14.6) and deliberately carry no `dark:` variant.
  */
 
 import React, { useMemo, useState } from 'react'
@@ -28,6 +34,7 @@ import { Heading } from '@/components/ui/Heading'
 import { shadows } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { useTaskStore, selectAllTasks } from '@/store/taskStore'
 import { useScheduleStore, selectAllBlocks } from '@/store/scheduleStore'
 import { useRecoveryStore } from '@/store/recoveryStore'
@@ -143,13 +150,13 @@ export function RecoverySheet({ visible, onClose }: RecoverySheetProps) {
               entering={
                 reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)
               }
-              className="rounded-t-3xl bg-neutral-100"
+              className="rounded-t-3xl bg-neutral-100 dark:bg-neutral-950"
               style={shadows.xl}
             >
               <SafeAreaView edges={['bottom']}>
                 {/* Grabber */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1.5 w-10 rounded-full bg-neutral-300 dark:bg-neutral-700" />
                 </View>
 
                 {rebuilt ? (
@@ -186,16 +193,17 @@ function PreviewBody({
   onRebuild: () => void
   onClose: () => void
 }) {
+  const theme = useThemeColors()
   return (
     <>
       <View className="px-6 pt-5">
         <View className="h-14 w-14 items-center justify-center rounded-full bg-primary-100">
-          <Ionicons name="sparkles-outline" size={26} color="#2563EB" />
+          <Ionicons name="sparkles-outline" size={26} color={theme.primary} />
         </View>
         <Heading size="h2" className="mt-4">
-          Let's catch you up
+          Let&apos;s catch you up
         </Heading>
-        <Text className="mt-2 text-body text-neutral-600 leading-6">
+        <Text className="mt-2 text-body text-neutral-600 leading-6 dark:text-neutral-400">
           {nothingToDo
             ? "You're already on track — there's nothing to clear. Want a fresh plan anyway?"
             : preview.summary}
@@ -211,7 +219,7 @@ function PreviewBody({
           {preview.drops.length > 0 && (
             <PreviewGroup
               icon="checkmark-done-outline"
-              tint="#16A34A"
+              tint={theme.successAccent}
               tintBg="bg-success-100"
               title="Clearing what's behind you"
               caption="These are past their moment. We'll take them off your plate."
@@ -221,7 +229,7 @@ function PreviewBody({
           {preview.bumps.length > 0 && (
             <PreviewGroup
               icon="arrow-up-circle-outline"
-              tint="#2563EB"
+              tint={theme.primary}
               tintBg="bg-primary-100"
               title="Moving these up front"
               caption="These matter most right now, so they come first."
@@ -230,8 +238,8 @@ function PreviewBody({
           )}
           {preview.rebuildCount > 0 && (
             <View className="mb-2 mt-2 flex-row items-center gap-2 px-1">
-              <Ionicons name="calendar-outline" size={16} color="#6F6862" />
-              <Text className="text-caption text-neutral-500">
+              <Ionicons name="calendar-outline" size={16} color={theme.textMuted} />
+              <Text className="text-caption text-neutral-500 dark:text-[#78716C]">
                 {preview.rebuildCount} other{' '}
                 {preview.rebuildCount === 1 ? 'task' : 'tasks'} replanned around your week.
               </Text>
@@ -247,7 +255,9 @@ function PreviewBody({
           variant="primaryBlue"
           size="lg"
           onPress={onRebuild}
-          icon={<Ionicons name="refresh" size={18} color="#FFFFFF" />}
+          // On the `primaryBlue` fill, which is unchanged between schemes
+          // (see Button.tsx), so the glyph is fixed alongside it.
+          icon={<Ionicons name="refresh" size={18} color={theme.primaryForeground} />}
           accessibilityLabel="Rebuild my week"
           accessibilityHint="Clears past-due items, moves urgent tasks up, and replans your schedule"
         />
@@ -257,7 +267,9 @@ function PreviewBody({
           accessibilityRole="button"
           accessibilityLabel="Not now"
         >
-          <Text className="text-label font-medium text-neutral-500">Not now</Text>
+          <Text className="text-label font-medium text-neutral-500 dark:text-[#78716C]">
+            Not now
+          </Text>
         </Pressable>
       </View>
     </>
@@ -286,18 +298,26 @@ function PreviewGroup({
         <View className={`h-7 w-7 items-center justify-center rounded-full ${tintBg}`}>
           <Ionicons name={icon} size={16} color={tint} />
         </View>
-        <Text className="text-label font-semibold text-neutral-900">{title}</Text>
+        <Text className="text-label font-semibold text-neutral-900 dark:text-neutral-50">
+          {title}
+        </Text>
       </View>
-      <Text className="mb-2 px-1 text-caption text-neutral-500">{caption}</Text>
-      <View className="rounded-2xl border border-neutral-200 bg-white px-4" style={shadows.sm}>
+      <Text className="mb-2 px-1 text-caption text-neutral-500 dark:text-[#78716C]">{caption}</Text>
+      <View
+        className="rounded-2xl border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
+        style={shadows.sm}
+      >
         {tasks.map((task, i) => (
           <View
             key={task.id}
             className={`flex-row items-center py-3 ${
-              i === tasks.length - 1 ? '' : 'border-b border-neutral-100'
+              i === tasks.length - 1 ? '' : 'border-b border-neutral-100 dark:border-neutral-800'
             }`}
           >
-            <Text className="flex-1 text-body text-neutral-800" numberOfLines={1}>
+            <Text
+              className="flex-1 text-body text-neutral-800 dark:text-neutral-200"
+              numberOfLines={1}
+            >
               {task.title}
             </Text>
           </View>
@@ -318,20 +338,21 @@ function SuccessBody({
   onDone: () => void
   reduceMotion: boolean
 }) {
+  const theme = useThemeColors()
   return (
     <View className="items-center px-6 pt-6">
       <Animated.View
         entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.base)}
         className="h-16 w-16 items-center justify-center rounded-full bg-success-100"
       >
-        <Ionicons name="checkmark-circle" size={34} color="#16A34A" />
+        <Ionicons name="checkmark-circle" size={34} color={theme.successAccent} />
       </Animated.View>
 
       {/* Exact success copy required by FR-60. */}
       <Heading size="h2" className="mt-5 text-center">
         Rebuilt your week.
       </Heading>
-      <Text className="mt-2 text-center text-body text-neutral-600 leading-6">
+      <Text className="mt-2 text-center text-body text-neutral-600 leading-6 dark:text-neutral-400">
         Fresh start. Your plan is ready whenever you are.
       </Text>
 

@@ -9,8 +9,9 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EASINGS } from "@/utils/motion";
-import { motion, shadows, colors, iconSizes } from "@/utils/design-tokens";
+import { motion, shadows, iconSizes } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -25,6 +26,23 @@ interface FABProps {
 export function FAB({ onPress, icon = "add" }: FABProps) {
   const reduceMotion = useReduceMotion();
   const insets = useSafeAreaInsets();
+  /**
+   * The FAB's fill and glyph are RN style/prop literals inside the absolute
+   * positioning block below, so neither can take a `dark:` class.
+   *
+   * This is the NEUTRAL high-emphasis control, not an accent one, so the
+   * "filled accents keep one value in both themes" rule does not cover it —
+   * it is pure neutral ramp and inverts outright, exactly like
+   * `components/ui/Button.tsx`'s `primary` variant
+   * (`bg-neutral-900 dark:bg-neutral-50` / `text-white dark:text-neutral-900`).
+   * `theme.text` is the ink fill (#1C1917 light, #FAF9F7 dark) and
+   * `theme.card` is what that Button's label class resolves to on each side
+   * (#FFFFFF light, #1C1917 dark), which is why the glyph reads `card`
+   * rather than `primaryForeground`: white-on-ink is 17.49:1 on light and
+   * ink-on-near-white is 16.62:1 on dark, whereas keeping the glyph white
+   * would have put white on a near-white disc in dark mode.
+   */
+  const theme = useThemeColors();
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
@@ -84,7 +102,7 @@ export function FAB({ onPress, icon = "add" }: FABProps) {
           width: FAB_SIZE,
           height: FAB_SIZE,
           borderRadius: FAB_SIZE / 2,
-          backgroundColor: colors.light.text,
+          backgroundColor: theme.text,
           alignItems: "center",
           justifyContent: "center",
           zIndex: 50,
@@ -93,7 +111,7 @@ export function FAB({ onPress, icon = "add" }: FABProps) {
         animatedStyle,
       ]}
     >
-      <Ionicons name={icon} size={iconSizes.lg} color={colors.light.primaryForeground} />
+      <Ionicons name={icon} size={iconSizes.lg} color={theme.card} />
     </AnimatedPressable>
   );
 }

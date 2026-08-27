@@ -22,7 +22,8 @@ import { useShallow } from "zustand/react/shallow";
 import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { useStakesStore, selectEligibleApps, selectStakeSelection } from "@/store/stakesStore";
-import { colors, iconSizes, shadows, tabularNums } from "@/utils/design-tokens";
+import { iconSizes, shadows, tabularNums } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { StakeApp, StakeSession, Task } from "@/types";
 
 /**
@@ -63,6 +64,8 @@ export interface ScheduledStakeRowProps {
 }
 
 export function ScheduledStakeRow({ session, task, onEdit }: ScheduledStakeRowProps) {
+  // Ionicons `color` takes a literal and cannot take a `dark:` class.
+  const theme = useThemeColors();
   const cancelScheduledStake = useStakesStore((s) => s.cancelScheduledStake);
   const namedApps = useStakesStore(useShallow(selectEligibleApps));
   const selection = useStakesStore(selectStakeSelection);
@@ -86,7 +89,7 @@ export function ScheduledStakeRow({ session, task, onEdit }: ScheduledStakeRowPr
 
   return (
     <View
-      className="flex-row items-center rounded-lg bg-white border border-neutral-200 px-4 py-3"
+      className="flex-row items-center rounded-lg bg-white border border-neutral-200 px-4 py-3 dark:bg-neutral-900 dark:border-neutral-800"
       style={shadows.xs}
     >
       <PressableScale
@@ -97,10 +100,13 @@ export function ScheduledStakeRow({ session, task, onEdit }: ScheduledStakeRowPr
         accessibilityLabel={summary}
         accessibilityHint="Edit this scheduled lock"
       >
-        <Ionicons name="time-outline" size={iconSizes.sm} color={colors.light.textSecondary} />
+        {/* textSecondary resolves to #57534E on light (7.31:1 on the card)
+            and #A8A29A on dark (6.91:1) — both well clear of the 3:1 glyph
+            bar, so the clock reads at the same weight in either theme. */}
+        <Ionicons name="time-outline" size={iconSizes.sm} color={theme.textSecondary} />
         <Text
           variant="caption"
-          className="flex-1 ml-2.5 text-neutral-700"
+          className="flex-1 ml-2.5 text-neutral-700 dark:text-neutral-300"
           numberOfLines={2}
           style={tabularNums}
         >
@@ -115,7 +121,11 @@ export function ScheduledStakeRow({ session, task, onEdit }: ScheduledStakeRowPr
         accessibilityLabel="Cancel this scheduled lock"
         accessibilityHint="Cancels instantly, no confirmation"
       >
-        <Text variant="captionMedium" className="text-neutral-500">
+        {/* The sanctioned textMuted pair (see the cheatsheet atop
+            `utils/design-tokens.ts`). Deliberately quiet: cancelling a
+            scheduled lock is always reversible and never guilt-gated
+            (§9.10), so it stays a text-only control in both themes. */}
+        <Text variant="captionMedium" className="text-neutral-500 dark:text-[#78716C]">
           Cancel
         </Text>
       </PressableScale>

@@ -57,7 +57,15 @@ export function Text({ variant = "body", className, ...props }: Props) {
   return (
     <RNText
       {...props}
-      className={[TYPOGRAPHY_CLASSES[variant], "text-neutral-900", className]
+      className={[
+        TYPOGRAPHY_CLASSES[variant],
+        // Base ink, themed. A caller passing a bare `text-*` override will
+        // beat this default in light mode but NOT beat its `dark:` variant,
+        // so any override that changes the tone must supply its own `dark:`
+        // class alongside. Same gotcha as `components/ui/Heading.tsx`.
+        "text-neutral-900 dark:text-neutral-50",
+        className,
+      ]
         .filter(Boolean)
         .join(" ")}
     />

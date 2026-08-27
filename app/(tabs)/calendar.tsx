@@ -36,6 +36,7 @@ import {
 import { dayStart } from "@/components/calendar/hours";
 import type { CalEvent, ScheduledBlock } from "@/types";
 import { iconSizes, spacing } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 /** Views that render the vertical time grid — pinch-to-zoom applies to these. */
 const TIME_GRID_VIEWS: readonly CalendarView[] = ["day", "3day", "week"];
@@ -63,6 +64,11 @@ function coerceView(value: string | undefined): CalendarView {
  *
  * Navigation, block/day taps, pinch-to-zoom, and "Rebuild schedule" all live
  * here; the individual views stay presentational and reusable.
+ *
+ * Color: this screen owns the canvas plus the action bar (Rebuild / Add
+ * event / zoom stepper), so those are the surfaces themed here, using the
+ * `dark:` class pairs from the cheatsheet atop `utils/design-tokens.ts`.
+ * `CalendarHeader` and the five views each own their own.
  */
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
@@ -251,7 +257,7 @@ export default function CalendarScreen() {
   const showEmpty = !hasBlocks && view !== "agenda"; // AgendaView renders its own empty state.
 
   return (
-    <View className="flex-1 bg-neutral-100">
+    <View className="flex-1 bg-neutral-100 dark:bg-neutral-950">
       <GestureHandlerRootView style={{ flex: 1 }}>
         <CalendarHeader
           view={view}
@@ -376,6 +382,10 @@ function ActionButton({
   accessibilityHint?: string;
   onPress: () => void;
 }) {
+  // Ionicons takes a literal color, never a class, so its tint resolves
+  // through the active token set. Primary is the same value in both themes
+  // (doc 02 §14.1), which is why the label class below needs no `dark:` pair.
+  const theme = useThemeColors();
   return (
     <PressableScale
       onPress={onPress}
@@ -383,9 +393,9 @@ function ActionButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      className="flex-row items-center gap-1.5 px-3 h-9 rounded-full bg-white border border-neutral-200"
+      className="flex-row items-center gap-1.5 px-3 h-9 rounded-full bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800"
     >
-      <Ionicons name={icon} size={iconSizes.xs} color="#2563EB" />
+      <Ionicons name={icon} size={iconSizes.xs} color={theme.primary} />
       <Text className="text-caption font-medium text-primary-600">{label}</Text>
     </PressableScale>
   );
@@ -410,7 +420,7 @@ function ZoomStepper({
 
   return (
     <View
-      className="flex-row items-center rounded-full bg-white border border-neutral-200"
+      className="flex-row items-center rounded-full bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800"
       accessibilityRole="adjustable"
       accessibilityLabel="Time grid zoom"
       accessibilityValue={{ text: `Level ${idx + 1} of ${ZOOM_STOPS_PX_PER_HOUR.length}` }}
@@ -421,7 +431,7 @@ function ZoomStepper({
         disabled={atMin}
         onPress={() => onZoom(-1)}
       />
-      <View className="w-[1px] h-5 bg-neutral-200" />
+      <View className="w-[1px] h-5 bg-neutral-200 dark:bg-neutral-800" />
       <ZoomButton
         icon="add"
         label="Zoom in"
@@ -443,6 +453,16 @@ function ZoomButton({
   disabled: boolean;
   onPress: () => void;
 }) {
+  // `textStrong` and `textDisabled` each swap to their counterpart step
+  // between the two token sets, so one expression covers both themes. The
+  // enabled glyph clears the 3:1 UI bar either way (10.3:1 on white,
+  // 11.7:1 on the dark card); the disabled one is deliberately below it and
+  // WCAG-exempt, which is exactly what `textDisabled` means. Note the
+  // disabled literal this replaces was the `borderStrong` value, one ramp
+  // step lighter. Using it would have meant styling a glyph with a border
+  // token, and it goes nearly invisible on the dark card, so the disabled
+  // step moves to the alias that actually means "disabled glyph".
+  const theme = useThemeColors();
   return (
     <PressableScale
       onPress={onPress}
@@ -456,7 +476,7 @@ function ZoomButton({
       <Ionicons
         name={icon}
         size={18}
-        color={disabled ? "#D7D3CC" : "#44403C"}
+        color={disabled ? theme.textDisabled : theme.textStrong}
       />
     </PressableScale>
   );

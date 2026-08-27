@@ -71,9 +71,10 @@ import { Badge } from "@/components/ui/Badge";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
 import { Stepper, Toggle, InlineSegmented } from "@/components/settings/SettingsPrimitives";
 import { AppPicker } from "@/components/stakes/AppPicker";
-import { colors, shadows } from "@/utils/design-tokens";
+import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import {
   useStakesStore,
   selectStakeSelection,
@@ -128,8 +129,27 @@ export const REFUSAL_COPY: Record<StartStakeRefusal, string> = {
   paused: "Stakes are paused for today. Resume them any time in Settings.",
   already_active: "You already have a stake running. Finish or release that one first.",
   not_eligible: "This task doesn't fit inside one session, so \"When it's done\" isn't offered here.",
+  // The one refusal the user can act on right now. Stated as a fact about the
+  // plan, not as a nudge, and never as something they did wrong. The screen
+  // that shows this is responsible for offering the way forward, see
+  // `isEntitlementRefusal` below.
+  not_entitled: "Locking your apps is part of the paid plan. Everything else stays free.",
   error: "Something didn't go through. Give it another try.",
 };
+
+/**
+ * Whether a refusal is the business one rather than a wellbeing one.
+ *
+ * Worth its own named helper because the two call for opposite handling. Every
+ * other refusal is final for now, and the honest response is calm copy and
+ * staying put. `not_entitled` is the only one with a way forward, so a screen
+ * showing it should also offer a route to `/paywall`. Getting this backwards in
+ * either direction is bad: nagging someone during quiet hours, or telling a
+ * free user "try again later" about something that will never change on its own.
+ */
+export function isEntitlementRefusal(reason: StartStakeRefusal): boolean {
+  return reason === "not_entitled";
+}
 
 /**
  * `scheduleStake` is fully implemented (it persists the row and posts the cue
@@ -215,6 +235,10 @@ export interface StakeSetupSheetProps {
 
 export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: StakeSetupSheetProps) {
   const reduceMotion = useReduceMotion();
+  // For the Ionicons `color` props only - they take a literal and cannot take
+  // a `dark:` class. Everything else on this sheet is className-driven and
+  // uses `dark:` variants directly.
+  const theme = useThemeColors();
 
   const defaultSessionMin = useSettingsStore((s) => s.settings.defaultSessionMin);
   const stakeStrength = useSettingsStore((s) => s.settings.stakeStrength);
@@ -397,37 +421,37 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
             <Pressable onPress={() => {}}>
               <Animated.View
                 entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-                className="rounded-t-3xl bg-neutral-100"
+                className="rounded-t-3xl bg-neutral-100 dark:bg-neutral-950"
                 style={shadows.xl}
               >
                 <SafeAreaView edges={["bottom"]}>
                   {/* Grabber */}
                   <View className="items-center pt-3">
-                    <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                    <View className="h-1.5 w-10 rounded-full bg-neutral-300 dark:bg-neutral-700" />
                   </View>
 
                   {/* Header */}
                   <View className="flex-row items-start justify-between px-5 pt-3">
                     <View className="flex-1 pr-3">
-                      <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+                      <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
                         Stake setup
                       </Text>
                       <Heading size="h3" className="mt-1" numberOfLines={2}>
                         {task.title}
                       </Heading>
-                      <Text className="mt-1 text-caption text-neutral-500">
-                        A lock that lifts when you've earned it. You're always in control.
+                      <Text className="mt-1 text-caption text-neutral-500 dark:text-[#78716C]">
+                        A lock that lifts when you&apos;ve earned it. You&apos;re always in control.
                       </Text>
                     </View>
                     <Pressable
                       onPress={onClose}
                       hitSlop={8}
-                      className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                      className="h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-neutral-900"
                       style={shadows.xs}
                       accessibilityRole="button"
                       accessibilityLabel="Close"
                     >
-                      <Ionicons name="close" size={20} color={colors.light.textSecondary} />
+                      <Ionicons name="close" size={20} color={theme.textSecondary} />
                     </Pressable>
                   </View>
 
@@ -439,14 +463,14 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                   >
                     {/* --- 1. Put something on the line --- */}
                     <View
-                      className="flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3.5"
+                      className="flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3.5 dark:border-neutral-800 dark:bg-neutral-900"
                       style={shadows.xs}
                     >
                       <View className="flex-1 pr-3">
-                        <Text className="text-body-lg font-medium text-neutral-900">
+                        <Text className="text-body-lg font-medium text-neutral-900 dark:text-neutral-50">
                           Put something on the line
                         </Text>
-                        <Text className="mt-0.5 text-caption text-neutral-500">
+                        <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
                           A gentle nudge from you, to you. You can lift it any time.
                         </Text>
                       </View>
@@ -458,14 +482,14 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                     </View>
 
                     {!stakeOn ? (
-                      <Text className="px-1 text-caption text-neutral-500">
-                        No lock this time. Turn this on whenever you're ready.
+                      <Text className="px-1 text-caption text-neutral-500 dark:text-[#78716C]">
+                        No lock this time. Turn this on whenever you&apos;re ready.
                       </Text>
                     ) : (
                       <>
                         {/* --- 2. Unlock when? --- */}
                         <View className="gap-2">
-                          <Text className="text-label font-semibold text-neutral-700">Unlock when?</Text>
+                          <Text className="text-label font-semibold text-neutral-700 dark:text-neutral-300">Unlock when?</Text>
                           <View className="gap-2">
                             <HoldOptionTile
                               icon="hourglass-outline"
@@ -498,16 +522,16 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                         {/* --- 3. Optional scheduled trigger --- */}
                         <View className="gap-2">
                           <View
-                            className="flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3.5"
+                            className="flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3.5 dark:border-neutral-800 dark:bg-neutral-900"
                             style={shadows.xs}
                           >
                             <View className="flex-1 pr-3">
-                              <Text className="text-body-lg font-medium text-neutral-900">
+                              <Text className="text-body-lg font-medium text-neutral-900 dark:text-neutral-50">
                                 {scheduledOn
                                   ? `Lock automatically at ${formatTime(scheduledAt)}`
                                   : "Lock automatically at a time"}
                               </Text>
-                              <Text className="mt-0.5 text-caption text-neutral-500">
+                              <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
                                 Arms itself later, no need to remember.
                               </Text>
                             </View>
@@ -521,11 +545,11 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                           {scheduledOn ? (
                             <Animated.View
                               entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
-                              className="gap-3 rounded-xl border border-neutral-200 bg-white p-3.5"
+                              className="gap-3 rounded-xl border border-neutral-200 bg-white p-3.5 dark:border-neutral-800 dark:bg-neutral-900"
                               style={shadows.xs}
                             >
                               <View>
-                                <Text className="mb-1.5 text-label font-medium text-neutral-600">Starts at</Text>
+                                <Text className="mb-1.5 text-label font-medium text-neutral-600 dark:text-neutral-400">Starts at</Text>
                                 <DateTimePickerCrossPlatform
                                   value={scheduledAt}
                                   onChange={setScheduledAt}
@@ -533,8 +557,8 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                                   accessibilityLabel="Lock start time"
                                 />
                               </View>
-                              <View className="flex-row items-center justify-between border-t border-neutral-100 pt-3">
-                                <Text className="flex-1 pr-3 text-label font-medium text-neutral-700">
+                              <View className="flex-row items-center justify-between border-t border-neutral-100 pt-3 dark:border-neutral-800">
+                                <Text className="flex-1 pr-3 text-label font-medium text-neutral-700 dark:text-neutral-300">
                                   {startWindowOn
                                     ? `If I haven't started within ${startWindowMin} min`
                                     : "If I haven't started within X min"}
@@ -565,7 +589,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                         {/* --- 4. Session length --- */}
                         <View className="gap-2">
                           <View className="flex-row items-center justify-between">
-                            <Text className="text-label font-semibold text-neutral-700">Session length</Text>
+                            <Text className="text-label font-semibold text-neutral-700 dark:text-neutral-300">Session length</Text>
                             <Pressable
                               onPress={() => {
                                 setSessionMin(SESSION_MIN_BOUNDS.min);
@@ -575,16 +599,16 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                               accessibilityRole="button"
                               accessibilityLabel="Just get me started. Sets a short session."
                             >
-                              <Text className="text-label font-medium text-primary-600">
+                              <Text className="text-label font-medium text-primary-600 dark:text-primary-400">
                                 Just get me started
                               </Text>
                             </Pressable>
                           </View>
                           <View
-                            className="flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3"
+                            className="flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900"
                             style={shadows.xs}
                           >
-                            <Text className="flex-1 pr-2 text-caption text-neutral-500">
+                            <Text className="flex-1 pr-2 text-caption text-neutral-500 dark:text-[#78716C]">
                               {hold === "until_done"
                                 ? "Longest this can run before it turns into a timed session."
                                 : "Apps come back once you've focused for this long."}
@@ -604,7 +628,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                         {/* --- 5. Verification, only where it's a real choice --- */}
                         {hold === "until_done" ? (
                           <View className="gap-2">
-                            <Text className="text-label font-semibold text-neutral-700">
+                            <Text className="text-label font-semibold text-neutral-700 dark:text-neutral-300">
                               How you&apos;ll show it&apos;s done
                             </Text>
                             <InlineSegmented
@@ -616,7 +640,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                               onChange={setVerification}
                               a11yLabel="verification method"
                             />
-                            <Text className="text-caption text-neutral-500">
+                            <Text className="text-caption text-neutral-500 dark:text-[#78716C]">
                               A quick, lenient check on what you submit. It&apos;s a nudge, never a grade.
                             </Text>
                           </View>
@@ -624,14 +648,16 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
 
                         {/* --- Choose apps (required step) --- */}
                         <View className="gap-2">
-                          <Text className="text-label font-semibold text-neutral-700">What&apos;s on the line</Text>
+                          <Text className="text-label font-semibold text-neutral-700 dark:text-neutral-300">What&apos;s on the line</Text>
                           <Pressable
                             onPress={() => {
                               setAppPickerOpen(true);
                               Haptics.selectionAsync().catch(() => {});
                             }}
-                            className={`flex-row items-center gap-3 rounded-xl border bg-white px-3.5 py-3 active:opacity-70 ${
-                              refusal === "no_selection" ? "border-warning-300" : "border-neutral-200"
+                            className={`flex-row items-center gap-3 rounded-xl border bg-white px-3.5 py-3 active:opacity-70 dark:bg-neutral-900 ${
+                              refusal === "no_selection"
+                                ? "border-warning-300"
+                                : "border-neutral-200 dark:border-neutral-800"
                             }`}
                             style={shadows.xs}
                             accessibilityRole="button"
@@ -642,25 +668,25 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                                 : "Required. Tap to choose apps."
                             }
                           >
-                            <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-                              <Ionicons name="apps-outline" size={18} color={colors.light.textSecondary} />
+                            <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
+                              <Ionicons name="apps-outline" size={18} color={theme.textSecondary} />
                             </View>
                             <View className="flex-1">
-                              <Text className="text-label font-medium text-neutral-900">Choose apps</Text>
-                              <Text className="mt-0.5 text-caption text-neutral-500">
+                              <Text className="text-label font-medium text-neutral-900 dark:text-neutral-50">Choose apps</Text>
+                              <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
                                 {selectionCount > 0
                                   ? `${selectionCount} app${selectionCount === 1 ? "" : "s"} on the line`
                                   : "Name what pulls you away"}
                               </Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={18} color={colors.light.textDisabled} />
+                            <Ionicons name="chevron-forward" size={18} color={theme.textDisabled} />
                           </Pressable>
                         </View>
 
                         {/* Strength framing — words, not a slider the user must reason about. */}
                         <View className="flex-row items-center gap-2 px-1">
                           <Badge label={strengthLabel} tone="primary" />
-                          <Text className="flex-1 text-caption text-neutral-500">
+                          <Text className="flex-1 text-caption text-neutral-500 dark:text-[#78716C]">
                             Ampora eases off automatically if a stretch gets rough.
                           </Text>
                         </View>
@@ -675,7 +701,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                       className="mx-5 mb-2 flex-row items-start gap-2 rounded-lg bg-warning-100 px-3 py-2.5"
                       accessibilityRole="alert"
                     >
-                      <Ionicons name="information-circle-outline" size={16} color={colors.light.warningStrong} />
+                      <Ionicons name="information-circle-outline" size={16} color={theme.warningStrong} />
                       <Text className="flex-1 text-caption font-medium text-warning-700">
                         {refusalMessage(refusal, scheduledOn, scheduledQuietHoursConflict ?? undefined)}
                       </Text>
@@ -683,13 +709,13 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                   ) : null}
 
                   {/* Footer — Confirm + cancel. */}
-                  <View className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3" style={shadows.md}>
+                  <View className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3 dark:border-neutral-800 dark:bg-neutral-900" style={shadows.md}>
                     <Button
                       title={stakeOn ? (scheduledOn ? "Schedule this stake" : "Arm this stake") : "Continue without a lock"}
                       variant="primaryBlue"
                       size="lg"
                       onPress={handleConfirm}
-                      icon={<Ionicons name="lock-closed-outline" size={18} color={colors.light.primaryForeground} />}
+                      icon={<Ionicons name="lock-closed-outline" size={18} color={theme.primaryForeground} />}
                       accessibilityLabel={
                         stakeOn ? "Confirm and put something on the line" : "Continue without a lock"
                       }
@@ -700,7 +726,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                       accessibilityRole="button"
                       accessibilityLabel="Not now"
                     >
-                      <Text className="text-label font-medium text-neutral-500">Not now</Text>
+                      <Text className="text-label font-medium text-neutral-500 dark:text-[#78716C]">Not now</Text>
                     </Pressable>
                   </View>
                 </SafeAreaView>
@@ -738,13 +764,35 @@ function HoldOptionTile({
   disabled?: boolean;
   onPress: () => void;
 }) {
+  const theme = useThemeColors();
+  /*
+    The ACTIVE tile keeps its light primary tint in both themes, so every tone
+    inside it stays pinned to the light ink it was audited against. Same
+    pattern the already-converted `components/settings/StakesSettings.tsx`
+    strength pills and `app/onboarding/availability.tsx` preset cards use: a
+    tinted selection surface is a self-contained audited pair (doc 02 section
+    14.6) and the token set has no darker primary tint to swap it for. Ink on
+    primary-50 measures 16.07:1 and the glyph on primary-100 measures 4.24:1,
+    neither moved by the scheme.
+
+    The INACTIVE tile is an ordinary card, so it flips per the cheatsheet atop
+    utils/design-tokens.ts (white -> neutral-900, border neutral-200 ->
+    neutral-800, bubble neutral-100 -> neutral-800), which is why the label
+    tone is written per-branch rather than as one shared class.
+
+    `disabled` stays `opacity-40` in both themes on purpose - it composites the
+    whole tile against whatever canvas is behind it, so it reads as inactive on
+    either, and disabled controls are WCAG-exempt regardless.
+  */
   return (
     <PressableScale
       onPress={disabled ? undefined : onPress}
       haptic={disabled ? false : "selection"}
       disabled={disabled}
       className={`flex-row items-center gap-3 rounded-xl border p-3.5 ${
-        active ? "border-primary-500 bg-primary-50" : "border-neutral-200 bg-white"
+        active
+          ? "border-primary-500 bg-primary-50"
+          : "border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
       } ${disabled ? "opacity-40" : ""}`}
       style={active ? undefined : shadows.xs}
       accessibilityRole="radio"
@@ -753,13 +801,17 @@ function HoldOptionTile({
     >
       <View
         className={`h-10 w-10 items-center justify-center rounded-full ${
-          active ? "bg-primary-100" : "bg-neutral-100"
+          active ? "bg-primary-100" : "bg-neutral-100 dark:bg-neutral-800"
         }`}
       >
-        <Ionicons name={icon} size={20} color={active ? colors.light.primary : colors.light.textMuted} />
+        <Ionicons name={icon} size={20} color={active ? theme.primary : theme.textMuted} />
       </View>
       <View className="flex-1">
-        <Text className={`text-body-lg font-medium ${active ? "text-primary-700" : "text-neutral-900"}`}>
+        <Text
+          className={`text-body-lg font-medium ${
+            active ? "text-primary-700" : "text-neutral-900 dark:text-neutral-50"
+          }`}
+        >
           {label}
         </Text>
         {/* 3 lines, not 2. The longest blurb ("Apps come back once you've */}
@@ -768,14 +820,20 @@ function HoldOptionTile({
         {/* gets, so it fills both lines with nothing spare. One notch of */}
         {/* Dynamic Type used to cut the sentence mid-word, and this is the */}
         {/* copy that explains what the lock will actually do. */}
-        <Text className="mt-0.5 text-caption text-neutral-500" numberOfLines={3}>
+        <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]" numberOfLines={3}>
           {blurb}
         </Text>
       </View>
       <Ionicons
         name={active ? "radio-button-on" : "radio-button-off"}
         size={20}
-        color={active ? colors.light.primary : colors.light.borderStrong}
+        // The unchecked ring rides `borderStrong`, which is the one token
+        // pair built to mirror itself across schemes (#D7D3CC light /
+        // #44403C dark), so the radio reads identically weighted either way.
+        // It is decorative in both: selection is also carried by the tile
+        // tint, the border and `accessibilityState`, never by this glyph
+        // alone.
+        color={active ? theme.primary : theme.borderStrong}
       />
     </PressableScale>
   );

@@ -19,6 +19,7 @@
 import React from "react";
 import { View, Text } from "react-native";
 import { colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface ProgressRingProps {
   /** 0..100. */
@@ -105,8 +106,19 @@ export function ProgressRing({
   stroke = 5,
   color,
   colorDeep,
-  trackColor = colors.light.border,
+  trackColor,
 }: ProgressRingProps) {
+  // Only for the literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, SVG stroke) which cannot take a `dark:`
+  // class. Must live INSIDE the component: an identical call sat at
+  // module scope here until 2026-08-27 and would have thrown
+  // "Invalid hook call" at import. tsc cannot see that, eslint's
+  // react-hooks/rules-of-hooks can, which is why lint is a real gate.
+  const theme = useThemeColors();
+  // `trackColor` cannot default to `theme.border` in the parameter list:
+  // default parameters are evaluated in the parameter scope, before the
+  // body runs, so the hook does not exist yet there. Resolved here instead.
+  const resolvedTrack = trackColor ?? theme.border;
   const value = clampPct(pct);
 
   // Right half sweeps 0..180deg for 0..50%; left half sweeps for 50..100%.
@@ -136,7 +148,7 @@ export function ProgressRing({
           height: size,
           borderRadius: size / 2,
           borderWidth: stroke,
-          borderColor: trackColor,
+          borderColor: resolvedTrack,
         }}
       />
 
@@ -151,11 +163,11 @@ export function ProgressRing({
 
       {/* Centered percent label — the ring is never color-only. */}
       <Text
-        style={{ fontSize: size * 0.26, fontWeight: "700", color: colors.light.text }}
+        style={{ fontSize: size * 0.26, fontWeight: "700", color: theme.text }}
         allowFontScaling={false}
       >
         {value}
-        <Text style={{ fontSize: size * 0.16, fontWeight: "600", color: colors.light.textMuted }}>%</Text>
+        <Text style={{ fontSize: size * 0.16, fontWeight: "600", color: theme.textMuted }}>%</Text>
       </Text>
     </View>
   );

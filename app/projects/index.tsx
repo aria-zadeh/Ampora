@@ -29,8 +29,13 @@ import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { colors, iconSizes } from "@/utils/design-tokens";
 import type { Project, ProjectKind } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export default function ProjectsHubScreen() {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors();
   const reduceMotion = useReduceMotion();
 
   const projects = useProjectStore(useShallow(selectAllProjects));
@@ -85,7 +90,7 @@ export default function ProjectsHubScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "left", "right"]}>
+    <SafeAreaView className="flex-1 bg-neutral-100 dark:bg-neutral-950" edges={["top", "left", "right"]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
@@ -97,7 +102,7 @@ export default function ProjectsHubScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Ionicons name="chevron-back" size={iconSizes.lg} color={colors.light.text} />
+          <Ionicons name="chevron-back" size={iconSizes.lg} color={theme.text} />
         </Pressable>
         <View className="flex-1">
           <Heading size="h1">Projects</Heading>
@@ -128,7 +133,7 @@ export default function ProjectsHubScreen() {
           contentContainerStyle={{ paddingTop: 4, paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <Text className="px-5 pb-2 text-body text-neutral-500">
+            <Text className="px-5 pb-2 text-body text-neutral-500 dark:text-[#78716C]">
               {sorted.length} {sorted.length === 1 ? "project" : "projects"}. Tap one to plan its
               next session.
             </Text>

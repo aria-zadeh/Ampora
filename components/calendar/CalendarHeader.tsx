@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics'
 import { Heading } from '@/components/ui/Heading'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PressableScale } from '@/components/ui/PressableScale'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { dayStart, isSameDay } from './hours'
 
 /** The five calendar views (PRD FR-23). `3day` is the phone default. */
@@ -94,7 +95,7 @@ export function CalendarHeader({
   }, [isToday, onDateChange])
 
   return (
-    <View testID={testID} className="px-5 pt-2 pb-3 bg-neutral-100">
+    <View testID={testID} className="px-5 pt-2 pb-3 bg-neutral-100 dark:bg-neutral-950">
       <View className="flex-row items-center justify-between mb-3">
         <Heading size="h2" className="flex-1" numberOfLines={1}>
           {title}
@@ -111,11 +112,17 @@ export function CalendarHeader({
             accessibilityLabel="Go to today"
             accessibilityState={{ disabled: isToday }}
             className={`mx-1 px-3 h-9 rounded-full items-center justify-center border ${
-              isToday ? 'border-neutral-200 bg-neutral-100' : 'border-neutral-300 bg-white'
+              isToday
+                ? 'border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950'
+                : 'border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-900'
             }`}
           >
             <Text
-              className={`text-label font-medium ${isToday ? 'text-neutral-500' : 'text-neutral-700'}`}
+              className={`text-label font-medium ${
+                isToday
+                  ? 'text-neutral-500 dark:text-[#78716C]'
+                  : 'text-neutral-700 dark:text-neutral-300'
+              }`}
             >
               Today
             </Text>
@@ -144,15 +151,18 @@ function NavButton({
   label: string
   onPress: () => void
 }) {
+  // Ionicons takes a literal color, never a `dark:` class, so the glyph tint
+  // has to come from the resolved scheme (see `hooks/useThemeColors`).
+  const theme = useThemeColors()
   return (
     <PressableScale
       onPress={onPress}
       haptic={false}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className="w-9 h-9 rounded-full items-center justify-center bg-white border border-neutral-200"
+      className="w-9 h-9 rounded-full items-center justify-center bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800"
     >
-      <Ionicons name={icon} size={18} color="#44403C" />
+      <Ionicons name={icon} size={18} color={theme.textStrong} />
     </PressableScale>
   )
 }

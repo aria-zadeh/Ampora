@@ -13,6 +13,12 @@
  * `stakesStore`/`sessionStore` reads the surrounding sections also need
  * (whether to show "Scheduled locks", whether to hide "Up next"), so the tab
  * and its hero card can never read the state differently from each other.
+ *
+ * Color: this screen owns only the canvas and the footer trust line, so its
+ * whole dark-mode surface is two `dark:` variants taken straight from the
+ * class cheatsheet atop `utils/design-tokens.ts`. Everything else on the tab
+ * (`FocusHeroCard`, `ScheduledStakeRow`, `FocusTaskRow`, `EmptyState`) is a
+ * separate component and carries its own theming.
  */
 
 import React, { useCallback, useMemo, useState } from "react";
@@ -194,7 +200,7 @@ export default function FocusScreen() {
   const showEmpty = mode === "idle" && focusable.length === 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100" edges={[]}>
+    <SafeAreaView className="flex-1 bg-neutral-100 dark:bg-neutral-950" edges={[]}>
       <ScrollView
         className="flex-1"
         contentContainerClassName="px-5 pb-28"
@@ -288,7 +294,7 @@ export default function FocusScreen() {
           accessibilityRole="button"
           accessibilityLabel="You set the limits. Open stakes settings"
         >
-          <Text variant="caption" className="text-neutral-500 text-center">
+          <Text variant="caption" className="text-neutral-500 dark:text-[#78716C] text-center">
             {`You set the limits · ${formatCapMinutes(dailyLockCapMin)} daily cap · Quiet hours ${formatQuietHourClock(
               quietHours.start
             )} to ${formatQuietHourClock(quietHours.end)}`}

@@ -17,7 +17,8 @@ import { useScheduleStore, selectBlocksByDay } from "@/store/scheduleStore";
 import { useTaskStore } from "@/store/taskStore";
 import { useProjectStore } from "@/store/projectStore";
 import { nextStep } from "@/core/task-logic";
-import { colors, iconSizes } from "@/utils/design-tokens";
+import { iconSizes } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { ScheduledBlock, Task } from "@/types";
@@ -58,6 +59,10 @@ function starterLine(task: Task): string | null {
  * Reduce-motion renders a static moon + halo at rest, no animation.
  */
 function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
+  // The halo is a `style` backgroundColor and the moon is an Ionicons `color`,
+  // neither of which can take a `dark:` class. `primary` is unchanged between
+  // schemes (doc 02 section 14.1) so this renders identically either way.
+  const theme = useThemeColors();
   const breathe = useSharedValue(0);
 
   useEffect(() => {
@@ -102,12 +107,12 @@ function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
             width: iconSizes.lg + 20,
             height: iconSizes.lg + 20,
             borderRadius: (iconSizes.lg + 20) / 2,
-            backgroundColor: colors.light.primary,
+            backgroundColor: theme.primary,
           },
         ]}
       />
       <Animated.View style={moonStyle}>
-        <Ionicons name="moon-outline" size={iconSizes.lg} color={colors.light.primary} />
+        <Ionicons name="moon-outline" size={iconSizes.lg} color={theme.primary} />
       </Animated.View>
     </View>
   );
@@ -128,6 +133,8 @@ function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
  * mutates state.
  */
 export function TomorrowPlanCard() {
+  // Ionicons `color` props only; every surface here is className-driven.
+  const theme = useThemeColors();
   const reduceMotion = useReduceMotion();
 
   // Tomorrow's local-day window. Recomputed from `Date.now()` each render; the
@@ -187,13 +194,13 @@ export function TomorrowPlanCard() {
       >
         <View className="flex-row items-center justify-between">
           <View className="flex-1 pr-3">
-            <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+            <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
               Ready for tomorrow
             </Text>
-            <Text className="mt-1.5 text-body-lg font-medium text-neutral-900">
+            <Text className="mt-1.5 text-body-lg font-medium text-neutral-900 dark:text-neutral-50">
               Tomorrow is open
             </Text>
-            <Text className="mt-1 text-body text-neutral-500">
+            <Text className="mt-1 text-body text-neutral-500 dark:text-[#78716C]">
               Nothing scheduled yet. Add a task tonight and you will wake up
               with a first move ready.
             </Text>
@@ -230,16 +237,16 @@ export function TomorrowPlanCard() {
     >
       {/* Header: overline + session count. */}
       <View className="flex-row items-center justify-between">
-        <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+        <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
           Ready for tomorrow
         </Text>
         <View className="flex-row items-center">
           <Ionicons
             name="calendar-outline"
             size={iconSizes.xs}
-            color={colors.light.textMuted}
+            color={theme.textMuted}
           />
-          <Text className="ml-1 text-caption font-medium text-neutral-500">
+          <Text className="ml-1 text-caption font-medium text-neutral-500 dark:text-[#78716C]">
             {sessionLabel}
           </Text>
         </View>
@@ -249,7 +256,7 @@ export function TomorrowPlanCard() {
       {project ? (
         <View className="mt-2 flex-row items-center gap-1.5">
           <Badge label="Project" tone="accent" />
-          <Text className="flex-1 text-caption text-neutral-500" numberOfLines={1}>
+          <Text className="flex-1 text-caption text-neutral-500 dark:text-[#78716C]" numberOfLines={1}>
             {project.title}
           </Text>
         </View>
@@ -258,13 +265,13 @@ export function TomorrowPlanCard() {
       {/* First up: task + start time. */}
       <View className="mt-2 flex-row items-baseline justify-between">
         <Text
-          className="flex-1 pr-3 text-h4 font-semibold text-neutral-900"
+          className="flex-1 pr-3 text-h4 font-semibold text-neutral-900 dark:text-neutral-50"
           numberOfLines={1}
         >
           {firstTask?.title}
         </Text>
         {timeLabel ? (
-          <Text className="text-caption font-semibold text-primary-600">
+          <Text className="text-caption font-semibold text-primary-600 dark:text-primary-400">
             {timeLabel}
           </Text>
         ) : null}
@@ -273,8 +280,13 @@ export function TomorrowPlanCard() {
       {/* First move for that opening task — the thing that defeats the cold
           start. Only shown when the task actually surfaces one. */}
       {firstStep ? (
+        // The primary-50 tint holds in BOTH schemes, so every tone inside
+        // it stays pinned to the light ink it was audited against - a tinted
+        // panel is a self-contained audited pair (doc 02 section 14.6) and
+        // the token set has no darker primary tint to swap it for. That is
+        // why this block alone carries no `dark:` classes.
         <View className="mt-3 flex-row items-center rounded-lg bg-primary-50 px-3 py-2.5">
-          <Ionicons name="flag-outline" size={iconSizes.xs} color={colors.light.primary} />
+          <Ionicons name="flag-outline" size={iconSizes.xs} color={theme.primary} />
           <View className="ml-2 flex-1">
             <Text className="text-tiny font-semibold uppercase tracking-wide text-primary-600">
               First move
@@ -291,13 +303,13 @@ export function TomorrowPlanCard() {
 
       {/* Affordance footer. */}
       <View className="mt-3 flex-row items-center">
-        <Text className="text-caption font-medium text-primary-600">
+        <Text className="text-caption font-medium text-primary-600 dark:text-primary-400">
           {firstStep ? "Open first task" : "See tomorrow"}
         </Text>
         <Ionicons
           name="chevron-forward"
           size={iconSizes.xs}
-          color={colors.light.primary}
+          color={theme.primary}
         />
       </View>
     </Card>

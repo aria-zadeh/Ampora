@@ -8,7 +8,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -20,22 +20,30 @@ interface ProgressRingProps {
   /** Ring stroke width in px. @default 6 */
   strokeWidth?: number;
   /**
-   * Filled-arc color. @default primary "#2563EB" — when the resolved color
-   * is exactly `colors.light.primary` (the default, or an explicit pass),
-   * the ring renders as a same-hue tonal gradient sweep (`colorDeep` at the
-   * start to `color` further round) instead of a flat stroke. Any other
-   * color (e.g. the paused-state `colors.light.border` gray) renders flat,
-   * unchanged — a non-primary color has no "deep" pairing to assume.
+   * Filled-arc color. @default the ACTIVE theme's `primary` — which is the
+   * same "#2563EB" in both token sets (doc 02 §14.1), so this default does
+   * not move with the scheme. When the resolved color is exactly that
+   * primary (the default, or an explicit pass), the ring renders as a
+   * same-hue tonal gradient sweep (`colorDeep` at the start to `color`
+   * further round) instead of a flat stroke. Any other color (e.g. the
+   * paused-state `border` gray) renders flat, unchanged — a non-primary
+   * color has no "deep" pairing to assume.
    */
   color?: string;
   /**
-   * Deeper same-family stop for the tonal gradient. @default primaryDark
-   * "#1D4ED8". Only takes effect when `color` resolves to primary blue (see
-   * `color` above); pass both explicitly to force a custom tonal pair for
-   * any color.
+   * Deeper same-family stop for the tonal gradient. @default the active
+   * theme's `primaryDark`: "#1D4ED8" on light, and deliberately "#2563EB" on
+   * dark (doc 02 §14.1 keeps primary put and pairs it with itself there).
+   * That collapse is the reason the dark ring renders as a FLAT primary arc
+   * rather than a sweep — `showGradient` below already handles a deep stop
+   * equal to the main stop, so nothing special-cases it. A deep #1D4ED8 stop
+   * on a near-black surface would only be a dim, muddy start to the arc, so
+   * flat is the better read, not a lost feature. Only takes effect when
+   * `color` resolves to primary blue (see `color` above); pass both
+   * explicitly to force a custom tonal pair for any color.
    */
   colorDeep?: string;
-  /** Unfilled track color. @default a faint neutral hairline */
+  /** Unfilled track color. @default the active theme's `border` hairline. */
   trackColor?: string;
   children?: React.ReactNode;
 }
@@ -47,11 +55,14 @@ interface ProgressRingProps {
  * track. Driven by a single Reanimated shared value on `strokeDashoffset`, so
  * it stays smooth without re-rendering React on every tick.
  *
- * The filled arc is a single-hue tonal gradient (deep `#1D4ED8` to primary
- * `#2563EB`) rather than a flat stroke — replacing what would otherwise be
- * the generic move here (a multi-hue decorative gradient unrelated to the
- * rest of the palette). One hue family, functional (it traces elapsed time),
- * never a second accent. See `color`/`colorDeep` above for exactly when the
+ * On LIGHT the filled arc is a single-hue tonal gradient (deep `#1D4ED8` to
+ * primary `#2563EB`) rather than a flat stroke — replacing what would
+ * otherwise be the generic move here (a multi-hue decorative gradient
+ * unrelated to the rest of the palette). One hue family, functional (it
+ * traces elapsed time), never a second accent. On DARK the two stops
+ * collapse to the same `#2563EB` (doc 02 §14.1 pairs dark primary with
+ * itself) and the arc renders flat, which is the better read on a near-black
+ * surface anyway. See `color`/`colorDeep` above for exactly when the
  * gradient applies vs. a flat stroke (e.g. the paused gray state).
  *
  * `children` renders centered inside the ring (the timer digits) via absolute
@@ -69,21 +80,28 @@ export function ProgressRing({
   strokeWidth = 6,
   color,
   colorDeep,
-  trackColor = colors.light.border,
+  trackColor,
   children,
 }: ProgressRingProps) {
   const reduceMotion = useReduceMotion();
   const gradientId = React.useId();
+  // SVG `stroke` takes a literal and cannot take a `dark:` class, so every
+  // default here resolves the active scheme rather than reaching for
+  // `colors.light.*`. Light values are byte-identical to what shipped before
+  // this pass (#2563EB / #1D4ED8 / #E8E6E0), so light mode does not move.
+  const theme = useThemeColors();
 
   // Resolve the tonal pair. `colorDeep` only defaults to the deep blue when
   // `color` itself resolves to primary blue (the default, or an explicit
   // pass) — any other explicit `color` (the paused gray, or a future custom
   // color) stays a flat stroke instead of pairing an unrelated hue with
   // primaryDark. An explicit `colorDeep` always wins, for a deliberate
-  // custom tonal pair.
-  const resolvedColor = color ?? colors.light.primary;
-  const isPrimaryTone = resolvedColor === colors.light.primary;
-  const resolvedDeep = colorDeep ?? (isPrimaryTone ? colors.light.primaryDark : resolvedColor);
+  // custom tonal pair. On dark, `primaryDark` IS `primary`, so `showGradient`
+  // resolves false and the arc is a flat #2563EB (see the `colorDeep` prop
+  // doc above for why that is the intended dark treatment).
+  const resolvedColor = color ?? theme.primary;
+  const isPrimaryTone = resolvedColor === theme.primary;
+  const resolvedDeep = colorDeep ?? (isPrimaryTone ? theme.primaryDark : resolvedColor);
   const showGradient = resolvedDeep !== resolvedColor;
   const strokeColor = showGradient ? `url(#${gradientId})` : resolvedColor;
 
@@ -121,12 +139,17 @@ export function ProgressRing({
             </LinearGradient>
           </Defs>
         )}
-        {/* Track — the full unfilled ring. */}
+        {/* Track — the full unfilled ring. A deliberate hairline in both
+            themes: #E8E6E0 on white is 1.25:1 and #292524 on the dark card is
+            1.15:1, near parity, and neither is near 3:1. That is fine and
+            intended — the track is decorative, this whole view is hidden from
+            the accessibility tree, and the digits inside remain the source of
+            truth for how much is left. */}
         <Circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={trackColor}
+          stroke={trackColor ?? theme.border}
           strokeWidth={strokeWidth}
           fill="none"
         />

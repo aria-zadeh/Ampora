@@ -38,10 +38,15 @@ import { generateNextTask, type NextTaskResult } from "@/services/aiProjects";
 import { newId } from "@/core/id";
 import { colors, iconSizes } from "@/utils/design-tokens";
 import type { Phase } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 const SESSION_MIN = 45;
 
 export default function ProjectDetailScreen() {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProjectStore(useMemo(() => selectProjectById(id ?? ""), [id]));
 
@@ -105,10 +110,10 @@ export default function ProjectDetailScreen() {
   // Project was deleted (or bad id) — bail cleanly.
   if (!project) {
     return (
-      <SafeAreaView className="flex-1 bg-neutral-100 items-center justify-center px-8">
+      <SafeAreaView className="flex-1 bg-neutral-100 dark:bg-neutral-950 items-center justify-center px-8">
         <Stack.Screen options={{ headerShown: false }} />
-        <Ionicons name="folder-open-outline" size={iconSizes.hero} color={colors.light.textDisabled} />
-        <Text className="text-body text-neutral-500 text-center mt-3">
+        <Ionicons name="folder-open-outline" size={iconSizes.hero} color={theme.textDisabled} />
+        <Text className="text-body text-neutral-500 dark:text-[#78716C] text-center mt-3">
           This project isn&apos;t available.
         </Text>
         <View className="mt-5">
@@ -121,7 +126,7 @@ export default function ProjectDetailScreen() {
   const meta = kindMeta(project.kind);
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "left", "right"]}>
+    <SafeAreaView className="flex-1 bg-neutral-100 dark:bg-neutral-950" edges={["top", "left", "right"]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Top bar */}
@@ -133,7 +138,7 @@ export default function ProjectDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Ionicons name="chevron-back" size={iconSizes.lg} color={colors.light.text} />
+          <Ionicons name="chevron-back" size={iconSizes.lg} color={theme.text} />
         </Pressable>
         <View className="flex-1" />
         <Pressable
@@ -143,7 +148,7 @@ export default function ProjectDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Delete project"
         >
-          <Ionicons name="trash-outline" size={iconSizes.md} color={colors.light.textDisabled} />
+          <Ionicons name="trash-outline" size={iconSizes.md} color={theme.textDisabled} />
         </Pressable>
       </View>
 
@@ -163,14 +168,14 @@ export default function ProjectDetailScreen() {
               </Heading>
               <View className="flex-row items-center gap-2 mt-2">
                 <Badge label={meta.label} tone="accent" />
-                <Text className="text-caption text-neutral-500">
+                <Text className="text-caption text-neutral-500 dark:text-[#78716C]">
                   {projectTasks.length} {projectTasks.length === 1 ? "task" : "tasks"}
                 </Text>
               </View>
             </View>
           </View>
           {project.contextLine ? (
-            <Text className="text-body text-neutral-600 mt-3">{project.contextLine}</Text>
+            <Text className="text-body text-neutral-600 dark:text-neutral-400 mt-3">{project.contextLine}</Text>
           ) : null}
         </View>
 
@@ -186,10 +191,10 @@ export default function ProjectDetailScreen() {
                 Next session
               </Text>
             </View>
-            <Text className="text-body-lg font-semibold text-neutral-900">
+            <Text className="text-body-lg font-semibold text-neutral-900 dark:text-neutral-50">
               Hand me the next move
             </Text>
-            <Text className="text-body text-neutral-500 mt-1 mb-4">
+            <Text className="text-body text-neutral-500 dark:text-[#78716C] mt-1 mb-4">
               Ampora turns where you are into one concrete {SESSION_MIN}-minute session you can
               schedule and lock against.
             </Text>
@@ -209,7 +214,7 @@ export default function ProjectDetailScreen() {
 
         {/* Progress — the phase list plus the percent bar (doc `06` §5). */}
         <View className="px-5 mt-6">
-          <Text className="mb-3 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+          <Text className="mb-3 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
             Progress
           </Text>
           <ProgressTracker project={project} onChange={handlePhasesChange} />
@@ -276,6 +281,13 @@ function PlannedSheet({
   onStartFocus: () => void;
   onClose: () => void;
 }) {
+  // Only for the literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, SVG stroke) which cannot take a `dark:`
+  // class. Must live INSIDE the component: an identical call sat at
+  // module scope here until 2026-08-27 and would have thrown
+  // "Invalid hook call" at import. tsc cannot see that, eslint's
+  // react-hooks/rules-of-hooks can, which is why lint is a real gate.
+  const theme = useThemeColors();
   const visible = planned != null;
   const result = planned?.result;
 
@@ -287,9 +299,9 @@ function PlannedSheet({
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
       >
-        <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+        <Pressable className="bg-white dark:bg-neutral-900 rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
           <View className="items-center mb-4">
-            <View className="w-10 h-1 rounded-full bg-neutral-200" />
+            <View className="w-10 h-1 rounded-full bg-neutral-200 dark:bg-neutral-800" />
           </View>
 
           <View className="flex-row items-center mb-1">
@@ -299,7 +311,7 @@ function PlannedSheet({
             >
               <Ionicons name="checkmark" size={iconSizes.md} color={colors.light.primaryForeground} />
             </View>
-            <Text className="text-overline font-semibold uppercase tracking-wide ml-2 text-neutral-500">
+            <Text className="text-overline font-semibold uppercase tracking-wide ml-2 text-neutral-500 dark:text-[#78716C]">
               Session ready
             </Text>
           </View>
@@ -314,33 +326,33 @@ function PlannedSheet({
               <View className="flex-row items-start mt-3 bg-primary-50 rounded-xl p-3">
                 <Ionicons name="footsteps-outline" size={iconSizes.md} color={colors.light.primary} />
                 <View className="flex-1 ml-2.5">
-                  <Text className="text-caption font-semibold text-primary-700">First move</Text>
-                  <Text className="text-body text-neutral-900 mt-0.5">{result.firstMove}</Text>
+                  <Text className="text-caption font-semibold text-primary-700 dark:text-primary-400">First move</Text>
+                  <Text className="text-body text-neutral-900 dark:text-neutral-50 mt-0.5">{result.firstMove}</Text>
                 </View>
               </View>
 
               {/* Steps */}
-              <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mt-4 mb-2">
+              <Text className="text-overline font-semibold text-neutral-500 dark:text-[#78716C] uppercase tracking-wide mt-4 mb-2">
                 {result.subtasks.length} {result.subtasks.length === 1 ? "step" : "steps"}
               </Text>
               <View className="gap-2 mb-1">
                 {result.subtasks.map((s, i) => (
                   <View key={`${s.title}-${i}`} className="flex-row items-center">
-                    <View className="w-6 h-6 rounded-full bg-neutral-100 items-center justify-center">
-                      <Text className="text-caption font-semibold text-neutral-600">{i + 1}</Text>
+                    <View className="w-6 h-6 rounded-full bg-neutral-100 dark:bg-neutral-950 items-center justify-center">
+                      <Text className="text-caption font-semibold text-neutral-600 dark:text-neutral-400">{i + 1}</Text>
                     </View>
-                    <Text className="flex-1 text-body text-neutral-800 ml-2.5" numberOfLines={2}>
+                    <Text className="flex-1 text-body text-neutral-800 dark:text-neutral-100 ml-2.5" numberOfLines={2}>
                       {s.title}
                     </Text>
-                    <Text className="text-caption text-neutral-500 ml-2">{s.estimatedMin}m</Text>
+                    <Text className="text-caption text-neutral-500 dark:text-[#78716C] ml-2">{s.estimatedMin}m</Text>
                   </View>
                 ))}
               </View>
 
               {result.isFallback && result.note && (
                 <View className="flex-row items-center mt-3">
-                  <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color={colors.light.textDisabled} />
-                  <Text className="text-tiny text-neutral-500 ml-1">{result.note}</Text>
+                  <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color={theme.textDisabled} />
+                  <Text className="text-tiny text-neutral-500 dark:text-[#78716C] ml-1">{result.note}</Text>
                 </View>
               )}
 
@@ -401,12 +413,12 @@ function ConfirmDeleteSheet({
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
       >
-        <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+        <Pressable className="bg-white dark:bg-neutral-900 rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
           <View className="items-center mb-4">
-            <View className="w-10 h-1 rounded-full bg-neutral-200" />
+            <View className="w-10 h-1 rounded-full bg-neutral-200 dark:bg-neutral-800" />
           </View>
           <Heading size="h3">Delete project?</Heading>
-          <Text className="text-body text-neutral-500 mt-1.5 mb-5">
+          <Text className="text-body text-neutral-500 dark:text-[#78716C] mt-1.5 mb-5">
             &quot;{name}&quot; and its progress will be removed.
             {taskCount > 0
               ? ` It generated ${taskCount} ${taskLabel} — choose what happens to ${taskCount === 1 ? "it" : "them"} below.`
@@ -416,7 +428,7 @@ function ConfirmDeleteSheet({
           {taskCount > 0 && (
             <Pressable
               onPress={() => setAlsoDeleteTasks((v) => !v)}
-              className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3.5 mb-5"
+              className="flex-row items-start gap-3 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800 p-3.5 mb-5"
               accessibilityRole="checkbox"
               accessibilityState={{ checked: alsoDeleteTasks }}
               accessibilityLabel={`Also delete the ${taskCount} generated ${taskLabel}`}
@@ -424,16 +436,16 @@ function ConfirmDeleteSheet({
             >
               <View
                 className={`mt-0.5 h-5 w-5 items-center justify-center rounded ${
-                  alsoDeleteTasks ? "bg-danger-600" : "border-2 border-neutral-300"
+                  alsoDeleteTasks ? "bg-danger-600" : "border-2 border-neutral-300 dark:border-neutral-700"
                 }`}
               >
                 {alsoDeleteTasks ? <Ionicons name="checkmark" size={13} color={colors.light.primaryForeground} /> : null}
               </View>
               <View className="flex-1">
-                <Text className="text-label font-medium text-neutral-800">
+                <Text className="text-label font-medium text-neutral-800 dark:text-neutral-100">
                   Also delete its {taskCount} generated {taskLabel}
                 </Text>
-                <Text className="text-caption text-neutral-500 mt-0.5">
+                <Text className="text-caption text-neutral-500 dark:text-[#78716C] mt-0.5">
                   {alsoDeleteTasks
                     ? "These tasks will be permanently removed too."
                     : `Off by default — ${taskCount === 1 ? "it" : "they"} will stay in your task list, unlinked from this project.`}

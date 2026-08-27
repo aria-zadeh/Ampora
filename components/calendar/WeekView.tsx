@@ -218,7 +218,7 @@ export function WeekView({
       {/* Sticky-style header row (weekday + date). Rendered outside the vertical
           scroll so it stays pinned. */}
       <View
-        className="flex-row border-b border-neutral-200 bg-neutral-100"
+        className="flex-row border-b border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950"
         style={{ height: HEADER_HEIGHT }}
       >
         {days.map((day) => (
@@ -250,7 +250,7 @@ export function WeekView({
             <View
               key={hour}
               pointerEvents="none"
-              className="absolute left-0 right-0 h-[1px] bg-neutral-200"
+              className="absolute left-0 right-0 h-[1px] bg-neutral-200 dark:bg-neutral-800"
               style={{ top: hour * pxPerHour }}
             />
           ))}
@@ -261,7 +261,7 @@ export function WeekView({
               <View
                 key={day.dayStartMs}
                 style={{ width: colWidth, height: totalHeight }}
-                className={`border-l border-neutral-200 ${day.isToday ? 'bg-primary-50/40' : ''}`}
+                className={`border-l border-neutral-200 dark:border-neutral-800 ${day.isToday ? 'bg-primary-50/40 dark:bg-primary-900/30' : ''}`}
               >
                 {day.laid.map((laid) => {
                   const item = laid.item
@@ -319,10 +319,10 @@ export function WeekView({
         {/* Header spacer aligns the gutter with the day-header row + all-day strip. */}
         <View
           style={{ height: HEADER_HEIGHT + stripHeight }}
-          className="items-center justify-end border-b border-neutral-200 bg-neutral-100 pb-0.5"
+          className="items-center justify-end border-b border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 pb-0.5"
         >
           {stripHeight > 0 ? (
-            <Text className="text-tiny text-neutral-500" numberOfLines={1}>
+            <Text className="text-tiny text-neutral-500 dark:text-neutral-400" numberOfLines={1}>
               All day
             </Text>
           ) : null}
@@ -367,7 +367,7 @@ function AllDayStrip({
   onEventPress?: (event: CalEvent) => void
 }) {
   return (
-    <View className="flex-row border-b border-neutral-200 bg-neutral-100" style={{ height: stripHeight }}>
+    <View className="flex-row border-b border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950" style={{ height: stripHeight }}>
       {allDayByDay.map((dayEvents, i) => {
         const shown = dayEvents.slice(0, ALLDAY_MAX_ROWS)
         const overflow = dayEvents.length - shown.length
@@ -391,7 +391,7 @@ function AllDayStrip({
             </View>
             {overflow > 0 ? (
               <Text
-                className="text-tiny text-neutral-500"
+                className="text-tiny text-neutral-500 dark:text-neutral-400"
                 numberOfLines={1}
                 accessibilityLabel={`${overflow} more all-day event${overflow === 1 ? '' : 's'}`}
               >
@@ -424,7 +424,7 @@ function DayHeader({
       className="items-center justify-center py-1"
       accessibilityLabel={`${WEEKDAY_LONG[dayOfWeek]} ${dateNum}${isToday ? ', today' : ''}`}
     >
-      <Text className="text-tiny font-medium text-neutral-500 mb-0.5">
+      <Text className="text-tiny font-medium text-neutral-500 dark:text-neutral-400 mb-0.5">
         {WEEKDAY_SHORT[dayOfWeek]}
       </Text>
       <View
@@ -433,7 +433,7 @@ function DayHeader({
         }`}
       >
         <Text
-          className={`text-caption font-semibold ${isToday ? 'text-white' : 'text-neutral-800'}`}
+          className={`text-caption font-semibold ${isToday ? 'text-white' : 'text-neutral-800 dark:text-neutral-100'}`}
         >
           {dateNum}
         </Text>
@@ -489,7 +489,7 @@ function GutterLabels({
             style={{ top: hour * pxPerHour - 6, left: 0 }}
           >
             <Text
-              className="text-tiny text-neutral-500"
+              className="text-tiny text-neutral-500 dark:text-neutral-400"
               accessibilityLabel={hourLabelLong(hour)}
               allowFontScaling
             >

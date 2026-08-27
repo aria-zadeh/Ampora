@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { View, Text, ScrollView, Pressable, Modal, TextInput } from "react-native";
+import { View, ScrollView, Pressable, Modal, TextInput } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -16,6 +16,7 @@ import Animated, {
 import { useSettingsStore } from "@/store/settingsStore";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
+import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { StakesSettings } from "@/components/settings/StakesSettings";
 import { CalendarSyncSettings } from "@/components/settings/CalendarSyncSettings";
@@ -25,6 +26,8 @@ import { trialDaysLeft, isActive } from "@/core/subscription";
 import { shadows, gradients, spacing } from "@/utils/design-tokens";
 import { DURATIONS, SPRINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { useColorScheme } from "nativewind";
 
 const THEME_OPTIONS = [
   { value: "light", label: "Light", icon: "sunny-outline" },
@@ -56,11 +59,11 @@ function SettingsGroup({
       }
       className="mt-6"
     >
-      <Text className="mb-2 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+      <Text variant="overline" className="mb-2 ml-1 text-neutral-500 dark:text-[#78716C]">
         {title}
       </Text>
       <View
-        className="rounded-2xl border border-neutral-200 bg-white px-4"
+        className="rounded-2xl border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
         style={shadows.sm}
       >
         {children}
@@ -85,32 +88,38 @@ function SettingsRow({
   isLast?: boolean;
   accessibilityLabel?: string;
 }) {
+  const theme = useThemeColors();
   return (
     <PressableScale
       onPress={onPress}
       haptic="light"
       className={`flex-row items-center justify-between py-3.5 ${
-        isLast ? "" : "border-b border-neutral-100"
+        isLast ? "" : "border-b border-neutral-100 dark:border-neutral-800"
       }`}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
     >
       <View className="flex-1 flex-row items-center">
-        <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-          <Ionicons name={icon} size={18} color="#57534E" />
+        <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
+          <Ionicons name={icon} size={18} color={theme.textSecondary} />
         </View>
-        <Text className="ml-3 text-body-lg text-neutral-900">{label}</Text>
+        <Text variant="bodyLg" className="ml-3">
+          {label}
+        </Text>
       </View>
       <View className="flex-row items-center">
         {value ? (
           <Text
-            className="mr-1.5 max-w-[140px] text-body text-neutral-500"
+            variant="body"
+            className="mr-1.5 max-w-[140px] text-neutral-500 dark:text-[#78716C]"
             numberOfLines={1}
           >
             {value}
           </Text>
         ) : null}
-        <Ionicons name="chevron-forward" size={18} color="#C4C4CC" />
+        {/* `theme.textDisabled` replaces a stray, untokenized grey that
+            matched no design-tokens.ts value in either theme. */}
+        <Ionicons name="chevron-forward" size={18} color={theme.textDisabled} />
       </View>
     </PressableScale>
   );
@@ -119,6 +128,11 @@ function SettingsRow({
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
+  // Resolved scheme (not the raw "system" preference) — NativeWind already
+  // resolves "system" to the OS's actual light/dark setting here, matching
+  // what `app/_layout.tsx` reads for the same purpose.
+  const { colorScheme } = useColorScheme();
 
   const displayName = useSettingsStore((s) => s.settings.displayName);
   const themePreference = useSettingsStore((s) => s.settings.themePreference);
@@ -197,10 +211,13 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View className="flex-1 bg-neutral-100">
-      {/* Faint top wash behind the header */}
+    <View className="flex-1 bg-neutral-100 dark:bg-neutral-950">
+      {/* Faint top wash behind the header. Dark mode swaps in a wash built
+          from existing colors.dark tokens (see gradients.heroWashDark) —
+          the light wash's bright blue tint would look jarring on a dark
+          canvas. */}
       <LinearGradient
-        colors={gradients.heroWash}
+        colors={colorScheme === "dark" ? gradients.heroWashDark : gradients.heroWash}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         pointerEvents="none"
@@ -227,14 +244,22 @@ export default function ProfileScreen() {
           entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
           className="pb-2 pt-6"
         >
-          <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+          {/* Accent restated, not varied, on the dark side. The design-system
+              `Text` defaults to `text-neutral-900 dark:text-neutral-50`, and
+              a bare `text-*` override beats the light half but loses to the
+              `dark:` one, so an unpaired accent would silently repaint
+              near-white in dark mode. The three chip tones and the sign-out
+              label below are paired for the same reason. */}
+          <Text variant="overline" className="text-primary-600 dark:text-primary-600">
             Your profile
           </Text>
           <Heading size="h1" className="mt-1">
             {displayName || "Welcome"}
           </Heading>
           {userEmail ? (
-            <Text className="mt-1.5 text-body text-neutral-500">{userEmail}</Text>
+            <Text variant="body" className="mt-1.5 text-neutral-500 dark:text-[#78716C]">
+              {userEmail}
+            </Text>
           ) : null}
 
           {/* Subscription chip → paywall. Soft gate only (FR-88): a subtle
@@ -268,19 +293,20 @@ export default function ProfileScreen() {
                 size={14}
                 color={
                   subscriptionChip.tone === "active"
-                    ? "#6D28D9"
+                    ? theme.accentStrong
                     : subscriptionChip.tone === "trial"
-                      ? "#2563EB"
-                      : "#C2410C"
+                      ? theme.primary
+                      : theme.warningStrong
                 }
               />
               <Text
-                className={`ml-1.5 text-caption font-semibold ${
+                variant="captionMedium"
+                className={`ml-1.5 ${
                   subscriptionChip.tone === "active"
-                    ? "text-accent-700"
+                    ? "text-accent-700 dark:text-accent-700"
                     : subscriptionChip.tone === "trial"
-                      ? "text-primary-700"
-                      : "text-warning-700"
+                      ? "text-primary-700 dark:text-primary-700"
+                      : "text-warning-700 dark:text-warning-700"
                 }`}
               >
                 {subscriptionChip.label}
@@ -290,10 +316,10 @@ export default function ProfileScreen() {
                 size={13}
                 color={
                   subscriptionChip.tone === "active"
-                    ? "#6D28D9"
+                    ? theme.accentStrong
                     : subscriptionChip.tone === "trial"
-                      ? "#2563EB"
-                      : "#C2410C"
+                      ? theme.primary
+                      : theme.warningStrong
                 }
                 style={{ marginLeft: 2 }}
               />
@@ -301,10 +327,14 @@ export default function ProfileScreen() {
           </PressableScale>
         </Animated.View>
 
-        {/* Appearance */}
+        {/* Appearance — the theme picker itself. Selecting an option writes
+            `settings.themePreference`, which `app/_layout.tsx` mirrors into
+            NativeWind's `setColorScheme` (including resolving "system"), so
+            this control is what actually drives every `dark:` class in the
+            app, not just its own row. */}
         <SettingsGroup title="Appearance" index={1}>
           <View className="py-4">
-            <View className="flex-row items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-100 p-1">
+            <View className="flex-row items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-800 dark:bg-neutral-950">
               {THEME_OPTIONS.map((option) => {
                 const isSelected = themePreference === option.value;
                 return (
@@ -319,20 +349,21 @@ export default function ProfileScreen() {
                   >
                     <View
                       className={`min-h-11 flex-row items-center justify-center gap-1.5 rounded-md py-2.5 ${
-                        isSelected ? "bg-white" : "bg-transparent"
+                        isSelected ? "bg-white dark:bg-neutral-800" : "bg-transparent"
                       }`}
                       style={isSelected ? shadows.xs : undefined}
                     >
                       <Ionicons
                         name={option.icon}
                         size={16}
-                        color={isSelected ? "#2563EB" : "#6F6862"}
+                        color={isSelected ? theme.primary : theme.textMuted}
                       />
                       <Text
+                        variant="label"
                         className={
                           isSelected
-                            ? "text-label font-semibold text-neutral-900"
-                            : "text-label font-medium text-neutral-500"
+                            ? "font-semibold"
+                            : "text-neutral-500 dark:text-[#78716C]"
                         }
                       >
                         {option.label}
@@ -342,6 +373,20 @@ export default function ProfileScreen() {
                 );
               })}
             </View>
+            {/* The "dark mode is still rolling out" caveat that used to live
+                here is GONE, on purpose, because it stopped being true.
+                Coverage is every file under app/ and components/ that renders
+                a colour: what is left carries no colour of its own (layout
+                wrappers, animation wrappers), plus Blindfold, whose warm cream
+                wash is a deliberate low-stimulation surface, and FeatureShell,
+                a documented light island. Re-measure before assuming, do not
+                trust this comment:
+                `grep -rl 'dark:' app/ components/ --include=*.tsx | wc -l`.
+                Caveat worth knowing: coverage was verified mechanically and by
+                computing contrast ratios, NOT by looking at the app on a
+                device, since this repo has been built on machines that cannot
+                run it. If a screen turns out wrong in dark, that is a bug to
+                fix rather than a disclosure to restore. */}
           </View>
         </SettingsGroup>
 
@@ -386,7 +431,7 @@ export default function ProfileScreen() {
           }
           className="mt-6"
         >
-          <Text className="mb-3 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+          <Text variant="overline" className="mb-3 ml-1 text-neutral-500 dark:text-[#78716C]">
             Focus stakes
           </Text>
           <StakesSettings />
@@ -403,7 +448,7 @@ export default function ProfileScreen() {
           }
           className="mt-6"
         >
-          <Text className="mb-3 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+          <Text variant="overline" className="mb-3 ml-1 text-neutral-500 dark:text-[#78716C]">
             Calendar sync
           </Text>
           <CalendarSyncSettings />
@@ -412,12 +457,13 @@ export default function ProfileScreen() {
         {/* Account */}
         {userEmail && (
           <SettingsGroup title="Account" index={6}>
-            <View className="flex-row items-center border-b border-neutral-100 py-3.5">
-              <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-                <Ionicons name="mail-outline" size={18} color="#57534E" />
+            <View className="flex-row items-center border-b border-neutral-100 py-3.5 dark:border-neutral-800">
+              <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
+                <Ionicons name="mail-outline" size={18} color={theme.textSecondary} />
               </View>
               <Text
-                className="ml-3 flex-1 text-body-lg text-neutral-900"
+                variant="bodyLg"
+                className="ml-3 flex-1"
                 numberOfLines={1}
               >
                 {userEmail}
@@ -442,9 +488,9 @@ export default function ProfileScreen() {
               accessibilityLabel="Sign out"
             >
               <View className="h-9 w-9 items-center justify-center rounded-full bg-danger-100">
-                <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+                <Ionicons name="log-out-outline" size={18} color={theme.dangerStrong} />
               </View>
-              <Text className="ml-3 text-body-lg font-medium text-danger-600">
+              <Text variant="bodyLg" className="ml-3 font-medium text-danger-600 dark:text-danger-600">
                 Sign out
               </Text>
             </PressableScale>
@@ -464,20 +510,20 @@ export default function ProfileScreen() {
           onPress={() => setShowNameModal(false)}
         >
           <Pressable
-            className="w-full max-w-[360px] rounded-2xl bg-white p-6"
+            className="w-full max-w-[360px] rounded-2xl bg-white p-6 dark:bg-neutral-900"
             style={shadows.lg}
             onPress={(e) => e.stopPropagation()}
           >
             <Heading size="h3">Display name</Heading>
-            <Text className="mt-1.5 text-body text-neutral-500">
+            <Text variant="body" className="mt-1.5 text-neutral-500 dark:text-[#78716C]">
               This is how Ampora greets you.
             </Text>
             <TextInput
-              className="mt-5 min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
+              className="mt-5 min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
               value={nameDraft}
               onChangeText={setNameDraft}
               placeholder="Your name"
-              placeholderTextColor="#A8A29A"
+              placeholderTextColor={theme.textDisabled}
               autoFocus
               autoCapitalize="words"
               returnKeyType="done"

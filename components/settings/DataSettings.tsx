@@ -75,7 +75,8 @@ import { Heading } from '@/components/ui/Heading'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { colors, shadows } from '@/utils/design-tokens'
+import { shadows } from '@/utils/design-tokens'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { SectionLabel, SectionFootnote, Group } from '@/components/settings/SettingsPrimitives'
 import {
   serializeExport,
@@ -119,8 +120,8 @@ function downloadOnWeb(json: string, filename: string): boolean {
 /** A tappable action row with a leading icon bubble + chevron/trailing slot. */
 function ActionRow({
   icon,
-  iconTint = colors.light.textSecondary,
-  iconBg = 'bg-neutral-100',
+  iconTint,
+  iconBg = 'bg-neutral-100 dark:bg-neutral-800',
   label,
   sublabel,
   onPress,
@@ -140,35 +141,47 @@ function ActionRow({
   isLast?: boolean
   accessibilityHint?: string
 }) {
+  // `iconTint` cannot default to a token in the parameter list any more: the
+  // fallback has to resolve the ACTIVE scheme, and that needs a hook. Same
+  // shape `components/settings/SettingsPrimitives.tsx`'s `Row` already uses.
+  const theme = useThemeColors()
   return (
     <PressableScale
       onPress={onPress}
       haptic="light"
       disabled={busy}
       className={`flex-row items-center py-3.5 ${
-        isLast ? '' : 'border-b border-neutral-100'
+        isLast ? '' : 'border-b border-neutral-100 dark:border-neutral-800'
       }`}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
     >
       <View className={`h-9 w-9 items-center justify-center rounded-full ${iconBg}`}>
-        <Ionicons name={icon} size={18} color={iconTint} />
+        <Ionicons name={icon} size={18} color={iconTint ?? theme.textSecondary} />
       </View>
       <View className="ml-3 flex-1 pr-3">
         <Text
-          className={`text-body-lg ${danger ? 'font-medium text-danger-600' : 'text-neutral-900'}`}
+          // Destructive LABEL text sitting on a card, not a filled button, so
+          // it moves: danger-600 measures 3.62:1 on the dark card, under the
+          // 4.5:1 this 16px label owes, and danger-500 clears it at 4.65:1
+          // (cheatsheet, utils/design-tokens.ts).
+          className={`text-body-lg ${
+            danger
+              ? 'font-medium text-danger-600 dark:text-danger-500'
+              : 'text-neutral-900 dark:text-neutral-50'
+          }`}
         >
           {label}
         </Text>
         {sublabel ? (
-          <Text className="mt-0.5 text-caption text-neutral-500">{sublabel}</Text>
+          <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">{sublabel}</Text>
         ) : null}
       </View>
       <Ionicons
         name={busy ? 'hourglass-outline' : 'chevron-forward'}
         size={18}
-        color={danger ? colors.light.dangerStrong : colors.light.textDisabled}
+        color={danger ? theme.dangerStrong : theme.textDisabled}
       />
     </PressableScale>
   )
@@ -179,6 +192,9 @@ function ActionRow({
 // ---------------------------------------------------------------------------
 
 export function DataSettings() {
+  // Ionicons `color` and ActivityIndicator `color` both take a literal and
+  // cannot take a `dark:` class; everything else here is className-driven.
+  const theme = useThemeColors()
   const [exporting, setExporting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleted, setDeleted] = useState(false)
@@ -356,7 +372,7 @@ export function DataSettings() {
 
   return (
     <View>
-      <Text className="mb-4 text-body text-neutral-500">
+      <Text className="mb-4 text-body text-neutral-500 dark:text-[#78716C]">
         Your data lives on your device. Take a copy any time, or clear it out
         completely.
       </Text>
@@ -366,7 +382,7 @@ export function DataSettings() {
       <Group>
         <ActionRow
           icon="download-outline"
-          iconTint={colors.light.primary}
+          iconTint={theme.primary}
           iconBg="bg-primary-50"
           label="Export data"
           sublabel="Save a JSON copy of everything"
@@ -388,18 +404,18 @@ export function DataSettings() {
       </View>
       <Group>
         {userEmail ? (
-          <View className="flex-row items-center border-b border-neutral-100 py-3.5">
-            <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-              <Ionicons name="mail-outline" size={18} color={colors.light.textSecondary} />
+          <View className="flex-row items-center border-b border-neutral-100 py-3.5 dark:border-neutral-800">
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
+              <Ionicons name="mail-outline" size={18} color={theme.textSecondary} />
             </View>
-            <Text className="ml-3 flex-1 text-body-lg text-neutral-900" numberOfLines={1}>
+            <Text className="ml-3 flex-1 text-body-lg text-neutral-900 dark:text-neutral-50" numberOfLines={1}>
               {userEmail}
             </Text>
           </View>
         ) : null}
         <ActionRow
           icon="log-out-outline"
-          iconTint={colors.light.dangerStrong}
+          iconTint={theme.dangerStrong}
           iconBg="bg-danger-100"
           label="Sign out"
           onPress={handleSignOut}
@@ -419,7 +435,7 @@ export function DataSettings() {
       <Group>
         <ActionRow
           icon="help-circle-outline"
-          iconTint={colors.light.primary}
+          iconTint={theme.primary}
           iconBg="bg-primary-50"
           label="Help"
           sublabel="What Ampora does and how it's built to help"
@@ -434,11 +450,11 @@ export function DataSettings() {
           accessibilityHint="Opens the current privacy and terms notice"
         />
         <View className="flex-row items-center py-3.5">
-          <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-            <Ionicons name="information-circle-outline" size={18} color={colors.light.textSecondary} />
+          <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
+            <Ionicons name="information-circle-outline" size={18} color={theme.textSecondary} />
           </View>
-          <Text className="ml-3 flex-1 text-body-lg text-neutral-900">Version</Text>
-          <Text className="text-body text-neutral-500">{APP_VERSION}</Text>
+          <Text className="ml-3 flex-1 text-body-lg text-neutral-900 dark:text-neutral-50">Version</Text>
+          <Text className="text-body text-neutral-500 dark:text-[#78716C]">{APP_VERSION}</Text>
         </View>
       </Group>
 
@@ -457,16 +473,16 @@ export function DataSettings() {
         {deleted ? (
           <View className="flex-row items-center py-3.5">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-success-100">
-              <Ionicons name="checkmark-circle-outline" size={18} color={colors.light.successAccent} />
+              <Ionicons name="checkmark-circle-outline" size={18} color={theme.successAccent} />
             </View>
-            <Text className="ml-3 flex-1 text-body-lg text-neutral-900">
+            <Text className="ml-3 flex-1 text-body-lg text-neutral-900 dark:text-neutral-50">
               Local data erased
             </Text>
           </View>
         ) : (
           <ActionRow
             icon="trash-outline"
-            iconTint={colors.light.dangerStrong}
+            iconTint={theme.dangerStrong}
             iconBg="bg-danger-100"
             label="Erase data on this device"
             sublabel="Clears tasks, projects, and history stored here"
@@ -489,7 +505,7 @@ export function DataSettings() {
         <Group>
           <ActionRow
             icon="person-remove-outline"
-            iconTint={colors.light.dangerStrong}
+            iconTint={theme.dangerStrong}
             iconBg="bg-danger-100"
             label="Delete account"
             sublabel="Permanently deletes your account and all its data"
@@ -500,7 +516,7 @@ export function DataSettings() {
           />
         </Group>
         <SectionFootnote>
-          Permanent, and removes your account from every device. This can't
+          Permanent, and removes your account from every device. This can&apos;t
           be undone.
         </SectionFootnote>
       </View>
@@ -518,17 +534,17 @@ export function DataSettings() {
           onPress={() => setConfirmDelete(false)}
         >
           <Pressable
-            className="w-full max-w-[360px] rounded-2xl bg-white p-6"
+            className="w-full max-w-[360px] rounded-2xl bg-white p-6 dark:bg-neutral-900"
             style={shadows.lg}
             onPress={(e) => e.stopPropagation()}
           >
             <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-              <Ionicons name="trash-outline" size={24} color={colors.light.dangerStrong} />
+              <Ionicons name="trash-outline" size={24} color={theme.dangerStrong} />
             </View>
             <Heading size="h3" className="mt-4">
               Erase data on this device?
             </Heading>
-            <Text className="mt-2 text-body text-neutral-600 leading-6">
+            <Text className="mt-2 text-body leading-6 text-neutral-600 dark:text-neutral-400">
               This clears every task, project, schedule, and record stored on
               this device. Your Ampora account and cloud copy are not
               affected — sign back in here or on any device to get it all
@@ -575,19 +591,19 @@ export function DataSettings() {
             onPress={closeDeleteAccount}
           >
             <Pressable
-              className="w-full max-w-[360px] rounded-2xl bg-white p-6"
+              className="w-full max-w-[360px] rounded-2xl bg-white p-6 dark:bg-neutral-900"
               style={shadows.lg}
               onPress={(e) => e.stopPropagation()}
             >
               {deleteAccountStep === 'intro' ? (
                 <>
                   <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-                    <Ionicons name="person-remove-outline" size={24} color={colors.light.dangerStrong} />
+                    <Ionicons name="person-remove-outline" size={24} color={theme.dangerStrong} />
                   </View>
                   <Heading size="h3" className="mt-4">
                     Delete your account
                   </Heading>
-                  <Text className="mt-2 text-body text-neutral-600 leading-6">
+                  <Text className="mt-2 text-body leading-6 text-neutral-600 dark:text-neutral-400">
                     This permanently deletes your Ampora account and every
                     task, project, and record tied to it, on every device you
                     use. It cannot be undone.
@@ -596,7 +612,14 @@ export function DataSettings() {
                     onPress={handleExport}
                     haptic="light"
                     disabled={exporting}
-                    className="mt-4 flex-row items-center rounded-lg border border-neutral-200 bg-neutral-50 p-3"
+                    // A nested panel INSIDE the modal card, so it needs the
+                    // lifted surface plus a hairline that is still visible
+                    // against it. Strict cheatsheet mapping would put both at
+                    // neutral-800 and erase the border, so the hairline steps
+                    // one further to `borderStrong`'s dark rung (neutral-700),
+                    // keeping the same lifted-panel-with-an-edge read as
+                    // neutral-50 inside neutral-200 does on light.
+                    className="mt-4 flex-row items-center rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
                     accessibilityRole="button"
                     accessibilityLabel="Export your data"
                     accessibilityHint="Saves a copy of your tasks, projects, and settings before you delete your account"
@@ -605,14 +628,14 @@ export function DataSettings() {
                       <Ionicons
                         name={exporting ? 'hourglass-outline' : 'download-outline'}
                         size={18}
-                        color={colors.light.primary}
+                        color={theme.primary}
                       />
                     </View>
                     <View className="ml-3 flex-1">
-                      <Text className="text-label font-medium text-neutral-900">
+                      <Text className="text-label font-medium text-neutral-900 dark:text-neutral-50">
                         Export your data first
                       </Text>
-                      <Text className="mt-0.5 text-caption text-neutral-500">
+                      <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
                         Save a copy before you go
                       </Text>
                     </View>
@@ -639,12 +662,12 @@ export function DataSettings() {
               {deleteAccountStep === 'confirm' ? (
                 <>
                   <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-                    <Ionicons name="warning-outline" size={24} color={colors.light.dangerStrong} />
+                    <Ionicons name="warning-outline" size={24} color={theme.dangerStrong} />
                   </View>
                   <Heading size="h3" className="mt-4">
                     Type DELETE to confirm
                   </Heading>
-                  <Text className="mt-2 text-body text-neutral-600 leading-6">
+                  <Text className="mt-2 text-body leading-6 text-neutral-600 dark:text-neutral-400">
                     This is permanent. Your account and everything in it will
                     be deleted from every device. Type DELETE below to
                     confirm.
@@ -690,19 +713,19 @@ export function DataSettings() {
               {deleteAccountStep === 'deleting' ? (
                 <View className="items-center py-2">
                   <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-                    <Ionicons name="person-remove-outline" size={24} color={colors.light.dangerStrong} />
+                    <Ionicons name="person-remove-outline" size={24} color={theme.dangerStrong} />
                   </View>
                   <View accessibilityLiveRegion="polite" className="items-center">
                     <Heading size="h3" className="mt-4 text-center">
                       Deleting your account
                     </Heading>
-                    <Text className="mt-3 text-body text-neutral-500 text-center">
-                      This only takes a moment. Don't close the app.
+                    <Text className="mt-3 text-center text-body text-neutral-500 dark:text-[#78716C]">
+                      This only takes a moment. Don&apos;t close the app.
                     </Text>
                   </View>
                   <View className="mt-4">
                     <ActivityIndicator
-                      color={colors.light.dangerStrong}
+                      color={theme.dangerStrong}
                       accessibilityLabel="Deleting"
                     />
                   </View>
@@ -712,13 +735,13 @@ export function DataSettings() {
               {deleteAccountStep === 'error' ? (
                 <>
                   <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-                    <Ionicons name="alert-circle-outline" size={24} color={colors.light.dangerStrong} />
+                    <Ionicons name="alert-circle-outline" size={24} color={theme.dangerStrong} />
                   </View>
                   <View accessibilityLiveRegion="polite">
                     <Heading size="h3" className="mt-4">
                       {deleteAccountHeading}
                     </Heading>
-                    <Text className="mt-2 text-body text-neutral-600 leading-6">
+                    <Text className="mt-2 text-body leading-6 text-neutral-600 dark:text-neutral-400">
                       {deleteAccountError}
                     </Text>
                   </View>
@@ -757,39 +780,39 @@ export function DataSettings() {
           onPress={() => setInfoSheet(null)}
         >
           <Pressable
-            className="w-full max-w-[360px] rounded-2xl bg-white p-6"
+            className="w-full max-w-[360px] rounded-2xl bg-white p-6 dark:bg-neutral-900"
             style={shadows.lg}
             onPress={(e) => e.stopPropagation()}
           >
             {infoSheet === 'help' ? (
               <>
                 <View className="h-12 w-12 items-center justify-center rounded-full bg-primary-50">
-                  <Ionicons name="help-circle-outline" size={24} color={colors.light.primary} />
+                  <Ionicons name="help-circle-outline" size={24} color={theme.primary} />
                 </View>
                 <Heading size="h3" className="mt-4">
                   How Ampora helps
                 </Heading>
-                <Text className="mt-2 text-body text-neutral-600 leading-6">
+                <Text className="mt-2 text-body leading-6 text-neutral-600 dark:text-neutral-400">
                   Ampora plans your week around how you actually work, gives you a
                   small first step for every task, and can lock your own apps
                   behind the work if you choose to turn that on. A panic valve is
                   always available if a lock ever feels like too much. Nothing
-                  here is medical advice — it's a planning tool.
+                  here is medical advice — it&apos;s a planning tool.
                 </Text>
               </>
             ) : (
               <>
                 <View className="h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
-                  <Ionicons name="document-text-outline" size={24} color={colors.light.textSecondary} />
+                  <Ionicons name="document-text-outline" size={24} color={theme.textSecondary} />
                 </View>
                 <Heading size="h3" className="mt-4">
                   Privacy and terms
                 </Heading>
-                <Text className="mt-2 text-body text-neutral-600 leading-6">
+                <Text className="mt-2 text-body leading-6 text-neutral-600 dark:text-neutral-400">
                   Your tasks and settings live on your device first and sync to
                   your account so you can pick up on another device. Full,
                   published privacy and terms documents are being finalized —
-                  this notice will link to them once they're live.
+                  this notice will link to them once they&apos;re live.
                 </Text>
               </>
             )}

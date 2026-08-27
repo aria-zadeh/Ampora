@@ -41,9 +41,10 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors, shadows } from "@/utils/design-tokens";
+import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useStakesStore, selectEligibleApps, selectStakeSelection } from "@/store/stakesStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import type { StakeSession } from "@/types";
@@ -71,6 +72,14 @@ const TICK_MS = 60_000;
 
 export function LockBanner({ session, onPanic, variant = "default" }: LockBannerProps) {
   const reduceMotion = useReduceMotion();
+  // The three lock/leaf glyphs below set Ionicons `color`, which takes a
+  // literal and cannot take a `dark:` class. `textSecondary` is one of the few
+  // tokens that genuinely MOVES between schemes (#57534E light / #A8A29A
+  // dark), so this is load-bearing: pinned to the light value the lock glyph
+  // would sit at 1.4:1 on the dark surface and effectively disappear, on the
+  // one banner whose whole job is to make an active lock legible (NFR-7).
+  // Resolved here it measures 7.06:1 light and 7.81:1 dark.
+  const theme = useThemeColors();
   const eligibleApps = useStakesStore(useShallow(selectEligibleApps));
   const selection = useStakesStore(selectStakeSelection);
   const singleSessionCapMin = useSettingsStore((s) => s.settings.singleSessionCapMin);
@@ -139,12 +148,15 @@ export function LockBanner({ session, onPanic, variant = "default" }: LockBanner
     return (
       <Animated.View
         entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
-        className="flex-row items-center gap-3 rounded-xl bg-neutral-100 px-3.5 py-3"
+        // Sunken row: one step BELOW its host card in either scheme
+        // (neutral-100 under white, neutral-950 under the dark card), so the
+        // inset reads the same way round after the neutral ramp inverts.
+        className="flex-row items-center gap-3 rounded-xl bg-neutral-100 px-3.5 py-3 dark:bg-neutral-950"
         accessibilityRole="summary"
         accessibilityLabel={a11y}
       >
-        <Ionicons name="lock-closed" size={20} color={colors.light.textSecondary} />
-        <Text className="flex-1 text-body text-neutral-800">{headline}</Text>
+        <Ionicons name="lock-closed" size={20} color={theme.textSecondary} />
+        <Text className="flex-1 text-body text-neutral-800 dark:text-neutral-200">{headline}</Text>
       </Animated.View>
     );
   }
@@ -155,17 +167,20 @@ export function LockBanner({ session, onPanic, variant = "default" }: LockBanner
       // Neutral surface, deliberately NOT primary/accent/warning-tinted: the
       // lock is consensual, so nothing here should read as an alert (doc `04`
       // §7, PRD §8.8).
-      className="rounded-2xl border border-neutral-200 bg-neutral-100 p-4"
+      className="rounded-2xl border border-neutral-200 bg-neutral-100 p-4 dark:border-neutral-800 dark:bg-neutral-950"
       style={shadows.sm}
       accessibilityRole="summary"
       accessibilityLabel={a11y}
     >
       <View className="flex-row items-start gap-3">
-        <View className="h-9 w-9 items-center justify-center rounded-full bg-white">
-          <Ionicons name="lock-closed" size={18} color={colors.light.textSecondary} />
+        {/* Lifts one step ABOVE the banner surface in both schemes (white on
+            neutral-100, the dark card on neutral-950) - same relationship,
+            still no tint, still nothing that reads as an alert. */}
+        <View className="h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-neutral-900">
+          <Ionicons name="lock-closed" size={18} color={theme.textSecondary} />
         </View>
         <View className="flex-1">
-          <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500">
+          <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
             On the line
           </Text>
           {/* No `leading-5` here: that pinned a 15px line to a 20px box, */}
@@ -174,7 +189,7 @@ export function LockBanner({ session, onPanic, variant = "default" }: LockBanner
           {/* on the wrap this headline takes at longer app names. It also */}
           {/* has no numberOfLines on purpose: the banner grows rather than */}
           {/* truncating, so "Instagram and 2 more are locked" always reads. */}
-          <Text className="mt-0.5 text-body font-medium text-neutral-900">{headline}</Text>
+          <Text className="mt-0.5 text-body font-medium text-neutral-900 dark:text-neutral-50">{headline}</Text>
         </View>
       </View>
 
@@ -183,14 +198,14 @@ export function LockBanner({ session, onPanic, variant = "default" }: LockBanner
       <PressableScale
         onPress={onPanic}
         haptic="light"
-        className="mt-3 flex-row items-center justify-center gap-1.5 self-start rounded-full bg-white px-3.5 py-2"
+        className="mt-3 flex-row items-center justify-center gap-1.5 self-start rounded-full bg-white px-3.5 py-2 dark:bg-neutral-900"
         style={shadows.xs}
         accessibilityRole="button"
         accessibilityLabel="Unlock early"
         accessibilityHint="Opens a 60 second breather before your apps come back"
       >
-        <Ionicons name="leaf-outline" size={15} color={colors.light.textSecondary} />
-        <Text className="text-caption font-medium text-neutral-700">Unlock early</Text>
+        <Ionicons name="leaf-outline" size={15} color={theme.textSecondary} />
+        <Text className="text-caption font-medium text-neutral-700 dark:text-neutral-300">Unlock early</Text>
       </PressableScale>
     </Animated.View>
   );
