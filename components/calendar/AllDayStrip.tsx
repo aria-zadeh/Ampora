@@ -76,7 +76,7 @@ function AllDayChipsRow({
             </View>
             {overflow > 0 ? (
               <Text
-                className="text-tiny text-neutral-500"
+                className="text-tiny text-neutral-500 dark:text-neutral-400"
                 numberOfLines={1}
                 accessibilityLabel={`${overflow} more all-day event${overflow === 1 ? '' : 's'}`}
               >
@@ -114,9 +114,12 @@ export function AllDayStripRow({ dayStarts, events, onEventPress, testIDPrefix }
   if (stripHeight === 0) return null
 
   return (
-    <View className="flex-row border-b border-neutral-200 bg-neutral-100" testID={`${testIDPrefix}-row`}>
+    <View
+      className="flex-row border-b border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950"
+      testID={`${testIDPrefix}-row`}
+    >
       <View style={{ width: GUTTER_WIDTH, height: stripHeight }} className="items-end justify-center pr-2">
-        <Text className="text-tiny text-neutral-500" numberOfLines={1}>
+        <Text className="text-tiny text-neutral-500 dark:text-neutral-400" numberOfLines={1}>
           All day
         </Text>
       </View>

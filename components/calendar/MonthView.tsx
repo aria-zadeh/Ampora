@@ -153,7 +153,7 @@ export function MonthView({
       <View className="flex-row py-2">
         {WEEKDAY_SHORT.map((label, i) => (
           <View key={i} className="flex-1 items-center">
-            <Text className="text-tiny font-semibold uppercase tracking-wide text-neutral-500">
+            <Text className="text-tiny font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
               {label}
             </Text>
           </View>
@@ -230,8 +230,8 @@ function DayCellView({ cell, onPress }: { cell: DayCell; onPress?: () => void })
                 isToday
                   ? 'text-white font-semibold'
                   : inMonth
-                    ? 'text-neutral-800 font-medium'
-                    : 'text-neutral-300'
+                    ? 'text-neutral-800 dark:text-neutral-100 font-medium'
+                    : 'text-neutral-300 dark:text-neutral-700'
               }`}
             >
               {dayNum}
@@ -253,7 +253,7 @@ function DayCellView({ cell, onPress }: { cell: DayCell; onPress?: () => void })
             {overflow > 0 ? (
               <Text
                 className={`text-tiny font-medium ml-0.5 ${
-                  inMonth ? 'text-neutral-500' : 'text-neutral-300'
+                  inMonth ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-300 dark:text-neutral-700'
                 }`}
               >
                 +{overflow}
@@ -276,7 +276,7 @@ function DayCellView({ cell, onPress }: { cell: DayCell; onPress?: () => void })
             />
             {eventCount > 1 ? (
               <Text
-                className={`text-tiny font-medium ${inMonth ? 'text-neutral-500' : 'text-neutral-300'}`}
+                className={`text-tiny font-medium ${inMonth ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-300 dark:text-neutral-700'}`}
               >
                 {eventCount}
               </Text>

@@ -373,16 +373,25 @@ export default function ProfileScreen() {
                 );
               })}
             </View>
-            {/* Says so out loud, because the alternative is worse. The theme
-                mechanism is real and correct, but only Profile and Settings are
-                converted so far. Someone choosing Dark and finding Today still
-                bright would reasonably read the app as broken, and an honest
-                line costs far less trust than that does. Delete this the round
-                the remaining screens land, not before. */}
+            {/* Says so out loud, because the alternative is worse: someone
+                choosing Dark, hitting a bright screen and reasonably reading
+                the app as broken. Most of the app follows the theme now, so
+                this names the specific remaining gap rather than the old
+                blanket "the rest stays light", which is no longer true.
+                Deliberately worded by CATEGORY rather than as a list of
+                screens, because a list goes stale within a round and this note
+                has already been rewritten twice for that reason. What is still
+                light as of 2026-08-25: the Projects screens and sheets, the
+                verification sheet and proof log, the brain-dump sheet, the
+                task-editor sub-sections, and a handful of layout wrappers.
+                Count it rather than trusting this comment:
+                `grep -rl 'dark:' app/ components/ --include=*.tsx | wc -l`.
+                Keep the sentence accurate or delete it. A stale honesty note
+                is worse than none. */}
             {themePreference !== "light" && (
               <Text variant="caption" className="mt-3 text-neutral-500 dark:text-[#78716C]">
-                Dark mode is still rolling out. Profile and Settings follow it
-                today, the rest of the app stays light for now.
+                Dark mode covers the main screens. A few deeper ones, Projects
+                and the proof log among them, are still catching up.
               </Text>
             )}
           </View>

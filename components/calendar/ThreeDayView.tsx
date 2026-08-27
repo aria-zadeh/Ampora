@@ -78,7 +78,7 @@ function DayHeader({
     <View className="flex-1 items-center py-2" accessibilityRole="header">
       <Text
         className={`text-tiny font-medium uppercase ${
-          isToday ? 'text-primary-600' : 'text-neutral-500'
+          isToday ? 'text-primary-600 dark:text-primary-400' : 'text-neutral-500 dark:text-neutral-400'
         }`}
       >
         {weekday}
@@ -90,7 +90,7 @@ function DayHeader({
       >
         <Text
           className={`text-label font-semibold ${
-            isToday ? 'text-white' : 'text-neutral-800'
+            isToday ? 'text-white' : 'text-neutral-800 dark:text-neutral-100'
           }`}
         >
           {dayNum}
@@ -234,7 +234,7 @@ export function ThreeDayView({
   return (
     <View style={{ flex: 1 }} testID={testID}>
       {/* Sticky header row: an empty gutter spacer + the three day headers. */}
-      <View className="flex-row border-b border-neutral-200 bg-neutral-100">
+      <View className="flex-row border-b border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950">
         <View style={{ width: GUTTER_WIDTH }} />
         <View className="flex-1 flex-row">
           {dayStarts.map((ds) => (
@@ -285,7 +285,7 @@ export function ThreeDayView({
                       className="items-end pr-2"
                     >
                       <Text
-                        className="text-tiny text-neutral-500"
+                        className="text-tiny text-neutral-500 dark:text-neutral-400"
                         style={{ marginTop: -6 }}
                         accessibilityLabel={hourLabelLong(hour)}
                         allowFontScaling
@@ -293,7 +293,7 @@ export function ThreeDayView({
                         {hour === 0 ? '' : hourLabel(hour)}
                       </Text>
                     </View>
-                    <View className="flex-1 h-[1px] bg-neutral-200" />
+                    <View className="flex-1 h-[1px] bg-neutral-200 dark:bg-neutral-800" />
                   </View>
                 </View>
               )
@@ -314,7 +314,7 @@ export function ThreeDayView({
               {dayStarts.map((ds, i) => (
                 <View
                   key={ds}
-                  className={`flex-1 ${i > 0 ? 'border-l border-neutral-200' : ''}`}
+                  className={`flex-1 ${i > 0 ? 'border-l border-neutral-200 dark:border-neutral-800' : ''}`}
                 />
               ))}
             </View>

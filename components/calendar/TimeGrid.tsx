@@ -179,7 +179,7 @@ export function TimeGrid({
                   <View style={{ width: GUTTER_WIDTH }} className="items-end pr-2">
                     {/* Nudge the label up so it centers on the line, not below it. */}
                     <Text
-                      className="text-tiny text-neutral-500"
+                      className="text-tiny text-neutral-500 dark:text-neutral-400"
                       style={{ marginTop: -6 }}
                       accessibilityLabel={hourLabelLong(hour)}
                       allowFontScaling
@@ -187,7 +187,12 @@ export function TimeGrid({
                       {hour === 0 ? '' : hourLabel(hour)}
                     </Text>
                   </View>
-                  <View className="flex-1 h-[1px] bg-neutral-200" />
+                  {/* The hour hairline is a reading aid, deliberately faint
+                      and decorative (it conveys no state, so it is exempt from
+                      the 3:1 UI bar). neutral-800 on the dark canvas measures
+                      1.30:1, close to the 1.15:1 neutral-200 gives on light, so
+                      it stays equally quiet rather than becoming a hard line. */}
+                  <View className="flex-1 h-[1px] bg-neutral-200 dark:bg-neutral-800" />
                 </View>
               </View>
             )
