@@ -97,12 +97,12 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
+              className="rounded-t-sheet bg-surface"
             >
               <SafeAreaView edges={['bottom']}>
                 {/* Grabber */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1 w-10 rounded-xxs bg-line" />
                 </View>
 
                 {/* Header: event title + time range */}
@@ -116,7 +116,7 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
                   <Pressable
                     onPress={onClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                    className="h-9 w-9 items-center justify-center rounded-full bg-raised"
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
@@ -134,7 +134,7 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
                     // Device-synced: clearly external, never pretending to be
                     // ours (FR-22 — read-only, write-back out of scope).
                     <View
-                      className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3"
+                      className="flex-row items-start gap-3 rounded-lg border border-neutral-200 bg-raised px-4 py-3"
                       accessibilityLabel={`Synced from ${SOURCE_LABEL[event.source]}. Edit or delete it there.`}
                     >
                       <Ionicons name="link-outline" size={20} color={theme.textMuted} style={{ marginTop: 1 }} />

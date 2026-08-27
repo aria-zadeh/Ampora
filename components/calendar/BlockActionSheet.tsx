@@ -233,12 +233,12 @@ export function BlockActionSheet({
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
+              className="rounded-t-sheet bg-surface"
             >
               <SafeAreaView edges={['bottom']}>
                 {/* Grabber */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1 w-10 rounded-xxs bg-line" />
                 </View>
 
                 {/* Header: task title + time range */}
@@ -252,7 +252,7 @@ export function BlockActionSheet({
                   <Pressable
                     onPress={onClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                    className="h-9 w-9 items-center justify-center rounded-full bg-raised"
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
@@ -269,7 +269,7 @@ export function BlockActionSheet({
                         key={o.key}
                         onPress={() => handlePostpone(o.at)}
                         haptic={false}
-                        className="flex-1 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-2 py-3"
+                        className="flex-1 items-center gap-1 rounded-lg border border-neutral-200 bg-raised px-2 py-3"
                         accessibilityRole="button"
                         accessibilityLabel={`Postpone to ${describeInstant(o.at, nowMs)}`}
                       >
@@ -288,8 +288,8 @@ export function BlockActionSheet({
                       setPickingTime((v) => !v)
                     }}
                     haptic={false}
-                    className={`mt-2 flex-row items-center gap-3 rounded-xl border px-4 py-3 ${
-                      pickingTime ? 'border-primary-300 bg-primary-50' : 'border-neutral-200 bg-white'
+                    className={`mt-2 flex-row items-center gap-3 rounded-lg border px-4 py-3 ${
+                      pickingTime ? 'border-primary-300 bg-primary-50' : 'border-neutral-200 bg-raised'
                     }`}
                     accessibilityRole="button"
                     accessibilityLabel="Pick a specific time to postpone to"
@@ -307,7 +307,7 @@ export function BlockActionSheet({
                   {pickingTime ? (
                     <Animated.View
                       entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
-                      className="mt-2 rounded-xl border border-neutral-200 bg-white p-3"
+                      className="mt-2 rounded-lg border border-neutral-200 bg-raised p-3"
                     >
                       <View className="flex-row gap-2">
                         <View className="flex-1">
@@ -430,12 +430,12 @@ export function ActionRow({
       onPress={disabled ? undefined : onPress}
       haptic={false}
       disabled={disabled}
-      className={`flex-row items-center gap-3 rounded-xl border px-4 py-3 ${
+      className={`flex-row items-center gap-3 rounded-lg border px-4 py-3 ${
         disabled
-          ? 'border-neutral-200 bg-white opacity-60'
+          ? 'border-neutral-200 bg-raised opacity-60'
           : active
             ? 'border-primary-300 bg-primary-50'
-            : 'border-neutral-200 bg-white'
+            : 'border-neutral-200 bg-raised'
       }`}
       accessibilityRole={active != null ? 'switch' : 'button'}
       accessibilityLabel={blurb ? `${label}. ${blurb}` : label}
