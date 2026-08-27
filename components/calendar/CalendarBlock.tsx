@@ -172,7 +172,7 @@ export function CalendarBlock({
           // Dense column (§8.7 width < 56): bar + as much title as fits, tap
           // for detail. This used to hard-slice the title to 6 characters,
           // which silently assumed a font advance width: a fixed character
-          // count measures wider in Lexend than it did in Inter, so 6 wide
+          // count measures wider in Outfit than it did in Lexend, so 6 wide
           // glyphs could overflow the ~45px of usable width. Let the layout
           // measure instead — `numberOfLines` + tail ellipsis truncate at the
           // real width, at any typeface, and unlike the slice they leave a

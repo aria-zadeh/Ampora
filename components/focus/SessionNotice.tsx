@@ -36,7 +36,7 @@ export function SessionNotice({ icon, text, role = "summary", className }: Sessi
     >
       <Ionicons name={icon} size={iconSizes.sm} color={theme.primary} />
       {/* `leading-5` removed: 15px body belongs in the scale's 22px box, and */}
-      {/* Lexend needs the room Inter did not. */}
+      {/* Outfit needs the room the old face did not. */}
       <Text className="flex-1 text-body font-medium text-neutral-800">{text}</Text>
     </Animated.View>
   );

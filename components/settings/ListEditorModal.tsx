@@ -4,7 +4,6 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
-import { PressableScale } from "@/components/ui/PressableScale";
 import { Stepper, Toggle } from "@/components/settings/SettingsPrimitives";
 import { useListStore, selectListById } from "@/store/listStore";
 import { useThemeColors, useListColors } from "@/hooks/useThemeColors";
@@ -237,7 +236,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
               ) : null}
             </View>
             <Text className="ml-1 mt-2 text-caption text-neutral-500">
-              A task's own hours still win; then this list's; then your default.
+              A task&apos;s own hours still win; then this list&apos;s; then your default.
             </Text>
 
             {/* Actions */}

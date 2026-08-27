@@ -198,7 +198,7 @@ function PreviewBody({
         {/* h1/28pt, two-line hero heading — measured off recovery-mode.pdf
             (bumped up from h2/22pt, the rest of the copy is unchanged). */}
         <Heading size="h1" className="mt-4">
-          Let's catch you up
+          Let&apos;s catch you up
         </Heading>
         <Text className="mt-2 text-body text-neutral-600 leading-6">
           {nothingToDo

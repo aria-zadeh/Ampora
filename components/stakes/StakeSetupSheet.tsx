@@ -435,7 +435,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                         {task.title}
                       </Heading>
                       <Text className="mt-1 text-caption text-neutral-500">
-                        A lock that lifts when you've earned it. You're always in control.
+                        A lock that lifts when you&apos;ve earned it. You&apos;re always in control.
                       </Text>
                     </View>
                     <Pressable
@@ -474,7 +474,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
 
                     {!stakeOn ? (
                       <Text className="px-1 text-caption text-neutral-500">
-                        No lock this time. Turn this on whenever you're ready.
+                        No lock this time. Turn this on whenever you&apos;re ready.
                       </Text>
                     ) : (
                       <>
@@ -778,7 +778,7 @@ function HoldOptionTile({
         </Text>
         {/* 3 lines, not 2. The longest blurb ("Apps come back once you've */}
         {/* focused for the session length below.") lands at roughly 35 */}
-        {/* characters per line in Lexend against the ~250px this column */}
+        {/* characters per line in Outfit against the ~250px this column */}
         {/* gets, so it fills both lines with nothing spare. One notch of */}
         {/* Dynamic Type used to cut the sentence mid-word, and this is the */}
         {/* copy that explains what the lock will actually do. */}

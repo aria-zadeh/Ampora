@@ -7,7 +7,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router, usePathname } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { borderRadius, iconSizes, motion } from "@/utils/design-tokens";
@@ -17,8 +17,6 @@ import { TAB_ROUTES, type TabRoute } from "@/constants/tabRoutes";
 
 /** Height of the visual pill track (a 44px segment row plus 2px padding each side). */
 export const TOP_NAV_TRACK_HEIGHT = 48;
-/** Gap above and below the track, inside the safe area. */
-const TOP_NAV_GAP = 8;
 
 /**
  * DEPRECATED shim, retained so existing call sites keep compiling.

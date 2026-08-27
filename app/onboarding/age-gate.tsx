@@ -79,8 +79,8 @@ export default function AgeGateScreen() {
             variant="bodyLg"
             className="mt-3 max-w-300 text-center text-neutral-600 leading-6"
           >
-            That's a rule we follow closely, not a judgment on you. Come back
-            and join us once you turn 13, we'll be here.
+            That&apos;s a rule we follow closely, not a judgment on you. Come back
+            and join us once you turn 13, we&apos;ll be here.
           </Text>
         </Animated.View>
       </View>
@@ -102,7 +102,7 @@ export default function AgeGateScreen() {
               One quick check
             </Text>
             <Heading size="h1" className="max-w-300">
-              When's your birthday?
+              When&apos;s your birthday?
             </Heading>
             <Text variant="bodyLg" className="mt-3 max-w-xs leading-6 text-neutral-600">
               Ampora is for ages 13 and up. We only keep a yes or no from
@@ -120,7 +120,7 @@ export default function AgeGateScreen() {
             />
             {isFutureDate ? (
               <Text variant="caption" className="mt-2 text-danger-600">
-                That date hasn't happened yet, double check it.
+                That date hasn&apos;t happened yet, double check it.
               </Text>
             ) : null}
           </Animated.View>

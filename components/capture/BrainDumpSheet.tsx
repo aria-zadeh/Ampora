@@ -363,10 +363,10 @@ function UnavailablePanel({ onClose }: { onClose: () => void }) {
         <Ionicons name="mic-off-outline" size={32} color={theme.textDisabled} />
       </View>
       <Heading size="h4" className="text-center">
-        Voice capture isn't available here
+        Voice capture isn&apos;t available here
       </Heading>
       <Text className="text-body text-neutral-500 text-center mt-2 max-w-280">
-        This device or browser doesn't support on-device speech recognition. You can still type your tasks below.
+        This device or browser doesn&apos;t support on-device speech recognition. You can still type your tasks below.
       </Text>
       <View className="mt-6">
         <Button title="Type instead" variant="primaryBlue" onPress={onClose} />

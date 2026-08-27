@@ -174,7 +174,7 @@ export function LockBanner({ session, onPanic, variant = "default" }: LockBanner
             On the line
           </Text>
           {/* No `leading-5` here: that pinned a 15px line to a 20px box, */}
-          {/* tighter than the scale's 22px. Lexend sits taller in its line */}
+          {/* tighter than the scale's 21px. Outfit sits taller in its line */}
           {/* box than Inter did, so the override risked clipping descenders */}
           {/* on the wrap this headline takes at longer app names. It also */}
           {/* has no numberOfLines on purpose: the banner grows rather than */}

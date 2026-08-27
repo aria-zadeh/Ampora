@@ -220,7 +220,6 @@ function DraggableBlock({
   scrollController?: GridScrollController
 }) {
   const reduceMotion = useReduceMotion()
-  const theme = useThemeColors()
 
   const item = laid.item
   const block = item.kind === 'task' ? item.block : undefined

@@ -11,8 +11,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
-import { EASINGS } from "@/utils/motion";
-import { DURATIONS } from "@/utils/motion";
+import { DURATIONS, EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { Text } from "./Text";

@@ -398,7 +398,7 @@ export default function HomeScreen() {
             accessibilityHint="Opens one calm step at a time"
           >
             <Text variant="bodyMedium" className="text-ink-secondary">
-              I'm overwhelmed
+              I&apos;m overwhelmed
             </Text>
           </PressableScale>
         </View>

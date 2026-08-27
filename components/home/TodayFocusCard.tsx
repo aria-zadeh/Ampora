@@ -256,7 +256,7 @@ export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
   return (
     <View className="rounded-xl border border-line bg-surface p-4">
       <Text variant="overline" className="text-primary-600">
-        Today's focus
+        Today&apos;s focus
       </Text>
 
       {/* Header row (measured layout): title on the left, duration

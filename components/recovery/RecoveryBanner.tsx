@@ -67,7 +67,7 @@ export function RecoveryBanner() {
               Fresh start
             </Text>
             {/* `leading-5` removed: 15px body belongs in the scale's 22px */}
-            {/* box, and Lexend needs the room Inter did not. */}
+            {/* box, and Outfit needs the room the old face did not. */}
             <Text className="mt-0.5 text-body font-medium text-primary-900">
               You have {missedCount} unfinished {missedCount === 1 ? 'block' : 'blocks'}. Want me to
               rebuild?

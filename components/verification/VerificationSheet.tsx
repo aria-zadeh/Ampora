@@ -38,7 +38,7 @@
  */
 
 import React, { useMemo, useState } from "react";
-import { View, Text, TextInput, Modal, Pressable, ScrollView } from "react-native";
+import { View, Text, Modal, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
