@@ -12,17 +12,17 @@ import { useStakeTick } from "@/hooks/useStakeTick";
 import { useStakeScheduler } from "@/hooks/useStakeScheduler";
 import { useNightlyPass } from "@/hooks/useNightlyPass";
 import { useWebSystemTheme } from "@/hooks/useWebSystemTheme";
-// Lexend, not Inter (docs/02 §2.1 binding convention: weight lives in the
-// family name, mirrored exactly from how Inter was wired here). Inter stays
-// installed in package.json — only the load site moved — since removing the
-// now-unused package is separate cleanup, not part of this pass.
+// Outfit (docs/02 §2.1 binding convention: weight lives in the family name).
+// Confirmed as the typeface behind the Figma source screens; replaced Lexend
+// 2026-08-26. Inter and Lexend were both removed from package.json in the same
+// pass, so this is the only font family the app loads.
 import {
   useFonts,
-  Lexend_400Regular,
-  Lexend_500Medium,
-  Lexend_600SemiBold,
-  Lexend_700Bold,
-} from "@expo-google-fonts/lexend";
+  Outfit_400Regular,
+  Outfit_500Medium,
+  Outfit_600SemiBold,
+  Outfit_700Bold,
+} from "@expo-google-fonts/outfit";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useScheduleStore, selectAllBlocks } from "@/store/scheduleStore";
 import { useTaskStore, selectAllTasks } from "@/store/taskStore";
@@ -48,10 +48,10 @@ export default function RootLayout() {
   const devAuthBypassed = useDevAuthBypassed();
 
   const [fontsLoaded] = useFonts({
-    Lexend_400Regular,
-    Lexend_500Medium,
-    Lexend_600SemiBold,
-    Lexend_700Bold,
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
   });
 
   // Drive `stakesStore.tick()` app-wide (~1/min while foregrounded, plus a
