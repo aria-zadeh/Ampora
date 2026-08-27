@@ -19,6 +19,7 @@
 import React from "react";
 import { View, Text } from "react-native";
 import { colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface ProgressRingProps {
   /** 0..100. */
@@ -105,7 +106,7 @@ export function ProgressRing({
   stroke = 5,
   color,
   colorDeep,
-  trackColor = colors.light.border,
+  trackColor = theme.border,
 }: ProgressRingProps) {
   const value = clampPct(pct);
 
@@ -151,12 +152,16 @@ export function ProgressRing({
 
       {/* Centered percent label — the ring is never color-only. */}
       <Text
-        style={{ fontSize: size * 0.26, fontWeight: "700", color: colors.light.text }}
+        style={{ fontSize: size * 0.26, fontWeight: "700", color: theme.text }}
         allowFontScaling={false}
       >
         {value}
-        <Text style={{ fontSize: size * 0.16, fontWeight: "600", color: colors.light.textMuted }}>%</Text>
+        <Text style={{ fontSize: size * 0.16, fontWeight: "600", color: theme.textMuted }}>%</Text>
       </Text>
     </View>
   );
 }
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors();

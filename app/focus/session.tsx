@@ -73,6 +73,7 @@ import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { NextStep } from "@/core/task-logic";
 import type { StakeSession, Task } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 /** Shortest bounded session we will ever run, in minutes. */
 const MIN_SESSION_MIN = 5;
@@ -105,6 +106,10 @@ function taskCompletionFraction(task: Task): number {
 }
 
 export default function FocusSessionScreen() {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors()
   const reduceMotion = useReduceMotion();
   const params = useLocalSearchParams<{
     taskId?: string;
@@ -650,23 +655,23 @@ export default function FocusSessionScreen() {
   const enter = reduceMotion ? undefined : FadeIn.duration(DURATIONS.slow);
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
+    <SafeAreaView className="flex-1 bg-neutral-100 dark:bg-neutral-950" edges={["top", "bottom"]}>
       {/* One white hero card, inset 18 on the canvas, warm elevated shadow.
           Doc `design/DECISION_SPEC` D4 item 1. `shadows.lg` per
           `utils/design-tokens.ts`'s own pairing of `lg` with `rounded-3xl`
           (26) hero surfaces. Fills to the bottom inset. */}
       <View style={{ flex: 1, margin: spacing.group }}>
-        <View className="flex-1 overflow-hidden rounded-3xl bg-white" style={shadows.lg}>
+        <View className="flex-1 overflow-hidden rounded-3xl bg-white dark:bg-neutral-900" style={shadows.lg}>
           {/* Header: state + task title + close (kept, 44px target). */}
           <View className="flex-row items-center justify-between px-5 pt-4 pb-1">
             <View className="flex-1 pr-3">
               <Text
                 variant="overline"
-                className={timer.ticking ? "text-neutral-600" : "text-warning-700"}
+                className={timer.ticking ? "text-neutral-600 dark:text-neutral-400" : "text-warning-700"}
               >
                 {timer.ticking ? "Focusing" : "Paused"}
               </Text>
-              <Text variant="label" className="text-neutral-600 mt-0.5" numberOfLines={1}>
+              <Text variant="label" className="text-neutral-600 dark:text-neutral-400 mt-0.5" numberOfLines={1}>
                 {task?.title ?? "Focus session"}
               </Text>
             </View>
@@ -682,7 +687,7 @@ export default function FocusSessionScreen() {
                   : "Closes this session"
               }
             >
-              <Ionicons name="close" size={26} color={colors.light.text} />
+              <Ionicons name="close" size={26} color={theme.text} />
             </PressableScale>
           </View>
 
@@ -709,7 +714,7 @@ export default function FocusSessionScreen() {
                 <Animated.View entering={enter} className="w-full items-center">
                   <Text
                     variant="overline"
-                    className="text-neutral-500 text-center"
+                    className="text-neutral-500 dark:text-[#78716C] text-center"
                     style={tabularNums}
                   >
                     {`Session ${sessionOrdinal} of ${sessionCount}`}
@@ -750,7 +755,7 @@ export default function FocusSessionScreen() {
                       onPanic={() => setPanicOpen(true)}
                       variant="slim"
                     />
-                    <Text variant="caption" className="mt-2 px-1 text-neutral-500 text-center">
+                    <Text variant="caption" className="mt-2 px-1 text-neutral-500 dark:text-[#78716C] text-center">
                       Leaving this screen keeps your apps locked. A banner will show the time left
                       and the way out.
                     </Text>
@@ -823,7 +828,7 @@ export default function FocusSessionScreen() {
                     accessibilityLabel="Unlock early"
                     accessibilityHint="Opens a 60 second breather before your apps come back"
                   >
-                    <Text variant="bodyMedium" className="text-neutral-600 underline">
+                    <Text variant="bodyMedium" className="text-neutral-600 dark:text-neutral-400 underline">
                       Unlock early
                     </Text>
                   </PressableScale>

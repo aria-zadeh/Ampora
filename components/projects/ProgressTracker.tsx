@@ -20,6 +20,7 @@ import { PROJECT_ACCENT } from "./projectUtils";
 import { newId } from "@/core/id";
 import { colors, iconSizes, TOUCH_TARGET_MIN } from "@/utils/design-tokens";
 import type { Phase, Project } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface ProgressTrackerProps {
   project: Project;
@@ -27,6 +28,10 @@ interface ProgressTrackerProps {
 }
 
 export function ProgressTracker({ project, onChange }: ProgressTrackerProps) {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors();
   const { phases, percent, kind } = project;
   const noun = kind === "study" ? "topic" : "phase";
   const [newTitle, setNewTitle] = useState("");
@@ -68,7 +73,7 @@ export function ProgressTracker({ project, onChange }: ProgressTrackerProps) {
 
       <View className="gap-2 mt-4 mb-3">
         {sorted.length === 0 ? (
-          <Text className="text-body text-neutral-500">
+          <Text className="text-body text-neutral-500 dark:text-[#78716C]">
             No {noun}s yet.{" "}
             {kind === "study"
               ? "Add what you need to cover and tap each one off as you learn it."
@@ -84,18 +89,18 @@ export function ProgressTracker({ project, onChange }: ProgressTrackerProps) {
               accessibilityState={{ checked: phase.done }}
               accessibilityLabel={`${phase.title}, ${phase.done ? "done" : "not done"}. Tap to toggle.`}
               style={{ minHeight: TOUCH_TARGET_MIN }}
-              className="flex-row items-center rounded-xl border border-neutral-200 bg-white px-3 py-3"
+              className="flex-row items-center rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3 py-3"
             >
               <View
                 className={`h-6 w-6 items-center justify-center rounded-full border-2 ${
-                  phase.done ? "border-accent-600 bg-accent-600" : "border-neutral-300"
+                  phase.done ? "border-accent-600 bg-accent-600" : "border-neutral-300 dark:border-neutral-700"
                 }`}
               >
                 {phase.done ? <Ionicons name="checkmark" size={14} color={colors.light.primaryForeground} /> : null}
               </View>
               <Text
                 className={`flex-1 ml-3 text-body font-medium ${
-                  phase.done ? "text-neutral-400 line-through" : "text-neutral-900"
+                  phase.done ? "text-neutral-400 dark:text-neutral-600 line-through" : "text-neutral-900 dark:text-neutral-50"
                 }`}
                 numberOfLines={2}
               >
@@ -108,7 +113,7 @@ export function ProgressTracker({ project, onChange }: ProgressTrackerProps) {
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${noun} ${phase.title}`}
               >
-                <Ionicons name="close-circle" size={iconSizes.sm} color={colors.light.borderStrong} />
+                <Ionicons name="close-circle" size={iconSizes.sm} color={theme.borderStrong} />
               </Pressable>
             </PressableScale>
           ))
@@ -143,14 +148,14 @@ function AddRow({
   const canAdd = value.trim().length > 0;
   return (
     <View className="flex-row items-center gap-2">
-      <View className="flex-1 flex-row items-center bg-white border border-neutral-200 rounded-md min-h-11 px-3">
-        <Ionicons name="add" size={iconSizes.md} color={colors.light.textDisabled} />
+      <View className="flex-1 flex-row items-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md min-h-11 px-3">
+        <Ionicons name="add" size={iconSizes.md} color={theme.textDisabled} />
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={colors.light.textDisabled}
-          className="flex-1 ml-2 text-body text-neutral-900"
+          placeholderTextColor={theme.textDisabled}
+          className="flex-1 ml-2 text-body text-neutral-900 dark:text-neutral-50"
           returnKeyType="done"
           onSubmitEditing={onAdd}
           accessibilityLabel={placeholder}
@@ -162,10 +167,14 @@ function AddRow({
         onPress={onAdd}
         accessibilityLabel="Add"
         className="w-11 h-11 rounded-md items-center justify-center"
-        style={{ backgroundColor: canAdd ? PROJECT_ACCENT : colors.light.border }}
+        style={{ backgroundColor: canAdd ? PROJECT_ACCENT : theme.border }}
       >
         <Ionicons name="checkmark" size={iconSizes.md} color={colors.light.primaryForeground} />
       </PressableScale>
     </View>
   );
 }
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors();

@@ -99,6 +99,7 @@ import { Heading } from '@/components/ui/Heading'
 import { Text } from '@/components/ui/Text'
 import { PressableScale } from '@/components/ui/PressableScale'
 import { colors, layout } from '@/utils/design-tokens'
+import { useThemeColors } from '@/hooks/useThemeColors'
 
 const LAST_UPDATED = 'August 24, 2026'
 
@@ -119,7 +120,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Paragraph({ children }: { children: React.ReactNode }) {
   return (
-    <Text variant="body" className="mt-2 text-neutral-700">
+    <Text variant="body" className="mt-2 text-neutral-700 dark:text-neutral-300">
       {children}
     </Text>
   )
@@ -128,10 +129,10 @@ function Paragraph({ children }: { children: React.ReactNode }) {
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
     <View className="mt-2 flex-row">
-      <Text variant="body" className="text-neutral-400">
+      <Text variant="body" className="text-neutral-400 dark:text-neutral-600">
         {'•'}
       </Text>
-      <Text variant="body" className="ml-2 flex-1 text-neutral-700">
+      <Text variant="body" className="ml-2 flex-1 text-neutral-700 dark:text-neutral-300">
         {children}
       </Text>
     </View>
@@ -160,10 +161,14 @@ function PlaceholderNotice({ children }: { children: React.ReactNode }) {
 // ---------------------------------------------------------------------------
 
 export default function PrivacyPolicyScreen() {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors()
   const insets = useSafeAreaInsets()
 
   return (
-    <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-neutral-100 dark:bg-neutral-950" style={{ paddingTop: insets.top }}>
       {/* Header with back, matching app/settings/all.tsx's precedent. */}
       <View className="flex-row items-center px-5 pb-2 pt-2">
         <PressableScale
@@ -173,7 +178,7 @@ export default function PrivacyPolicyScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color={colors.light.text} />
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
         </PressableScale>
       </View>
 
@@ -188,13 +193,13 @@ export default function PrivacyPolicyScreen() {
         <View
           style={{ width: '100%', maxWidth: layout.maxContentWidth, alignSelf: 'center' }}
         >
-          <Text variant="overline" className="text-primary-600">
+          <Text variant="overline" className="text-primary-600 dark:text-primary-400">
             Legal
           </Text>
           <Heading size="h1" className="mt-1">
             Privacy Policy
           </Heading>
-          <Text variant="caption" className="mt-1.5 text-neutral-500">
+          <Text variant="caption" className="mt-1.5 text-neutral-500 dark:text-[#78716C]">
             Last updated {LAST_UPDATED}
           </Text>
 
@@ -221,7 +226,7 @@ export default function PrivacyPolicyScreen() {
               run the optional app-locking feature:
             </Paragraph>
             <Bullet>
-              <Text variant="bodyMedium" className="text-neutral-900">
+              <Text variant="bodyMedium" className="text-neutral-900 dark:text-neutral-50">
                 Account information.
               </Text>{' '}
               When you sign in with Apple, Google, or an email magic link, we receive your email
@@ -229,21 +234,21 @@ export default function PrivacyPolicyScreen() {
               device.
             </Bullet>
             <Bullet>
-              <Text variant="bodyMedium" className="text-neutral-900">
+              <Text variant="bodyMedium" className="text-neutral-900 dark:text-neutral-50">
                 Your tasks and content.
               </Text>{' '}
               Tasks and their subtasks, lists and tags, projects and their phases, and any notes
               or assignment text you choose to paste in for AI breakdown.
             </Bullet>
             <Bullet>
-              <Text variant="bodyMedium" className="text-neutral-900">
+              <Text variant="bodyMedium" className="text-neutral-900 dark:text-neutral-50">
                 Schedule and calendar busy-time.
               </Text>{' '}
               The times Ampora schedules your tasks into, plus read-only busy-time information
               from any calendar you connect (see &quot;Calendar access&quot; below).
             </Bullet>
             <Bullet>
-              <Text variant="bodyMedium" className="text-neutral-900">
+              <Text variant="bodyMedium" className="text-neutral-900 dark:text-neutral-50">
                 Focus session history and lock events.
               </Text>{' '}
               When a focus session starts and ends, the session length and lock settings you
@@ -252,7 +257,7 @@ export default function PrivacyPolicyScreen() {
               Time system, not as app names or identities our servers can read.
             </Bullet>
             <Bullet>
-              <Text variant="bodyMedium" className="text-neutral-900">
+              <Text variant="bodyMedium" className="text-neutral-900 dark:text-neutral-50">
                 Proof records.
               </Text>{' '}
               If you use the &quot;lock until it&apos;s done&quot; option on a short task, you can
@@ -261,14 +266,14 @@ export default function PrivacyPolicyScreen() {
               Ampora.
             </Bullet>
             <Bullet>
-              <Text variant="bodyMedium" className="text-neutral-900">
+              <Text variant="bodyMedium" className="text-neutral-900 dark:text-neutral-50">
                 Usage events.
               </Text>{' '}
               A small on-device log of things like session completions and how long it took you
               to start a task, used only to show your own patterns back to you.
             </Bullet>
             <Bullet>
-              <Text variant="bodyMedium" className="text-neutral-900">
+              <Text variant="bodyMedium" className="text-neutral-900 dark:text-neutral-50">
                 Microphone audio.
               </Text>{' '}
               If you use Brain dump to add tasks by voice, your microphone is active only while

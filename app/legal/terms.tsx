@@ -80,6 +80,7 @@ import { Heading } from '@/components/ui/Heading'
 import { Text } from '@/components/ui/Text'
 import { PressableScale } from '@/components/ui/PressableScale'
 import { colors, layout } from '@/utils/design-tokens'
+import { useThemeColors } from '@/hooks/useThemeColors'
 
 const LAST_UPDATED = 'August 24, 2026'
 
@@ -100,7 +101,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Paragraph({ children }: { children: React.ReactNode }) {
   return (
-    <Text variant="body" className="mt-2 text-neutral-700">
+    <Text variant="body" className="mt-2 text-neutral-700 dark:text-neutral-300">
       {children}
     </Text>
   )
@@ -109,10 +110,10 @@ function Paragraph({ children }: { children: React.ReactNode }) {
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
     <View className="mt-2 flex-row">
-      <Text variant="body" className="text-neutral-400">
+      <Text variant="body" className="text-neutral-400 dark:text-neutral-600">
         {'•'}
       </Text>
-      <Text variant="body" className="ml-2 flex-1 text-neutral-700">
+      <Text variant="body" className="ml-2 flex-1 text-neutral-700 dark:text-neutral-300">
         {children}
       </Text>
     </View>
@@ -141,10 +142,14 @@ function PlaceholderNotice({ children }: { children: React.ReactNode }) {
 // ---------------------------------------------------------------------------
 
 export default function TermsOfServiceScreen() {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors()
   const insets = useSafeAreaInsets()
 
   return (
-    <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-neutral-100 dark:bg-neutral-950" style={{ paddingTop: insets.top }}>
       {/* Header with back, matching app/settings/all.tsx's precedent. */}
       <View className="flex-row items-center px-5 pb-2 pt-2">
         <PressableScale
@@ -154,7 +159,7 @@ export default function TermsOfServiceScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color={colors.light.text} />
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
         </PressableScale>
       </View>
 
@@ -169,13 +174,13 @@ export default function TermsOfServiceScreen() {
         <View
           style={{ width: '100%', maxWidth: layout.maxContentWidth, alignSelf: 'center' }}
         >
-          <Text variant="overline" className="text-primary-600">
+          <Text variant="overline" className="text-primary-600 dark:text-primary-400">
             Legal
           </Text>
           <Heading size="h1" className="mt-1">
             Terms of Service
           </Heading>
-          <Text variant="caption" className="mt-1.5 text-neutral-500">
+          <Text variant="caption" className="mt-1.5 text-neutral-500 dark:text-[#78716C]">
             Last updated {LAST_UPDATED}
           </Text>
 

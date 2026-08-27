@@ -17,6 +17,7 @@ import { ProgressRing } from "./ProgressRing";
 import { kindMeta, PROJECT_ACCENT } from "./projectUtils";
 import { colors, iconSizes } from "@/utils/design-tokens";
 import type { Project } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface ProjectCardProps {
   project: Project;
@@ -26,6 +27,10 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project, taskCount, onPress }: ProjectCardProps) {
+  // Only for literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, animated styles) which cannot take a
+  // `dark:` class.
+  const theme = useThemeColors();
   const meta = kindMeta(project.kind);
 
   return (
@@ -41,7 +46,7 @@ export function ProjectCard({ project, taskCount, onPress }: ProjectCardProps) {
       <View className="flex-1 ml-4">
         <View className="flex-row items-center gap-2">
           <Text
-            className="flex-1 text-body-lg font-semibold text-neutral-900"
+            className="flex-1 text-body-lg font-semibold text-neutral-900 dark:text-neutral-50"
             numberOfLines={1}
           >
             {project.title}
@@ -52,8 +57,8 @@ export function ProjectCard({ project, taskCount, onPress }: ProjectCardProps) {
           <Badge label={meta.label} tone="accent" />
           {taskCount > 0 && (
             <View className="flex-row items-center">
-              <Ionicons name="checkbox-outline" size={iconSizes.xs} color={colors.light.textMuted} />
-              <Text className="text-caption text-neutral-500 ml-1">
+              <Ionicons name="checkbox-outline" size={iconSizes.xs} color={theme.textMuted} />
+              <Text className="text-caption text-neutral-500 dark:text-[#78716C] ml-1">
                 {taskCount} {taskCount === 1 ? "task" : "tasks"}
               </Text>
             </View>
@@ -61,7 +66,7 @@ export function ProjectCard({ project, taskCount, onPress }: ProjectCardProps) {
         </View>
       </View>
 
-      <Ionicons name="chevron-forward" size={iconSizes.md} color={colors.light.borderStrong} />
+      <Ionicons name="chevron-forward" size={iconSizes.md} color={theme.borderStrong} />
     </Card>
   );
 }
