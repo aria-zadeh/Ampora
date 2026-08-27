@@ -12,7 +12,7 @@ interface ComingSoonProps {
 
 export function ComingSoon({ title, subtitle, icon }: ComingSoonProps) {
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100">
+    <SafeAreaView className="flex-1 bg-neutral-100 dark:bg-neutral-950">
       <View className="flex-1 items-center justify-center">
         <EmptyState title={title} subtitle={subtitle} icon={icon} />
       </View>

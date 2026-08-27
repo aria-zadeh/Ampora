@@ -133,13 +133,13 @@ export function AddEventModal({
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
+              className="rounded-t-3xl bg-neutral-100 dark:bg-neutral-950"
               style={shadows.xl}
             >
               <SafeAreaView edges={["bottom"]}>
                 {/* Grabber */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1.5 w-10 rounded-full bg-neutral-300 dark:bg-neutral-700" />
                 </View>
 
                 {/* Header */}
@@ -148,7 +148,7 @@ export function AddEventModal({
                   <Pressable
                     onPress={onClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                    className="h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-neutral-900"
                     style={shadows.xs}
                     accessibilityRole="button"
                     accessibilityLabel="Close"
@@ -159,7 +159,7 @@ export function AddEventModal({
 
                 <View className="px-5 pb-4 pt-3">
                   {/* Title */}
-                  <Text className="mb-1.5 px-1 text-caption font-medium text-neutral-500">
+                  <Text className="mb-1.5 px-1 text-caption font-medium text-neutral-500 dark:text-[#78716C]">
                     Title (optional)
                   </Text>
                   <TextInput
@@ -167,20 +167,20 @@ export function AddEventModal({
                     onChangeText={setTitle}
                     placeholder="e.g. Soccer practice"
                     placeholderTextColor={theme.textDisabled}
-                    className="mb-4 min-h-[44px] rounded-xl border border-neutral-200 bg-white px-4 py-3 text-body text-neutral-900"
+                    className="mb-4 min-h-[44px] rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3 text-body text-neutral-900 dark:text-neutral-50"
                     accessibilityLabel="Event title"
                   />
 
                   {/* All day — collapses the time pickers below (an all-day
                       event has no meaningful clock time) and shapes the saved
                       span to whole local days on Save (see `allDaySpan`). */}
-                  <View className="mb-4 flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3">
-                    <Text className="text-body text-neutral-900">All day</Text>
+                  <View className="mb-4 flex-row items-center justify-between rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3">
+                    <Text className="text-body text-neutral-900 dark:text-neutral-50">All day</Text>
                     <Toggle value={allDay} onChange={setAllDay} a11yLabel="All-day event" />
                   </View>
 
                   {/* Starts */}
-                  <Text className="mb-1.5 px-1 text-caption font-medium text-neutral-500">Starts</Text>
+                  <Text className="mb-1.5 px-1 text-caption font-medium text-neutral-500 dark:text-[#78716C]">Starts</Text>
                   <View className="mb-4 flex-row gap-2">
                     <View className="flex-1">
                       <DateTimePickerCrossPlatform
@@ -203,7 +203,7 @@ export function AddEventModal({
                   </View>
 
                   {/* Ends */}
-                  <Text className="mb-1.5 px-1 text-caption font-medium text-neutral-500">Ends</Text>
+                  <Text className="mb-1.5 px-1 text-caption font-medium text-neutral-500 dark:text-[#78716C]">Ends</Text>
                   <View className="mb-6 flex-row gap-2">
                     <View className="flex-1">
                       <DateTimePickerCrossPlatform

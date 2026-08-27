@@ -14,6 +14,7 @@ import { staggerDelay, DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import * as taskLogic from "@/core/task-logic";
 import type { Subtask } from "@/types";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface SubtaskChecklistProps {
   subtasks: Subtask[];
@@ -53,6 +54,9 @@ function StepRow({
   onDelete: (subtaskId: string) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
 }) {
+  // Only for the literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`), which cannot take a `dark:` class.
+  const theme = useThemeColors();
   const done = taskLogic.isSubtaskDone(subtask);
 
   const handleToggle = () => {
@@ -62,7 +66,7 @@ function StepRow({
 
   return (
     <View
-      className="flex-row items-center gap-2 rounded-lg bg-white px-3 py-1"
+      className="flex-row items-center gap-2 rounded-lg bg-white dark:bg-neutral-900 px-3 py-1"
       style={shadows.xs}
       accessibilityLabel={`${subtask.title}, ${subtask.estimatedMin} minutes${done ? ", completed" : ""}`}
     >
@@ -77,7 +81,7 @@ function StepRow({
       >
         <View
           className={`h-[23px] w-[23px] items-center justify-center rounded-full ${
-            done ? "bg-primary-600" : "bg-neutral-100"
+            done ? "bg-primary-600" : "bg-neutral-100 dark:bg-neutral-950"
           }`}
         >
           {done ? <Ionicons name="checkmark" size={13} color={colors.light.primaryForeground} /> : null}
@@ -94,7 +98,7 @@ function StepRow({
       >
         <Text
           variant={done ? "body" : "bodyMedium"}
-          className={done ? "text-neutral-400 line-through" : "text-neutral-900"}
+          className={done ? "text-neutral-400 dark:text-neutral-600 line-through" : "text-neutral-900 dark:text-neutral-50"}
           numberOfLines={2}
         >
           {subtask.title}
@@ -102,7 +106,7 @@ function StepRow({
       </PressableScale>
 
       {/* Time */}
-      <Text variant="captionMedium" className="text-neutral-600" style={tabularNums}>
+      <Text variant="captionMedium" className="text-neutral-600 dark:text-neutral-400" style={tabularNums}>
         {subtask.estimatedMin} min
       </Text>
 
@@ -126,7 +130,7 @@ function StepRow({
           <Ionicons
             name="chevron-up"
             size={14}
-            color={index === 0 ? colors.light.borderStrong : colors.light.textMuted}
+            color={index === 0 ? theme.borderStrong : theme.textMuted}
           />
         </Pressable>
         <Pressable
@@ -141,7 +145,7 @@ function StepRow({
           <Ionicons
             name="chevron-down"
             size={14}
-            color={isLast ? colors.light.borderStrong : colors.light.textMuted}
+            color={isLast ? theme.borderStrong : theme.textMuted}
           />
         </Pressable>
       </View>
@@ -154,7 +158,7 @@ function StepRow({
         accessibilityRole="button"
         accessibilityLabel={`Delete step: ${subtask.title}`}
       >
-        <Ionicons name="trash-outline" size={16} color={colors.light.textMuted} />
+        <Ionicons name="trash-outline" size={16} color={theme.textMuted} />
       </Pressable>
     </View>
   );
@@ -168,6 +172,9 @@ export function SubtaskChecklist({
   onEditTitle,
   onReorder,
 }: SubtaskChecklistProps) {
+  // Only for the literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`), which cannot take a `dark:` class.
+  const theme = useThemeColors();
   const [newTitle, setNewTitle] = useState("");
   const [newMin, setNewMin] = useState("");
   const reduceMotion = useReduceMotion();
@@ -213,7 +220,7 @@ export function SubtaskChecklist({
             </Animated.View>
           ))}
 
-          <Text variant="caption" className="px-1 text-neutral-500">
+          <Text variant="caption" className="px-1 text-neutral-500 dark:text-[#78716C]">
             {subtasks.length} step{subtasks.length === 1 ? "" : "s"} · {total}m total
           </Text>
         </View>
@@ -222,9 +229,9 @@ export function SubtaskChecklist({
       {/* Add-row input, unchanged. */}
       <View className="mt-3 flex-row items-center gap-2">
         <TextInput
-          className="min-h-12 flex-1 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
+          className="min-h-12 flex-1 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3 text-body-lg text-neutral-900 dark:text-neutral-50"
           placeholder="Add a step"
-          placeholderTextColor={colors.light.textDisabled}
+          placeholderTextColor={theme.textDisabled}
           value={newTitle}
           onChangeText={setNewTitle}
           returnKeyType="done"
@@ -232,9 +239,9 @@ export function SubtaskChecklist({
           accessibilityLabel="New step title"
         />
         <TextInput
-          className="min-h-12 w-16 rounded-md border border-neutral-200 bg-white px-2 text-center text-body-lg text-neutral-900"
+          className="min-h-12 w-16 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-2 text-center text-body-lg text-neutral-900 dark:text-neutral-50"
           placeholder="min"
-          placeholderTextColor={colors.light.textDisabled}
+          placeholderTextColor={theme.textDisabled}
           value={newMin}
           onChangeText={setNewMin}
           keyboardType="number-pad"
