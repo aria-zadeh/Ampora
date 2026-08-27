@@ -19,6 +19,17 @@ interface FeatureShellProps {
  * app (Home starter/first-move card, paywall plan cards, project
  * next-session card) — never as a general card treatment. Everywhere else,
  * use the plain `<Card>` primitive.
+ *
+ * DELIBERATELY NOT THEME-AWARE, and this is not an oversight. The whole
+ * effect is a faint black wash and a white inner surface reading as depth
+ * against a light page. There is no dark equivalent that keeps the double
+ * bezel legible, so a focal card built on this stays a light island on a dark
+ * screen, which is a defensible spotlight rather than a bug. Everything
+ * rendered INSIDE one must therefore pin its own ink to `colors.light.*`
+ * rather than resolving through `useThemeColors()`, or it goes near-white on
+ * white. `app/paywall.tsx` does exactly that and says so at its call sites.
+ * If this ever does gain a dark treatment, every one of those call sites has
+ * to be revisited in the same change.
  */
 export function FeatureShell({ children, className = "", style }: FeatureShellProps) {
   return (

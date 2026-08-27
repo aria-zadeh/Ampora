@@ -360,7 +360,7 @@ export default function RootLayout() {
 
   return (
     <>
-      <View className="flex-1 bg-neutral-100">
+      <View className="flex-1 bg-neutral-100 dark:bg-neutral-950">
         <DotGridBackground />
         <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="auth" />

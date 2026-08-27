@@ -373,27 +373,20 @@ export default function ProfileScreen() {
                 );
               })}
             </View>
-            {/* Says so out loud, because the alternative is worse: someone
-                choosing Dark, hitting a bright screen and reasonably reading
-                the app as broken. Most of the app follows the theme now, so
-                this names the specific remaining gap rather than the old
-                blanket "the rest stays light", which is no longer true.
-                Deliberately worded by CATEGORY rather than as a list of
-                screens, because a list goes stale within a round and this note
-                has already been rewritten twice for that reason. What is still
-                light as of 2026-08-25: the Projects screens and sheets, the
-                verification sheet and proof log, the brain-dump sheet, the
-                task-editor sub-sections, and a handful of layout wrappers.
-                Count it rather than trusting this comment:
+            {/* The "dark mode is still rolling out" caveat that used to live
+                here is GONE, on purpose, because it stopped being true.
+                Coverage is every file under app/ and components/ that renders
+                a colour: what is left carries no colour of its own (layout
+                wrappers, animation wrappers), plus Blindfold, whose warm cream
+                wash is a deliberate low-stimulation surface, and FeatureShell,
+                a documented light island. Re-measure before assuming, do not
+                trust this comment:
                 `grep -rl 'dark:' app/ components/ --include=*.tsx | wc -l`.
-                Keep the sentence accurate or delete it. A stale honesty note
-                is worse than none. */}
-            {themePreference !== "light" && (
-              <Text variant="caption" className="mt-3 text-neutral-500 dark:text-[#78716C]">
-                Dark mode covers the main screens. A few deeper ones, Projects
-                and the proof log among them, are still catching up.
-              </Text>
-            )}
+                Caveat worth knowing: coverage was verified mechanically and by
+                computing contrast ratios, NOT by looking at the app on a
+                device, since this repo has been built on machines that cannot
+                run it. If a screen turns out wrong in dark, that is a bug to
+                fix rather than a disclosure to restore. */}
           </View>
         </SettingsGroup>
 
