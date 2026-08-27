@@ -453,7 +453,7 @@ npx expo install moti
 
 ## 12. Accessibility Verification
 
-WCAG 2.1 AA: 4.5:1 for body and small text, 3:1 for large text and UI glyphs. Generated from the SHIPPED token file, not from this document.
+WCAG 2.1 AA: 4.5:1 for body and small text, 3:1 for large text and UI glyphs. Generated from the SHIPPED token file, not hand-maintained. Regenerate with `scratchpad/audit.js` after any token change; `core/__tests__/design-tokens.test.ts` asserts the same pairs so a regression fails the suite rather than sitting in a stale table.
 
 
 ### DARK  (canvas #0C0C0E / card #18181B / raised #222226)
@@ -515,10 +515,10 @@ WCAG 2.1 AA: 4.5:1 for body and small text, 3:1 for large text and UI glyphs. Ge
 
 - Minimum touch target 44x44 (`hitSlop` where the visual is smaller).
 - Status is never colour alone — every pill, dot and state carries a text label or icon.
+- No control is reachable only by a gesture. Anything tappable that is not obviously a button gets a visible affordance beside it (the session ring is tappable, and a visible Pause control sits below it).
 - Every icon-only control has an `accessibilityLabel`, and an `accessibilityHint` when the action is not obvious. `accessibilityRole` and state (`selected`, `disabled`, `expanded`, `busy`) are announced.
 - Dynamic Type is supported; layouts use flexible heights, never fixed heights with clipped text.
 - Reduce-motion is respected via `hooks/useReduceMotion`.
-
 
 ## 13. Applying this system to Ampora (added for this project)
 
