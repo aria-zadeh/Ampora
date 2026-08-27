@@ -18,19 +18,20 @@
  * it passed `event` in the first place.
  */
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, TextInput, Modal } from "react-native";
+import { View, Pressable, TextInput, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 
 import { Heading } from "@/components/ui/Heading";
+import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
 import { Toggle } from "@/components/settings/SettingsPrimitives";
 import { allDaySpan, allDayDisplayEnd } from "@/components/calendar/allDayEvents";
-import { shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { MS_PER_MIN } from "@/core/calendar";
 import type { CalEvent } from "@/types";
 
@@ -60,6 +61,7 @@ export function AddEventModal({
   onSave,
 }: AddEventModalProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const isEditing = event != null;
 
   const [title, setTitle] = useState("");
@@ -129,8 +131,7 @@ export function AddEventModal({
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
-              style={shadows.xl}
+              className="rounded-t-3xl bg-canvas"
             >
               <SafeAreaView edges={["bottom"]}>
                 {/* Grabber */}
@@ -144,39 +145,38 @@ export function AddEventModal({
                   <Pressable
                     onPress={onClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
-                    style={shadows.xs}
+                    className="h-9 w-9 items-center justify-center rounded-full bg-surface border border-line"
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#57534E" />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
                 <View className="px-5 pb-4 pt-3">
                   {/* Title */}
-                  <Text className="mb-1.5 px-1 text-caption font-medium text-neutral-500">
+                  <Text variant="captionMedium" className="mb-1.5 px-1 text-neutral-500">
                     Title (optional)
                   </Text>
                   <TextInput
                     value={title}
                     onChangeText={setTitle}
                     placeholder="e.g. Soccer practice"
-                    placeholderTextColor="#A8A29A"
-                    className="mb-4 min-h-[44px] rounded-xl border border-neutral-200 bg-white px-4 py-3 text-body text-neutral-900"
+                    placeholderTextColor={theme.textMuted}
+                    className="mb-4 min-h-11 rounded-xl border border-line bg-surface px-4 py-3 text-body text-neutral-900"
                     accessibilityLabel="Event title"
                   />
 
                   {/* All day — collapses the time pickers below (an all-day
                       event has no meaningful clock time) and shapes the saved
                       span to whole local days on Save (see `allDaySpan`). */}
-                  <View className="mb-4 flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3">
-                    <Text className="text-body text-neutral-900">All day</Text>
+                  <View className="mb-4 flex-row items-center justify-between rounded-xl border border-line bg-surface px-4 py-3">
+                    <Text>All day</Text>
                     <Toggle value={allDay} onChange={setAllDay} a11yLabel="All-day event" />
                   </View>
 
                   {/* Starts */}
-                  <Text className="mb-1.5 px-1 text-caption font-medium text-neutral-500">Starts</Text>
+                  <Text variant="captionMedium" className="mb-1.5 px-1 text-neutral-500">Starts</Text>
                   <View className="mb-4 flex-row gap-2">
                     <View className="flex-1">
                       <DateTimePickerCrossPlatform
@@ -199,7 +199,7 @@ export function AddEventModal({
                   </View>
 
                   {/* Ends */}
-                  <Text className="mb-1.5 px-1 text-caption font-medium text-neutral-500">Ends</Text>
+                  <Text variant="captionMedium" className="mb-1.5 px-1 text-neutral-500">Ends</Text>
                   <View className="mb-6 flex-row gap-2">
                     <View className="flex-1">
                       <DateTimePickerCrossPlatform

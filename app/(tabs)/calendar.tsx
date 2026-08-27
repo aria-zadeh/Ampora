@@ -36,6 +36,7 @@ import {
 import { dayStart } from "@/components/calendar/hours";
 import type { CalEvent, ScheduledBlock } from "@/types";
 import { iconSizes, spacing } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 /** Views that render the vertical time grid — pinch-to-zoom applies to these. */
 const TIME_GRID_VIEWS: readonly CalendarView[] = ["day", "3day", "week"];
@@ -251,7 +252,7 @@ export default function CalendarScreen() {
   const showEmpty = !hasBlocks && view !== "agenda"; // AgendaView renders its own empty state.
 
   return (
-    <View className="flex-1 bg-neutral-100">
+    <View className="flex-1 bg-canvas">
       <GestureHandlerRootView style={{ flex: 1 }}>
         <CalendarHeader
           view={view}
@@ -376,6 +377,7 @@ function ActionButton({
   accessibilityHint?: string;
   onPress: () => void;
 }) {
+  const theme = useThemeColors();
   return (
     <PressableScale
       onPress={onPress}
@@ -385,7 +387,7 @@ function ActionButton({
       accessibilityHint={accessibilityHint}
       className="flex-row items-center gap-1.5 px-3 h-9 rounded-full bg-white border border-neutral-200"
     >
-      <Ionicons name={icon} size={iconSizes.xs} color="#2563EB" />
+      <Ionicons name={icon} size={iconSizes.xs} color={theme.primary} />
       <Text className="text-caption font-medium text-primary-600">{label}</Text>
     </PressableScale>
   );
@@ -421,7 +423,7 @@ function ZoomStepper({
         disabled={atMin}
         onPress={() => onZoom(-1)}
       />
-      <View className="w-[1px] h-5 bg-neutral-200" />
+      <View className="w-px h-5 bg-line" />
       <ZoomButton
         icon="add"
         label="Zoom in"
@@ -443,6 +445,7 @@ function ZoomButton({
   disabled: boolean;
   onPress: () => void;
 }) {
+  const theme = useThemeColors();
   return (
     <PressableScale
       onPress={onPress}
@@ -456,7 +459,7 @@ function ZoomButton({
       <Ionicons
         name={icon}
         size={18}
-        color={disabled ? "#D7D3CC" : "#44403C"}
+        color={disabled ? theme.textDisabled : theme.textSecondary}
       />
     </PressableScale>
   );

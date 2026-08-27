@@ -1265,6 +1265,7 @@ export function DayView({ date, pxPerHour, onBlockPress, now, testID }: DayViewP
 
 /** A faint centered grip line drawn inside an edge-zone (top or bottom). */
 function ResizeHandle({ align }: { align: 'top' | 'bottom' }) {
+  const theme = useThemeColors()
   return (
     <View
       pointerEvents="none"
@@ -1280,7 +1281,10 @@ function ResizeHandle({ align }: { align: 'top' | 'bottom' }) {
           width: 24,
           height: 3,
           borderRadius: 999,
-          backgroundColor: 'rgba(63,63,70,0.28)',
+          // Muted text at ~28% alpha — a faint mark that reads against any of
+          // CalendarBlock's tint colors (success/warning/danger/neutral) in
+          // either theme, replacing a fixed light-mode-only grey.
+          backgroundColor: `${theme.textMuted}47`,
         }}
       />
     </View>
@@ -1292,6 +1296,7 @@ function ResizeHandle({ align }: { align: 'top' | 'bottom' }) {
  * GestureDetector). Purely visual so it never competes with the body gesture.
  */
 function EllipsisButton() {
+  const theme = useThemeColors()
   return (
     <View
       style={{
@@ -1300,10 +1305,12 @@ function EllipsisButton() {
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 999,
-        backgroundColor: 'rgba(255,255,255,0.72)',
+        // Raised-surface wash (not a fixed white) so the chip still pops off
+        // whatever tint color the underlying block carries, in either theme.
+        backgroundColor: `${theme.elevated}B8`,
       }}
     >
-      <Ionicons name="ellipsis-horizontal" size={14} color="#57534E" />
+      <Ionicons name="ellipsis-horizontal" size={14} color={theme.textSecondary} />
     </View>
   )
 }

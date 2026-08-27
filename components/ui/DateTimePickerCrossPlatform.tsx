@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Platform } from "react-native";
-import { useColorScheme } from "nativewind";
-import { colors, borderRadius, TOUCH_TARGET_MIN } from "@/utils/design-tokens";
+import { borderRadius, TOUCH_TARGET_MIN } from "@/utils/design-tokens";
+import { useThemeColors, useResolvedScheme } from "@/hooks/useThemeColors";
 
 // Only import DateTimePicker on native — avoids web bundle issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,9 +63,8 @@ export function DateTimePickerCrossPlatform({
   display = "default",
   accessibilityLabel,
 }: DateTimePickerCrossPlatformProps) {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = isDark ? colors.dark : colors.light;
+  const theme = useThemeColors();
+  const isDark = useResolvedScheme() === "dark";
 
   // ── Web implementation ───────────────────────────────────────────────
   if (Platform.OS === "web") {
@@ -99,8 +98,11 @@ export function DateTimePickerCrossPlatform({
       lineHeight: "24px",
       fontFamily: "inherit",
       color: theme.text,
-      backgroundColor: isDark ? theme.card : theme.card,
-      border: `1px solid ${theme.accent}`,
+      backgroundColor: theme.card,
+      // NOTE: was `theme.accent` (AI/smart/Projects only per docs/02 §13.1 —
+      // never a generic border colour). `theme.border` is the correct token
+      // for a plain input outline.
+      border: `1px solid ${theme.border}`,
       borderRadius: borderRadius.md,
       outline: "none",
       WebkitAppearance: "none",
