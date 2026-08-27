@@ -94,18 +94,29 @@ Expo Router file-based. Auth gate + Zustand hydration + notification scheduling 
 ## Rules
 
 ### Design system (`docs/02` — binding)
-- **Never hardcode colors, radii, or spacing.** All values come from the canonical tokens (`docs/02` §10/§14: warm-neutral Zinc→Stone spine, canvas `#F7F6F3`, ink `#1C1917`; primary/success/warning/accent/red semantic ramps). Reference semantic aliases, not raw ramp steps or literals.
-- **This rule is NOT yet enforced.** A fresh sweep on 2026-07-30 (`grep` for hex/`rgba()`/`hsla()` literals across `app/`, `components/`, `hooks/`) found 172 hardcoded color values across 36 files, down from the original ~377 across ~74 but real work remains, this is not close to zero. Tokenizing these is outstanding, not a finished migration, do not claim otherwise, and do not add new literals while touching a file that has them. Re-run the same sweep before trusting either number, it moves.
-- Neutral-dominant: ~90% of every screen is canvas/off-white/gray/near-black ink. Ink is never pure black. Accent color only when it carries meaning (`#2563EB` primary; `#7C3AED` reserved for Projects only).
-- **Blue/green ruling (2026-08-07):** blue is the color of about-to-do/doing (Start, Resume, Lock in, Done, Save). Green is terminal-only (Completed, session served). See `docs/02_Design_System.md` §14.7 and `docs/09_Decisions.md`.
-- **One primary action per screen**, visually dominant. Others are outline/ghost.
-- Typography: Lexend (`@expo-google-fonts/lexend`, replaced Inter 2026-08-01), weight bound into the family name (e.g. `Lexend_600SemiBold`); headings use negative letter-spacing. Body ≥15px, inputs 16px, captions ≥13px. Tabular numerals for aligned numbers. **`components/ui/Text.tsx` (`Text` with a `variant` prop) is the enforced consumption path for the type scale**, parity-tested in `core/__tests__/design-tokens.test.ts`; hand-written `text-* font-*` combos are a violation in new code.
-- Spacing on a 4px grid (8 is the common rhythm). Radius: cards 12, buttons 10, inputs 8-10, pills full, modals 16. Shadows soft, warm-tinted, low-opacity; default card = shadow.sm + 1px border.
-- **Min touch target 48×48** (use `hitSlop`); button heights 36/44/52.
-- **WCAG AA throughout**: 4.5:1 body, 3:1 large/UI glyphs. Status is never color alone — every pill/state carries a text label.
+
+**The visual system was rebuilt on 2026-08-26 from nine Figma PDF exports of the real screens. Every concrete value was extracted from the vector data. The pre-2026-08-26 rules (warm Stone spine, `#F7F6F3` canvas, `#2563EB` primary, `#7C3AED` purple, the shadow ladder, Lexend, negative heading tracking, the 12/18/26 radius story) are RETIRED. Do not reintroduce any of them. See `docs/02` §14.**
+
+- **The app is DARK-FIRST.** `settingsStore.themePreference` defaults to `'dark'`. Light is at full parity, derived from the dark step relationships, never mechanically inverted.
+- **Never hardcode colors, radii, spacing, shadows or durations.** Everything resolves through `utils/design-tokens.ts`. If a value is not in the tokens, add it to the tokens.
+- **Never write a `dark:` variant.** Every colour class resolves through a CSS variable (`global.css`), so it is already correct in both themes. A `dark:` class is now a defect.
+- **`neutral-100` is the CANVAS, not "a light grey".** The neutral ramp is mapped by ROLE, not lightness: 900 is always primary text, 100 is always canvas, 200 is always border. `bg-neutral-100` on a screen root is right; as a *fill* it is an invisible hole in the page. Use `bg-raised` for icon wells, chips, tracks and inset panels. This mistake erased the top nav, the FAB and several chips during the migration and is the single sharpest hazard in the system.
+- **`white` is remapped to the card surface** (148 call sites meant "card"). `black` is not remapped, so scrims stay black. Use `pure-white` / `pure-black` for a genuine literal.
+- **There are no shadows and no gradients anywhere.** Nine screens, zero of either. Depth is the flat surface ladder: canvas `#0C0C0E` → card `#18181B` → raised `#222226` → border `#2D2D30`. `shadows.*` and `gradients.*` are inert no-ops kept only so old call sites compile. To raise a surface, step it up or give it `border border-line`.
+- **Every border is 1pt** `border-line`. There are zero stroke operations in the source.
+- **One accent:** `#6A97AD` steel blue, the only general interactive colour. `#A793BD` muted purple is AI/smart/Projects ONLY, never a second general accent. Categorical hues (via `useListColors()`) tint lists and calendar blocks, never actions.
+- **Blue/green ruling (unchanged in meaning):** blue is about-to-do and doing (Start, Resume, Lock in, Save, Done, selected, progress). Green is terminal only (Completed, session served). Only the hexes moved.
+- **Primary buttons are dark ink on the accent**, not white. White-on-accent measures 2.83:1 and fails. Do not "correct" it back.
+- Typography: **Outfit**, weight bound into the family name (`Outfit_600SemiBold`). **Letter-spacing is 0 everywhere, headings included.** `components/ui/Text.tsx` is the enforced consumption path; hand-written `text-* font-*` combos are a violation. Sizes 54/28/22/20/18/16/15/14/13/12/11/9 — 9pt and 11pt are deliberate and override the old §9.9 floor.
+- Spacing on a 4px grid; 12 is the card gap, 16 the card padding, 24 the screen padding. Radius: 8 chips/inputs, 10 icon tiles, 12 buttons/fields, 16 cards (dominant), 18 feature, 20 full-bleed banner, 24 bottom sheets, full for pills. One radius per element class, app-wide.
+- **Bottom sheets** are `bg-surface` + `rounded-t-sheet` (24), with fields inside on `bg-raised` at radius 12 and a 40x4 `bg-line` grab handle. Much of the app previously used the canvas for sheets; that was wrong.
+- **One primary action per screen**, visually dominant. Others are outline/ghost/text.
+- **Min touch target 44x44** (`hitSlop` when the visual is smaller).
+- **WCAG AA throughout**: 4.5:1 body/small, 3:1 large/UI glyphs. Audited in both themes in `docs/02` §12 and asserted by `core/__tests__/design-tokens.test.ts`. Status is never colour alone.
 - **Every icon-only control gets `accessibilityLabel`** (+ `accessibilityHint` when non-obvious); set `accessibilityRole` and announce state. Support Dynamic Type.
-- Motion is quiet, fast, eased by default; reserve spring (`SPRINGS.tactile`) for controls (toggles, FAB, drag), never text/layout. **Respect reduce-motion** (`hooks/useReduceMotion`). One prominent animation at a time.
+- Motion is quiet, fast, eased. No bounce, elastic or overshoot anywhere. **Respect reduce-motion** (`hooks/useReduceMotion`). One prominent animation at a time.
 - Empty states: never blank — icon + short title + one line + one primary action.
+- **Verification:** `npx vitest run core/__tests__/design-tokens.test.ts` asserts the token/tailwind/CSS-variable lockstep and walks every text-on-surface pair in both themes.
 
 ### Product / safety constraints (`docs/01`, `docs/04`, `docs/05`)
 - **App-locking is self-imposed and local only. Never remote device-lock.** Never manufacture financial or public-shame stakes; no medical claims.

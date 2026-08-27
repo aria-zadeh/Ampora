@@ -379,7 +379,7 @@ Below the hero: a `Scheduled locks` section when any exist, an `Up next` list (m
 
 **8.12 Accessibility checklist:** dynamic type, color-plus-icon for all status, VoiceOver/TalkBack labels on blocks and drag handles, reduced-motion, 44x44 targets, contrast verified in both themes (`02`).
 
-**8.13 Visual system.** Design System v3 "Calm Premium" is authoritative in `02`: warm Stone neutral spine, bone canvas `#F7F6F3`, ink `#1C1917`, primary `#2563EB`, Projects accent `#7C3AED`, tinted diffuse shadows, muted-pastel list hues, tabular numerals for times and counts, tactile motion. Dials locked VARIANCE 5 / MOTION 6 / DENSITY 5.
+**8.13 Visual system.** `02_Design_System.md` is authoritative. Rebuilt 2026-08-26 from nine Figma PDF exports of the real screens, with every concrete value extracted from the vector data rather than chosen. The app is dark-first with light at full parity. Cool-neutral spine (canvas `#0C0C0E`, card `#18181B`, raised `#222226`, border `#2D2D30`, ink `#F2F2F7`), one accent `#6A97AD` steel blue, `#A793BD` muted purple reserved for AI/Projects, Outfit typeface with zero letter-spacing, no shadows and no gradients anywhere (depth is the flat surface ladder), 1pt borders throughout, muted categorical list hues, tabular numerals for times and counts, tactile motion with no bounce. Dials locked VARIANCE 5 / MOTION 6 / DENSITY 5. Design System v3 "Calm Premium" and its warm Stone spine are retired; see `02` section 14.
 
 ---
 
