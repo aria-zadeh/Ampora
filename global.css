@@ -2,9 +2,140 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Web-only: remove the browser's default focus outline (the "orange box") on
-   interactive elements. The intended blue focus ring is applied per-input via
-   className, so we only strip the native outline here. */
+/**
+ * THEME VARIABLES — the mechanism that makes the whole app theme-aware
+ * without a single `dark:` class at the call site.
+ *
+ * Every colour is a space-separated RGB triple so Tailwind alpha modifiers
+ * (`bg-canvas/50`) keep working. `tailwind.config.js` wraps each one as
+ * rgb(var(--x) / <alpha-value>).
+ *
+ * The `neutral` ramp is mapped BY ROLE, not by lightness. Step 900 is always
+ * "primary text", step 100 is always "canvas", step 200 is always "border" —
+ * in both themes. That is why ~843 existing `text-neutral-900` / `bg-neutral-100`
+ * call sites stay correct in dark without being touched. It is a role-preserving
+ * mapping, NOT a mechanical inversion.
+ *
+ * Dark is the default and is the extracted system (docs/02 revision 2026-08-26).
+ * Values tagged [E] extracted / [I] interpolated / [F] inferred in
+ * utils/design-tokens.ts, which this file mirrors.
+ */
+@layer base {
+  :root {
+    /* LIGHT is the CSS fallback because NativeWind only ever toggles a `dark`
+       class - there is no `light` class to match on. Dark is still the app
+       DEFAULT, enforced by settingsStore.themePreference = "dark", which puts
+       the `dark` class on the root. Derived from the dark step relationships,
+       cool-neutral, never a mechanical inversion. */
+    --color-canvas: 244 244 245;
+    --color-surface: 255 255 255;
+    --color-raised: 250 250 250;
+    --color-surface-ghost: 247 247 248;
+    --color-surface-hairline: 250 250 251;
+
+    --color-line: 228 228 231;
+    --color-line-strong: 212 212 216;
+
+    --color-ink: 24 24 27;
+    --color-ink-strong: 9 9 11;
+    --color-ink-secondary: 82 82 91;
+    --color-ink-muted: 107 107 116;
+    --color-ink-disabled: 161 161 170;
+
+    --neutral-0: 255 255 255;
+    --neutral-50: 250 250 250;
+    --neutral-100: 244 244 245;
+    --neutral-200: 228 228 231;
+    --neutral-300: 212 212 216;
+    --neutral-400: 161 161 170;
+    --neutral-500: 107 107 116;
+    --neutral-600: 82 82 91;
+    --neutral-700: 63 63 70;
+    --neutral-800: 39 39 42;
+    --neutral-900: 24 24 27;
+    --neutral-950: 9 9 11;
+
+    --primary-wash: 235 240 243;
+    --primary-wash-strong: 221 231 236;
+    --primary: 76 117 138;
+    --primary-light: 106 151 173;
+    --primary-dark: 59 90 107;
+    --primary-fg: 255 255 255;
+
+    --success-wash: 235 243 238;
+    --success: 80 121 94;
+    --success-strong: 60 91 71;
+
+    --warning-wash: 243 239 235;
+    --warning: 135 107 66;
+    --warning-strong: 103 81 47;
+
+    --danger-wash: 243 236 235;
+    --danger: 162 93 83;
+    --danger-strong: 124 70 62;
+
+    --accent-wash: 239 235 243;
+    --accent: 128 99 160;
+    --accent-strong: 102 77 128;
+  }
+
+  .dark:root {
+    /* THE EXTRACTED SYSTEM (docs/02 revision 2026-08-26). The app default. */
+    --color-canvas: 12 12 14;
+    --color-surface: 24 24 27;
+    --color-raised: 34 34 38;
+    --color-surface-ghost: 20 20 22;
+    --color-surface-hairline: 17 17 19;
+
+    --color-line: 45 45 48;
+    --color-line-strong: 58 58 60;
+
+    --color-ink: 242 242 247;
+    --color-ink-strong: 255 255 255;
+    --color-ink-secondary: 161 161 170;
+    --color-ink-muted: 138 138 147;
+    --color-ink-disabled: 81 81 84;
+
+    --neutral-0: 24 24 27;
+    --neutral-50: 34 34 38;
+    --neutral-100: 12 12 14;
+    --neutral-200: 45 45 48;
+    --neutral-300: 58 58 60;
+    --neutral-400: 81 81 84;
+    --neutral-500: 138 138 147;
+    --neutral-600: 161 161 170;
+    --neutral-700: 201 201 209;
+    --neutral-800: 228 228 233;
+    --neutral-900: 242 242 247;
+    --neutral-950: 255 255 255;
+
+    --primary-wash: 26 32 36;
+    --primary-wash-strong: 34 45 52;
+    --primary: 106 151 173;
+    --primary-light: 124 174 196;
+    --primary-dark: 163 204 219;
+    --primary-fg: 12 12 14;
+
+    --success-wash: 25 29 28;
+    --success: 136 177 150;
+    --success-strong: 157 192 169;
+
+    --warning-wash: 33 30 28;
+    --warning: 188 160 118;
+    --warning-strong: 204 182 143;
+
+    --danger-wash: 33 27 28;
+    --danger: 189 135 127;
+    --danger-strong: 205 160 154;
+
+    --accent-wash: 29 27 34;
+    --accent: 167 147 189;
+    --accent-strong: 187 169 206;
+  }
+}
+
+/* Web-only: kill the default focus ring on custom controls (native has none).
+   Keyboard focus is handled by the components themselves. */
 input:focus,
 textarea:focus,
 [role="button"]:focus,
@@ -13,7 +144,6 @@ select:focus {
   outline: none;
 }
 
-input,
-textarea {
+* {
   -webkit-tap-highlight-color: transparent;
 }

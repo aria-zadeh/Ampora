@@ -1,315 +1,289 @@
 /**
  * Ampora Design Tokens
- * Neutral + blue system, light-first (doc 02).
- * All colors defined here — never hardcode values in components.
+ *
+ * DARK-FIRST. Every concrete value below is derived from the nine Figma PDF
+ * exports of the real Ampora screens (2026-08-26 extraction), not from the
+ * prose in docs/02. Values are tagged:
+ *
+ *   [E] extracted    — read directly out of the PDF vector data
+ *   [I] interpolated — a ramp step filled in between two extracted values
+ *   [F] inferred     — the PDF did not carry it (motion, states, light theme)
+ *
+ * The source artboards are 402pt wide (iPhone 16 Pro at 1x), so one PDF unit
+ * is one dp and every number here is a literal measurement.
+ *
+ * Never hardcode values in components — everything resolves through this file.
  */
 import type { TextStyle } from "react-native";
 
+/**
+ * SURFACE MODEL. The source design carries depth entirely with flat surface
+ * steps: canvas -> surface -> raised -> border. There are NO shadows, NO
+ * gradients, NO blend modes and NO blurs anywhere in the nine screens
+ * (verified: zero stroke ops, zero non-Normal blend modes, and the only
+ * raster images are avatar photos). `shadows` below is retained as an inert
+ * no-op ladder so existing call sites keep compiling while rendering flat.
+ *
+ * The only transparency in the system is a small set of measured washes,
+ * exposed pre-composited as `surfaceGhost` / `surfaceHairline` / the `*Wash`
+ * tokens, so nothing has to stack alpha at runtime.
+ */
 export const colors = {
   light: {
-    primary: "#2563EB",
-    primaryLight: "#60A5FA",
-    primaryDark: "#1D4ED8",
-    primaryForeground: "#FFFFFF",
+    /**
+     * Light counterpart. Derived from the dark system STEP RELATIONSHIPS,
+     * never a mechanical inversion: canvas is the extreme, surfaces step
+     * toward the viewer, border sits one step off surface, text steps
+     * primary -> secondary -> muted at matching contrast tiers. The dark
+     * spine is cool-neutral, so this one is too — deliberately NOT the old
+     * warm #F7F6F3. Every hue below was darkened until it cleared 4.5:1 on
+     * the CANVAS (#F4F4F5, the worst-case light surface, not the white
+     * card); ratios are recorded inline. [F] (no light mock exists)
+     */
+    primary: "#4C758A", // 4.53:1 on the canvas, 4.98:1 on the card
+    primaryLight: "#6A97AD", // the dark-theme accent, reused as a light tint
+    primaryDark: "#3B5A6B",
+    primaryForeground: "#FFFFFF", // 4.98:1 on the primary fill
 
-    background: "#F7F6F3",
+    background: "#F4F4F5",
     card: "#FFFFFF",
-    elevated: "#FAF9F7",
+    elevated: "#FAFAFA",
+    /** Pre-composited translucent surfaces (light counterparts). */
+    surfaceGhost: "#F7F7F8",
+    surfaceHairline: "#FAFAFB",
 
-    text: "#1C1917",
-    textSecondary: "#57534E",
-    textMuted: "#6F6862",
-    // neutral.400 — placeholder/disabled only (doc 02 section 1.7 text.disabled).
-    // Intentionally low contrast (~2.5:1 on white), WCAG-exempt for disabled controls.
-    textDisabled: "#A8A29A",
-    // neutral.700 — strong body text / emphasized icon tint, one step above
-    // textSecondary (doc 02 section 1.1). 10.3:1 on white, clears body text AA.
-    textStrong: "#44403C",
+    text: "#18181B",
+    textSecondary: "#52525B",
+    textMuted: "#6B6B74",
+    /** Placeholder/disabled only. Intentionally low contrast, WCAG-exempt. */
+    textDisabled: "#A1A1AA",
+    textStrong: "#09090B",
 
-    success: "#22C55E",
-    successLight: "#DCFCE7",
-    // success.600 — icon-chip glyphs on a success.100 tint, clears the 3:1
-    // graphical-object bar (doc 02 section 6.3/12). Icons only, not body text.
-    successAccent: "#16A34A",
-    // success.700 — action.success: filled button/strong text, white label
-    // 5.02:1 (doc 02 section 1.7/14.6). NOT the same as the success.500 brand accent.
-    successStrong: "#15803D",
-    warning: "#F97316",
-    warningLight: "#FFEDD5",
-    // warning.600 — icon-chip glyphs on a warning.100 tint, clears the 3:1
-    // graphical-object bar. Icons only, not body text (3.6:1 on white).
-    warningAccent: "#EA580C",
-    // warning.700 — deep warning text / badge text on warning.100, 4.52:1
-    // (doc 02 section 12/14.6).
-    warningStrong: "#C2410C",
-    danger: "#EF4444",
-    dangerLight: "#FEE2E2",
-    // red.600 — action.destructive: filled button/strong text, white label
-    // 4.83:1 (doc 02 section 1.7/14.6). NOT the same as the danger.500 accent.
-    dangerStrong: "#DC2626",
+    success: "#50795E", // 4.51:1 on the canvas
+    successLight: "#EBF3EE",
+    successAccent: "#50795E",
+    successStrong: "#3C5B47",
+    warning: "#876B42", // 4.54:1 on the canvas
+    warningLight: "#F3EFEB",
+    warningAccent: "#876B42",
+    warningStrong: "#67512F",
+    danger: "#A25D53", // 4.52:1 on the canvas
+    dangerLight: "#F3ECEB",
+    dangerStrong: "#7C463E",
 
-    border: "#E8E6E0",
-    // neutral.300 — emphasized border (doc 02 section 1.7 border.strong).
-    // Decorative separator, exempt from the 3:1 UI bar like the default border.
-    borderStrong: "#D7D3CC",
-    accent: "#8B5CF6",
-    accentLight: "#EDE9FE",
-    // accent.600 — accent text / pressed state, 5.70:1 on white (doc 02 section 1.3).
-    accentStrong: "#7C3AED",
+    border: "#E4E4E7",
+    borderStrong: "#D4D4D8",
+    accent: "#8063A0", // AI / smart only. 4.54:1 on the canvas
+    accentLight: "#EFEBF3",
+    accentStrong: "#664D80",
+
+    /** Accent washes — tinted surfaces, light counterparts. */
+    primaryWash: "#EBF0F3",
+    primaryWashStrong: "#DDE7EC",
+    successWash: "#EBF3EE",
   },
   dark: {
-    // Same #2563EB as light, per doc 02 §14.1 ("Primary UNCHANGED"). This was
-    // briefly the lighter Tailwind primary-500 (#3B82F6) — a plausible-looking
-    // choice for a dark canvas — but dark mode had zero live effect anywhere
-    // in the app until this pass, so the value had never actually been
-    // rendered, and it fails AA for a filled button's white label at 3.68:1
-    // (core/__tests__/design-tokens.test.ts caught it; #2563EB clears 5.17:1,
-    // matching the light-mode audit in doc 02 §14.6).
-    primary: "#2563EB",
-    primaryLight: "#60A5FA",
-    primaryDark: "#2563EB",
-    primaryForeground: "#FFFFFF",
+    /**
+     * THE EXTRACTED SYSTEM. This is the source of truth the mocks describe.
+     *
+     * One correction was applied for WCAG, logged in docs/09_Decisions.md:
+     * the mocks put #F2F2F7 labels on the #6A97AD accent fill, which is
+     * 2.83:1 and fails body AND large text. The accent hex is preserved
+     * exactly; only the label colour moved, to canvas ink at 6.18:1.
+     */
+    primary: "#6A97AD", // [E] the single general interactive accent
+    primaryLight: "#7CAEC4", // [E] accent text/icons on dark, active nav
+    primaryDark: "#A3CCDB", // [E] palest accent step
+    /** [E]+fix — dark ink on the accent fill. 6.18:1. See note above. */
+    primaryForeground: "#0C0C0E",
 
-    background: "#0C0A09",
-    card: "#1C1917",
-    elevated: "#292524",
+    background: "#0C0C0E", // [E] canvas
+    card: "#18181B", // [E] card surface
+    elevated: "#222226", // [E] raised surface
+    /** [E] composited — #FFFFFF at 3.1% over canvas. Ghost/outline button fill. */
+    surfaceGhost: "#141416",
+    /** [E] composited — #FFFFFF at 2.0% over canvas. */
+    surfaceHairline: "#111113",
 
-    text: "#FAF9F7",
-    textSecondary: "#A8A29A",
-    textMuted: "#78716C",
-    // neutral.600 — dark disabled/placeholder, ~2.3-2.6:1 on dark surfaces.
-    // Mirrors the light-mode disabled ratio class (same reuse pattern as
-    // textSecondary above, which borrows light's neutral.400 hex). WCAG-exempt.
-    textDisabled: "#57534E",
-    // neutral.300 — dark strong text/icon tint, 11.7:1 on the dark card. One
-    // step brighter than textSecondary, mirroring the light textStrong gap.
-    textStrong: "#D7D3CC",
+    text: "#F2F2F7", // [E] 17.51:1 on canvas
+    textSecondary: "#A1A1AA", // [E] 7.63:1 on canvas
+    /**
+     * [I] WCAG remediation. The mocks use #71717A here (99 uses, mostly at
+     * 11pt), which is 4.04/3.67/3.28 on canvas/surface/raised — it fails
+     * body text on all three. #8A8A93 is the smallest step along the same
+     * neutral line that clears 4.5 everywhere: 5.71/5.18/4.63.
+     */
+    textMuted: "#8A8A93",
+    /** [E] composited — #F2F2F7 at 30%. Disabled/track only, WCAG-exempt. */
+    textDisabled: "#515154",
+    textStrong: "#FFFFFF", // [E]
 
-    success: "#22C55E",
-    successLight: "#14361F",
-    successAccent: "#16A34A",
-    successStrong: "#15803D",
-    warning: "#F97316",
-    warningLight: "#3A230F",
-    warningAccent: "#EA580C",
-    warningStrong: "#C2410C",
-    danger: "#EF4444",
-    dangerLight: "#3A1616",
-    dangerStrong: "#DC2626",
+    success: "#88B196", // [E] 8.17:1 on canvas
+    successLight: "#191D1C", // [E] composited — success at 10.2%
+    successAccent: "#88B196",
+    successStrong: "#9DC0A9",
+    /**
+     * [F] No orange appears in any of the nine screens. Proposed in the
+     * extracted hue register, HSL(36, 34%, 60%). 7.84:1 on canvas.
+     */
+    warning: "#BCA076",
+    warningLight: "#211E1C",
+    warningAccent: "#BCA076",
+    warningStrong: "#CCB68F",
+    /**
+     * [F] No red appears in any of the nine screens — the mocks paint "Drop"
+     * and "Overdue by 1d" in the accent instead. docs/02 §13.1 binds red to
+     * destructive/at-risk, so this is proposed rather than inherited.
+     * HSL(8, 32%, 62%). 6.45:1 on canvas.
+     */
+    danger: "#BD877F",
+    dangerLight: "#211B1C",
+    dangerStrong: "#CDA09A",
 
-    border: "#292524",
-    // neutral.700 — dark emphasized border, one step stronger than the dark
-    // default border, mirroring the light border/borderStrong gap. Decorative.
-    borderStrong: "#44403C",
-    accent: "#8B5CF6",
-    accentLight: "#241C3A",
-    accentStrong: "#7C3AED",
+    border: "#2D2D30", // [E] 1pt borders throughout
+    borderStrong: "#3A3A3C", // [E]
+    /** [F] No purple in the mocks. AI/smart/Projects only. HSL(268,24%,66%). */
+    accent: "#A793BD",
+    accentLight: "#1D1B22",
+    accentStrong: "#BBA9CE",
+
+    /** [E] measured accent washes, pre-composited over canvas. */
+    primaryWash: "#1A2024", // accent @ 12.2%
+    primaryWashStrong: "#222D34", // accent @ 23.9%
+    successWash: "#191D1C", // success @ 10.2%
   },
 } as const;
 
 /**
- * NativeWind `dark:` class mapping cheatsheet. NativeWind's `useColorScheme`
- * (from "nativewind", never "react-native") drives Tailwind's `dark:`
- * variant app-wide (`tailwind.config.js` `darkMode: "class"`); this table is
- * what a screen should actually WRITE to reproduce `colors.light` /
- * `colors.dark` above exactly, since the neutral ramp in `tailwind.config.js`
- * is one flat set of steps shared by both themes (it is not itself
- * theme-aware) — "dark mode" for a neutral surface is really just picking a
- * different step of the same ramp:
- *
- *   bg-white           dark:bg-neutral-900     (card)
- *   bg-neutral-50      dark:bg-neutral-800     (elevated)
- *   bg-neutral-100     dark:bg-neutral-950     (background/canvas)
- *   text-neutral-900   dark:text-neutral-50    (text)
- *   text-neutral-700   dark:text-neutral-300   (textStrong)
- *   text-neutral-600   dark:text-neutral-400   (textSecondary)
- *   text-neutral-400   dark:text-neutral-600   (textDisabled)
- *   border-neutral-200 dark:border-neutral-800 (border)
- *   border-neutral-300 dark:border-neutral-700 (borderStrong)
- *
- * `textMuted` is the one exception: `colors.dark.textMuted` (`#78716C`) is a
- * deliberately bespoke value (doc 02 §14.6 "Stone-500-on-dark") that does not
- * sit on any exact step of the shared neutral ramp — `neutral.500`
- * (`#6F6862`) is close but measurably lower contrast (3.19:1 vs the audited
- * 3.65:1 on a dark card). Reproduce it with the literal step: `text-neutral-500
- * dark:text-[#78716C]`. Semantic accent colors (primary/success/warning/
- * danger/accent) are UNCHANGED between themes (doc 02 §14.1) and never need a
- * `dark:` variant. Small pastel tint badges (e.g. `bg-success-100` paired
- * with `text-success-700`) are self-contained, already-audited pairs (doc 02
- * §14.6) that stay correct without a `dark:` variant too — leave them as-is
- * rather than inventing a darker tint for them.
- *
- * `core/__tests__/design-tokens.test.ts` asserts this table against
- * `tailwind.config.js`'s neutral ramp and `colors.dark`, so a future edit to
- * either side gets a named failure instead of silent drift.
+ * Spacing. Base unit 4 [E] — every measured gap, padding and dimension in the
+ * nine screens is divisible by 4, and the dominant rhythm is 8/12/16/24.
+ * `md` (12) is the card-to-card gap, measured 16 times. Larger steps are [I].
  */
-
 export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  base: 16,
-  /**
-   * The grouping step. Everything else in this scale is a flat 4px multiple
-   * used for BOTH "gap within a group" and "gap between groups" — so a list
-   * had no way to feel tight internally while still giving the next section
-   * a real break. `group` (18) is that second gap: keep `sm`/`md` for the
-   * tight rhythm between related rows in the same group, use `group` for the
-   * break before a new one (mirrors the source design's `.sf-break`, 18px
-   * between the urgent strip / feature card / section header, vs. 8-9px
-   * between ordinary rows in the same stack).
-   */
-  group: 18,
-  lg: 20,
-  xl: 24,
-  "2xl": 32,
-  "3xl": 40,
-  "4xl": 48,
-  "5xl": 64,
+  xs: 4, // [E]
+  sm: 8, // [E]
+  md: 12, // [E] the dominant gap
+  base: 16, // [E] card padding
+  /** Kept for source compatibility; prefer `md` (12), the measured rhythm. */
+  group: 16,
+  lg: 20, // [I]
+  xl: 24, // [E] screen padding
+  "2xl": 32, // [I]
+  "3xl": 40, // [I]
+  "4xl": 48, // [I]
+  "5xl": 64, // [I]
 } as const;
 
 /**
- * Radius hierarchy (doc 02 §14.7 mapping). `lg` (12) is the quiet list-row /
- * card radius — unchanged, it already matched. `2xl` (18) is the feature-card
- * radius: this is the real "feature card" tier in the app (`Card`'s `feature`
- * prop, `GradientCard`, `FeatureShell`'s outer bezel, and the ~30 ad-hoc
- * bordered `rounded-2xl` surfaces across settings/onboarding/task-editor),
- * moved from 20 to 18. `3xl` (26) is reserved for hero surfaces — nothing in
- * the shipped tree used `rounded-3xl` before this change (grep-confirmed
- * zero call sites), so moving it from 28 to 26 is a free, zero-regression
- * top-of-ladder slot for a future full-bleed hero (e.g. the focus session
- * card). `xl` (16) is deliberately left alone as the mid step between quiet
- * rows and feature cards (modals/sheets/secondary rows). Every key name is
- * unchanged so all existing `rounded-*` / `borderRadius.*` call sites keep
- * resolving — only the `2xl` and `3xl` values moved.
+ * Radius ladder, entirely [E] from corner-arc geometry. Usage counts across
+ * the nine screens: 16 x44 (cards, sheets), 8 x28 (chips, inputs), 12 x22
+ * (buttons), 10 x18 (icon tiles), 14 x7 (toggle pills, = height/2),
+ * 6/4/2 (micro elements, bars), 18/20 (the full-bleed banner).
+ *
+ * The 36pt value that shows up in the data is the artboard device corner,
+ * NOT a UI value, and is deliberately absent.
+ *
+ * Key names are unchanged so every existing `borderRadius.*` and `rounded-*`
+ * call site keeps resolving — only the values moved.
  */
 export const borderRadius = {
-  xs: 6,
-  sm: 8,
-  md: 10,
-  lg: 12,
-  xl: 16,
-  "2xl": 18,
-  "3xl": 26,
-  full: 9999,
+  xs: 4, // [E] bars, micro
+  sm: 6, // [E]
+  md: 8, // [E] chips, inputs
+  lg: 12, // [E] buttons
+  xl: 16, // [E] cards, sheets — the dominant radius
+  "2xl": 18, // [E] feature surfaces
+  "3xl": 20, // [E] full-bleed banner
+  full: 9999, // [F]
 } as const;
 
 /**
- * Font families. Doc 02 §2.1 is binding: React Native does not reliably
+ * Font families. docs/02 §2.1 is binding: React Native does not reliably
  * combine `fontFamily` with a numeric `fontWeight` across platforms, so the
- * weight is bound into the family name. These four identifiers are the exact
- * exports of `@expo-google-fonts/lexend` loaded in `app/_layout.tsx`, and
- * they must stay in lockstep with `tailwind.config.js`'s `fontFamily` block
- * (`font-sans` / `font-medium` / `font-semibold` / `font-bold`).
+ * weight is bound into the family name.
+ *
+ * Outfit, confirmed 2026-08-26 as the typeface behind the Figma source
+ * screens (the PDFs themselves cannot carry it — Figma outlines all text as
+ * Type3 glyphs with no /BaseFont). Replaced Lexend. These four identifiers
+ * are the exact exports of `@expo-google-fonts/outfit` loaded in
+ * `app/_layout.tsx` and must stay in lockstep with `tailwind.config.js`.
  */
 export const fontFamilies = {
-  regular: "Lexend_400Regular",
-  medium: "Lexend_500Medium",
-  semibold: "Lexend_600SemiBold",
-  bold: "Lexend_700Bold",
+  regular: "Outfit_400Regular",
+  medium: "Outfit_500Medium",
+  semibold: "Outfit_600SemiBold",
+  bold: "Outfit_700Bold",
 } as const;
 
 /**
- * Type scale (doc 02 §2.2).
+ * Type scale — every size [E], measured off the text matrices.
  *
- * HOW THIS IS CONSUMED. Screens style text with the Tailwind `text-*` /
- * `font-*` classes, not by importing these objects — converting ~36 screens
- * off NativeWind onto StyleSheet objects would be a large, risky, zero-visual
- * -benefit refactor. So the contract is the other direction: **`tailwind.
- * config.js` mirrors this object**, and `core/__tests__/design-tokens.test.ts`
- * asserts the mirror holds (size, line height, family and tracking, key for
- * key). Previously neither was true of the other, which is exactly how the
- * two were free to drift. Change a value here and the parity test tells you
- * which Tailwind entry to move with it.
+ * Letter-spacing measured EXACTLY 0 on all 241 text runs across the nine
+ * screens, headings included. The negative display tracking that docs/02
+ * §2.2 called "the single most important detail" is not present in the
+ * source and has been removed.
  *
- * Each entry is a complete, directly-usable RN `TextStyle`: `fontFamily`
- * carries the weight (see `fontFamilies` above), `fontWeight` is retained
- * alongside it as the semantic record of the scale and for web, and headings
- * carry the negative tracking doc 02 §2.2 calls "the single most important
- * detail" of the headline look.
+ * `meta` (12) and `micro` (9) are new keys for two heavily-used measured
+ * sizes the old scale had no slot for. 9pt and 11pt deliberately sit below
+ * the old docs/02 §9.9 floor (body >=15, captions >=13) — logged as an
+ * explicit override in docs/09_Decisions.md. WCAG sets no minimum font size,
+ * and the `textMuted` remediation above is what keeps 11pt legible.
+ *
+ * HOW THIS IS CONSUMED: screens use the Tailwind `text-*` / `font-*` classes;
+ * `tailwind.config.js` mirrors this object and
+ * `core/__tests__/design-tokens.test.ts` asserts the mirror holds.
  */
 export const typography = {
-  display: { fontSize: 34, lineHeight: 40, fontWeight: "700" as const, fontFamily: fontFamilies.bold, letterSpacing: -0.8 },
-  h1: { fontSize: 28, lineHeight: 34, fontWeight: "700" as const, fontFamily: fontFamilies.bold, letterSpacing: -0.6 },
-  h2: { fontSize: 24, lineHeight: 30, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: -0.4 },
-  h3: { fontSize: 20, lineHeight: 26, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: -0.2 },
-  h4: { fontSize: 18, lineHeight: 24, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: -0.1 },
-  bodyLg: { fontSize: 16, lineHeight: 24, fontWeight: "400" as const, fontFamily: fontFamilies.regular, letterSpacing: 0 },
-  body: { fontSize: 15, lineHeight: 22, fontWeight: "400" as const, fontFamily: fontFamilies.regular, letterSpacing: 0 },
-  bodyMedium: { fontSize: 15, lineHeight: 22, fontWeight: "500" as const, fontFamily: fontFamilies.medium, letterSpacing: 0 },
-  label: { fontSize: 14, lineHeight: 20, fontWeight: "500" as const, fontFamily: fontFamilies.medium, letterSpacing: 0 },
+  display: { fontSize: 54, lineHeight: 60, fontWeight: "700" as const, fontFamily: fontFamilies.bold, letterSpacing: 0 },
+  h1: { fontSize: 28, lineHeight: 34, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: 0 },
+  h2: { fontSize: 22, lineHeight: 28, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: 0 },
+  h3: { fontSize: 20, lineHeight: 26, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: 0 },
+  h4: { fontSize: 18, lineHeight: 24, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: 0 },
+  bodyLg: { fontSize: 16, lineHeight: 22, fontWeight: "500" as const, fontFamily: fontFamilies.medium, letterSpacing: 0 },
+  body: { fontSize: 15, lineHeight: 21, fontWeight: "400" as const, fontFamily: fontFamilies.regular, letterSpacing: 0 },
+  bodyMedium: { fontSize: 15, lineHeight: 21, fontWeight: "500" as const, fontFamily: fontFamilies.medium, letterSpacing: 0 },
+  label: { fontSize: 14, lineHeight: 20, fontWeight: "400" as const, fontFamily: fontFamilies.regular, letterSpacing: 0 },
   caption: { fontSize: 13, lineHeight: 18, fontWeight: "400" as const, fontFamily: fontFamilies.regular, letterSpacing: 0 },
   captionMedium: { fontSize: 13, lineHeight: 18, fontWeight: "500" as const, fontFamily: fontFamilies.medium, letterSpacing: 0 },
-  overline: { fontSize: 11, lineHeight: 14, fontWeight: "600" as const, fontFamily: fontFamilies.semibold, letterSpacing: 0.6 },
-  tiny: { fontSize: 11, lineHeight: 14, fontWeight: "400" as const, fontFamily: fontFamilies.regular, letterSpacing: 0.2 },
+  /** [E] 12pt — badges, meta, secondary chips. 35 uses. */
+  meta: { fontSize: 12, lineHeight: 16, fontWeight: "500" as const, fontFamily: fontFamilies.medium, letterSpacing: 0 },
+  overline: { fontSize: 11, lineHeight: 15, fontWeight: "500" as const, fontFamily: fontFamilies.medium, letterSpacing: 0 },
+  tiny: { fontSize: 11, lineHeight: 15, fontWeight: "400" as const, fontFamily: fontFamilies.regular, letterSpacing: 0 },
+  /** [E] 9pt — micro labels. 9 uses. Never for running prose. */
+  micro: { fontSize: 9, lineHeight: 12, fontWeight: "500" as const, fontFamily: fontFamilies.medium, letterSpacing: 0 },
 } as const;
 
 /**
- * 5-level elevation system (doc 02 §5/§14.2). RN shadow props — apply via
- * style={shadows.sm}, NOT className. `sm` is the default card elevation.
+ * Elevation. [E] THE SOURCE DESIGN HAS NO SHADOWS AT ALL — nine screens,
+ * zero shadow geometry, zero blend modes, zero blurs. Depth is carried
+ * entirely by the surface ladder (canvas -> card -> elevated -> border).
  *
- * Retuned to read as a real four-tier ladder rather than six evenly-spaced
- * steps (the previous progression added a flat +0.02 opacity / +8 radius at
- * every single step, so a resting list row and a feature card barely read as
- * different weights). `none`/`xs` stay a near-invisible hairline pair; `sm`
- * (resting card, doc's default), `md` (feature card, pairs with the new
- * `borderRadius["2xl"]` 18), and `lg` (hero / modal, pairs with the new
- * `borderRadius["3xl"]` 26) now step up with real, growing separation; `xl`
- * (bottom sheets, command palette — meant to be used rarely, per doc 02 §5's
- * own "reserve for things that are genuinely floating") is the deliberate
- * top of the ladder. `shadowColor` stays the warm Stone `#292524` (doc
- * §14.2) at every tier — unchanged, still the "warm ambient depth" this
- * doc section already established, not a hard black drop-shadow. Six keys,
- * same as before — no new keys added, only the five non-zero values retuned.
+ * All six keys are retained as inert no-ops so the ~54 existing
+ * `style={shadows.*}` call sites keep compiling and simply render flat.
+ * To raise something, move it up a surface step or give it a border —
+ * do not reintroduce a shadow.
  */
+const FLAT = {
+  shadowColor: "transparent",
+  shadowOffset: { width: 0, height: 0 },
+  shadowOpacity: 0,
+  shadowRadius: 0,
+  elevation: 0,
+} as const;
+
 export const shadows = {
-  none: {
-    shadowColor: "#292524",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
-  },
-  xs: {
-    shadowColor: "#292524",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  sm: {
-    shadowColor: "#292524",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  md: {
-    shadowColor: "#292524",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.11,
-    shadowRadius: 18,
-    elevation: 6,
-  },
-  lg: {
-    shadowColor: "#292524",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 26,
-    elevation: 9,
-  },
-  xl: {
-    shadowColor: "#292524",
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.2,
-    shadowRadius: 34,
-    elevation: 13,
-  },
+  none: FLAT,
+  xs: FLAT,
+  sm: FLAT,
+  md: FLAT,
+  lg: FLAT,
+  xl: FLAT,
 } as const;
 
 /**
- * Motion tokens. Durations in ms, springs for Reanimated withSpring,
- * press feedback for the PressableScale primitive.
+ * Motion tokens. [F] — a PDF carries no timing, so these are carried over
+ * unchanged from the previous system. They already satisfy docs/02 §8: quiet,
+ * fast, eased, and containing no bounce, elastic or overshoot curve anywhere.
  */
 export const motion = {
   duration: {
@@ -324,70 +298,102 @@ export const motion = {
   spring: {
     default: { damping: 18, mass: 1, stiffness: 220 },
     gentle: { damping: 22, mass: 1, stiffness: 160 },
-    /** Snappier spring for drag pickup/drop and control toggles (calendar block drag). */
+    /** Snappier spring for drag pickup/drop and control toggles. */
     tactile: { damping: 26, mass: 0.8, stiffness: 340 },
   },
   press: { scale: 0.97, opacity: 0.9, inMs: 100, outMs: 150 },
 } as const;
 
 /**
- * Gradient color-array presets for expo-linear-gradient <LinearGradient colors={...} />.
- * Keep these SUBTLE — faint washes only, never for text.
+ * [E] THE SOURCE DESIGN HAS NO GRADIENTS. Every entry below is a flat
+ * same-colour pair, i.e. a visual no-op, kept only so existing
+ * <LinearGradient colors={...} /> call sites keep compiling. Screen-level
+ * commits remove the now-pointless wrappers as they are touched.
+ * Do not reintroduce a decorative gradient.
  */
 export const gradients = {
-  heroWash: ["#EFF6FF", "rgba(247,246,243,0)"],
-  firstMove: ["#EFF6FF", "#FFFFFF"],
-  successTint: ["#F0FDF4", "#FFFFFF"],
-  fade: ["rgba(247,246,243,0)", "#F7F6F3"],
-  /**
-   * Dark-mode counterpart to `heroWash`. The light wash is a bright blue
-   * tint (`primary-50`), which reads as jarring directly on a dark canvas —
-   * so this is built entirely from existing `colors.dark` values (elevated
-   * fading to a transparent background), never a newly invented hex, per a
-   * warm near-black surface fading to nothing rather than a bright color.
-   * Pick between the two with `useThemeColors`'s resolved scheme, e.g.
-   * `colors={scheme === "dark" ? gradients.heroWashDark : gradients.heroWash}`.
-   */
-  heroWashDark: ["#292524", "rgba(12,10,9,0)"],
+  heroWash: ["#18181B", "#18181B"],
+  firstMove: ["#18181B", "#18181B"],
+  successTint: ["#191D1C", "#191D1C"],
+  fade: ["#0C0C0E", "#0C0C0E"],
+  heroWashDark: ["#18181B", "#18181B"],
 } as const;
 
-/** Layout constants (px) for screen padding, content width, card rhythm. */
+/** Layout constants (dp). Screen padding and card rhythm are [E]. */
 export const layout = {
-  screenPadX: 20,
-  screenPadXLarge: 24,
-  maxContentWidth: 560,
-  cardPad: 16,
-  cardPadFeature: 20,
-  cardGap: 12,
-  sectionGap: 28,
-  rowMinHeight: 56,
+  screenPadX: 24, // [E] left edge measured 24 on 56 elements
+  screenPadXLarge: 24, // [E] same value — the source uses one inset
+  maxContentWidth: 560, // [F] web/tablet clamp, not in the mocks
+  cardPad: 16, // [E]
+  cardPadFeature: 16, // [E] the source uses one card padding
+  cardGap: 12, // [E] measured 16 times
+  sectionGap: 32, // [I]
+  rowMinHeight: 56, // [F] >= the 44 touch-target floor
+  /** [E] measured card height (72) and card-to-card pitch (84 = 72 + 12). */
+  cardHeight: 72,
+  cardPitch: 84,
+  /** [E] icon tile 40x40, 12 to its label. Button height 44. Toggle 48x28. */
+  iconTile: 40,
+  buttonHeight: 44,
+  contentWidth: 354, // [E] 402 - 24 - 24
 } as const;
 
 /**
- * Muted-pastel semantic tints for lists, tags, and category chips (doc 02 v3 "Calm Premium").
- * `bg` = pale tint for chips/badges, `text` = readable label color on that bg (>=4.5:1,
- * audited), `bar` = a slightly stronger tone for the TaskCard left tint-bar (decorative,
- * not required to hit AA on its own — it never carries text).
+ * Categorical list/tag/project tints. The source screens only contain four
+ * categorical dots (#7AAEBB #8295B3 #88B196 #A3CCDB, all 6x6px), so the full
+ * ten-hue set is [I] — built in the same measured register (S ~26%, L ~62%
+ * dark) so nothing shouts against the muted spine.
+ *
+ * `bg` = tint surface, `text` = label on that tint (every pair audited >=4.5:1
+ * in BOTH themes), `bar` = the TaskCard left tint-bar (decorative, carries no
+ * text). Resolve with `getListColors(scheme)`, not by reaching into a theme.
  */
-export const listColors = {
-  red: { bg: "#FDEBEC", text: "#9F2F2D", bar: "#E4726F" },
-  blue: { bg: "#E1F3FE", text: "#1F6C9F", bar: "#6BB6E4" },
-  green: { bg: "#EDF3EC", text: "#346538", bar: "#74A878" },
-  yellow: { bg: "#FBF3DB", text: "#956400", bar: "#D9B65B" },
-  purple: { bg: "#EDE9FE", text: "#6D28D9", bar: "#A992F0" },
-  orange: { bg: "#FFEDD5", text: "#C2410C", bar: "#F0A46B" },
-  teal: { bg: "#D9F2EE", text: "#0F6E60", bar: "#5FC4B4" },
-  pink: { bg: "#FCE7F1", text: "#A32B68", bar: "#EC8BB8" },
-  indigo: { bg: "#E6E9FD", text: "#3730A3", bar: "#8B93E8" },
-  slate: { bg: "#ECEAE6", text: "#52525B", bar: "#A8A29A" },
+export const listColorsByTheme = {
+  dark: {
+    red: { bg: "#211B1C", text: "#B78C85", bar: "#B78C85" },
+    blue: { bg: "#1B1E22", text: "#85A6B7", bar: "#85A6B7" },
+    green: { bg: "#1B211E", text: "#85B796", bar: "#85B796" },
+    yellow: { bg: "#21201C", text: "#B7B185", bar: "#B7B185" },
+    purple: { bg: "#1D1B22", text: "#9C85B7", bar: "#9C85B7" },
+    orange: { bg: "#211E1C", text: "#B7A085", bar: "#B7A085" },
+    teal: { bg: "#1B2122", text: "#85B7B1", bar: "#85B7B1" },
+    pink: { bg: "#211B1F", text: "#B7859E", bar: "#B7859E" },
+    indigo: { bg: "#1B1B22", text: "#858CB7", bar: "#858CB7" },
+    slate: { bg: "#1D1D20", text: "#969CA6", bar: "#969CA6" },
+  },
+  light: {
+    red: { bg: "#F3ECEB", text: "#925E56", bar: "#AA766E" },
+    blue: { bg: "#EBF0F3", text: "#4D7284", bar: "#6E96AA" },
+    green: { bg: "#EBF3EE", text: "#467756", bar: "#6EAA82" },
+    yellow: { bg: "#F3F2EB", text: "#756F45", bar: "#AAA26E" },
+    purple: { bg: "#EFEBF3", text: "#7C5D9F", bar: "#8A6EAA" },
+    orange: { bg: "#F3EFEB", text: "#82694C", bar: "#AA8E6E" },
+    teal: { bg: "#EBF3F2", text: "#467770", bar: "#6EAAA2" },
+    pink: { bg: "#F3EBEF", text: "#965877", bar: "#AA6E8C" },
+    indigo: { bg: "#EBECF3", text: "#5E67A1", bar: "#6E76AA" },
+    slate: { bg: "#EEEEF0", text: "#666C78", bar: "#838995" },
+  },
 } as const;
 
-export type ListColorName = keyof typeof listColors;
+/**
+ * Default-theme view of the categorical tints. Dark is the app default, so
+ * this points at the dark set and every existing `listColors.red.bg` call
+ * site keeps working and renders correctly in the default theme. Theme-aware
+ * call sites should use `getListColors(scheme)`.
+ */
+export const listColors = listColorsByTheme.dark;
 
-/** Tabular (monospaced-width) numerals so digit columns don't jitter — timers, counters. */
+export type ListColorName = keyof typeof listColorsByTheme.dark;
+
+/** Resolve the categorical tints for a colour scheme. */
+export function getListColors(scheme: "light" | "dark" | null | undefined) {
+  return scheme === "light" ? listColorsByTheme.light : listColorsByTheme.dark;
+}
+
+/** Tabular (monospaced-width) numerals so digit columns do not jitter — timers, counters. */
 export const tabularNums: Pick<TextStyle, "fontVariant"> = { fontVariant: ["tabular-nums"] };
 
-/** Icon sizing scale (px). */
+/** Icon sizing scale (dp). */
 export const iconSizes = {
   xs: 16,
   sm: 18,
@@ -401,7 +407,7 @@ export const iconSizes = {
 export const TOUCH_TARGET_MIN = 44;
 /** Preferred touch target for primary actions */
 export const TOUCH_TARGET_PRIMARY = 52;
-/** Minimum button height */
+/** Minimum button height — [E] measured 44 in the source. */
 export const BUTTON_MIN_HEIGHT = 44;
 
 export const urgency = {

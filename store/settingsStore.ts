@@ -59,7 +59,7 @@ const defaultSettings: Settings = {
   reminderKinds: { start: true, deadline: true, motivation: true },
   notificationNudgeDismissed: false,
   displayName: undefined,
-  themePreference: 'system',
+  themePreference: 'dark',
   onboardingComplete: false,
   // Set true by app/onboarding/age-gate.tsx once the user confirms they are
   // 13+. Only this boolean is ever stored, never the birth date itself.

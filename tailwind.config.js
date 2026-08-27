@@ -1,4 +1,11 @@
 /** @type {import('tailwindcss').Config} */
+
+// Every colour resolves through a CSS variable defined in global.css, so a
+// class like `bg-canvas` or `text-neutral-900` is correct in BOTH themes with
+// no `dark:` variant at the call site. See global.css for the role mapping and
+// utils/design-tokens.ts for the extracted values and their [E]/[I]/[F] tags.
+const v = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+
 module.exports = {
   content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
@@ -6,122 +13,170 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Ampora design system — warm neutral (Stone) + blue, light-first (doc 02, v3 "Calm Premium").
-        neutral: {
-          0: "#FFFFFF",
-          50: "#FAF9F7",
-          100: "#F7F6F3",
-          200: "#E8E6E0",
-          300: "#D7D3CC",
-          400: "#A8A29A",
-          500: "#6F6862",
-          600: "#57534E",
-          700: "#44403C",
-          800: "#292524",
-          900: "#1C1917",
-          950: "#0C0A09",
+        // `white` is remapped to the card surface on purpose: 148 `bg-white`
+        // call sites mean "card", not "literal white", and this makes every
+        // one of them theme-correct untouched. `black` is deliberately NOT
+        // remapped — `bg-black/40` scrims must stay black in both themes.
+        // Use `pure-white` / `pure-black` when a literal is genuinely meant
+        // (e.g. a toggle knob on the accent fill).
+        white: v("color-surface"),
+        pure: {
+          white: "#FFFFFF",
+          black: "#000000",
         },
+
+        // Semantic names — prefer these in all new and migrated code.
+        canvas: v("color-canvas"),
+        surface: v("color-surface"),
+        raised: v("color-raised"),
+        "surface-ghost": v("color-surface-ghost"),
+        "surface-hairline": v("color-surface-hairline"),
+        line: v("color-line"),
+        "line-strong": v("color-line-strong"),
+        ink: {
+          DEFAULT: v("color-ink"),
+          strong: v("color-ink-strong"),
+          secondary: v("color-ink-secondary"),
+          muted: v("color-ink-muted"),
+          disabled: v("color-ink-disabled"),
+        },
+
+        // Role-mapped neutral ramp (see global.css). Step 900 is always
+        // primary text, 100 is always canvas, 200 is always border.
+        neutral: {
+          0: v("neutral-0"),
+          50: v("neutral-50"),
+          100: v("neutral-100"),
+          200: v("neutral-200"),
+          300: v("neutral-300"),
+          400: v("neutral-400"),
+          500: v("neutral-500"),
+          600: v("neutral-600"),
+          700: v("neutral-700"),
+          800: v("neutral-800"),
+          900: v("neutral-900"),
+          950: v("neutral-950"),
+        },
+
+        // The single general interactive accent.
         primary: {
-          50: "#EFF6FF",
-          100: "#DBEAFE",
-          200: "#BFDBFE",
-          300: "#93C5FD",
-          400: "#60A5FA",
-          500: "#3B82F6",
-          600: "#2563EB",
-          700: "#1D4ED8",
-          800: "#1E40AF",
-          900: "#1E3A8A",
+          50: v("primary-wash"),
+          100: v("primary-wash"),
+          200: v("primary-wash-strong"),
+          300: v("primary-dark"),
+          400: v("primary-light"),
+          500: v("primary"),
+          600: v("primary"),
+          700: v("primary-dark"),
+          800: v("primary-dark"),
+          900: v("primary-dark"),
+          foreground: v("primary-fg"),
         },
         success: {
-          100: "#DCFCE7",
-          500: "#22C55E",
-          600: "#16A34A",
-          700: "#15803D",
+          100: v("success-wash"),
+          500: v("success"),
+          600: v("success"),
+          700: v("success-strong"),
         },
         warning: {
-          100: "#FFEDD5",
-          500: "#F97316",
-          600: "#EA580C",
-          700: "#C2410C",
-        },
-        accent: {
-          100: "#EDE9FE",
-          500: "#8B5CF6",
-          600: "#7C3AED",
-          700: "#6D28D9",
+          100: v("warning-wash"),
+          500: v("warning"),
+          600: v("warning"),
+          700: v("warning-strong"),
         },
         danger: {
-          100: "#FEE2E2",
-          500: "#EF4444",
-          600: "#DC2626",
-          700: "#B91C1C",
+          100: v("danger-wash"),
+          500: v("danger"),
+          600: v("danger"),
+          700: v("danger-strong"),
+        },
+        // AI / smart / Projects ONLY. Never a second general accent.
+        accent: {
+          100: v("accent-wash"),
+          500: v("accent"),
+          600: v("accent"),
+          700: v("accent-strong"),
         },
       },
+
       // MIRROR OF utils/design-tokens.ts `typography`. That object is the
-      // scale of record (doc 02 §2.2); this block is how screens actually
-      // consume it, via `text-*` + `font-*` classes. The two are asserted
-      // equal, key for key, by core/__tests__/design-tokens.test.ts — change
-      // one and that test names the other. `bodyMedium`/`captionMedium` have
-      // no entry of their own on purpose: they differ from `body`/`caption`
-      // by weight only, so they are spelled `text-body font-medium` and
-      // `text-caption font-medium`.
+      // scale of record; this block is how screens consume it. The two are
+      // asserted equal, key for key, by core/__tests__/design-tokens.test.ts.
+      // Every size is [E] measured off the Figma PDF text matrices.
+      // `bodyMedium`/`captionMedium` have no entry of their own on purpose:
+      // they differ from `body`/`caption` by weight only.
       fontSize: {
-        display: ["34px", { lineHeight: "40px" }],
+        display: ["54px", { lineHeight: "60px" }],
         h1: ["28px", { lineHeight: "34px" }],
-        h2: ["24px", { lineHeight: "30px" }],
+        h2: ["22px", { lineHeight: "28px" }],
         h3: ["20px", { lineHeight: "26px" }],
         h4: ["18px", { lineHeight: "24px" }],
-        "body-lg": ["16px", { lineHeight: "24px" }],
-        body: ["15px", { lineHeight: "22px" }],
+        "body-lg": ["16px", { lineHeight: "22px" }],
+        body: ["15px", { lineHeight: "21px" }],
         label: ["14px", { lineHeight: "20px" }],
         caption: ["13px", { lineHeight: "18px" }],
-        overline: ["11px", { lineHeight: "14px" }],
-        tiny: ["11px", { lineHeight: "14px" }],
+        meta: ["12px", { lineHeight: "16px" }],
+        overline: ["11px", { lineHeight: "15px" }],
+        tiny: ["11px", { lineHeight: "15px" }],
+        micro: ["9px", { lineHeight: "12px" }],
       },
-      // Radius hierarchy — mirrors utils/design-tokens.ts `borderRadius` exactly
-      // (see that file's doc comment for the per-tier rationale). `2xl`/`3xl`
-      // moved from 20/28 to 18/26 (feature cards / hero surfaces); every other
-      // key is unchanged.
+
+      // Radius ladder — mirrors utils/design-tokens.ts `borderRadius`, all [E]
+      // from corner-arc geometry. 16 is the dominant card/sheet radius (x44),
+      // 12 buttons (x22), 8 chips/inputs (x28).
       borderRadius: {
-        xs: "6px",
-        sm: "8px",
-        md: "10px",
+        xs: "4px",
+        sm: "6px",
+        md: "8px",
         lg: "12px",
         xl: "16px",
         "2xl": "18px",
-        "3xl": "26px",
+        "3xl": "20px",
         full: "9999px",
       },
-      // Lexend, not Inter (docs/02 §2.1 binding convention: weight lives in the
-      // family name). Loaded in app/_layout.tsx via useFonts — these class names
-      // must match those exact exported identifiers from @expo-google-fonts/lexend.
-      // Inter stays installed (package.json) but is no longer loaded or referenced.
+
+      // Outfit (docs/02 §2.1: weight lives in the family name). Loaded in
+      // app/_layout.tsx via useFonts — these must match the exact exported
+      // identifiers from @expo-google-fonts/outfit.
       fontFamily: {
-        sans: ["Lexend_400Regular"],
-        medium: ["Lexend_500Medium"],
-        semibold: ["Lexend_600SemiBold"],
-        bold: ["Lexend_700Bold"],
+        sans: ["Outfit_400Regular"],
+        medium: ["Outfit_500Medium"],
+        semibold: ["Outfit_600SemiBold"],
+        bold: ["Outfit_700Bold"],
       },
+
       spacing: {
-        18: "72px",
+        18: "72px", // [E] measured card height
+        21: "84px", // [E] measured card pitch (72 + 12)
         22: "88px",
-        // The grouping step, mirroring `spacing.group` in design-tokens.ts.
-        // `mt-group` is the 18px break BETWEEN groups in a card stack; the
-        // tight rhythm within a group stays on the 4px grid at `gap-2`.
-        group: "18px",
+        // Kept so existing `mt-group` call sites resolve. The measured
+        // rhythm is 12 (`gap-3`) within a stack and 24 between sections.
+        group: "16px",
       },
-      // Also mirrored from `typography` (its `letterSpacing` field). `wide`
-      // is the `overline` tracking, `tiny-wide` is `tiny`'s. Body-size styles
-      // sit at 0 and need no class.
+
+      // Letter-spacing measured EXACTLY 0 on all 241 text runs across the
+      // nine source screens, headings included. These keys are retained at 0
+      // so existing `tracking-tight-h1` call sites resolve to the measured
+      // value instead of failing to compile; prefer omitting them entirely.
       letterSpacing: {
-        "tight-display": "-0.8px",
-        "tight-h1": "-0.6px",
-        "tight-h2": "-0.4px",
-        "tight-h3": "-0.2px",
-        "tight-h4": "-0.1px",
-        wide: "0.6px",
-        "tiny-wide": "0.2px",
+        "tight-display": "0px",
+        "tight-h1": "0px",
+        "tight-h2": "0px",
+        "tight-h3": "0px",
+        "tight-h4": "0px",
+        wide: "0px",
+        "tiny-wide": "0px",
+      },
+
+      // The source design has no shadows at all — depth is carried by the
+      // surface ladder. `shadow-*` classes resolve to nothing.
+      boxShadow: {
+        none: "none",
+        xs: "none",
+        sm: "none",
+        md: "none",
+        lg: "none",
+        xl: "none",
       },
     },
   },

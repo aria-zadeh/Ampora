@@ -6,7 +6,12 @@ import { typography } from "@/utils/design-tokens";
 export type { RNTextProps };
 
 /**
- * Type-scale key -> Tailwind classes (size, weight family, tracking).
+ * Type-scale key -> Tailwind classes (size + weight family).
+ *
+ * NOTE: no `tracking-*` classes appear here any more. Letter-spacing measured
+ * exactly 0 on all 241 text runs across the nine Figma source screens,
+ * headings included, so the negative display tracking the old system carried
+ * is simply not in the source.
  *
  * This is the SINGLE place `typography` (doc 02 section 2.2, the scale of
  * record, see utils/design-tokens.ts) turns into the `text-*`/`font-*`/
@@ -23,19 +28,21 @@ export type { RNTextProps };
  * size/weight/tracking as its `typography` counterpart.
  */
 export const TYPOGRAPHY_CLASSES: Record<keyof typeof typography, string> = {
-  display: "text-display font-bold tracking-tight-display",
-  h1: "text-h1 font-bold tracking-tight-h1",
-  h2: "text-h2 font-semibold tracking-tight-h2",
-  h3: "text-h3 font-semibold tracking-tight-h3",
-  h4: "text-h4 font-semibold tracking-tight-h4",
-  bodyLg: "text-body-lg font-sans",
+  display: "text-display font-bold",
+  h1: "text-h1 font-semibold",
+  h2: "text-h2 font-semibold",
+  h3: "text-h3 font-semibold",
+  h4: "text-h4 font-semibold",
+  bodyLg: "text-body-lg font-medium",
   body: "text-body font-sans",
   bodyMedium: "text-body font-medium",
-  label: "text-label font-medium",
+  label: "text-label font-sans",
   caption: "text-caption font-sans",
   captionMedium: "text-caption font-medium",
-  overline: "text-overline font-semibold tracking-wide uppercase",
-  tiny: "text-tiny font-sans tracking-tiny-wide",
+  meta: "text-meta font-medium",
+  overline: "text-overline font-medium uppercase",
+  tiny: "text-tiny font-sans",
+  micro: "text-micro font-medium uppercase",
 };
 
 type Props = RNTextProps & {
@@ -50,6 +57,10 @@ type Props = RNTextProps & {
  * `font-*` / `tracking-*` combination instead of hand-writing one. Pass
  * `variant` for the type-scale entry and use `className` only to change
  * color, matching the pattern in `components/ui/Heading.tsx`.
+ *
+ * `text-neutral-900` below is the role-mapped "primary text" step and is
+ * already correct in BOTH themes (see global.css) - it is not a light-mode
+ * hard-code.
  *
  * @example <Text variant="label" className="text-neutral-500">Due today</Text>
  */
