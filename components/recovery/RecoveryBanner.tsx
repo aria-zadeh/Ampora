@@ -77,7 +77,7 @@ export function RecoveryBanner() {
           {/* Quiet dismiss — always available, never demands engagement. */}
           <Pressable
             onPress={dismissBanner}
-            hitSlop={10}
+            hitSlop={14}
             accessibilityRole="button"
             accessibilityLabel="Dismiss"
             className="active:opacity-60"

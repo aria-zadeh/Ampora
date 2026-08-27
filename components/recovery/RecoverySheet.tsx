@@ -24,8 +24,11 @@ import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 import { useShallow } from 'zustand/react/shallow'
 
 import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
 import { Heading } from '@/components/ui/Heading'
+import { Text as UIText } from '@/components/ui/Text'
 import { DURATIONS } from '@/utils/motion'
+import { tabularNums } from '@/utils/design-tokens'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
 import { useThemeColors } from '@/hooks/useThemeColors'
 import { useTaskStore, selectAllTasks } from '@/store/taskStore'
@@ -192,7 +195,9 @@ function PreviewBody({
         <View className="h-14 w-14 items-center justify-center rounded-full bg-primary-100">
           <Ionicons name="sparkles-outline" size={26} color={theme.primary} />
         </View>
-        <Heading size="h2" className="mt-4">
+        {/* h1/28pt, two-line hero heading — measured off recovery-mode.pdf
+            (bumped up from h2/22pt, the rest of the copy is unchanged). */}
+        <Heading size="h1" className="mt-4">
           Let's catch you up
         </Heading>
         <Text className="mt-2 text-body text-neutral-600 leading-6">
@@ -216,6 +221,7 @@ function PreviewBody({
               title="Clearing what's behind you"
               caption="These are past their moment. We'll take them off your plate."
               tasks={preview.drops.map((d) => d.task)}
+              kind="drop"
             />
           )}
           {preview.bumps.length > 0 && (
@@ -226,6 +232,7 @@ function PreviewBody({
               title="Moving these up front"
               caption="These matter most right now, so they come first."
               tasks={preview.bumps.map((b) => b.task)}
+              kind="bump"
             />
           )}
           {preview.rebuildCount > 0 && (
@@ -242,12 +249,14 @@ function PreviewBody({
 
       {/* Actions */}
       <View className="mt-6 gap-3 px-5 pb-2">
+        {/* Plain centered label, no icon — matches every measured primary CTA
+            in this round (task-capture's "Commit to Schedule", voice-capture's
+            "Confirm & Add Intent"): none of them carry a leading icon. */}
         <Button
           title="Rebuild my week"
           variant="primaryBlue"
           size="lg"
           onPress={onRebuild}
-          icon={<Ionicons name="refresh" size={18} color={theme.primaryForeground} />}
           accessibilityLabel="Rebuild my week"
           accessibilityHint="Clears past-due items, moves urgent tasks up, and replans your schedule"
         />
@@ -264,6 +273,63 @@ function PreviewBody({
   )
 }
 
+/**
+ * "Overdue by 1d" / "Overdue by 4h" — a pure display computation off the
+ * task's own `due`, mirroring the small local date-math helpers already used
+ * in `BrainDumpSheet` (no store read, no side effect, nothing persisted).
+ */
+function formatOverdueLabel(due: number, now: number): string {
+  const hours = Math.max(0, now - due) / (1000 * 60 * 60)
+  if (hours < 1) return 'Overdue'
+  if (hours < 24) return `Overdue by ${Math.round(hours)}h`
+  return `Overdue by ${Math.round(hours / 24)}d`
+}
+
+/**
+ * A dropped (past-due, moot) task: title + a right-aligned overdue label, in
+ * its own bordered card, matching the recovery-mode source's stack of
+ * individual task cards rather than the old single merged list.
+ *
+ * The source also shows three per-card actions (Reschedule / Shrink task /
+ * Drop). They are deliberately NOT rendered. This sheet's model is
+ * preview-then-apply-all through "Rebuild my week", and no per-item reschedule
+ * or shrink flow exists to call — `applyRecoveryDrop` is applied as part of the
+ * whole rebuild, not per row. Drawing three buttons that look live and do
+ * nothing is worse than omitting them, so they wait until someone builds the
+ * behaviour behind them.
+ */
+function OverdueTaskCard({ task }: { task: Task }) {
+  const overdue = task.due != null ? formatOverdueLabel(task.due, Date.now()) : null
+  return (
+    <Card variant="default">
+      <View className="flex-row items-start justify-between gap-3">
+        <UIText variant="body" className="flex-1 text-neutral-900" numberOfLines={1}>
+          {task.title}
+        </UIText>
+        {overdue ? (
+          <UIText variant="meta" className="text-danger-600" style={tabularNums}>
+            {overdue}
+          </UIText>
+        ) : null}
+      </View>
+    </Card>
+  )
+}
+
+/**
+ * A bumped (now-urgent) task — a simpler card with no overdue framing: it is
+ * being moved UP, not dropped, so the drop-card's actions don't apply here.
+ */
+function BumpTaskCard({ task }: { task: Task }) {
+  return (
+    <Card variant="default">
+      <UIText variant="body" className="text-neutral-900" numberOfLines={1}>
+        {task.title}
+      </UIText>
+    </Card>
+  )
+}
+
 /** A grouped list of tasks in the preview, with an icon + explanatory caption. */
 function PreviewGroup({
   icon,
@@ -272,6 +338,7 @@ function PreviewGroup({
   title,
   caption,
   tasks,
+  kind,
 }: {
   icon: keyof typeof Ionicons.glyphMap
   tint: string
@@ -279,6 +346,8 @@ function PreviewGroup({
   title: string
   caption: string
   tasks: Task[]
+  /** Which per-task card to render — only a "drop" is framed as overdue. */
+  kind: 'drop' | 'bump'
 }) {
   return (
     <View className="mb-4">
@@ -288,22 +357,17 @@ function PreviewGroup({
         </View>
         <Text className="text-label font-semibold text-neutral-900">{title}</Text>
       </View>
-      <Text className="mb-2 px-1 text-caption text-neutral-500">{caption}</Text>
-      {/* bg-raised (not bg-white/surface): this list sits directly on the
-          sheet's own bg-surface, so it steps UP to read as a card. */}
-      <View className="rounded-2xl bg-raised px-4">
-        {tasks.map((task, i) => (
-          <View
-            key={task.id}
-            className={`flex-row items-center py-3 ${
-              i === tasks.length - 1 ? '' : 'border-b border-line'
-            }`}
-          >
-            <Text className="flex-1 text-body text-neutral-800" numberOfLines={1}>
-              {task.title}
-            </Text>
-          </View>
-        ))}
+      <Text className="mb-3 px-1 text-caption text-neutral-500">{caption}</Text>
+      {/* Each task is its own bordered card, not rows merged into one shared
+          container — matches the recovery-mode source's stack of cards. */}
+      <View className="gap-3">
+        {tasks.map((task) =>
+          kind === 'drop' ? (
+            <OverdueTaskCard key={task.id} task={task} />
+          ) : (
+            <BumpTaskCard key={task.id} task={task} />
+          ),
+        )}
       </View>
     </View>
   )

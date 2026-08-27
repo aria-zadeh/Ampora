@@ -194,7 +194,7 @@ function Section({
       }
     >
       {title ? (
-        <Text className="mb-2 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+        <Text className="mb-2 ml-1 text-overline font-semibold uppercase text-neutral-500">
           {title}
         </Text>
       ) : null}
@@ -375,10 +375,13 @@ function RepeatControl({
             <Pressable
               key={opt.key}
               onPress={() => selectPreset(opt.key)}
+              // Solid fill when selected (contract 3b: "chips inside a sheet
+              // ... selected chip is bg-primary"), not the lighter tint this
+              // used before.
               className={
                 active
-                  ? "rounded-full border border-primary-300 bg-primary-100 px-3.5 py-2"
-                  : "rounded-full border border-line bg-surface px-3.5 py-2"
+                  ? "rounded-full bg-primary-600 px-3.5 py-2"
+                  : "rounded-full border border-line bg-raised px-3.5 py-2"
               }
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
@@ -387,7 +390,7 @@ function RepeatControl({
               <Text
                 className={
                   active
-                    ? "text-label font-semibold text-primary-700"
+                    ? "text-label font-semibold text-primary-foreground"
                     : "text-label font-medium text-neutral-600"
                 }
               >
@@ -690,9 +693,16 @@ export function TaskEditorForm({
 
   const patch = (p: Partial<Task>) => setDraft((d) => ({ ...d, ...p }));
 
-  /** Border class for an input, primary-500 while focused. */
+  /**
+   * Border class for a "flat" field — contract 3b: fields inside a sheet sit
+   * on `bg-raised` with no border by default (measured off task-capture.pdf:
+   * every field box there is a single flat fill, no separate border layer).
+   * Transparent unless focused, when it lifts to primary-500 as the sole
+   * focus affordance; the literal `border` width stays constant either way
+   * so focusing never shifts layout.
+   */
   const inputBorder = (name: string) =>
-    focusedField === name ? "border-primary-500" : "border-neutral-200";
+    focusedField === name ? "border-primary-500" : "border-transparent";
 
   // --- Duration rollup ----------------------------------------------------
   const hasSubtasks = subtasks.length > 0;
@@ -985,18 +995,26 @@ export function TaskEditorForm({
     <View className="flex-1">
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-5 pb-10 pt-4 gap-6"
+        contentContainerClassName="px-6 pb-10 pt-4 gap-6"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {/* --- The essentials ------------------------------------------- */}
         <Section index={0}>
-          {/* Title */}
-          <Field label="Title">
+          {/* Title — a compound "field box" (measured off task-capture.pdf):
+              an 11pt uppercase label sits INSIDE the box, above the value —
+              unlike every other field in this form, where the label sits
+              outside. bg-raised, rounded-lg, no border unless focused. */}
+          <View
+            className={`min-h-18 justify-center gap-0.5 rounded-lg border ${inputBorder(
+              "title"
+            )} bg-raised px-4 py-2.5`}
+          >
+            <Text className="text-tiny font-medium uppercase text-neutral-500">
+              Task name
+            </Text>
             <TextInput
-              className={`min-h-12 rounded-lg border ${inputBorder(
-                "title"
-              )} bg-surface px-4 text-body-lg text-neutral-900`}
+              className="p-0 text-body-lg text-neutral-900"
               placeholder="What needs doing?"
               placeholderTextColor={theme.textDisabled}
               value={draft.title ?? ""}
@@ -1007,7 +1025,7 @@ export function TaskEditorForm({
               returnKeyType="next"
               accessibilityLabel="Task title"
             />
-          </Field>
+          </View>
 
           <Divider />
 
@@ -1016,7 +1034,7 @@ export function TaskEditorForm({
             <TextInput
               className={`min-h-24 rounded-lg border ${inputBorder(
                 "notes"
-              )} bg-surface px-4 py-3 text-body-lg text-neutral-900`}
+              )} bg-raised px-4 py-3 text-body-lg text-neutral-900`}
               placeholder="Add details (optional)"
               placeholderTextColor={theme.textDisabled}
               value={draft.notes ?? ""}
@@ -1123,7 +1141,7 @@ export function TaskEditorForm({
             <TextInput
               className={`min-h-12 rounded-lg border ${inputBorder(
                 "firstMove"
-              )} bg-surface px-4 text-body-lg text-neutral-900`}
+              )} bg-raised px-4 text-body-lg text-neutral-900`}
               placeholder="e.g. Open the doc and write one line"
               placeholderTextColor={theme.textDisabled}
               value={firstMoveText}
@@ -1181,7 +1199,7 @@ export function TaskEditorForm({
                         className={`max-w-full flex-row items-center gap-1.5 rounded-full border px-3 py-2 ${
                           loading
                             ? "border-accent-100 bg-accent-100"
-                            : "border-line bg-surface"
+                            : "border-line bg-raised"
                         }`}
                         accessibilityRole="button"
                         accessibilityLabel={`Make easier: ${s.title}`}
@@ -1268,7 +1286,7 @@ export function TaskEditorForm({
                   className="gap-2"
                 >
                   <TextInput
-                    className="min-h-12 rounded-lg border border-primary-500 bg-surface px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-lg border border-primary-500 bg-raised px-4 text-body-lg text-neutral-900"
                     placeholder='e.g. "break it down by function" or "step 2 is too big"'
                     placeholderTextColor={theme.textDisabled}
                     value={refineText}
@@ -1346,7 +1364,7 @@ export function TaskEditorForm({
               <TextInput
                 className={`min-h-12 rounded-lg border ${inputBorder(
                   "duration"
-                )} bg-surface px-4 text-body-lg text-neutral-900`}
+                )} bg-raised px-4 text-body-lg text-neutral-900`}
                 placeholder="e.g. 30"
                 placeholderTextColor={theme.textDisabled}
                 value={
@@ -1398,7 +1416,7 @@ export function TaskEditorForm({
             ) : (
               <Pressable
                 onPress={() => setShowDuePicker(true)}
-                className="min-h-12 flex-row items-center rounded-lg border border-line bg-surface px-4"
+                className="min-h-12 flex-row items-center rounded-lg border border-line bg-raised px-4"
                 accessibilityRole="button"
                 accessibilityLabel="Set a due date"
               >
@@ -1440,7 +1458,7 @@ export function TaskEditorForm({
             ) : (
               <Pressable
                 onPress={() => patch({ startAfter: Date.now() })}
-                className="min-h-12 flex-row items-center rounded-lg border border-line bg-surface px-4"
+                className="min-h-12 flex-row items-center rounded-lg border border-line bg-raised px-4"
                 accessibilityRole="button"
                 accessibilityLabel="Set a start-after date"
               >
@@ -1476,7 +1494,7 @@ export function TaskEditorForm({
               <View className="flex-1">
                 <Field label="Min block (min)">
                   <TextInput
-                    className="min-h-12 rounded-lg border border-line bg-surface px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-lg border border-line bg-raised px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 30"
                     placeholderTextColor={theme.textDisabled}
                     value={draft.minBlockMin != null ? String(draft.minBlockMin) : ""}
@@ -1492,7 +1510,7 @@ export function TaskEditorForm({
               <View className="flex-1">
                 <Field label="Max block (min)">
                   <TextInput
-                    className="min-h-12 rounded-lg border border-line bg-surface px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-lg border border-line bg-raised px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 90"
                     placeholderTextColor={theme.textDisabled}
                     value={draft.maxBlockMin != null ? String(draft.maxBlockMin) : ""}
@@ -1586,7 +1604,7 @@ export function TaskEditorForm({
                 className={`flex-row items-center rounded-full border px-3 py-1.5 ${
                   draft.color == null
                     ? "border-primary-300 bg-primary-100"
-                    : "border-line bg-surface"
+                    : "border-line bg-raised"
                 }`}
                 accessibilityRole="button"
                 accessibilityLabel="Smart color, follows list"
@@ -1668,7 +1686,7 @@ export function TaskEditorForm({
       </ScrollView>
 
       {/* Sticky Save bar — single primary action, disabled when title empty */}
-      <View className="border-t border-line bg-surface px-5 pb-2 pt-3">
+      <View className="border-t border-line bg-surface px-6 pb-2 pt-3">
         <Button
           title="Save task"
           variant="primaryBlue"

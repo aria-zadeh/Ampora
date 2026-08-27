@@ -293,21 +293,28 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
       onRequestClose={handleClose}
       presentationStyle={Platform.OS === "ios" ? "pageSheet" : undefined}
     >
-      <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
-        <View className="flex-row items-center justify-between border-b border-neutral-200 bg-white px-5 py-3.5">
-          <View className="min-w-11">
-            <PressableScale
-              onPress={handleClose}
-              haptic="light"
-              className="h-11 w-11 -ml-2 items-center justify-center rounded-full"
-              accessibilityRole="button"
-              accessibilityLabel="Close Brain dump"
-            >
-              <Ionicons name="close" size={24} color={theme.text} />
-            </PressableScale>
-          </View>
+      {/* Sheet surface is bg-surface, not canvas (contract 3b). */}
+      <SafeAreaView className="flex-1 bg-surface" edges={["top", "bottom"]}>
+        {/* Grabber: 40x4, bg-line, rounded-xxs, left-aligned (measured off
+            task-capture.pdf, binding for every sheet in this workstream). */}
+        <View className="px-6 pt-3">
+          <View className="h-1 w-10 rounded-xxs bg-line" />
+        </View>
+        <View className="flex-row items-center justify-between px-6 pb-3 pt-2">
           <Heading size="h3">Brain dump</Heading>
-          <View className="min-w-11" />
+          {/* Close: 36x36 bg-raised circle (measured), inside a 44x44 tap
+              target so it still clears the touch-target floor. */}
+          <PressableScale
+            onPress={handleClose}
+            haptic="light"
+            className="h-11 w-11 items-center justify-center"
+            accessibilityRole="button"
+            accessibilityLabel="Close Brain dump"
+          >
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-raised">
+              <Ionicons name="close" size={20} color={theme.text} />
+            </View>
+          </PressableScale>
         </View>
 
         {!available ? (
@@ -352,7 +359,7 @@ function UnavailablePanel({ onClose }: { onClose: () => void }) {
   const theme = useThemeColors();
   return (
     <View className="flex-1 items-center justify-center px-8">
-      <View className="w-16 h-16 rounded-full bg-neutral-100 items-center justify-center mb-5">
+      <View className="w-16 h-16 rounded-full bg-raised items-center justify-center mb-5">
         <Ionicons name="mic-off-outline" size={32} color={theme.textDisabled} />
       </View>
       <Heading size="h4" className="text-center">
@@ -630,7 +637,7 @@ function PreviewPanel({
 }: PreviewPanelProps) {
   return (
     <View className="flex-1">
-      <View className="px-5 pt-4 pb-2">
+      <View className="px-6 pt-4 pb-2">
         <Text className="text-body text-neutral-500">
           {drafts.length === 1
             ? "Here's what I heard. Edit or drop it, then add it."
@@ -638,7 +645,7 @@ function PreviewPanel({
         </Text>
       </View>
       <ScrollView
-        className="flex-1 px-5"
+        className="flex-1 px-6"
         contentContainerStyle={{ paddingBottom: 24, gap: 10 }}
         keyboardShouldPersistTaps="handled"
       >
@@ -653,7 +660,7 @@ function PreviewPanel({
           />
         ))}
       </ScrollView>
-      <View className="px-5 pt-3 pb-2 gap-2.5 border-t border-neutral-200 bg-white">
+      <View className="px-6 pt-3 pb-2 gap-2.5 border-t border-line bg-surface">
         <Button
           title={validCount > 0 ? `Add ${validCount} ${validCount === 1 ? "task" : "tasks"}` : "Add tasks"}
           variant="primaryBlue"
@@ -699,7 +706,7 @@ function DraftRowCard({
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 40).duration(DURATIONS.base)}
-      className="bg-white rounded-lg border border-neutral-200 p-3"
+      className="bg-raised rounded-lg border border-line p-3"
     >
       <View className="flex-row items-center gap-2">
         <View className="flex-1">

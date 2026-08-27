@@ -64,7 +64,7 @@ function StepRow({
 
   return (
     <View
-      className="flex-row items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1"
+      className="flex-row items-center gap-2 rounded-lg border border-line bg-raised px-3 py-1"
       accessibilityLabel={`${subtask.title}, ${subtask.estimatedMin} minutes${done ? ", completed" : ""}`}
     >
       {/* Check circle: 44px hit area around a 24px visual circle. */}
@@ -77,8 +77,11 @@ function StepRow({
         accessibilityLabel={done ? "Mark step incomplete" : "Mark step complete"}
       >
         <View
+          // Recessed (bg-surface) against the row's own bg-raised fill when
+          // unchecked, so the empty circle stays visible instead of blending
+          // into the row it now sits on.
           className={`h-6 w-6 items-center justify-center rounded-full ${
-            done ? "bg-primary-600" : "bg-raised"
+            done ? "bg-primary-600" : "bg-surface"
           }`}
         >
           {done ? <Ionicons name="checkmark" size={13} color={theme.primaryForeground} /> : null}
@@ -221,10 +224,10 @@ export function SubtaskChecklist({
         </View>
       ) : null}
 
-      {/* Add-row input, unchanged. */}
+      {/* Add-row input. */}
       <View className="mt-3 flex-row items-center gap-2">
         <TextInput
-          className="min-h-12 flex-1 rounded-lg border border-neutral-200 bg-surface px-3 text-body-lg text-neutral-900"
+          className="min-h-12 flex-1 rounded-lg border border-neutral-200 bg-raised px-3 text-body-lg text-neutral-900"
           placeholder="Add a step"
           placeholderTextColor={theme.textDisabled}
           value={newTitle}
@@ -234,7 +237,7 @@ export function SubtaskChecklist({
           accessibilityLabel="New step title"
         />
         <TextInput
-          className="min-h-12 w-16 rounded-lg border border-neutral-200 bg-surface px-2 text-center text-body-lg text-neutral-900"
+          className="min-h-12 w-16 rounded-lg border border-neutral-200 bg-raised px-2 text-center text-body-lg text-neutral-900"
           placeholder="min"
           placeholderTextColor={theme.textDisabled}
           value={newMin}

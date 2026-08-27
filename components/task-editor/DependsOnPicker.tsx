@@ -56,7 +56,7 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
         </View>
       ) : null}
 
-      <View className="mb-2 min-h-12 flex-row items-center rounded-lg border border-neutral-200 bg-surface px-3">
+      <View className="mb-2 min-h-12 flex-row items-center rounded-lg border border-neutral-200 bg-raised px-3">
         <Ionicons name="search" size={16} color={theme.textDisabled} />
         <TextInput
           className="ml-2 flex-1 text-body-lg text-neutral-900"
@@ -74,7 +74,7 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
         </Text>
       ) : (
         <ScrollView
-          className="max-h-56 rounded-lg border border-neutral-200 bg-surface"
+          className="max-h-56 rounded-lg border border-neutral-200 bg-raised"
           nestedScrollEnabled
           keyboardShouldPersistTaps="handled"
         >

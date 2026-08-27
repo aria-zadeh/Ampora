@@ -135,7 +135,7 @@ export function ListTagPicker(props: ListTagPickerProps) {
         <PressableScale
           onPress={openCreate}
           haptic="light"
-          className="flex-row items-center rounded-full border border-dashed border-neutral-300 bg-surface px-3 py-1.5"
+          className="flex-row items-center rounded-full border border-dashed border-neutral-300 bg-raised px-3 py-1.5"
           accessibilityRole="button"
           accessibilityLabel={isSingle ? "New list" : "New tag"}
         >
@@ -163,7 +163,7 @@ export function ListTagPicker(props: ListTagPickerProps) {
             <Heading size="h3">{isSingle ? "New list" : "New tag"}</Heading>
 
             <TextInput
-              className="mt-5 min-h-12 rounded-lg border border-neutral-200 bg-surface px-4 text-body-lg text-neutral-900"
+              className="mt-5 min-h-12 rounded-lg border border-neutral-200 bg-raised px-4 text-body-lg text-neutral-900"
               placeholder={isSingle ? "List name" : "Tag name"}
               placeholderTextColor={theme.textDisabled}
               value={draftName}
