@@ -2,6 +2,7 @@ import { Tabs } from "expo-router";
 import React from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { BottomTabBar } from "@/components/ui/BottomTabBar";
 import { TAB_ROUTES } from "@/constants/tabRoutes";
 
@@ -15,10 +16,20 @@ import { TAB_ROUTES } from "@/constants/tabRoutes";
  * `top` SafeAreaView edge.
  */
 export default function TabLayout() {
+  const theme = useThemeColors();
+
   return (
     <View style={{ flex: 1 }} className="bg-canvas">
       <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
-        <Tabs tabBar={() => null} screenOptions={{ headerShown: false }}>
+        {/* Same reason as the root Stack: the default scene background is a
+            light grey that would flash on every tab switch. */}
+        <Tabs
+          tabBar={() => null}
+          screenOptions={{
+            headerShown: false,
+            sceneStyle: { backgroundColor: theme.background },
+          }}
+        >
           {TAB_ROUTES.map((route) => (
             <Tabs.Screen
               key={route.name}

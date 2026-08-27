@@ -12,6 +12,12 @@ import { useStakeTick } from "@/hooks/useStakeTick";
 import { useStakeScheduler } from "@/hooks/useStakeScheduler";
 import { useNightlyPass } from "@/hooks/useNightlyPass";
 import { useWebSystemTheme } from "@/hooks/useWebSystemTheme";
+import {
+  ThemeProvider,
+  DefaultTheme,
+  DarkTheme,
+  type Theme,
+} from "@react-navigation/native";
 import { useThemeColors } from "@/hooks/useThemeColors";
 // Outfit (docs/02 §2.1 binding convention: weight lives in the family name).
 // Confirmed as the typeface behind the Figma source screens; replaced Lexend
@@ -37,9 +43,38 @@ import { wipeAllData } from "@/core/dataExport";
 import { getCurrentUser, onAuthStateChange } from "@/services/supabase";
 import type { User } from "@supabase/supabase-js";
 
+/**
+ * React Navigation ships its own colour theme, and its DefaultTheme background
+ * is literally `rgb(242, 242, 242)`. That colour is painted by the navigator
+ * BEHIND every screen, so in a dark-first app it shows as a light flash on each
+ * navigation and as a light gap around any screen that does not paint itself
+ * edge to edge. Setting `contentStyle` only patches the symptom on one
+ * navigator; supplying a real theme fixes it at the root.
+ *
+ * Built from the same tokens as everything else so the two systems cannot drift.
+ */
+function useNavigationTheme(): Theme {
+  const theme = useThemeColors();
+  const { colorScheme } = useColorScheme();
+  const base = colorScheme === "light" ? DefaultTheme : DarkTheme;
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: theme.primary,
+      background: theme.background,
+      card: theme.card,
+      text: theme.text,
+      border: theme.border,
+      notification: theme.danger,
+    },
+  };
+}
+
 export default function RootLayout() {
   const { colorScheme, setColorScheme } = useColorScheme();
   const theme = useThemeColors();
+  const navTheme = useNavigationTheme();
   const themePreference = useSettingsStore((s) => s.settings.themePreference);
   const onboardingComplete = useSettingsStore((s) => s.settings.onboardingComplete);
 
@@ -364,7 +399,13 @@ export default function RootLayout() {
     <>
       <View className="flex-1 bg-neutral-100">
         <DotGridBackground tint={theme.text} />
-        <Stack screenOptions={{ headerShown: false }}>
+        <ThemeProvider value={navTheme}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: theme.background },
+          }}
+        >
         <Stack.Screen name="auth" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
@@ -397,6 +438,7 @@ export default function RootLayout() {
           options={{ presentation: "modal", animation: "slide_from_bottom" }}
         />
         </Stack>
+        </ThemeProvider>
         {/* App-wide lock banner. A `hold: 'session'` lock deliberately survives
             leaving the focus screen (doc `04` §6), so it must be visible and
             escapable from ANYWHERE — what is on the line, the time left, a way
