@@ -45,12 +45,7 @@ export function EmptyState({
       <Heading size="h4" className="text-center">
         {title}
       </Heading>
-      {/*
-        280px has no exact match on the Tailwind spacing/maxWidth scale
-        (…64=256px, 72=288px — tailwind.config.js is outside this pass's
-        scope). max-w-72 (288px) is the nearest real scale step, 8px wider.
-      */}
-      <Text className="text-body text-neutral-500 text-center mt-2 max-w-72">
+      <Text className="text-body text-neutral-500 text-center mt-2 max-w-280">
         {subtitle}
       </Text>
       {actionLabel && onAction && (

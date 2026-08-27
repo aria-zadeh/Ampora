@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
-import { View, Text } from "react-native";
+import { View } from "react-native";
+import { Text } from "./Text";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -54,10 +55,10 @@ export function ProgressBar({
       {(label || showPercentage) && (
         <View className="flex-row justify-between mb-1.5">
           {label && (
-            <Text className="text-caption text-neutral-500">{label}</Text>
+            <Text variant="caption" className="text-neutral-500">{label}</Text>
           )}
           {showPercentage && (
-            <Text className="text-caption font-medium text-neutral-900">
+            <Text variant="captionMedium" className="text-neutral-900">
               {Math.round(clamp(progress) * 100)}%
             </Text>
           )}

@@ -9,12 +9,13 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EASINGS } from "@/utils/motion";
-import { motion, shadows, colors, iconSizes } from "@/utils/design-tokens";
+import { motion, iconSizes } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-/** Resting size (doc `design/stack-reference.html` `.sf-fab`: 52px, ink fill, white glyph). */
+/** Resting size (doc `design/stack-reference.html` `.sf-fab`: 52px), accent fill, theme-correct glyph. */
 const FAB_SIZE = 52;
 
 interface FABProps {
@@ -24,6 +25,7 @@ interface FABProps {
 
 export function FAB({ onPress, icon = "add" }: FABProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const insets = useSafeAreaInsets();
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
@@ -84,16 +86,20 @@ export function FAB({ onPress, icon = "add" }: FABProps) {
           width: FAB_SIZE,
           height: FAB_SIZE,
           borderRadius: FAB_SIZE / 2,
-          backgroundColor: colors.light.text,
+          // Was `colors.light.text` ("ink fill" per the old doc reference) —
+          // in dark theme "text" IS near-white (the primary-text role), which
+          // painted this white-on-white with the white glyph below. The FAB
+          // is the one primary action on its screen, so it takes the accent
+          // fill like every other primary control, not a literal ink fill.
+          backgroundColor: theme.primary,
           alignItems: "center",
           justifyContent: "center",
           zIndex: 50,
         },
-        shadows.md,
         animatedStyle,
       ]}
     >
-      <Ionicons name={icon} size={iconSizes.lg} color={colors.light.primaryForeground} />
+      <Ionicons name={icon} size={iconSizes.lg} color={theme.primaryForeground} />
     </AnimatedPressable>
   );
 }

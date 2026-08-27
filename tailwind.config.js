@@ -153,6 +153,7 @@ module.exports = {
         // default Tailwind scale (which has 0.5 = 2px, 1 = 4px), added here
         // per the "add it to the scale, don't inline it" rule.
         0.75: "3px",
+        13: "52px", // primary/large button height (docs/02 button ladder 36/44/52)
         18: "72px", // [E] measured card height
         21: "84px", // [E] measured card pitch (72 + 12)
         22: "88px",

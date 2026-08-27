@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { EASINGS } from "@/utils/motion";
+import { EASINGS, DURATIONS } from "@/utils/motion";
 
 interface PulseScaleProps {
   /** When this flips from false to true, the pulse plays once. */
@@ -40,8 +40,8 @@ export function PulseScale({
     if (reduceMotion || !trigger || wasTriggered) return;
 
     scale.value = withSequence(
-      withTiming(peak, { duration: 100, easing: EASINGS.standard }),
-      withTiming(1, { duration: 100, easing: EASINGS.standard }),
+      withTiming(peak, { duration: DURATIONS.instant, easing: EASINGS.standard }),
+      withTiming(1, { duration: DURATIONS.instant, easing: EASINGS.standard }),
     );
   }, [trigger, reduceMotion, peak]);
 

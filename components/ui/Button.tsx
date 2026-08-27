@@ -69,16 +69,14 @@ const variantClasses: Record<ButtonVariant, { base: string; text: string }> = {
   },
 };
 
-// NOTE: 52px (the "lg" measured height) has no matching step on the
-// Tailwind spacing scale (it jumps 48 -> 56, i.e. min-h-12 -> min-h-14).
-// tailwind.config.js is outside this pass's scope (components/ui only), so
-// this rounds up to the nearest real scale step rather than reintroducing
-// an arbitrary bracket value. Recommend adding `spacing["13"] = "52px"` to
-// tailwind.config.js centrally, then switching this to `min-h-13`.
+// Button heights 36 / 44 / 52. 52px is `min-h-13`, a project-specific step
+// in tailwind.config.js, since the default Tailwind scale jumps 48 -> 56.
+// The 36px `sm` size sits under the 44px touch floor and carries a
+// compensating hitSlop below.
 const sizeClasses: Record<ButtonSize, string> = {
   sm: "min-h-9 px-4",
   md: "min-h-11 px-5",
-  lg: "min-h-14 px-6",
+  lg: "min-h-13 px-6",
 };
 
 /** Filled variants get a subtle lift; secondary/ghost stay flat. Also which variants need the theme-correct foreground on their icon/spinner. */

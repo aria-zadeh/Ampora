@@ -47,7 +47,7 @@ export function SkeletonLoader({
   // themes (previously a literal white, invisible-ish on a dark base).
   // LinearGradient needs literal color strings, not a className, so this
   // builds them from useThemeColors() with an appended alpha channel (8C =
-  // ~55%) rather than a hardcoded hex/rgba().
+  // ~55%) rather than a hardcoded color literal.
   const highlightColors = [
     `${theme.textStrong}00`,
     `${theme.textStrong}8C`,

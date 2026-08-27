@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from "react";
 import {
   View,
-  Text,
   TextInput,
   Pressable,
   type TextInputProps,
@@ -15,7 +14,8 @@ import Animated, {
 import { EASINGS } from "@/utils/motion";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { Text } from "./Text";
 
 export interface InputProps extends Omit<TextInputProps, "style" | "className"> {
   /** Label rendered above the field. Omit for a label-less field (e.g. inline search). */
@@ -34,15 +34,12 @@ export interface InputProps extends Omit<TextInputProps, "style" | "className"> 
 /**
  * Unified text-input primitive (Phase 3 DS-inputs audit finding).
  *
- * 48px min height, 16px input text, neutral-200 border that eases to a
- * primary-500 focus ring, optional label-above / leading icon / clear button.
- * The border/icon/clear-glyph hexes below are the warm-neutral (Stone) ramp
- * steps (design-tokens `colors.light.border` / `textMuted`), inlined because
- * they're consumed by RN style props (Reanimated `useAnimatedStyle`, Ionicons
- * `color`) that can't take a className. The placeholder text specifically
- * uses neutral-500 (`textSecondary`), one step darker than the icon/border
- * tint, so it clears WCAG AA as the only field descriptor on a label-less
- * input.
+ * 48px min height, 16px input text, a theme border that eases to a primary
+ * focus ring, optional label-above / leading icon / clear button. The
+ * border/icon/clear-glyph colours below come from `useThemeColors()` rather
+ * than a className because they're consumed by RN style props (Reanimated
+ * `useAnimatedStyle`, Ionicons `color`) that can't take one — resolved
+ * against the ACTIVE theme, not a fixed light palette.
  */
 export function Input({
   label,
@@ -59,6 +56,7 @@ export function Input({
   ...props
 }: InputProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const [focused, setFocused] = useState(false);
   const ring = useSharedValue(0);
 
@@ -86,10 +84,10 @@ export function Input({
 
   const animatedBorderStyle = useAnimatedStyle(() => ({
     borderColor: error
-      ? colors.light.dangerStrong
+      ? theme.dangerStrong
       : ring.value > 0.5
-        ? colors.light.primary
-        : colors.light.border,
+        ? theme.primary
+        : theme.border,
   }));
 
   const hasValue = typeof value === "string" && value.length > 0;
@@ -97,20 +95,23 @@ export function Input({
   return (
     <View className={containerClassName}>
       {label ? (
-        <Text className="mb-1.5 ml-0.5 text-label font-medium text-neutral-700">
+        // captionMedium (13px medium), matching the same "small label above
+        // a field" pattern as AddEventModal — there is no medium-weight
+        // sibling of the 14px "label" variant to reach for instead.
+        <Text variant="captionMedium" className="mb-1.5 ml-0.5 text-neutral-700">
           {label}
         </Text>
       ) : null}
 
       <Animated.View
         style={animatedBorderStyle}
-        className="min-h-12 flex-row items-center rounded-md border bg-white px-3"
+        className="min-h-12 flex-row items-center rounded-md border bg-surface px-3"
       >
         {icon ? (
           <Ionicons
             name={icon}
             size={18}
-            color={focused ? colors.light.primary : colors.light.textDisabled}
+            color={focused ? theme.primary : theme.textDisabled}
             style={{ marginRight: 8 }}
           />
         ) : null}
@@ -120,7 +121,7 @@ export function Input({
           onChangeText={onChangeText}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholderTextColor={colors.light.textMuted}
+          placeholderTextColor={theme.textMuted}
           className="flex-1 py-2.5 text-body-lg text-neutral-900"
           accessibilityLabel={accessibilityLabel ?? label}
         />
@@ -132,16 +133,15 @@ export function Input({
             accessibilityRole="button"
             accessibilityLabel={`Clear ${label ?? "field"}`}
           >
-            <Ionicons name="close-circle" size={18} color={colors.light.borderStrong} />
+            <Ionicons name="close-circle" size={18} color={theme.borderStrong} />
           </Pressable>
         ) : null}
       </Animated.View>
 
       {helperText ? (
         <Text
-          className={`mt-1.5 ml-0.5 text-caption ${
-            error ? "text-danger-600" : "text-neutral-500"
-          }`}
+          variant="caption"
+          className={`mt-1.5 ml-0.5 ${error ? "text-danger-600" : "text-neutral-500"}`}
         >
           {helperText}
         </Text>

@@ -10,8 +10,9 @@ import Animated, {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, usePathname } from "expo-router";
 import { Text } from "@/components/ui/Text";
-import { borderRadius, colors, iconSizes, motion } from "@/utils/design-tokens";
+import { borderRadius, iconSizes, motion } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { TAB_ROUTES, type TabRoute } from "@/constants/tabRoutes";
 
 /** Height of the visual pill track (a 44px segment row plus 2px padding each side). */
@@ -81,6 +82,7 @@ function hrefForRouteName(name: string): "/" | "/calendar" | "/tasks" | "/focus"
 export function TopSegmentedNav() {
   const pathname = usePathname();
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   const activeIndex = useMemo(() => {
     const name = routeNameFromPathname(pathname);
@@ -142,11 +144,19 @@ export function TopSegmentedNav() {
   );
 
   return (
-    <SafeAreaView edges={["top"]} className="bg-neutral-100">
+    // The safe-area strip intentionally matches the page (bg-canvas) — it's
+    // not its own bar, just clearance above one. The pill below is the bar.
+    <SafeAreaView edges={["top"]} className="bg-canvas">
       <View className="px-5 pt-2 pb-2">
+        {/*
+          Was bg-neutral-100 — that role IS canvas (role-mapped, not
+          lightness-mapped), which made the app's persistent top nav
+          invisible against the page it sits on. bg-raised + a border gives
+          it a real, visible track in both themes.
+        */}
         <View
           onLayout={handleTrackLayout}
-          className="flex-row items-stretch bg-neutral-100 rounded-full p-0.5"
+          className="flex-row items-stretch bg-raised border border-line rounded-full p-0.5"
           style={{ minHeight: TOP_NAV_TRACK_HEIGHT }}
         >
           <Animated.View
@@ -157,7 +167,7 @@ export function TopSegmentedNav() {
                 top: TRACK_PADDING,
                 bottom: TRACK_PADDING,
                 borderRadius: borderRadius.full,
-                backgroundColor: colors.light.primary,
+                backgroundColor: theme.primary,
               },
               indicatorStyle,
             ]}
@@ -178,14 +188,18 @@ export function TopSegmentedNav() {
                 <Ionicons
                   name={isActive ? route.iconFocused : route.icon}
                   size={iconSizes.lg}
-                  color={isActive ? colors.light.primaryForeground : colors.light.textMuted}
+                  color={isActive ? theme.primaryForeground : theme.textMuted}
                 />
                 {isActive && (
                   <Text
                     variant="label"
                     numberOfLines={1}
                     maxFontSizeMultiplier={1.2}
-                    className="text-white"
+                    // Was text-white: `white` is remapped to the card
+                    // surface, not a literal white, so this was coincidentally
+                    // close to (but not actually) the correct token.
+                    // text-primary-foreground is the real one.
+                    className="text-primary-foreground"
                   >
                     {route.title}
                   </Text>
