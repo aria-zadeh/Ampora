@@ -15,8 +15,8 @@ import { useThemeColors } from "@/hooks/useThemeColors";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-/** Resting size (doc `design/stack-reference.html` `.sf-fab`: 52px), accent fill, theme-correct glyph. */
-const FAB_SIZE = 52;
+/** [E] Resting size measured off the source screens (56x56 primary circle), accent fill, theme-correct glyph. */
+const FAB_SIZE = 56;
 
 interface FABProps {
   onPress: () => void;

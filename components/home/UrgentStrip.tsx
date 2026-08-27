@@ -71,7 +71,7 @@ export function UrgentStrip({ task, nowMs }: UrgentStripProps) {
     <PressableScale
       onPress={() => router.push(`/task/${task.id}`)}
       haptic="light"
-      className="min-h-11 flex-row items-center gap-2.5 rounded-lg border border-line bg-white px-4 py-3"
+      className="min-h-11 flex-row items-center gap-2.5 rounded-xl border border-line bg-surface p-4"
       accessibilityRole="button"
       accessibilityLabel={`${task.title}, ${urgencyLabel}`}
       accessibilityHint="Opens this task"
@@ -84,7 +84,7 @@ export function UrgentStrip({ task, nowMs }: UrgentStripProps) {
           style={{ backgroundColor: theme.danger }}
         />
       </View>
-      <Text className="flex-1 text-body font-semibold text-neutral-900" numberOfLines={2}>
+      <Text className="flex-1 text-body font-semibold text-ink" numberOfLines={2}>
         {line}
       </Text>
     </PressableScale>

@@ -110,12 +110,12 @@ function UpNextRow({ row }: { row: UpNextRowData }) {
     <PressableScale
       onPress={() => router.push(`/task/${task.id}`)}
       haptic="light"
-      className="min-h-11 flex-row items-center gap-3 rounded-lg border border-line bg-white px-4 py-3"
+      className="min-h-11 flex-row items-center gap-3 rounded-xl border border-line bg-surface p-4"
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
       accessibilityHint="Opens this task"
     >
-      <Text variant="captionMedium" className="w-14 text-neutral-600" style={tabularNums}>
+      <Text variant="captionMedium" className="w-14 text-ink-secondary" style={tabularNums}>
         {timeLabel}
       </Text>
       {list?.color ? (
@@ -130,7 +130,7 @@ function UpNextRow({ row }: { row: UpNextRowData }) {
         {task.title}
       </Text>
       {list?.name ? (
-        <Text variant="caption" className="text-neutral-600" numberOfLines={1}>
+        <Text variant="caption" className="text-ink-secondary" numberOfLines={1}>
           {list.name}
         </Text>
       ) : null}
@@ -250,26 +250,22 @@ export default function HomeScreen() {
   const cardEntering = reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base);
 
   return (
-    <View className="flex-1 bg-neutral-100">
+    <View className="flex-1 bg-canvas">
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-5 pb-32"
+        contentContainerClassName="pb-32"
         showsVerticalScrollIndicator={false}
       >
-        {/* Greeting header, one line, tight, confident. */}
-        <Animated.View entering={headerEntering} className="pt-6 pb-1">
-          <View className="flex-row items-center justify-between gap-3">
-            <View className="flex-1">
-              <Heading size="h2" numberOfLines={1}>
-                {greetingLine}
-              </Heading>
-              {subLine ? (
-                <Text variant="body" className="mt-1 text-neutral-600">
-                  {subLine}
-                </Text>
-              ) : null}
-            </View>
-
+        {/* Header (measured layout): screen title + a profile avatar,
+            top-right. The avatar is presentational only, no photo storage
+            or profile navigation wired here, so it renders as a decorative
+            placeholder rather than a control. */}
+        <Animated.View
+          entering={headerEntering}
+          className="flex-row items-center justify-between px-6 pt-6 pb-1"
+        >
+          <Heading size="h1">Today</Heading>
+          <View className="flex-row items-center gap-3">
             {/* Rebuild schedule: a subtle ghost action, only shown once the
                 engine has produced a plan, so it never clutters the empty state. */}
             {hasUpcoming && (
@@ -291,92 +287,121 @@ export default function HomeScreen() {
                 </Text>
               </Pressable>
             )}
+            <View
+              className="h-9 w-9 items-center justify-center rounded-full border border-line-strong bg-raised"
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+            >
+              <Ionicons name="person-outline" size={iconSizes.sm} color={theme.textSecondary} />
+            </View>
           </View>
         </Animated.View>
 
-        {/* Urgent strip: the one thing closest to due, if any. */}
-        {urgentTask && (
-          <Animated.View entering={cardEntering} className="mt-group">
-            <UrgentStrip task={urgentTask} nowMs={nowMs} />
-          </Animated.View>
-        )}
-
-        {/* Today's focus: the screen's one elevated hero. Hides when there
-            is no First-move candidate left to surface. */}
-        {firstMoveTask?.firstMove && (
-          <Animated.View entering={cardEntering} className="mt-group">
-            <TodayFocusCard task={firstMoveTask} onNotNow={handleNotNow} />
-          </Animated.View>
-        )}
-
-        {/* Up next: a short, plain agenda preview (max 3). The Calendar tab
-            remains the full schedule view. */}
-        {upNextRows.length > 0 && (
-          <Animated.View entering={cardEntering} className="mt-group">
-            <Text variant="overline" className="px-0.5 text-neutral-500">
-              Up next
-            </Text>
-            <View className="mt-2 gap-2">
-              {upNextRows.map((row, index) => (
-                <Animated.View
-                  key={row.block.id}
-                  entering={
-                    reduceMotion
-                      ? undefined
-                      : FadeInDown.delay(staggerDelay(index)).duration(DURATIONS.base)
-                  }
-                >
-                  <UpNextRow row={row} />
-                </Animated.View>
-              ))}
+        {/* Full-bleed daily summary banner (measured layout): the greeting
+            and "N things left" line, edge to edge instead of plain header
+            text. Same computed strings as before: greeting always shown,
+            the second line only when there is remaining work. */}
+        <Animated.View entering={headerEntering} className="mt-6">
+          <View className="flex-row items-center rounded-xl border border-line bg-surface px-6 py-4">
+            <Ionicons name="list-outline" size={iconSizes.md} color={theme.textSecondary} />
+            <View className="ml-2 flex-1">
+              <Text variant="bodyMedium" numberOfLines={1}>
+                {greetingLine}
+              </Text>
+              {subLine ? (
+                <Text variant="caption" className="mt-0.5 text-ink-secondary" numberOfLines={1}>
+                  {subLine}
+                </Text>
+              ) : null}
             </View>
-          </Animated.View>
-        )}
-
-        {/* Needs attention (FR-16 / §8.6): the calm missed-work surface.
-            Renders nothing (incl. its own spacing) when nothing is missed. */}
-        <NeedsAttention />
-
-        {/* Ready for tomorrow (FR-90), additive, leans in during the evening
-            or whenever tomorrow already has a plan to preview. */}
-        {showTomorrowPlan && (
-          <Animated.View entering={cardEntering} className="mt-group">
-            <TomorrowPlanCard />
-          </Animated.View>
-        )}
-
-        {/* Projects: a prominent, always-present entry into the projects hub
-            (doc 10). Purple stays here only. */}
-        <Animated.View entering={cardEntering} className="mt-group">
-          <ProjectsEntryCard />
+          </View>
         </Animated.View>
 
-        {/* Zero tasks: keep the existing empty-state behaviour. */}
-        {comingUp.length === 0 && (
-          <Animated.View entering={cardEntering} className="mt-group">
-            <EmptyState
-              title="You're all caught up"
-              subtitle="Nothing on deck right now. Add a task and your first move will show up here."
-              icon="sunny-outline"
-              actionLabel="Add a task"
-              onAction={() => router.push("/task/new")}
-            />
-          </Animated.View>
-        )}
+        <View className="px-6 mt-4 gap-3">
+          {/* Urgent strip: the one thing closest to due, if any. */}
+          {urgentTask && (
+            <Animated.View entering={cardEntering}>
+              <UrgentStrip task={urgentTask} nowMs={nowMs} />
+            </Animated.View>
+          )}
 
-        {/* Ghost escape hatch, always available, never shames. */}
-        <PressableScale
-          onPress={() => router.push("/blindfold")}
-          haptic="light"
-          className="mt-group h-11 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="I'm overwhelmed"
-          accessibilityHint="Opens one calm step at a time"
-        >
-          <Text variant="bodyMedium" className="text-neutral-600">
-            I'm overwhelmed
-          </Text>
-        </PressableScale>
+          {/* Today's focus: the screen's one elevated hero. Hides when there
+              is no First-move candidate left to surface. */}
+          {firstMoveTask?.firstMove && (
+            <Animated.View entering={cardEntering}>
+              <TodayFocusCard task={firstMoveTask} onNotNow={handleNotNow} />
+            </Animated.View>
+          )}
+
+          {/* Up next: a short, plain agenda preview (max 3). The Calendar tab
+              remains the full schedule view. */}
+          {upNextRows.length > 0 && (
+            <Animated.View entering={cardEntering}>
+              <Text variant="overline" className="px-0.5 text-ink-muted">
+                Up next
+              </Text>
+              <View className="mt-2 gap-2">
+                {upNextRows.map((row, index) => (
+                  <Animated.View
+                    key={row.block.id}
+                    entering={
+                      reduceMotion
+                        ? undefined
+                        : FadeInDown.delay(staggerDelay(index)).duration(DURATIONS.base)
+                    }
+                  >
+                    <UpNextRow row={row} />
+                  </Animated.View>
+                ))}
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Needs attention (FR-16 / §8.6): the calm missed-work surface.
+              Renders nothing (incl. its own spacing) when nothing is missed. */}
+          <NeedsAttention />
+
+          {/* Ready for tomorrow (FR-90), additive, leans in during the evening
+              or whenever tomorrow already has a plan to preview. */}
+          {showTomorrowPlan && (
+            <Animated.View entering={cardEntering}>
+              <TomorrowPlanCard />
+            </Animated.View>
+          )}
+
+          {/* Projects: a prominent, always-present entry into the projects hub
+              (doc 10). Purple stays here only. */}
+          <Animated.View entering={cardEntering}>
+            <ProjectsEntryCard />
+          </Animated.View>
+
+          {/* Zero tasks: keep the existing empty-state behaviour. */}
+          {comingUp.length === 0 && (
+            <Animated.View entering={cardEntering}>
+              <EmptyState
+                title="You're all caught up"
+                subtitle="Nothing on deck right now. Add a task and your first move will show up here."
+                icon="sunny-outline"
+                actionLabel="Add a task"
+                onAction={() => router.push("/task/new")}
+              />
+            </Animated.View>
+          )}
+
+          {/* Ghost escape hatch, always available, never shames. */}
+          <PressableScale
+            onPress={() => router.push("/blindfold")}
+            haptic="light"
+            className="h-11 items-center justify-center"
+            accessibilityRole="button"
+            accessibilityLabel="I'm overwhelmed"
+            accessibilityHint="Opens one calm step at a time"
+          >
+            <Text variant="bodyMedium" className="text-ink-secondary">
+              I'm overwhelmed
+            </Text>
+          </PressableScale>
+        </View>
       </ScrollView>
 
       <FAB onPress={() => router.push("/task/new")} />

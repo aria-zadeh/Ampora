@@ -30,7 +30,6 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useShallow } from "zustand/react/shallow";
 import { Text } from "@/components/ui/Text";
-import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { StakeSetupSheet, type ArmedStake } from "@/components/stakes/StakeSetupSheet";
 import {
@@ -55,6 +54,18 @@ function formatClock(ms: number): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+/**
+ * Compact duration label for the card's right-aligned slot (measured
+ * layout): "45m", "1h 30m", "2h". Formatting only, `task.durationMin`
+ * itself is untouched.
+ */
+function formatCompactDuration(totalMin: number): string {
+  if (totalMin < 60) return `${totalMin}m`;
+  const hours = Math.floor(totalMin / 60);
+  const minutes = totalMin % 60;
+  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
 }
 
 /**
@@ -152,20 +163,21 @@ function LockChip({ task }: { task: Task }) {
 
   return (
     <>
-      {/* Visual chip is 32px (h-8). hitSlop brings the tappable area to the
-          44px minimum without inflating the pill itself. Plain Pressable,
-          not PressableScale, because this needs hitSlop and that primitive
-          does not expose one. */}
+      {/* Visual chip is 28px (h-7), rounded-sm, matching the measured
+          agenda-card "App block active" indicator. hitSlop brings the
+          tappable area to the 44px minimum without inflating the pill
+          itself. Plain Pressable, not PressableScale, because this needs
+          hitSlop and that primitive does not expose one. */}
       <Pressable
         onPress={handlePress}
-        hitSlop={6}
-        className="mt-2.5 h-8 flex-row items-center self-start gap-1.5 rounded-full bg-neutral-100 px-3 active:opacity-70"
+        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+        className="h-7 flex-row items-center gap-1.5 rounded-sm bg-surface-ghost px-2.5 active:opacity-70"
         accessibilityRole="button"
         accessibilityLabel={a11yLabel}
         accessibilityHint="Opens lock settings for this task"
       >
-        <Ionicons name="lock-closed-outline" size={14} color={theme.textSecondary} />
-        <Text variant="label" className="text-neutral-600" numberOfLines={1}>
+        <Ionicons name="lock-closed-outline" size={12} color={theme.textSecondary} />
+        <Text variant="tiny" className="text-ink-secondary" numberOfLines={1}>
           {label}
         </Text>
       </Pressable>
@@ -185,14 +197,22 @@ export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
   // project lookup, stable unless the list itself changes, no useShallow.
   const list = useListStore((s) => (task.listId ? s.lists[task.listId] : undefined));
 
-  const metaLine = useMemo(() => {
-    const parts = [`${task.durationMin} min`];
+  const durationLabel = useMemo(
+    () => formatCompactDuration(task.durationMin),
+    [task.durationMin],
+  );
+
+  // List name + step count are still surfaced (real content, not
+  // decoration) but now sit on a secondary line under the title, since
+  // duration moved to its own right-aligned slot in the header row.
+  const secondaryMeta = useMemo(() => {
+    const parts: string[] = [];
     if (list?.name) parts.push(list.name);
     if (task.subtasks.length > 0) {
       parts.push(`${task.subtasks.length} ${task.subtasks.length === 1 ? "step" : "steps"}`);
     }
-    return parts.join(" · ");
-  }, [task.durationMin, list?.name, task.subtasks.length]);
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }, [list?.name, task.subtasks.length]);
 
   // An ALREADY-RUNNING stake for this task is adopted by the session screen
   // on its own (no params needed), but a merely SCHEDULED one is not, it
@@ -234,55 +254,76 @@ export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
   const firstMoveText = task.firstMove.text;
 
   return (
-    <View className="rounded-2xl border border-line bg-white p-4">
-      <Text variant="overline" className="text-neutral-500">
+    <View className="rounded-xl border border-line bg-surface p-4">
+      <Text variant="overline" className="text-primary-600">
         Today's focus
       </Text>
-      <Heading size="h3" className="mt-1.5" numberOfLines={2}>
-        {task.title}
-      </Heading>
-      <Text variant="caption" className="mt-1 text-neutral-600" style={tabularNums}>
-        {metaLine}
-      </Text>
 
-      <LockChip task={task} />
+      {/* Header row (measured layout): title on the left, duration
+          right-aligned. List name / step count moved to a secondary line
+          under the title so neither is dropped. */}
+      <View className="mt-1.5 flex-row items-start justify-between gap-3">
+        <View className="flex-1">
+          <Text variant="bodyLg" numberOfLines={1}>
+            {task.title}
+          </Text>
+          {secondaryMeta ? (
+            <Text variant="caption" className="mt-0.5 text-ink-muted" numberOfLines={1}>
+              {secondaryMeta}
+            </Text>
+          ) : null}
+        </View>
+        <Text variant="caption" className="text-ink-secondary" style={tabularNums}>
+          {durationLabel}
+        </Text>
+      </View>
 
       {/* First move: display only here. Completing it happens inside the
           session, never on Today (doc `04` §5: it is the on-ramp, never
           the unlock condition). */}
-      <View className="mt-3.5 rounded-xl bg-neutral-100 p-3">
-        <Text variant="overline" className="text-primary-600">
+      <View className="mt-3.5 rounded-md bg-raised p-3">
+        <Text variant="meta" className="text-primary-400">
           First move
         </Text>
-        <Text variant="bodyMedium" className="mt-1.5 text-neutral-800">
+        <Text variant="caption" className="mt-1.5 text-ink-secondary">
           {firstMoveText}
         </Text>
       </View>
 
-      <View className="mt-4 flex-row items-center gap-4">
+      {/* Action row (measured layout): a small inline Start (92x32 in the
+          source, h-8/rounded-md here, not Button's 44-tall md size), the
+          lock chip beside it, Not now pushed to the trailing edge. */}
+      <View className="mt-4 flex-row items-center gap-2">
         <PressableScale
           onPress={handleStart}
           haptic="medium"
-          className="h-12 flex-1 flex-row items-center justify-center rounded-lg bg-primary-600"
+          className="h-8 items-center justify-center rounded-md bg-primary-600 px-4"
           accessibilityRole="button"
           accessibilityLabel={`Start focus session for ${task.title}`}
         >
-          <Text variant="label" className="text-primary-foreground">
+          <Text variant="captionMedium" className="text-primary-foreground">
             Start
           </Text>
         </PressableScale>
-        <PressableScale
-          onPress={handleNotNow}
-          haptic="light"
-          className="min-h-11 items-center justify-center px-1"
-          accessibilityRole="button"
-          accessibilityLabel="Not now"
-          accessibilityHint="Shows a different task to focus on"
-        >
-          <Text variant="bodyMedium" className="text-neutral-600">
-            Not now
-          </Text>
-        </PressableScale>
+
+        <View className="flex-shrink">
+          <LockChip task={task} />
+        </View>
+
+        <View className="flex-1 items-end">
+          <PressableScale
+            onPress={handleNotNow}
+            haptic="light"
+            className="min-h-11 items-center justify-center px-1"
+            accessibilityRole="button"
+            accessibilityLabel="Not now"
+            accessibilityHint="Shows a different task to focus on"
+          >
+            <Text variant="bodyMedium" className="text-ink-secondary">
+              Not now
+            </Text>
+          </PressableScale>
+        </View>
       </View>
     </View>
   );

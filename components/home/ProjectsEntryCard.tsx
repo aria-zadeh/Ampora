@@ -44,17 +44,17 @@ export function ProjectsEntryCard() {
       accessibilityLabel={a11yLabel}
       accessibilityHint="Opens your projects, which plan and track larger work"
     >
-      <View className="flex-row items-center rounded-2xl border border-neutral-200 bg-white p-4">
+      <View className="flex-row items-center rounded-xl border border-line bg-surface p-4">
         {/* Accent tile — the one place accent is used (Projects). */}
         <View className="h-11 w-11 items-center justify-center rounded-xl bg-accent-100">
           <Ionicons name="rocket-outline" size={22} color={theme.accent} />
         </View>
 
         <View className="ml-3.5 flex-1">
-          <Text className="text-body-lg font-semibold text-neutral-900">
+          <Text className="text-body-lg font-semibold text-ink">
             Projects
           </Text>
-          <Text className="mt-0.5 text-caption text-neutral-500" numberOfLines={1}>
+          <Text className="mt-0.5 text-caption text-ink-muted" numberOfLines={1}>
             {subtitle}
           </Text>
         </View>

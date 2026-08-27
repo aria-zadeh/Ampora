@@ -183,7 +183,6 @@ export function TomorrowPlanCard() {
   if (!hasPlan) {
     return (
       <Card
-        feature
         onPress={() => router.push("/(tabs)/calendar")}
         accessibilityLabel="Tomorrow has no plan yet. Opens your calendar."
         accessibilityHint="Opens the calendar"
@@ -193,10 +192,10 @@ export function TomorrowPlanCard() {
             <Text className="text-overline font-semibold uppercase text-primary-600">
               Ready for tomorrow
             </Text>
-            <Text className="mt-1.5 text-body-lg font-medium text-neutral-900">
+            <Text className="mt-1.5 text-body-lg font-medium text-ink">
               Tomorrow is open
             </Text>
-            <Text className="mt-1 text-body text-neutral-500">
+            <Text className="mt-1 text-body text-ink-muted">
               Nothing scheduled yet. Add a task tonight and you will wake up
               with a first move ready.
             </Text>
@@ -226,7 +225,6 @@ export function TomorrowPlanCard() {
 
   return (
     <Card
-      feature
       onPress={onPress}
       accessibilityLabel={a11yLabel}
       accessibilityHint="Opens the first task for tomorrow"
@@ -242,7 +240,7 @@ export function TomorrowPlanCard() {
             size={iconSizes.xs}
             color={theme.textMuted}
           />
-          <Text className="ml-1 text-caption font-medium text-neutral-500">
+          <Text className="ml-1 text-caption font-medium text-ink-muted">
             {sessionLabel}
           </Text>
         </View>
@@ -252,7 +250,7 @@ export function TomorrowPlanCard() {
       {project ? (
         <View className="mt-2 flex-row items-center gap-1.5">
           <Badge label="Project" tone="accent" />
-          <Text className="flex-1 text-caption text-neutral-500" numberOfLines={1}>
+          <Text className="flex-1 text-caption text-ink-muted" numberOfLines={1}>
             {project.title}
           </Text>
         </View>
@@ -261,7 +259,7 @@ export function TomorrowPlanCard() {
       {/* First up: task + start time. */}
       <View className="mt-2 flex-row items-baseline justify-between">
         <Text
-          className="flex-1 pr-3 text-h4 font-semibold text-neutral-900"
+          className="flex-1 pr-3 text-h4 font-semibold text-ink"
           numberOfLines={1}
         >
           {firstTask?.title}
@@ -283,7 +281,7 @@ export function TomorrowPlanCard() {
               First move
             </Text>
             <Text
-              className="mt-0.5 text-body font-medium text-neutral-900"
+              className="mt-0.5 text-body font-medium text-ink"
               numberOfLines={2}
             >
               {firstStep}

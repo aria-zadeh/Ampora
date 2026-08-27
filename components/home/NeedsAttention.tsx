@@ -108,12 +108,11 @@ export function NeedsAttention() {
 
   return (
     <Animated.View
-      className="mt-group"
       entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
     >
       <View className="flex-row items-baseline justify-between mb-4">
         <Heading size="h3">Needs attention</Heading>
-        <Text className="text-caption text-neutral-500">
+        <Text className="text-caption text-ink-muted">
           {rows.length} {rows.length === 1 ? "item" : "items"}
         </Text>
       </View>
@@ -156,7 +155,7 @@ function MissedCard({
   const when = useMemo(() => formatWhenDue(block.start, now), [block.start, now]);
 
   return (
-    <View className="bg-white border border-neutral-200 rounded-lg p-4">
+    <View className="bg-surface border border-line rounded-xl p-4">
       <View className="flex-row items-start gap-3">
         {/* Calm amber marker — a cue, not an alarm. Decorative, hidden from a11y. */}
         <View
@@ -168,12 +167,12 @@ function MissedCard({
         </View>
         <View className="flex-1">
           <Text
-            className="text-body font-medium text-neutral-900"
+            className="text-body font-medium text-ink"
             numberOfLines={2}
           >
             {task.title}
           </Text>
-          <Text className="mt-0.5 text-caption text-neutral-500">
+          <Text className="mt-0.5 text-caption text-ink-muted">
             Was planned {when}
           </Text>
         </View>
@@ -203,7 +202,7 @@ function MissedCard({
           accessibilityLabel={`Let it go: ${task.title}`}
           accessibilityHint="Clears this reminder without changing the task"
         >
-          <Text className="text-label font-medium text-neutral-600">Let it go</Text>
+          <Text className="text-label font-medium text-ink-secondary">Let it go</Text>
         </PressableScale>
       </View>
     </View>
