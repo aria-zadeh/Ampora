@@ -10,14 +10,20 @@
  * `celebrate` plays the single celebratory beat of the screen (the completion
  * pulse), which reduce-motion turns into a no-op inside `PulseScale`.
  *
- * `bare` (doc `design/DECISION_SPEC` D4 item 4): the session hero screen
- * already supplies its own white card surface, so this drops its own chrome
- * there and renders as plain centered text instead of a second nested card
- * (D5's "no second elevated surface inside the hero card"). `stepNumber`/
- * `stepTotal` feed the "Step N of M" position line that replaces the old
- * top-of-screen progress bar on that screen. The First move keeps its own
- * "First move" label instead of a position count, since that framing (the
- * on-ramp, not a numbered step) is unchanged from before.
+ * `bare` (doc `design/DECISION_SPEC` D4 item 4): drops its own chrome and
+ * renders as plain centered text for a host that already supplies a card
+ * surface (D5's "no second elevated surface inside the hero card").
+ *
+ * `tile` (2026-08-26 Figma re-measure, `blindfold-mode.pdf`): the session
+ * screen's "current intent" card nests this in its own sunken `bg-raised`
+ * panel rather than bare centered text — small left-aligned eyebrow +
+ * secondary-toned step line instead of a big centered heading. Both modes
+ * share the exact same state derivation (`allDone`/`noStepsYet`/`isFirstMove`/
+ * `display`/`showPosition`) below; only the JSX differs.
+ *
+ * `stepNumber`/`stepTotal` feed the "Step N of M" position line. The First
+ * move keeps its own "First move" label instead of a position count, since
+ * that framing (the on-ramp, not a numbered step) is unchanged from before.
  */
 
 import React from "react";
@@ -65,6 +71,8 @@ export interface StepCardProps {
   stepTotal?: number;
   /** Drops the card chrome (white surface/border/padding) for a host screen that already provides one. @default false */
   bare?: boolean;
+  /** Renders as a sunken `bg-raised` tile (the session screen's nested step panel) instead of `bare`/default chrome. Takes precedence over `bare`. @default false */
+  tile?: boolean;
 }
 
 export function StepCard({
@@ -75,6 +83,7 @@ export function StepCard({
   stepNumber,
   stepTotal,
   bare = false,
+  tile = false,
 }: StepCardProps) {
   const reduceMotion = useReduceMotion();
   /** Steps existed and are all finished. The only state that congratulates. */
@@ -86,6 +95,44 @@ export function StepCard({
   const isFirstMove = step.kind === "first_move";
   const display = simplerText ?? stepText(step);
   const showPosition = !noSteps && !isFirstMove && stepNumber != null && stepTotal != null && stepTotal > 0;
+
+  if (tile) {
+    return (
+      <PulseScale trigger={celebrate} style={style}>
+        <Animated.View entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}>
+          <View className="rounded-tile bg-raised p-3.5">
+            {isFirstMove && !noSteps && (
+              <Text variant="overline" className="text-primary-400">
+                First move
+              </Text>
+            )}
+            {showPosition && (
+              <Text variant="overline" className="text-primary-400" style={tabularNums}>
+                {`Step ${stepNumber} of ${stepTotal}`}
+              </Text>
+            )}
+            {noSteps && (
+              <Text variant="overline" className="text-primary-400">
+                {allDone ? "You're done" : "This session"}
+              </Text>
+            )}
+            <Text variant="label" className="mt-1 text-neutral-600">
+              {allDone
+                ? "Every step is complete. Nicely done."
+                : noStepsYet
+                  ? "No steps on this one. Just start."
+                  : display}
+            </Text>
+            {simplerText && !noSteps && (
+              <Text variant="caption" className="mt-2 text-primary-400">
+                Simplified, smaller and easier to just start.
+              </Text>
+            )}
+          </View>
+        </Animated.View>
+      </PulseScale>
+    );
+  }
 
   return (
     <PulseScale trigger={celebrate} style={style}>

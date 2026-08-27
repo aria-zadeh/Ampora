@@ -7,26 +7,31 @@
  * must never count toward a stake's hold (doc `04` §6).
  *
  * Purely presentational: the clock itself lives in `hooks/useForegroundTimer`.
- * The digits are the accessible source of truth (`accessibilityRole="timer"`,
- * tabular numerals so the column never jitters). The ring is decorative and
- * hidden from the accessibility tree by `ProgressRing`.
+ * `ProgressRing` already hides its whole subtree (ring + children) from the
+ * accessibility tree, decorative-only, so the digits are never independently
+ * reachable — the outer `PressableScale` below is the one accessible node for
+ * this whole control, carrying both the live "time remaining" readout and the
+ * pause/resume action in a single label.
  *
- * Sized per doc `design/DECISION_SPEC` D4 item 3: ring 212/stroke 7, digits
- * INSIDE at 40px/48 line height (down from 76px). The old "Focus · N min"
- * caption above the ring is dropped, the session screen now renders its own
- * "Session N of M" overline in that slot (D4 item 2), and a second caption
- * there would duplicate it.
+ * Sized per the 2026-08-26 Figma re-measure (`blindfold-mode.pdf`): ring
+ * 240/stroke 8, track `surface-ghost` (white @3.1%), digits INSIDE at the
+ * `display` scale step (54/60, an exact match now the scale carries one — it
+ * used to need a bespoke off-scale size), with a "remaining" caption directly
+ * underneath, also inside the ring. That caption's slot is exactly where the
+ * old Pause/Resume pill used to sit, so the control moved below the ring as a
+ * control and the whole ring is the tap target instead — restyled into the
+ * same language rather than dropped, per the layout contract.
  */
 
 import React from "react";
-import { View, Text as RNText } from "react-native";
+import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { ProgressRing } from "@/components/focus/ProgressRing";
-import { iconSizes, tabularNums } from "@/utils/design-tokens";
+import { tabularNums, iconSizes } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useThemeColors } from "@/hooks/useThemeColors";
@@ -66,50 +71,65 @@ export function SessionTimer({
 
   return (
     <View className="items-center">
-      <ProgressRing
-        progress={progress}
-        size={212}
-        strokeWidth={7}
-        color={ticking ? theme.primary : theme.border}
-      >
-        {/* Raw RN Text, not the design-system primitive: 40px/48 has no scale
-            entry (an off-scale bespoke size, same reasoning + convention as
-            `components/ui/TimerDisplay.tsx`), and layering the primitive's
-            forced `variant` base classes under a custom size risks a
-            className/style precedence conflict the primitive isn't meant to
-            resolve. */}
-        <RNText
-          className={`font-bold ${ticking ? "text-neutral-900" : "text-neutral-500"}`}
-          style={{ fontSize: 40, lineHeight: 48, ...tabularNums }}
-          accessibilityRole="timer"
-          accessibilityLabel={`${mmss(remainingSec)} remaining, ${ticking ? "running" : "paused"}`}
-        >
-          {mmss(remainingSec)}
-        </RNText>
-      </ProgressRing>
-
       <PressableScale
         onPress={onToggle}
         haptic={false}
-        className="mt-3 min-h-11 flex-row items-center gap-1.5 px-4 rounded-full"
         accessibilityRole="button"
-        accessibilityLabel={running ? "Pause timer" : "Resume timer"}
+        accessibilityLabel={`${mmss(remainingSec)} remaining, ${ticking ? "running" : "paused"}`}
+        accessibilityHint={running ? "Pauses the timer" : "Resumes the timer"}
         accessibilityState={{ selected: running }}
+      >
+        <ProgressRing
+          progress={progress}
+          size={240}
+          strokeWidth={8}
+          color={ticking ? theme.primary : theme.border}
+          trackColor={theme.surfaceGhost}
+        >
+          <Text
+            variant="display"
+            className={ticking ? "text-neutral-900" : "text-neutral-500"}
+            style={tabularNums}
+          >
+            {mmss(remainingSec)}
+          </Text>
+          <Text variant="caption" className="mt-1 text-neutral-600">
+            remaining
+          </Text>
+        </ProgressRing>
+      </PressableScale>
+
+      {/*
+        VISIBLE pause/resume control. The ring itself is also tappable as a
+        shortcut, but docs/02 section 9 item 16 is binding: never make a control
+        reachable only by a gesture with no visible affordance. Nothing about a
+        countdown tells a sighted user it can be tapped, and pausing a session
+        is not a discoverable-by-accident action. Quiet on purpose so it never
+        competes with the screen's one primary action.
+      */}
+      <Pressable
+        onPress={onToggle}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={running ? "Pause the timer" : "Resume the timer"}
+        className="mt-4 min-h-11 flex-row items-center justify-center gap-1.5 px-4 active:opacity-70"
       >
         <Ionicons
           name={running ? "pause" : "play"}
-          size={iconSizes.sm}
+          size={iconSizes.xs}
           color={theme.textSecondary}
         />
-        <Text variant="label" className="text-neutral-600">{running ? "Pause" : "Resume"}</Text>
-      </PressableScale>
+        <Text variant="captionMedium" className="text-neutral-600">
+          {running ? "Pause" : "Resume"}
+        </Text>
+      </Pressable>
 
       {/* Paused-because-you-left note. The clock holds until you resume, so time
           away can never be served toward a hold (FR-77b). */}
       {interrupted && !running ? (
         <Animated.View
           entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
-          className="mt-3 flex-row items-center gap-2 rounded-full bg-warning-100 px-3.5 py-2"
+          className="mt-4 flex-row items-center gap-2 rounded-full bg-warning-100 px-3.5 py-2"
           accessibilityRole="alert"
         >
           <Ionicons name="pause-circle-outline" size={iconSizes.xs} color={theme.warning} />

@@ -197,12 +197,15 @@ export default function FocusScreen() {
     <SafeAreaView className="flex-1 bg-neutral-100" edges={[]}>
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-5 pb-28"
+        contentContainerClassName="px-6 pb-28"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header, small and quiet. No eyebrow, no gradient (D1/D5). */}
+        {/* Header. 28pt/h1 (2026-08-26 Figma re-measure, `ignition-lock.pdf`'s
+            own screen title sits at this size at the same x=24 inset) —
+            matches every other top-level screen title's weight, up from the
+            previous h3. Copy stays "Focus", not the mock's "Ignition Mode". */}
         <Animated.View entering={enter} className="pt-6 pb-1">
-          <Heading size="h3">Focus</Heading>
+          <Heading size="h1">Focus</Heading>
         </Animated.View>
 
         <Animated.View

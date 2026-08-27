@@ -326,25 +326,36 @@ export function FocusHeroCard({
     <View className="rounded-3xl border border-line bg-white p-5">
       {mode === "active" && (
         <View accessibilityRole="summary" accessibilityLabel="Session running">
-          <Text variant="overline" className="text-neutral-500">
-            Session running
-          </Text>
-          <Text variant="h3" className="mt-2 text-neutral-900" numberOfLines={2}>
-            {activeTask?.title ?? "Focus session"}
-          </Text>
-          {minutesLeftLabel !== "" && (
-            <Text variant="captionMedium" className="mt-1 text-neutral-500" style={tabularNums}>
-              {minutesLeftLabel}
-            </Text>
-          )}
-          {activeStakeSnapshot && subject && (
-            <View className="flex-row items-center mt-2.5">
-              <Ionicons name="lock-closed-outline" size={iconSizes.xs} color={theme.textSecondary} />
-              <Text variant="caption" className="ml-1.5 text-neutral-500" numberOfLines={1}>
-                {`${subject} locked`}
+          {/* The "active lock" banner (2026-08-26 Figma re-measure,
+              `ignition-lock.pdf`): full-tint surface + border, icon leading a
+              title/detail column, in place of the plain text block this used
+              to be. Same information, no information dropped — just carrying
+              the app's own copy (never the mock's "Active Shielding") in the
+              banner's visual language. */}
+          <View className="flex-row items-start gap-3 rounded-3xl border border-primary-500 bg-primary-100 p-4">
+            <Ionicons name="lock-closed-outline" size={iconSizes.md} color={theme.primaryLight} />
+            <View className="flex-1">
+              <Text variant="overline" className="text-neutral-600">
+                Session running
               </Text>
+              <Text variant="h3" className="mt-1 text-neutral-900" numberOfLines={2}>
+                {activeTask?.title ?? "Focus session"}
+              </Text>
+              {minutesLeftLabel !== "" && (
+                <Text variant="captionMedium" className="mt-1 text-neutral-600" style={tabularNums}>
+                  {minutesLeftLabel}
+                </Text>
+              )}
+              {activeStakeSnapshot && subject && (
+                <View className="flex-row items-center mt-1.5">
+                  <Ionicons name="lock-closed-outline" size={iconSizes.xs} color={theme.textSecondary} />
+                  <Text variant="caption" className="ml-1.5 text-neutral-600" numberOfLines={1}>
+                    {`${subject} locked`}
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
+          </View>
 
           {/* min-h-13 (56px): the "primary CTA" tier (52px measured) has no
               scale step (jumps 48 -> 56), so this rounds up rather than
@@ -363,18 +374,27 @@ export function FocusHeroCard({
           </PressableScale>
 
           {activeStakeSnapshot && (
-            <PressableScale
-              onPress={() => setPanicOpen(true)}
-              haptic="light"
-              className="mt-2 min-h-11 items-center justify-center"
-              accessibilityRole="button"
-              accessibilityLabel="Unlock early"
-              accessibilityHint="Opens a 60 second breather before your apps come back"
-            >
-              <Text variant="bodyMedium" className="text-neutral-500">
-                Unlock early
+            <>
+              {/* The valve, restyled as its own quiet full-width button
+                  (`ignition-lock.pdf`'s "Activate Panic Valve") rather than a
+                  bare text link — same action, same copy ("Unlock early" is
+                  the app's own, kept rather than the mock's wording). */}
+              <PressableScale
+                onPress={() => setPanicOpen(true)}
+                haptic="light"
+                className="mt-3 min-h-11 items-center justify-center rounded-lg border border-line bg-surface-ghost"
+                accessibilityRole="button"
+                accessibilityLabel="Unlock early"
+                accessibilityHint="Opens a 60 second breather before your apps come back"
+              >
+                <Text variant="bodyMedium" className="text-neutral-900">
+                  Unlock early
+                </Text>
+              </PressableScale>
+              <Text variant="caption" className="mt-2 text-center text-neutral-500">
+                Opens a 60 second breather before your apps come back.
               </Text>
-            </PressableScale>
+            </>
           )}
         </View>
       )}

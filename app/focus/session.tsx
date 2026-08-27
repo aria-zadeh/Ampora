@@ -35,7 +35,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, ScrollView } from "react-native";
+import { View, ScrollView, Pressable } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -68,7 +68,7 @@ import { EndCheckInSheet, type CheckInAnswer } from "@/components/focus/EndCheck
 import { LockBanner } from "@/components/stakes/LockBanner";
 import { PanicValveSheet } from "@/components/stakes/PanicValveSheet";
 import { DeEscalationSheet } from "@/components/stakes/DeEscalationSheet";
-import { spacing, tabularNums } from "@/utils/design-tokens";
+import { tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useThemeColors } from "@/hooks/useThemeColors";
@@ -652,30 +652,34 @@ export default function FocusSessionScreen() {
   const enter = reduceMotion ? undefined : FadeIn.duration(DURATIONS.slow);
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
-      {/* One white hero card, inset 18 on the canvas. Doc
-          `design/DECISION_SPEC` D4 item 1. The source design has no shadows
-          anywhere (rule 5), so this keeps its lift with a `border-line`
-          hairline instead of the old `shadows.lg`. Fills to the bottom inset. */}
-      <View style={{ flex: 1, margin: spacing.group }}>
-        <View className="flex-1 overflow-hidden rounded-3xl border border-line bg-white">
-          {/* Header: state + task title + close (kept, 44px target). */}
-          <View className="flex-row items-center justify-between px-5 pt-4 pb-1">
-            <View className="flex-1 pr-3">
-              <Text
-                variant="overline"
-                className={timer.ticking ? "text-neutral-600" : "text-warning-700"}
-              >
-                {timer.ticking ? "Focusing" : "Paused"}
-              </Text>
-              <Text variant="label" className="text-neutral-600 mt-0.5" numberOfLines={1}>
-                {task?.title ?? "Focus session"}
-              </Text>
-            </View>
-            <PressableScale
+    <SafeAreaView className="flex-1 bg-canvas" edges={["top", "bottom"]}>
+      {missing ? (
+        <View className="flex-1 justify-center px-6">
+          <EmptyState
+            icon="timer-outline"
+            title="Nothing to focus on"
+            subtitle="This task couldn't be found. Head back and pick one to focus on."
+            actionLabel="Go back"
+            onAction={() => router.back()}
+          />
+        </View>
+      ) : (
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="px-6 pb-10 items-center"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Close, top-right — the same 36x36 raised-circle control every
+              other sheet's close button in this app uses (AppPicker,
+              StakeSetupSheet, ParkThoughtSheet), plain `Pressable` + `hitSlop`
+              rather than `PressableScale` for the same reason those use it:
+              `PressableScale` has no `hitSlop` prop, and 36x36 alone is under
+              the 44px touch-target floor. */}
+          <View className="w-full flex-row justify-end pt-3">
+            <Pressable
               onPress={leave}
-              haptic="selection"
-              className="min-w-11 min-h-11 items-center justify-center"
+              hitSlop={8}
+              className="h-9 w-9 items-center justify-center rounded-full bg-raised"
               accessibilityRole="button"
               accessibilityLabel="Leave focus session"
               accessibilityHint={
@@ -684,157 +688,145 @@ export default function FocusSessionScreen() {
                   : "Closes this session"
               }
             >
-              <Ionicons name="close" size={26} color={theme.text} />
-            </PressableScale>
+              <Ionicons name="close" size={20} color={theme.textSecondary} />
+            </Pressable>
           </View>
 
-          {missing ? (
-            <View className="flex-1 justify-center px-5">
-              <EmptyState
-                icon="timer-outline"
-                title="Nothing to focus on"
-                subtitle="This task couldn't be found. Head back and pick one to focus on."
-                actionLabel="Go back"
-                onAction={() => router.back()}
+          {/* Status pill + "Session N of M" + the ring, one entrance beat. */}
+          <Animated.View entering={enter} className="items-center">
+            <View className="rounded-sm bg-primary-100 px-4 py-1">
+              <Text variant="overline" className="text-primary-400">
+                {timer.ticking ? "Focusing" : "Paused"}
+              </Text>
+            </View>
+
+            <Text
+              variant="caption"
+              className="mt-3 text-neutral-500"
+              style={tabularNums}
+            >
+              {`Session ${sessionOrdinal} of ${sessionCount}`}
+            </Text>
+
+            <View className="mt-4">
+              <SessionTimer
+                remainingSec={timer.remainingSec}
+                progress={timer.progress}
+                ticking={timer.ticking}
+                running={timer.running}
+                interrupted={timer.interrupted}
+                onToggle={timer.toggle}
               />
             </View>
-          ) : (
-            <>
-              <ScrollView
-                className="flex-1"
-                contentContainerClassName="px-5 pb-4 items-center"
-                showsVerticalScrollIndicator={false}
+          </Animated.View>
+
+          {/* "Current intent": the task title plus its one current step,
+              tiled — the session's one card surface. */}
+          <View className="mt-8 w-full rounded-xl border border-line bg-surface p-5">
+            <Text variant="overline" className="text-primary-400">
+              current intent
+            </Text>
+            <Text variant="h3" className="mt-1 text-neutral-900" numberOfLines={2}>
+              {task?.title ?? "Focus session"}
+            </Text>
+            <StepCard
+              step={step}
+              simplerText={simplerText}
+              celebrate={celebrate}
+              stepNumber={currentStepIndex ?? undefined}
+              stepTotal={totalCount > 0 ? totalCount : undefined}
+              tile
+              style={{ marginTop: 16 }}
+            />
+          </View>
+
+          {/* Lock banner, slim, in-context while our stake is live, plus the
+              always-available panic valve right beneath it — previously
+              pinned to the bottom of a hero card this screen no longer has,
+              reachable in the same place (right where the lock is explained)
+              instead. */}
+          {ownStake && (
+            <View className="mt-5 w-full">
+              <LockBanner
+                session={ownStake}
+                onPanic={() => setPanicOpen(true)}
+                variant="slim"
+              />
+              <Text variant="caption" className="mt-2 px-1 text-neutral-500 text-center">
+                Leaving this screen keeps your apps locked. A banner will show the time left
+                and the way out.
+              </Text>
+              <PressableScale
+                onPress={() => setPanicOpen(true)}
+                haptic="light"
+                className="mt-2 min-h-11 self-center px-4 items-center justify-center"
+                accessibilityRole="button"
+                accessibilityLabel="Unlock early"
+                accessibilityHint="Opens a 60 second breather before your apps come back"
               >
-                {/* Session N of M, overline. Replaces the old top-of-screen
-                    progress bar as the session-level progress cue. Ring +
-                    digits sit directly beneath it, one entrance beat. */}
-                <Animated.View entering={enter} className="w-full items-center">
-                  <Text
-                    variant="overline"
-                    className="text-neutral-500 text-center"
-                    style={tabularNums}
-                  >
-                    {`Session ${sessionOrdinal} of ${sessionCount}`}
-                  </Text>
-                  <View className="mt-4">
-                    <SessionTimer
-                      remainingSec={timer.remainingSec}
-                      progress={timer.progress}
-                      ticking={timer.ticking}
-                      running={timer.running}
-                      interrupted={timer.interrupted}
-                      onToggle={timer.toggle}
-                    />
-                  </View>
-                </Animated.View>
-
-                {/* The ONE current step, bare (no card chrome, the hero card
-                    already is the surface). Its own "Step N of M" line
-                    replaces the dropped top-of-screen progress bar. */}
-                <StepCard
-                  step={step}
-                  simplerText={simplerText}
-                  celebrate={celebrate}
-                  stepNumber={currentStepIndex ?? undefined}
-                  stepTotal={totalCount > 0 ? totalCount : undefined}
-                  bare
-                  style={{ marginTop: 28 }}
-                />
-
-                {/* Lock banner, slim, in-context while our stake is live.
-                    Carries the always-available panic valve via the pinned
-                    "Unlock early" text below (the slim variant drops its own
-                    built-in pill). */}
-                {ownStake && (
-                  <View className="mt-5 w-full">
-                    <LockBanner
-                      session={ownStake}
-                      onPanic={() => setPanicOpen(true)}
-                      variant="slim"
-                    />
-                    <Text variant="caption" className="mt-2 px-1 text-neutral-500 text-center">
-                      Leaving this screen keeps your apps locked. A banner will show the time left
-                      and the way out.
-                    </Text>
-                  </View>
-                )}
-
-                {/* Finished the work before the session was served. Celebrated, not
-                    cashed in: the hold is time, so the apps stay on the line. */}
-                {doneEarly && (
-                  <SessionNotice
-                    icon="sparkles-outline"
-                    className="mt-4 w-full"
-                    text="Every step is done, nice. This session is held by time, so ride out the rest or unlock early whenever you want."
-                  />
-                )}
-
-                {/* Just-served confirmation. */}
-                {servedStake && !ownStake && (
-                  <SessionNotice
-                    icon="lock-open-outline"
-                    role="alert"
-                    className="mt-5 w-full"
-                    text="Session served. Your apps are yours again."
-                  />
-                )}
-
-                {/* "Park a thought" confirmation. Calm, one line, auto-hides
-                    (handleParkThoughtSubmit above). No celebration and no
-                    green: this is a routine save, not a completion. */}
-                {parkedNotice && (
-                  <SessionNotice
-                    icon="bookmark-outline"
-                    className="mt-5 w-full"
-                    text="Saved to your Inbox for later."
-                  />
-                )}
-
-                <View className="mt-8 w-full">
-                  <SessionControls
-                    onDone={handleDone}
-                    noSteps={noSteps}
-                    onBreak={handleBreak}
-                    onStuck={handleStuck}
-                    simplifying={simplifying}
-                    onOverwhelmed={handleOverwhelmed}
-                    onParkThought={handleParkThought}
-                  />
-                </View>
-
-                {/* Ambient audio, one quiet centered pill. `items-center` here
-                    (rather than editing AmbientAudioPicker, out of scope for
-                    this pass) stops its row from stretching full-width so it
-                    shrinks to its content and centers, the closest a wrap can
-                    get to a compact pill without touching the component. */}
-                <View className="mt-5 items-center">
-                  <AmbientAudioPicker current={audio.current} onPick={pickAudio} />
-                </View>
-              </ScrollView>
-
-              {/* Unlock early, pinned at the card bottom, never scrolled away
-                  (doc `design/DECISION_SPEC` D4 item 8). Same handler the slim
-                  LockBanner used to expose via its own built-in pill. */}
-              {ownStake && (
-                <View className="items-center pb-5 pt-1">
-                  <PressableScale
-                    onPress={() => setPanicOpen(true)}
-                    haptic="light"
-                    className="min-h-11 px-4 items-center justify-center"
-                    accessibilityRole="button"
-                    accessibilityLabel="Unlock early"
-                    accessibilityHint="Opens a 60 second breather before your apps come back"
-                  >
-                    <Text variant="bodyMedium" className="text-neutral-600 underline">
-                      Unlock early
-                    </Text>
-                  </PressableScale>
-                </View>
-              )}
-            </>
+                <Text variant="bodyMedium" className="text-neutral-600 underline">
+                  Unlock early
+                </Text>
+              </PressableScale>
+            </View>
           )}
-        </View>
-      </View>
+
+          {/* Finished the work before the session was served. Celebrated, not
+              cashed in: the hold is time, so the apps stay on the line. */}
+          {doneEarly && (
+            <SessionNotice
+              icon="sparkles-outline"
+              className="mt-4 w-full"
+              text="Every step is done, nice. This session is held by time, so ride out the rest or unlock early whenever you want."
+            />
+          )}
+
+          {/* Just-served confirmation. */}
+          {servedStake && !ownStake && (
+            <SessionNotice
+              icon="lock-open-outline"
+              role="alert"
+              className="mt-5 w-full"
+              text="Session served. Your apps are yours again."
+            />
+          )}
+
+          {/* "Park a thought" confirmation. Calm, one line, auto-hides
+              (handleParkThoughtSubmit above). No celebration and no
+              green: this is a routine save, not a completion. */}
+          {parkedNotice && (
+            <SessionNotice
+              icon="bookmark-outline"
+              className="mt-5 w-full"
+              text="Saved to your Inbox for later."
+            />
+          )}
+
+          {/* "I'm Stuck" / Done, front and centre, plus everything else
+              (Take a break / Park a thought / I'm overwhelmed) quieter,
+              underneath — see SessionControls for the layout rationale. */}
+          <View className="mt-8 w-full">
+            <SessionControls
+              onDone={handleDone}
+              noSteps={noSteps}
+              onBreak={handleBreak}
+              onStuck={handleStuck}
+              simplifying={simplifying}
+              onOverwhelmed={handleOverwhelmed}
+              onParkThought={handleParkThought}
+            />
+          </View>
+
+          {/* Ambient audio, one quiet centered pill. `items-center` here
+              (rather than editing AmbientAudioPicker, out of scope for
+              this pass) stops its row from stretching full-width so it
+              shrinks to its content and centers, the closest a wrap can
+              get to a compact pill without touching the component. */}
+          <View className="mt-5 items-center">
+            <AmbientAudioPicker current={audio.current} onPick={pickAudio} />
+          </View>
+        </ScrollView>
+      )}
 
       {/* A break HOLDS the clock — break time is never served toward a hold. */}
       <BreakOverlay

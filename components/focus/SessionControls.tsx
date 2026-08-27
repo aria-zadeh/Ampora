@@ -1,48 +1,32 @@
 /**
  * SessionControls, the session's action row (PRD FR-62).
  *
- * One primary action (Done) and four secondaries (I'm stuck / Take a break /
- * Park a thought / I'm overwhelmed), per the design system's "one primary
- * action per screen" rule. Lifted out of `app/focus/session.tsx` essentially
- * verbatim.
- *
  * "Done" advances the ONE current step. It never releases a lock: a session
  * hold is served by focus time, not by finishing the work early (doc `04` §5,
  * §6), the store enforces that, and this component deliberately has no path
  * to it either.
  *
- * Restyled per doc `design/DECISION_SPEC` D3/D4 item 6: Done is blue, not
- * green (D3, green is reserved for terminal/completed states, never a
- * control that starts or runs). The secondaries are quiet, text-only pills:
- * no icons, no warm tint on "I'm overwhelmed" (that warm tint read as a
- * warning on a control that isn't one).
+ * LAYOUT (2026-08-26 Figma re-measure, `blindfold-mode.pdf`): the source
+ * puts exactly two buttons front and centre, side by side — a quiet "I'm
+ * Stuck" outline pill and the primary Done/Finish fill, both blue-family per
+ * D3 (green stays terminal-only, never a control that starts or runs, even
+ * one that reads "Finish"). Done is blue for the same reason.
  *
- * LAYOUT: two rows of two, not one row of three or four stacked rows.
- * DECISION_SPEC D4 item 6 originally called for one row of three equal pills,
- * which could not hold the copy: at 390pt a third-width pill is 99pt with an
- * 87pt content box, and "I'm overwhelmed" measures 113pt, so it wrapped and
- * broke mid-word ("Overwhelme / d"). Trimming padding bought single-digit
- * points and would still have failed at larger Dynamic Type.
- *
- * Giving the valve its own full-width row fixed that, and adding "Park a
- * thought" the same way produced four stacked full-width pills, which looked
- * repetitive and heavy on screen. Two rows of two is what actually reads well:
- * each pill is ~175pt, which fits the 113pt worst-case label with real slack
- * to spare, so it survives text scaling far better than three-across ever did.
- *
- * Note the earlier claim that the valve deserved its own row on hierarchy
- * grounds was reasoning backwards from a layout fix. The valve is reachable
- * and clearly labelled here, which is what FR-61 actually asks for.
+ * The other three secondaries this screen has always had (Take a break /
+ * Park a thought / I'm overwhelmed) have no counterpart in that pairing, so
+ * they stay, restyled quieter, underneath. They keep the two-rows shape the
+ * previous round settled on for the same reason it did originally: a flat
+ * three-across split at this width re-breaks "I'm overwhelmed" mid-word (it
+ * measures ~113pt; three-across leaves each pill an ~97pt content box once
+ * padding and gaps are subtracted), so it gets its own full-width row while
+ * the shorter two share one.
  */
 
 import React from "react";
 import { View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { iconSizes } from "@/utils/design-tokens";
-import { useThemeColors } from "@/hooks/useThemeColors";
 
 export interface SessionControlsProps {
   /** Primary: mark the current step done (or finish, when nothing is left). */
@@ -67,53 +51,52 @@ export function SessionControls({
   onOverwhelmed,
   onParkThought,
 }: SessionControlsProps) {
-  const theme = useThemeColors();
+  const stuckDisabled = simplifying || noSteps;
+
   return (
     <View>
-      {/* Primary: Done, blue, never green (D3: green is a terminal state only).
-          min-h-13 (56px): the "primary CTA" tier (52px measured) has no scale
-          step (jumps 48 -> 56), so this rounds up rather than reintroducing
-          an arbitrary bracket. Recommend adding spacing["13"] = "52px"
-          centrally, then switching to min-h-13. */}
-      <PressableScale
-        onPress={onDone}
-        haptic="success"
-        className="min-h-13 flex-row items-center justify-center rounded-md bg-primary-600"
-        accessibilityRole="button"
-        accessibilityLabel={noSteps ? "Finish session" : "Mark this step done and continue"}
-      >
-        <Ionicons name="checkmark-circle" size={22} color={theme.primaryForeground} />
-        <Text variant="h4" className="ml-2 text-primary-foreground">{noSteps ? "Finish" : "Done"}</Text>
-      </PressableScale>
-
-      {/* Two quiet pills, then the overwhelm valve on its own full-width row.
-          This was one row of three equal pills (DECISION_SPEC D4 item 6). It
-          could not hold the copy: at 390pt each pill is 99pt wide, and
-          "I'm overwhelmed" measures 113pt, "Overwhelmed" 90pt against an
-          87pt content box, so the label wrapped and broke mid-word
-          ("Overwhelme / d"). Shaving padding bought single-digit points of
-          slack and still died at any larger Dynamic Type setting.
-          Giving it a row restores the exact FR-61 phrase, survives text
-          scaling, and matches the valve's actual standing: it is the wellbeing
-          exit, not a third tertiary. Still quiet and text-only, so the "one
-          primary action per screen" rule is untouched. Logged in
-          `docs/09_Decisions.md`. */}
-      <View className="mt-4 flex-row gap-2">
-        <QuietPill
-          label="I'm stuck"
-          busyLabel="Thinking…"
-          busy={simplifying}
+      {/* The two front-and-centre actions: quiet outline + primary fill,
+          48 tall, matching the measured pair exactly. */}
+      <View className="flex-row gap-3">
+        <PressableScale
           onPress={onStuck}
-          disabled={simplifying || noSteps}
-        />
-        <QuietPill label="Take a break" onPress={onBreak} />
+          haptic="light"
+          disabled={stuckDisabled}
+          className={`h-12 flex-1 items-center justify-center rounded-lg border border-line bg-surface ${
+            stuckDisabled ? "opacity-50" : ""
+          }`}
+          accessibilityRole="button"
+          accessibilityLabel={simplifying ? "Thinking…" : "I'm stuck"}
+          accessibilityState={{ disabled: stuckDisabled, busy: simplifying }}
+        >
+          <Text variant="bodyMedium" className="text-neutral-600">
+            {simplifying ? "Thinking…" : "I'm stuck"}
+          </Text>
+        </PressableScale>
+
+        <PressableScale
+          onPress={onDone}
+          haptic="success"
+          className="h-12 flex-1 items-center justify-center rounded-lg bg-primary-600"
+          accessibilityRole="button"
+          accessibilityLabel={noSteps ? "Finish session" : "Mark this step done and continue"}
+        >
+          <Text variant="bodyMedium" className="text-primary-foreground">
+            {noSteps ? "Finish" : "Done"}
+          </Text>
+        </PressableScale>
       </View>
-      <View className="mt-2 flex-row gap-2">
+
+      {/* Everything else, quieter, underneath. */}
+      <View className="mt-3 flex-row gap-2">
+        <QuietPill label="Take a break" onPress={onBreak} />
         <QuietPill
           label="Park a thought"
           accessibilityHint="Saves a quick note to your Inbox and keeps the timer running"
           onPress={onParkThought}
         />
+      </View>
+      <View className="mt-2 flex-row">
         <QuietPill label="I'm overwhelmed" onPress={onOverwhelmed} />
       </View>
     </View>
@@ -121,7 +104,7 @@ export function SessionControls({
 }
 
 // ---------------------------------------------------------------------------
-// Quiet pill, one of the four equal secondary controls
+// Quiet pill, one of the three equal secondary controls
 // ---------------------------------------------------------------------------
 
 function QuietPill({

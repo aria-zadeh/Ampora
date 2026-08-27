@@ -51,22 +51,23 @@ interface CatalogApp {
   token: string;
   icon: keyof typeof Ionicons.glyphMap;
   tint: string;
-  tintBg: string;
+  /** Short descriptor shown under the name (`ignition-lock.pdf`'s per-row category line, e.g. "Social Network"). */
+  category: string;
 }
 
 const CATALOG: CatalogApp[] = [
-  { key: "instagram", label: "Instagram", token: "com.burbn.instagram", icon: "logo-instagram", tint: appBrandColors.instagram, tintBg: "bg-accent-100" },
-  { key: "tiktok", label: "TikTok", token: "com.zhiliaoapp.musically", icon: "musical-notes", tint: appBrandColors.tiktok, tintBg: "bg-raised" },
-  { key: "youtube", label: "YouTube", token: "com.google.ios.youtube", icon: "logo-youtube", tint: appBrandColors.youtube, tintBg: "bg-danger-100" },
-  { key: "x", label: "X (Twitter)", token: "com.atebits.Tweetie2", icon: "logo-twitter", tint: appBrandColors.x, tintBg: "bg-raised" },
-  { key: "snapchat", label: "Snapchat", token: "com.toyopagroup.picaboo", icon: "logo-snapchat", tint: appBrandColors.snapchat, tintBg: "bg-warning-100" },
-  { key: "reddit", label: "Reddit", token: "com.reddit.Reddit", icon: "logo-reddit", tint: appBrandColors.reddit, tintBg: "bg-warning-100" },
-  { key: "facebook", label: "Facebook", token: "com.facebook.Facebook", icon: "logo-facebook", tint: appBrandColors.facebook, tintBg: "bg-primary-100" },
-  { key: "twitch", label: "Twitch", token: "tv.twitch", icon: "logo-twitch", tint: appBrandColors.twitch, tintBg: "bg-accent-100" },
-  { key: "discord", label: "Discord", token: "com.hammerandchisel.discord", icon: "logo-discord", tint: appBrandColors.discord, tintBg: "bg-primary-100" },
-  { key: "netflix", label: "Netflix", token: "com.netflix.Netflix", icon: "film-outline", tint: appBrandColors.netflix, tintBg: "bg-danger-100" },
-  { key: "games", label: "Games", token: "group.games.leisure", icon: "game-controller", tint: appBrandColors.games, tintBg: "bg-success-100" },
-  { key: "browser_fun", label: "Web browsing", token: "group.web.leisure", icon: "globe-outline", tint: appBrandColors.browser_fun, tintBg: "bg-primary-100" },
+  { key: "instagram", label: "Instagram", token: "com.burbn.instagram", icon: "logo-instagram", tint: appBrandColors.instagram, category: "Social network" },
+  { key: "tiktok", label: "TikTok", token: "com.zhiliaoapp.musically", icon: "musical-notes", tint: appBrandColors.tiktok, category: "Short video" },
+  { key: "youtube", label: "YouTube", token: "com.google.ios.youtube", icon: "logo-youtube", tint: appBrandColors.youtube, category: "Entertainment" },
+  { key: "x", label: "X (Twitter)", token: "com.atebits.Tweetie2", icon: "logo-twitter", tint: appBrandColors.x, category: "Social network" },
+  { key: "snapchat", label: "Snapchat", token: "com.toyopagroup.picaboo", icon: "logo-snapchat", tint: appBrandColors.snapchat, category: "Social network" },
+  { key: "reddit", label: "Reddit", token: "com.reddit.Reddit", icon: "logo-reddit", tint: appBrandColors.reddit, category: "Forums" },
+  { key: "facebook", label: "Facebook", token: "com.facebook.Facebook", icon: "logo-facebook", tint: appBrandColors.facebook, category: "Social network" },
+  { key: "twitch", label: "Twitch", token: "tv.twitch", icon: "logo-twitch", tint: appBrandColors.twitch, category: "Live streaming" },
+  { key: "discord", label: "Discord", token: "com.hammerandchisel.discord", icon: "logo-discord", tint: appBrandColors.discord, category: "Chat & communities" },
+  { key: "netflix", label: "Netflix", token: "com.netflix.Netflix", icon: "film-outline", tint: appBrandColors.netflix, category: "Streaming" },
+  { key: "games", label: "Games", token: "group.games.leisure", icon: "game-controller", tint: appBrandColors.games, category: "Gaming" },
+  { key: "browser_fun", label: "Web browsing", token: "group.web.leisure", icon: "globe-outline", tint: appBrandColors.browser_fun, category: "Browsing" },
 ];
 
 /** Which `platform` value to stamp on chosen StakeApps for this device. */
@@ -304,37 +305,46 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                   contentContainerClassName="px-5 pb-4 gap-2"
                   showsVerticalScrollIndicator={false}
                 >
+                  {/* Row geometry per the 2026-08-26 Figma re-measure
+                      (`ignition-lock.pdf`): neutral icon tile (the brand tint
+                      lives on the glyph only, matching how the rest of the
+                      app tiles an icon), name + category column, a "Locked"
+                      word only while on (status is never colour alone), and
+                      a real toggle track/knob in place of the old
+                      checkmark/ellipse pair. */}
                   {catalog.map((app) => {
                     const isSel = selected.has(app.key);
                     return (
                       <Pressable
                         key={app.key}
                         onPress={() => toggle(app.key)}
-                        className={`flex-row items-center gap-3 rounded-xl border p-3.5 ${
-                          isSel ? "border-primary-500 bg-primary-50" : "border-neutral-200 bg-white"
-                        }`}
-                        accessibilityRole="checkbox"
+                        className="flex-row items-center gap-3 rounded-xl border border-line bg-surface px-4 py-4"
+                        accessibilityRole="switch"
                         accessibilityState={{ checked: isSel }}
                         accessibilityLabel={app.label}
-                        accessibilityHint={isSel ? "Selected. Tap to remove." : "Tap to put on the line."}
+                        accessibilityHint={isSel ? "On. Tap to remove from the line." : "Off. Tap to put on the line."}
                       >
-                        <View
-                          className={`h-10 w-10 items-center justify-center rounded-full ${app.tintBg}`}
-                        >
+                        <View className="h-10 w-10 items-center justify-center rounded-tile bg-raised">
                           <Ionicons name={app.icon} size={20} color={app.tint} />
                         </View>
-                        <Text
-                          className={`flex-1 text-body-lg font-medium ${
-                            isSel ? "text-primary-700" : "text-neutral-900"
+                        <View className="flex-1">
+                          <Text className="text-body font-medium text-neutral-900" numberOfLines={1}>
+                            {app.label}
+                          </Text>
+                          <Text className="mt-0.5 text-meta font-medium text-neutral-600" numberOfLines={1}>
+                            {app.category}
+                          </Text>
+                        </View>
+                        {isSel && (
+                          <Text className="text-meta font-medium text-primary-400">Locked</Text>
+                        )}
+                        <View
+                          className={`h-7 w-12 flex-row items-center rounded-full px-0.5 ${
+                            isSel ? "justify-end bg-primary-600" : "justify-start bg-raised"
                           }`}
                         >
-                          {app.label}
-                        </Text>
-                        <Ionicons
-                          name={isSel ? "checkmark-circle" : "ellipse-outline"}
-                          size={22}
-                          color={isSel ? theme.primary : theme.borderStrong}
-                        />
+                          <View className="h-6 w-6 rounded-full bg-pure-white" />
+                        </View>
                       </Pressable>
                     );
                   })}
