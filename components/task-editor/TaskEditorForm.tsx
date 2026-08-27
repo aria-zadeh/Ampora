@@ -8,6 +8,7 @@ import {
   ScrollView,
   Modal,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
@@ -20,7 +21,8 @@ import { SkeletonLoader } from "@/components/ui/SkeletonLoader";
 import { Text as UIText } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { DateTimePickerCrossPlatform } from "@/components/ui/DateTimePickerCrossPlatform";
-import { colors, shadows, tabularNums } from "@/utils/design-tokens";
+import { listColors, tabularNums, type ListColorName } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { newId } from "@/core/id";
@@ -107,19 +109,34 @@ export function asTaskView(draft: Partial<Task>): Task {
   };
 }
 
-// Exported so other screens that render a stored swatch hex (e.g.
-// `app/task/[id].tsx`'s meta-chip tint) can resolve it back to a `listColors`
-// name by index instead of re-hardcoding these 8 hexes a second time.
-export const COLOR_SWATCHES = [
-  "#2563EB",
-  "#7C3AED",
-  "#16A34A",
-  "#EA580C",
-  "#DC2626",
-  "#0891B2",
-  "#DB2777",
-  "#57534E",
+/**
+ * Named order for the 8 task/list color swatches, index-paired with
+ * `COLOR_SWATCHES` below so `app/task/[id].tsx`'s meta-chip tint can resolve
+ * a stored swatch hex back to its `listColors` name without re-hardcoding a
+ * second copy of the hexes.
+ */
+export const SWATCH_LIST_COLOR_NAMES: ListColorName[] = [
+  "blue",
+  "purple",
+  "green",
+  "orange",
+  "red",
+  "teal",
+  "pink",
+  "slate",
 ];
+
+/**
+ * Exported so other screens that render a stored swatch hex (e.g.
+ * `app/task/[id].tsx`'s meta-chip tint) can resolve it back to a `listColors`
+ * name by index instead of re-hardcoding these 8 hexes a second time.
+ *
+ * Sourced from the STABLE (theme-independent) `listColors` export rather than
+ * the `useListColors()` hook: this hex is persisted as `Task.color` /
+ * `List.color`, so it must keep matching itself across a theme switch, not
+ * drift to the other theme's tone the next time this module evaluates.
+ */
+export const COLOR_SWATCHES = SWATCH_LIST_COLOR_NAMES.map((name) => listColors[name].bar);
 
 // ---------------------------------------------------------------------------
 // Presentation primitives (form-local)
@@ -150,10 +167,11 @@ function Field({
 
 /**
  * A grouped section with header. `boxed` (default true) wraps the fields in
- * a soft-shadow + border white card, for the form's ordinary editable
- * groups. Pass `boxed={false}` for a section whose CHILDREN are already
- * individually carded (e.g. Steps, doc design decision D4 item 4 / D5: "steps
- * are quiet cards, not a boxed checklist group") so it isn't a card of cards.
+ * the measured card (contract rule 6: `bg-surface` + `border-line` +
+ * `rounded-xl` + `p-4`, no shadow), for the form's ordinary editable groups.
+ * Pass `boxed={false}` for a section whose CHILDREN are already individually
+ * carded (e.g. Steps, doc design decision D4 item 4 / D5: "steps are quiet
+ * cards, not a boxed checklist group") so it isn't a card of cards.
  */
 function Section({
   title,
@@ -181,8 +199,7 @@ function Section({
         </Text>
       ) : null}
       <View
-        className={boxed ? "gap-5 rounded-2xl border border-neutral-200 bg-white p-5" : "gap-3"}
-        style={boxed ? shadows.sm : undefined}
+        className={boxed ? "gap-5 rounded-xl border border-line bg-surface p-4" : "gap-3"}
       >
         {children}
       </View>
@@ -192,7 +209,7 @@ function Section({
 
 /** Hairline divider used to separate fields inside a Section. */
 function Divider() {
-  return <View className="h-px bg-neutral-100" />;
+  return <View className="h-px bg-line" />;
 }
 
 // ---------------------------------------------------------------------------
@@ -311,6 +328,7 @@ function RepeatControl({
   dueDate: number | undefined;
   onChange: (next: RecurrenceRule | undefined) => void;
 }) {
+  const theme = useThemeColors();
   const dueWeekday = dueDate ? new Date(dueDate).getDay() : new Date().getDay();
   const preset = detectRepeatPreset(value, dueWeekday);
   const [customOpen, setCustomOpen] = useState(preset === "custom");
@@ -360,7 +378,7 @@ function RepeatControl({
               className={
                 active
                   ? "rounded-full border border-primary-300 bg-primary-100 px-3.5 py-2"
-                  : "rounded-full border border-neutral-200 bg-white px-3.5 py-2"
+                  : "rounded-full border border-line bg-surface px-3.5 py-2"
               }
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
@@ -400,11 +418,11 @@ function RepeatControl({
             <Text className="text-label font-medium text-primary-600">
               {customOpen ? "Hide details" : "Edit details"}
             </Text>
-            <Ionicons name={customOpen ? "chevron-up" : "chevron-down"} size={14} color={colors.light.primary} />
+            <Ionicons name={customOpen ? "chevron-up" : "chevron-down"} size={14} color={theme.primary} />
           </PressableScale>
 
           {customOpen ? (
-            <View className="gap-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+            <View className="gap-4 rounded-xl border border-line bg-raised p-4">
               {/* Frequency */}
               <View className="flex-row items-center justify-between">
                 <Text className="text-label font-medium text-neutral-800">Frequency</Text>
@@ -454,7 +472,7 @@ function RepeatControl({
                           key={day}
                           onPress={() => toggleWeekday(day)}
                           className={`h-9 w-9 items-center justify-center rounded-full border ${
-                            active ? "border-primary-500 bg-primary-600" : "border-neutral-200 bg-white"
+                            active ? "border-primary-500 bg-primary-600" : "border-line bg-surface"
                           }`}
                           accessibilityRole="checkbox"
                           accessibilityState={{ checked: active }}
@@ -463,7 +481,7 @@ function RepeatControl({
                           <Text
                             className={
                               active
-                                ? "text-label font-semibold text-white"
+                                ? "text-label font-semibold text-primary-foreground"
                                 : "text-label font-medium text-neutral-600"
                             }
                           >
@@ -623,6 +641,7 @@ export function TaskEditorForm({
   stakeOn,
   onOpenStake,
 }: TaskEditorFormProps) {
+  const theme = useThemeColors();
   const isEdit = mode === "edit";
   const reduceMotion = useReduceMotion();
 
@@ -975,11 +994,11 @@ export function TaskEditorForm({
           {/* Title */}
           <Field label="Title">
             <TextInput
-              className={`min-h-12 rounded-md border ${inputBorder(
+              className={`min-h-12 rounded-lg border ${inputBorder(
                 "title"
-              )} bg-white px-4 text-body-lg text-neutral-900`}
+              )} bg-surface px-4 text-body-lg text-neutral-900`}
               placeholder="What needs doing?"
-              placeholderTextColor={colors.light.textDisabled}
+              placeholderTextColor={theme.textDisabled}
               value={draft.title ?? ""}
               onChangeText={(title) => patch({ title })}
               onFocus={() => setFocusedField("title")}
@@ -995,11 +1014,11 @@ export function TaskEditorForm({
           {/* Notes */}
           <Field label="Notes">
             <TextInput
-              className={`min-h-24 rounded-md border ${inputBorder(
+              className={`min-h-24 rounded-lg border ${inputBorder(
                 "notes"
-              )} bg-white px-4 py-3 text-body-lg text-neutral-900`}
+              )} bg-surface px-4 py-3 text-body-lg text-neutral-900`}
               placeholder="Add details (optional)"
-              placeholderTextColor={colors.light.textDisabled}
+              placeholderTextColor={theme.textDisabled}
               value={draft.notes ?? ""}
               onChangeText={(notes) => patch({ notes })}
               onFocus={() => setFocusedField("notes")}
@@ -1048,24 +1067,23 @@ export function TaskEditorForm({
         <Section title="First move" index={2}>
           {/* AI: Break it down — fills First move + Steps in one tap. Degrades
               gracefully with no key (local fallback), never blocks the manual
-              flow below. */}
+              flow below. Accent-tinted (docs/02 §13.1: accent is AI/smart/
+              Projects only — this is the AI action, "Save task" stays the
+              screen's one blue primary). */}
           <View className="gap-3">
             <PressableScale
               onPress={handleBreakDown}
               haptic={canBreakDown ? "light" : false}
               disabled={!canBreakDown || breakingDown}
-              className={`min-h-12 flex-row items-center justify-center gap-2 rounded-md ${
-                canBreakDown && !breakingDown
-                  ? "bg-primary-600"
-                  : "bg-primary-600/50"
+              className={`min-h-12 flex-row items-center justify-center gap-2 rounded-lg border border-accent-100 bg-accent-100 ${
+                !canBreakDown || breakingDown ? "opacity-50" : ""
               }`}
-              style={shadows.xs}
               accessibilityRole="button"
               accessibilityLabel="Break it down with AI"
               accessibilityState={{ disabled: !canBreakDown || breakingDown, busy: breakingDown }}
             >
-              <Ionicons name="sparkles" size={16} color={colors.light.primaryForeground} />
-              <Text className="text-label font-semibold text-white">
+              <Ionicons name="sparkles" size={16} color={theme.accentStrong} />
+              <Text className="text-label font-semibold text-accent-700">
                 {breakingDown
                   ? "Breaking it down…"
                   : hasBreakdownContent
@@ -1093,7 +1111,7 @@ export function TaskEditorForm({
                 entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
                 className="flex-row items-start gap-2 rounded-lg border border-warning-100 bg-warning-100/50 p-3"
               >
-                <Ionicons name="cloud-offline-outline" size={16} color={colors.light.warningStrong} />
+                <Ionicons name="cloud-offline-outline" size={16} color={theme.warningStrong} />
                 <Text className="flex-1 text-caption text-warning-700">{aiNote}</Text>
               </Animated.View>
             ) : null}
@@ -1103,11 +1121,11 @@ export function TaskEditorForm({
 
           <Field helper="One tiny 2-5 minute starter to beat activation energy" label="What is the smallest first step?">
             <TextInput
-              className={`min-h-12 rounded-md border ${inputBorder(
+              className={`min-h-12 rounded-lg border ${inputBorder(
                 "firstMove"
-              )} bg-white px-4 text-body-lg text-neutral-900`}
+              )} bg-surface px-4 text-body-lg text-neutral-900`}
               placeholder="e.g. Open the doc and write one line"
-              placeholderTextColor={colors.light.textDisabled}
+              placeholderTextColor={theme.textDisabled}
               value={firstMoveText}
               onChangeText={setFirstMoveText}
               onFocus={() => setFocusedField("firstMove")}
@@ -1142,7 +1160,8 @@ export function TaskEditorForm({
           {/* AI: Make easier — per-subtask simplify. Rendered here (not inside
               SubtaskChecklist, which this workstream doesn't own) as a compact
               list of "Make easier" affordances. Graceful: simplifySubtask has a
-              local fallback and never throws. */}
+              local fallback and never throws. Accent while a chip is actively
+              simplifying (the AI call in flight); quiet otherwise. */}
           {subtasks.length > 0 ? (
             <View className="gap-2">
               <Text className="text-caption font-medium text-neutral-500">
@@ -1161,10 +1180,9 @@ export function TaskEditorForm({
                         disabled={loading || simplifyingId != null}
                         className={`max-w-full flex-row items-center gap-1.5 rounded-full border px-3 py-2 ${
                           loading
-                            ? "border-primary-200 bg-primary-50"
-                            : "border-neutral-200 bg-white"
+                            ? "border-accent-100 bg-accent-100"
+                            : "border-line bg-surface"
                         }`}
-                        style={shadows.xs}
                         accessibilityRole="button"
                         accessibilityLabel={`Make easier: ${s.title}`}
                         accessibilityState={{ busy: loading, disabled: simplifyingId != null }}
@@ -1172,10 +1190,10 @@ export function TaskEditorForm({
                         <Ionicons
                           name={loading ? "hourglass-outline" : "cut-outline"}
                           size={13}
-                          color={colors.light.primary}
+                          color={loading ? theme.accentStrong : theme.accent}
                         />
                         <Text
-                          className="max-w-[180px] text-caption font-medium text-neutral-700"
+                          className="max-w-180 text-caption font-medium text-neutral-700"
                           numberOfLines={1}
                         >
                           {loading ? "Simplifying…" : s.title}
@@ -1201,22 +1219,23 @@ export function TaskEditorForm({
           ) : null}
 
           {/* AI: Refine / Make easier, secondary row (D4 item 6), two equal
-              quiet buttons. Both wire to EXISTING handlers only. Refine opens
-              the same instruction panel as before (`showRefine`/
-              `handleRefine`, unchanged below). Make easier simplifies the
-              next not-done step via the same `handleSimplifySubtask` each
-              per-step chip above already calls, no new AI call. */}
+              quiet accent buttons (docs/02 §13.1: accent is the AI-affordance
+              hue). Both wire to EXISTING handlers only. Refine opens the same
+              instruction panel as before (`showRefine`/`handleRefine`,
+              unchanged below). Make easier simplifies the next not-done step
+              via the same `handleSimplifySubtask` each per-step chip above
+              already calls, no new AI call. */}
           {hasBreakdownContent ? (
             <View className="gap-2">
               <View className="flex-row gap-2.5">
                 <PressableScale
                   onPress={() => setShowRefine(true)}
                   haptic="light"
-                  className="h-[46px] flex-1 items-center justify-center rounded-md bg-neutral-100"
+                  className="h-11 flex-1 items-center justify-center rounded-lg bg-accent-100"
                   accessibilityRole="button"
                   accessibilityLabel="Refine the steps with an instruction"
                 >
-                  <UIText variant="captionMedium" className="text-neutral-900">
+                  <UIText variant="captionMedium" className="text-accent-700">
                     Refine
                   </UIText>
                 </PressableScale>
@@ -1226,7 +1245,7 @@ export function TaskEditorForm({
                   }
                   haptic={nextSimplifiableSubtask ? "selection" : false}
                   disabled={!nextSimplifiableSubtask || simplifyingId != null}
-                  className="h-[46px] flex-1 items-center justify-center rounded-md bg-neutral-100"
+                  className="h-11 flex-1 items-center justify-center rounded-lg bg-accent-100"
                   style={!nextSimplifiableSubtask || simplifyingId != null ? { opacity: 0.5 } : undefined}
                   accessibilityRole="button"
                   accessibilityLabel="Make the next step easier"
@@ -1235,7 +1254,7 @@ export function TaskEditorForm({
                     busy: !!nextSimplifiableSubtask && simplifyingId === nextSimplifiableSubtask.id,
                   }}
                 >
-                  <UIText variant="captionMedium" className="text-neutral-900">
+                  <UIText variant="captionMedium" className="text-accent-700">
                     {nextSimplifiableSubtask && simplifyingId === nextSimplifiableSubtask.id
                       ? "Simplifying…"
                       : "Make easier"}
@@ -1249,9 +1268,9 @@ export function TaskEditorForm({
                   className="gap-2"
                 >
                   <TextInput
-                    className="min-h-12 rounded-md border border-primary-500 bg-white px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-lg border border-primary-500 bg-surface px-4 text-body-lg text-neutral-900"
                     placeholder='e.g. "break it down by function" or "step 2 is too big"'
-                    placeholderTextColor={colors.light.textDisabled}
+                    placeholderTextColor={theme.textDisabled}
                     value={refineText}
                     onChangeText={setRefineText}
                     returnKeyType="done"
@@ -1263,7 +1282,7 @@ export function TaskEditorForm({
                     <View className="flex-1">
                       <Button
                         title={refining ? "Refining…" : "Refine steps"}
-                        variant="primaryBlue"
+                        variant="accent"
                         size="md"
                         onPress={handleRefine}
                         loading={refining}
@@ -1317,7 +1336,7 @@ export function TaskEditorForm({
             helper={hasSubtasks ? undefined : "Estimated time in minutes"}
           >
             {hasSubtasks ? (
-              <View className="min-h-12 flex-row items-center justify-between rounded-md border border-neutral-200 bg-neutral-50 px-4">
+              <View className="min-h-12 flex-row items-center justify-between rounded-lg border border-line bg-raised px-4">
                 <Text className="text-body-lg text-neutral-900">
                   {rollupDuration}m
                 </Text>
@@ -1325,11 +1344,11 @@ export function TaskEditorForm({
               </View>
             ) : (
               <TextInput
-                className={`min-h-12 rounded-md border ${inputBorder(
+                className={`min-h-12 rounded-lg border ${inputBorder(
                   "duration"
-                )} bg-white px-4 text-body-lg text-neutral-900`}
+                )} bg-surface px-4 text-body-lg text-neutral-900`}
                 placeholder="e.g. 30"
-                placeholderTextColor={colors.light.textDisabled}
+                placeholderTextColor={theme.textDisabled}
                 value={
                   draft.durationMin != null && draft.durationMin > 0
                     ? String(draft.durationMin)
@@ -1379,11 +1398,11 @@ export function TaskEditorForm({
             ) : (
               <Pressable
                 onPress={() => setShowDuePicker(true)}
-                className="min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-4"
+                className="min-h-12 flex-row items-center rounded-lg border border-line bg-surface px-4"
                 accessibilityRole="button"
                 accessibilityLabel="Set a due date"
               >
-                <Ionicons name="calendar-outline" size={18} color={colors.light.textMuted} />
+                <Ionicons name="calendar-outline" size={18} color={theme.textMuted} />
                 <Text className="ml-2 text-body-lg text-neutral-500">
                   Set a deadline
                 </Text>
@@ -1421,11 +1440,11 @@ export function TaskEditorForm({
             ) : (
               <Pressable
                 onPress={() => patch({ startAfter: Date.now() })}
-                className="min-h-12 flex-row items-center rounded-md border border-neutral-200 bg-white px-4"
+                className="min-h-12 flex-row items-center rounded-lg border border-line bg-surface px-4"
                 accessibilityRole="button"
                 accessibilityLabel="Set a start-after date"
               >
-                <Ionicons name="time-outline" size={18} color={colors.light.textMuted} />
+                <Ionicons name="time-outline" size={18} color={theme.textMuted} />
                 <Text className="ml-2 text-body-lg text-neutral-500">
                   Set a start date
                 </Text>
@@ -1446,7 +1465,7 @@ export function TaskEditorForm({
             <Switch
               value={draft.splittable ?? false}
               onValueChange={(splittable) => patch({ splittable })}
-              trackColor={{ true: colors.light.primary, false: colors.light.borderStrong }}
+              trackColor={{ true: theme.primary, false: theme.borderStrong }}
               accessibilityLabel="Split into sessions"
             />
           </View>
@@ -1457,9 +1476,9 @@ export function TaskEditorForm({
               <View className="flex-1">
                 <Field label="Min block (min)">
                   <TextInput
-                    className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-lg border border-line bg-surface px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 30"
-                    placeholderTextColor={colors.light.textDisabled}
+                    placeholderTextColor={theme.textDisabled}
                     value={draft.minBlockMin != null ? String(draft.minBlockMin) : ""}
                     onChangeText={(text) => {
                       const parsed = parseInt(text, 10);
@@ -1473,9 +1492,9 @@ export function TaskEditorForm({
               <View className="flex-1">
                 <Field label="Max block (min)">
                   <TextInput
-                    className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-lg border border-line bg-surface px-4 text-body-lg text-neutral-900"
                     placeholder="e.g. 90"
-                    placeholderTextColor={colors.light.textDisabled}
+                    placeholderTextColor={theme.textDisabled}
                     value={draft.maxBlockMin != null ? String(draft.maxBlockMin) : ""}
                     onChangeText={(text) => {
                       const parsed = parseInt(text, 10);
@@ -1567,7 +1586,7 @@ export function TaskEditorForm({
                 className={`flex-row items-center rounded-full border px-3 py-1.5 ${
                   draft.color == null
                     ? "border-primary-300 bg-primary-100"
-                    : "border-neutral-200 bg-white"
+                    : "border-line bg-surface"
                 }`}
                 accessibilityRole="button"
                 accessibilityLabel="Smart color, follows list"
@@ -1579,7 +1598,7 @@ export function TaskEditorForm({
                     style={{ backgroundColor: effectiveColor }}
                   />
                 ) : (
-                  <Ionicons name="sparkles-outline" size={13} color={colors.light.primary} />
+                  <Ionicons name="sparkles-outline" size={13} color={theme.primary} />
                 )}
                 <Text
                   className={`text-caption ${
@@ -1605,7 +1624,7 @@ export function TaskEditorForm({
                     accessibilityState={{ selected }}
                   >
                     {selected ? (
-                      <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
+                      <Ionicons name="checkmark" size={16} color={theme.primaryForeground} />
                     ) : null}
                   </Pressable>
                 );
@@ -1649,10 +1668,7 @@ export function TaskEditorForm({
       </ScrollView>
 
       {/* Sticky Save bar — single primary action, disabled when title empty */}
-      <View
-        className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3"
-        style={shadows.md}
-      >
+      <View className="border-t border-line bg-surface px-5 pb-2 pt-3">
         <Button
           title="Save task"
           variant="primaryBlue"
@@ -1663,45 +1679,55 @@ export function TaskEditorForm({
       </View>
 
       {/* Re-breakdown confirm (AIB-29): protects progress already made on the
-          current steps before an AI regenerate would replace them. */}
+          current steps before an AI regenerate would replace them. Full
+          bottom-sheet surface per contract rule 3b (surface color, top-only
+          rounded-t-sheet, bg-line grabber), matching the sheet pattern used
+          elsewhere (e.g. TaskActionSheet). */}
       <Modal
         visible={confirmRebreakdown}
         transparent
-        animationType="fade"
+        animationType={reduceMotion ? "fade" : "slide"}
         onRequestClose={() => setConfirmRebreakdown(false)}
+        accessibilityViewIsModal
       >
         <Pressable
-          className="flex-1 items-center justify-center bg-black/40 px-6"
+          className="flex-1 justify-end bg-black/40"
           onPress={() => setConfirmRebreakdown(false)}
           accessibilityRole="button"
           accessibilityLabel="Dismiss"
         >
           <Pressable
-            className="w-full rounded-2xl bg-white p-6"
-            style={shadows.lg}
+            className="rounded-t-sheet bg-surface"
             onPress={(e) => e.stopPropagation()}
           >
-            <Heading size="h3">Replace your steps?</Heading>
-            <Text className="mt-2 text-body text-neutral-600">
-              You have progress on these steps. Regenerating will replace the list — completed steps
-              won&apos;t carry over unless you keep them.
-            </Text>
-            <View className="mt-6 flex-row gap-3">
-              <View className="flex-1">
-                <Button
-                  title="Keep my steps"
-                  variant="secondary"
-                  onPress={() => setConfirmRebreakdown(false)}
-                />
+            <SafeAreaView edges={["bottom"]}>
+              <View className="items-center pt-3">
+                <View className="h-1 w-10 rounded-xxs bg-line" />
               </View>
-              <View className="flex-1">
-                <Button
-                  title="Replace"
-                  variant="destructive"
-                  onPress={handleConfirmReplace}
-                />
+              <View className="px-6 pb-6 pt-4">
+                <Heading size="h3">Replace your steps?</Heading>
+                <Text className="mt-2 text-body text-neutral-600">
+                  You have progress on these steps. Regenerating will replace the list — completed steps
+                  won&apos;t carry over unless you keep them.
+                </Text>
+                <View className="mt-6 flex-row gap-3">
+                  <View className="flex-1">
+                    <Button
+                      title="Keep my steps"
+                      variant="secondary"
+                      onPress={() => setConfirmRebreakdown(false)}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Button
+                      title="Replace"
+                      variant="destructive"
+                      onPress={handleConfirmReplace}
+                    />
+                  </View>
+                </View>
               </View>
-            </View>
+            </SafeAreaView>
           </Pressable>
         </Pressable>
       </Modal>

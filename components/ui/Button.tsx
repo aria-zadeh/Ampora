@@ -23,7 +23,8 @@ type ButtonVariant =
   | "secondary"
   | "ghost"
   | "destructive"
-  | "success";
+  | "success"
+  | "accent";
 type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends Omit<PressableProps, "children" | "style"> {
@@ -67,6 +68,15 @@ const variantClasses: Record<ButtonVariant, { base: string; text: string }> = {
     base: "bg-success-700",
     text: "text-primary-foreground",
   },
+  /**
+   * AI / smart affordances ONLY (breakdown, Refine, Make easier, Projects) per
+   * docs/02 13.1. Never a second general-purpose accent — anything that simply
+   * starts, saves or advances is `primary`.
+   */
+  accent: {
+    base: "bg-accent-600",
+    text: "text-primary-foreground",
+  },
 };
 
 // Button heights 36 / 44 / 52. 52px is `min-h-13`, a project-specific step
@@ -85,6 +95,7 @@ const FILLED_VARIANTS: ButtonVariant[] = [
   "primaryBlue",
   "destructive",
   "success",
+  "accent",
 ];
 
 export function Button({

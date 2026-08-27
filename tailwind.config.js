@@ -167,6 +167,7 @@ module.exports = {
       // measured value here instead of inlining it). Same numeric-key-as-px
       // convention as `spacing` above.
       maxWidth: {
+        180: "180px",
         260: "260px",
         280: "280px",
         300: "300px",

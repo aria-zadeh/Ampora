@@ -8,17 +8,17 @@
  * caller supplies an accessible label on the surrounding pressable.
  *
  * Tonal ring, matching `components/focus/ProgressRing`: when no `color` is
- * passed, the two halves render as a same-hue tonal pair (deep `#1D4ED8` on
- * the first-filled half, primary `#2563EB` on the second) instead of one
+ * passed, the two halves render as a same-hue tonal pair (the theme's deep
+ * primary on the first-filled half, primary on the second) instead of one
  * flat color — see `color`/`colorDeep` below. Both real call sites today
- * (`ProjectCard`, `app/projects/[id].tsx`) pass an explicit `color={PROJECT_ACCENT}`
+ * (`ProjectCard`, `app/projects/[id].tsx`) pass an explicit `color={theme.accent}`
  * and no `colorDeep`, so they render exactly as before: both halves the same
  * flat accent color, unchanged.
  */
 
 import React from "react";
 import { View, Text } from "react-native";
-import { colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface ProgressRingProps {
   /** 0..100. */
@@ -28,21 +28,21 @@ interface ProgressRingProps {
   /** Ring thickness in px. @default 5 */
   stroke?: number;
   /**
-   * Ring color. @default primary "#2563EB" — when left at its default (no
+   * Ring color. @default the theme's primary — when left at its default (no
    * explicit `color`), the ring renders as a tonal sweep with `colorDeep`
    * (see below). An explicit `color` (e.g. the Projects screens' own
-   * `PROJECT_ACCENT`) renders as a flat single color unless `colorDeep` is
+   * `theme.accent`) renders as a flat single color unless `colorDeep` is
    * also passed, since a non-default color has no "deep" pairing to assume.
    */
   color?: string;
   /**
    * Deeper same-family tone for the first-filled half, making the ring read
-   * as a tonal sweep rather than flat. @default primaryDark "#1D4ED8",
+   * as a tonal sweep rather than flat. @default the theme's `primaryDark`,
    * applied only when `color` is left at its default. Pass both explicitly
    * for a custom tonal pair with any color.
    */
   colorDeep?: string;
-  /** Track (unfilled) color. @default "#E8E6E0" */
+  /** Track (unfilled) color. @default the theme's `border` */
   trackColor?: string;
 }
 
@@ -105,22 +105,25 @@ export function ProgressRing({
   stroke = 5,
   color,
   colorDeep,
-  trackColor = colors.light.border,
+  trackColor,
 }: ProgressRingProps) {
+  const theme = useThemeColors();
   const value = clampPct(pct);
 
   // Right half sweeps 0..180deg for 0..50%; left half sweeps for 50..100%.
   const rightDeg = Math.min(value, 50) / 50 * 180 - 180;
   const leftDeg = value <= 50 ? -180 : (value - 50) / 50 * 180 - 180;
 
+  const resolvedTrackColor = trackColor ?? theme.border;
+
   // Resolve the tonal pair — mirrors components/focus/ProgressRing exactly.
   // `colorDeep` only defaults to deep blue when `color` itself resolves to
-  // primary blue; any other explicit `color` (PROJECT_ACCENT, or a future
+  // primary blue; any other explicit `color` (theme.accent, or a future
   // custom color) stays flat on both halves instead of pairing an unrelated
   // hue with primaryDark.
-  const resolvedColor = color ?? colors.light.primary;
-  const isPrimaryTone = resolvedColor === colors.light.primary;
-  const resolvedDeep = colorDeep ?? (isPrimaryTone ? colors.light.primaryDark : resolvedColor);
+  const resolvedColor = color ?? theme.primary;
+  const isPrimaryTone = resolvedColor === theme.primary;
+  const resolvedDeep = colorDeep ?? (isPrimaryTone ? theme.primaryDark : resolvedColor);
 
   return (
     <View
@@ -136,7 +139,7 @@ export function ProgressRing({
           height: size,
           borderRadius: size / 2,
           borderWidth: stroke,
-          borderColor: trackColor,
+          borderColor: resolvedTrackColor,
         }}
       />
 
@@ -151,11 +154,11 @@ export function ProgressRing({
 
       {/* Centered percent label — the ring is never color-only. */}
       <Text
-        style={{ fontSize: size * 0.26, fontWeight: "700", color: colors.light.text }}
+        style={{ fontSize: size * 0.26, fontWeight: "700", color: theme.text }}
         allowFontScaling={false}
       >
         {value}
-        <Text style={{ fontSize: size * 0.16, fontWeight: "600", color: colors.light.textMuted }}>%</Text>
+        <Text style={{ fontSize: size * 0.16, fontWeight: "600", color: theme.textMuted }}>%</Text>
       </Text>
     </View>
   );

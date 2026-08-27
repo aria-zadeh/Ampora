@@ -7,7 +7,7 @@ import { useTaskStore } from "@/store/taskStore";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { TaskEditorForm } from "@/components/task-editor/TaskEditorForm";
-import { colors, shadows } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task } from "@/types";
 
 /**
@@ -16,6 +16,7 @@ import type { Task } from "@/types";
  * until Save (Save is the single primary action).
  */
 export default function NewTaskScreen() {
+  const theme = useThemeColors();
   const createTask = useTaskStore((s) => s.createTask);
 
   const initialDraft: Partial<Task> = {
@@ -36,10 +37,7 @@ export default function NewTaskScreen() {
   return (
     <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
       {/* Modal header */}
-      <View
-        className="flex-row items-center justify-between border-b border-neutral-200 bg-white px-5 py-3.5"
-        style={shadows.xs}
-      >
+      <View className="flex-row items-center justify-between border-b border-line bg-surface px-5 py-3.5">
         <View className="min-w-11">
           <PressableScale
             onPress={() => router.back()}
@@ -48,7 +46,7 @@ export default function NewTaskScreen() {
             accessibilityRole="button"
             accessibilityLabel="Cancel"
           >
-            <Ionicons name="close" size={24} color={colors.light.text} />
+            <Ionicons name="close" size={24} color={theme.text} />
           </PressableScale>
         </View>
         <Heading size="h3">New task</Heading>

@@ -29,19 +29,21 @@ import { useProjectStore, selectProjectById } from "@/store/projectStore";
 import { useTaskStore, selectAllTasks } from "@/store/taskStore";
 import { ProgressRing } from "@/components/projects/ProgressRing";
 import { ProgressTracker } from "@/components/projects/ProgressTracker";
-import { kindMeta, PROJECT_ACCENT } from "@/components/projects/projectUtils";
+import { kindMeta } from "@/components/projects/projectUtils";
 import { Heading } from "@/components/ui/Heading";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { GradientCard } from "@/components/ui/GradientCard";
 import { generateNextTask, type NextTaskResult } from "@/services/aiProjects";
 import { newId } from "@/core/id";
-import { colors, iconSizes } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { iconSizes } from "@/utils/design-tokens";
 import type { Phase } from "@/types";
 
 const SESSION_MIN = 45;
 
 export default function ProjectDetailScreen() {
+  const theme = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProjectStore(useMemo(() => selectProjectById(id ?? ""), [id]));
 
@@ -107,7 +109,7 @@ export default function ProjectDetailScreen() {
     return (
       <SafeAreaView className="flex-1 bg-neutral-100 items-center justify-center px-8">
         <Stack.Screen options={{ headerShown: false }} />
-        <Ionicons name="folder-open-outline" size={iconSizes.hero} color={colors.light.textDisabled} />
+        <Ionicons name="folder-open-outline" size={iconSizes.hero} color={theme.textDisabled} />
         <Text className="text-body text-neutral-500 text-center mt-3">
           This project isn&apos;t available.
         </Text>
@@ -133,7 +135,7 @@ export default function ProjectDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Ionicons name="chevron-back" size={iconSizes.lg} color={colors.light.text} />
+          <Ionicons name="chevron-back" size={iconSizes.lg} color={theme.text} />
         </Pressable>
         <View className="flex-1" />
         <Pressable
@@ -143,7 +145,7 @@ export default function ProjectDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Delete project"
         >
-          <Ionicons name="trash-outline" size={iconSizes.md} color={colors.light.textDisabled} />
+          <Ionicons name="trash-outline" size={iconSizes.md} color={theme.textDisabled} />
         </Pressable>
       </View>
 
@@ -156,7 +158,7 @@ export default function ProjectDetailScreen() {
         {/* Header card */}
         <View className="px-5">
           <View className="flex-row items-center">
-            <ProgressRing pct={pct} size={64} stroke={6} color={PROJECT_ACCENT} />
+            <ProgressRing pct={pct} size={64} stroke={6} color={theme.accent} />
             <View className="flex-1 ml-4">
               <Heading size="h2" numberOfLines={2}>
                 {project.title}
@@ -178,10 +180,10 @@ export default function ProjectDetailScreen() {
         <View className="px-5 mt-5">
           <GradientCard>
             <View className="flex-row items-center mb-1">
-              <Ionicons name="flash" size={iconSizes.md} color={PROJECT_ACCENT} />
+              <Ionicons name="flash" size={iconSizes.md} color={theme.accent} />
               <Text
                 className="text-overline font-semibold uppercase tracking-wide ml-1.5"
-                style={{ color: PROJECT_ACCENT }}
+                style={{ color: theme.accent }}
               >
                 Next session
               </Text>
@@ -200,7 +202,7 @@ export default function ProjectDetailScreen() {
               onPress={planNextSession}
               icon={
                 planning ? undefined : (
-                  <Ionicons name="sparkles" size={iconSizes.sm} color={colors.light.primaryForeground} />
+                  <Ionicons name="sparkles" size={iconSizes.sm} color={theme.primaryForeground} />
                 )
               }
             />
@@ -219,7 +221,7 @@ export default function ProjectDetailScreen() {
       {/* Planned-session result sheet */}
       <PlannedSheet
         planned={planned}
-        accent={PROJECT_ACCENT}
+        accent={theme.accent}
         onOpenTask={() => {
           const taskId = planned?.taskId;
           setPlanned(null);
@@ -276,6 +278,7 @@ function PlannedSheet({
   onStartFocus: () => void;
   onClose: () => void;
 }) {
+  const theme = useThemeColors();
   const visible = planned != null;
   const result = planned?.result;
 
@@ -287,9 +290,9 @@ function PlannedSheet({
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
       >
-        <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+        <Pressable className="rounded-t-sheet bg-surface p-5 pb-8" onPress={(e) => e.stopPropagation()}>
           <View className="items-center mb-4">
-            <View className="w-10 h-1 rounded-full bg-neutral-200" />
+            <View className="h-1 w-10 rounded-xxs bg-line" />
           </View>
 
           <View className="flex-row items-center mb-1">
@@ -297,7 +300,7 @@ function PlannedSheet({
               className="w-8 h-8 rounded-full items-center justify-center"
               style={{ backgroundColor: accent }}
             >
-              <Ionicons name="checkmark" size={iconSizes.md} color={colors.light.primaryForeground} />
+              <Ionicons name="checkmark" size={iconSizes.md} color={theme.primaryForeground} />
             </View>
             <Text className="text-overline font-semibold uppercase tracking-wide ml-2 text-neutral-500">
               Session ready
@@ -312,7 +315,7 @@ function PlannedSheet({
 
               {/* First move */}
               <View className="flex-row items-start mt-3 bg-primary-50 rounded-xl p-3">
-                <Ionicons name="footsteps-outline" size={iconSizes.md} color={colors.light.primary} />
+                <Ionicons name="footsteps-outline" size={iconSizes.md} color={theme.primary} />
                 <View className="flex-1 ml-2.5">
                   <Text className="text-caption font-semibold text-primary-700">First move</Text>
                   <Text className="text-body text-neutral-900 mt-0.5">{result.firstMove}</Text>
@@ -326,7 +329,7 @@ function PlannedSheet({
               <View className="gap-2 mb-1">
                 {result.subtasks.map((s, i) => (
                   <View key={`${s.title}-${i}`} className="flex-row items-center">
-                    <View className="w-6 h-6 rounded-full bg-neutral-100 items-center justify-center">
+                    <View className="w-6 h-6 rounded-full bg-raised items-center justify-center">
                       <Text className="text-caption font-semibold text-neutral-600">{i + 1}</Text>
                     </View>
                     <Text className="flex-1 text-body text-neutral-800 ml-2.5" numberOfLines={2}>
@@ -339,7 +342,7 @@ function PlannedSheet({
 
               {result.isFallback && result.note && (
                 <View className="flex-row items-center mt-3">
-                  <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color={colors.light.textDisabled} />
+                  <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color={theme.textDisabled} />
                   <Text className="text-tiny text-neutral-500 ml-1">{result.note}</Text>
                 </View>
               )}
@@ -353,7 +356,7 @@ function PlannedSheet({
                     title="Start focus"
                     variant="primaryBlue"
                     onPress={onStartFocus}
-                    icon={<Ionicons name="play" size={iconSizes.sm} color={colors.light.primaryForeground} />}
+                    icon={<Ionicons name="play" size={iconSizes.sm} color={theme.primaryForeground} />}
                   />
                 </View>
               </View>
@@ -384,6 +387,7 @@ function ConfirmDeleteSheet({
   /** `alsoDeleteTasks` reflects the checkbox — false (keep + unlink) by default. */
   onConfirm: (alsoDeleteTasks: boolean) => void;
 }) {
+  const theme = useThemeColors();
   // Default is keep + unlink so a project delete never silently destroys task
   // work (Projects audit gap). Reset every time the sheet opens.
   const [alsoDeleteTasks, setAlsoDeleteTasks] = useState(false);
@@ -401,9 +405,9 @@ function ConfirmDeleteSheet({
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
       >
-        <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+        <Pressable className="rounded-t-sheet bg-surface p-5 pb-8" onPress={(e) => e.stopPropagation()}>
           <View className="items-center mb-4">
-            <View className="w-10 h-1 rounded-full bg-neutral-200" />
+            <View className="h-1 w-10 rounded-xxs bg-line" />
           </View>
           <Heading size="h3">Delete project?</Heading>
           <Text className="text-body text-neutral-500 mt-1.5 mb-5">
@@ -416,7 +420,7 @@ function ConfirmDeleteSheet({
           {taskCount > 0 && (
             <Pressable
               onPress={() => setAlsoDeleteTasks((v) => !v)}
-              className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3.5 mb-5"
+              className="flex-row items-start gap-3 rounded-xl border border-line bg-raised p-3.5 mb-5"
               accessibilityRole="checkbox"
               accessibilityState={{ checked: alsoDeleteTasks }}
               accessibilityLabel={`Also delete the ${taskCount} generated ${taskLabel}`}
@@ -427,7 +431,7 @@ function ConfirmDeleteSheet({
                   alsoDeleteTasks ? "bg-danger-600" : "border-2 border-neutral-300"
                 }`}
               >
-                {alsoDeleteTasks ? <Ionicons name="checkmark" size={13} color={colors.light.primaryForeground} /> : null}
+                {alsoDeleteTasks ? <Ionicons name="checkmark" size={13} color={theme.primaryForeground} /> : null}
               </View>
               <View className="flex-1">
                 <Text className="text-label font-medium text-neutral-800">

@@ -2,15 +2,17 @@
  * Small pure helpers for the Projects UI (doc `06`). Kept out of components so
  * the derivation stays testable and consistent across ProjectCard / detail /
  * progress tracker. No I/O, no platform deps — web-safe.
+ *
+ * The project accent color used to live here as a plain `PROJECT_ACCENT`
+ * constant, but a plain module has no React context to resolve it against
+ * the active theme, so it always pinned to the light-theme hex. Every call
+ * site is a component, so each now resolves its own `theme.accent` via
+ * `useThemeColors()` instead — see `docs/02` §13.1 (accent is AI/smart/
+ * Projects only).
  */
 
 import type { Ionicons } from "@expo/vector-icons";
 import type { ProjectKind } from "@/types";
-import { colors } from "@/utils/design-tokens";
-
-/** The project theme accent (doc `02` — Projects use the "special/premium" accent, reserved exclusively for Projects). */
-export const PROJECT_ACCENT = colors.light.accentStrong;
-export const PROJECT_ACCENT_LIGHT = colors.light.accentLight;
 
 interface KindMeta {
   label: string;

@@ -3,8 +3,8 @@
  * at creation and shapes progress + next-session generation). Title (required),
  * a kind chooser (deliverable / study, each with a one-line blurb), and an
  * optional one-paragraph context line (doc `06` §2). Uses the design system's
- * Modal-sheet pattern (matching the Tasks tab schedule sheet): dimmed backdrop,
- * rounded-2xl surface, grabber.
+ * bottom-sheet spec (docs/02 §14, contract rule 3b): surface color, top-only
+ * `rounded-t-sheet`, and a `bg-line` grabber.
  */
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -20,8 +20,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { Heading } from "@/components/ui/Heading";
 import { Button } from "@/components/ui/Button";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { kindMeta, PROJECT_ACCENT } from "./projectUtils";
-import { colors, iconSizes } from "@/utils/design-tokens";
+import { kindMeta } from "./projectUtils";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { iconSizes } from "@/utils/design-tokens";
 import type { ProjectKind } from "@/types";
 
 const KINDS: ProjectKind[] = ["deliverable", "study"];
@@ -33,6 +34,7 @@ interface NewProjectSheetProps {
 }
 
 export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetProps) {
+  const theme = useThemeColors();
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<ProjectKind>("deliverable");
   const [contextLine, setContextLine] = useState("");
@@ -88,14 +90,14 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
         accessibilityLabel="Dismiss new project"
       >
         <Pressable
-          className="bg-white rounded-t-2xl p-5 pb-8"
+          className="rounded-t-sheet bg-surface p-5 pb-8"
           onPress={(e) => e.stopPropagation()}
           // Swallow key events (web) so a space/enter in a child input never
           // bubbles to the backdrop Pressable and dismisses the sheet.
           onStartShouldSetResponder={() => true}
         >
           <View className="items-center mb-4">
-            <View className="w-10 h-1 rounded-full bg-neutral-200" />
+            <View className="h-1 w-10 rounded-xxs bg-line" />
           </View>
 
           <Heading size="h3">New project</Heading>
@@ -107,13 +109,13 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
           <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2">
             Name
           </Text>
-          <View className="flex-row items-center bg-white border border-neutral-200 rounded-md min-h-12 px-3 mb-5">
-            <Ionicons name="bookmark-outline" size={iconSizes.md} color={colors.light.textDisabled} />
+          <View className="flex-row items-center bg-surface border border-neutral-200 rounded-lg min-h-12 px-3 mb-5">
+            <Ionicons name="bookmark-outline" size={iconSizes.md} color={theme.textDisabled} />
             <TextInput
               value={title}
               onChangeText={setTitle}
               placeholder="e.g. Study for SciOly Remote Sensing"
-              placeholderTextColor={colors.light.textDisabled}
+              placeholderTextColor={theme.textDisabled}
               className="flex-1 ml-2 text-body-lg text-neutral-900"
               returnKeyType="next"
               autoFocus
@@ -138,17 +140,17 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
                   accessibilityState={{ selected: active }}
                   accessibilityLabel={`${meta.label}. ${meta.blurb}`}
                   className={`flex-row items-center rounded-xl border px-3 py-3 ${
-                    active ? "bg-accent-100 border-accent-600" : "bg-white border-neutral-200"
+                    active ? "bg-accent-100 border-accent-600" : "bg-surface border-neutral-200"
                   }`}
                 >
                   <View
                     className="w-9 h-9 rounded-full items-center justify-center"
-                    style={{ backgroundColor: active ? PROJECT_ACCENT : colors.light.background }}
+                    style={{ backgroundColor: active ? theme.accent : theme.elevated }}
                   >
                     <Ionicons
                       name={meta.icon}
                       size={iconSizes.md}
-                      color={active ? colors.light.primaryForeground : colors.light.textMuted}
+                      color={active ? theme.primaryForeground : theme.textMuted}
                     />
                   </View>
                   <View className="flex-1 ml-3">
@@ -162,7 +164,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
                     <Text className="text-caption text-neutral-500 mt-0.5">{meta.blurb}</Text>
                   </View>
                   {active && (
-                    <Ionicons name="checkmark-circle" size={iconSizes.lg} color={PROJECT_ACCENT} />
+                    <Ionicons name="checkmark-circle" size={iconSizes.lg} color={theme.accent} />
                   )}
                 </PressableScale>
               );
@@ -173,13 +175,13 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
           <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2">
             Context (optional)
           </Text>
-          <View className="bg-white border border-neutral-200 rounded-md px-3 py-2.5 mb-6">
+          <View className="bg-surface border border-neutral-200 rounded-lg px-3 py-2.5 mb-6">
             <TextInput
               value={contextLine}
               onChangeText={setContextLine}
               placeholder="e.g. MLA format, topic is Cold War containment, 5 pages"
-              placeholderTextColor={colors.light.textDisabled}
-              className="text-body text-neutral-900 min-h-[44px]"
+              placeholderTextColor={theme.textDisabled}
+              className="text-body text-neutral-900 min-h-11"
               multiline
               textAlignVertical="top"
               accessibilityLabel="Project context"

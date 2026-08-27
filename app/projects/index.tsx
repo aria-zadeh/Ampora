@@ -21,16 +21,17 @@ import { useProjectStore, selectAllProjects } from "@/store/projectStore";
 import { useTaskStore, selectAllTasks } from "@/store/taskStore";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { NewProjectSheet } from "@/components/projects/NewProjectSheet";
-import { PROJECT_ACCENT } from "@/components/projects/projectUtils";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FAB } from "@/components/ui/FAB";
 import { Heading } from "@/components/ui/Heading";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { colors, iconSizes } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { iconSizes } from "@/utils/design-tokens";
 import type { Project, ProjectKind } from "@/types";
 
 export default function ProjectsHubScreen() {
+  const theme = useThemeColors();
   const reduceMotion = useReduceMotion();
 
   const projects = useProjectStore(useShallow(selectAllProjects));
@@ -97,16 +98,16 @@ export default function ProjectsHubScreen() {
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
-          <Ionicons name="chevron-back" size={iconSizes.lg} color={colors.light.text} />
+          <Ionicons name="chevron-back" size={iconSizes.lg} color={theme.text} />
         </Pressable>
         <View className="flex-1">
           <Heading size="h1">Projects</Heading>
         </View>
         <View
           className="w-9 h-9 rounded-full items-center justify-center"
-          style={{ backgroundColor: PROJECT_ACCENT }}
+          style={{ backgroundColor: theme.accent }}
         >
-          <Ionicons name="rocket-outline" size={iconSizes.md} color={colors.light.primaryForeground} />
+          <Ionicons name="rocket-outline" size={iconSizes.md} color={theme.primaryForeground} />
         </View>
       </View>
 

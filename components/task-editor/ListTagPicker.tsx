@@ -5,7 +5,8 @@ import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors, shadows } from "@/utils/design-tokens";
+import { useThemeColors, useListColors } from "@/hooks/useThemeColors";
+import type { ListColorName } from "@/utils/design-tokens";
 import { useShallow } from "zustand/react/shallow";
 import {
   useListStore,
@@ -13,16 +14,18 @@ import {
   selectAllTags,
 } from "@/store/listStore";
 
-/** Preset swatches offered when creating a new list or tag. */
-const COLOR_PRESETS = [
-  "#2563EB", // primary
-  "#7C3AED", // accent
-  "#16A34A", // success
-  "#EA580C", // warning
-  "#DC2626", // danger
-  "#0891B2", // cyan
-  "#DB2777", // pink
-  "#57534E", // neutral
+/** Preset swatches offered when creating a new list or tag, drawn from the
+ *  theme-aware categorical palette (`useListColors`) instead of a hardcoded
+ *  hex set — same 8-tone order the color picker in ListEditorModal uses. */
+const PRESET_NAMES: ListColorName[] = [
+  "blue",
+  "purple",
+  "green",
+  "orange",
+  "red",
+  "teal",
+  "pink",
+  "slate",
 ];
 
 interface SingleProps {
@@ -42,6 +45,10 @@ interface MultiProps {
 type ListTagPickerProps = SingleProps | MultiProps;
 
 export function ListTagPicker(props: ListTagPickerProps) {
+  const theme = useThemeColors();
+  const listColors = useListColors();
+  const colorPresets = PRESET_NAMES.map((name) => listColors[name].bar);
+
   const lists = useListStore(useShallow(selectAllLists));
   const tags = useListStore(useShallow(selectAllTags));
   const createList = useListStore((s) => s.createList);
@@ -49,13 +56,13 @@ export function ListTagPicker(props: ListTagPickerProps) {
 
   const [creating, setCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
-  const [draftColor, setDraftColor] = useState(COLOR_PRESETS[0]);
+  const [draftColor, setDraftColor] = useState(colorPresets[0]);
 
   const isSingle = props.mode === "single";
 
   const openCreate = () => {
     setDraftName("");
-    setDraftColor(COLOR_PRESETS[0]);
+    setDraftColor(colorPresets[0]);
     setCreating(true);
   };
 
@@ -128,11 +135,11 @@ export function ListTagPicker(props: ListTagPickerProps) {
         <PressableScale
           onPress={openCreate}
           haptic="light"
-          className="flex-row items-center rounded-full border border-dashed border-neutral-300 bg-white px-3 py-1.5"
+          className="flex-row items-center rounded-full border border-dashed border-neutral-300 bg-surface px-3 py-1.5"
           accessibilityRole="button"
           accessibilityLabel={isSingle ? "New list" : "New tag"}
         >
-          <Ionicons name="add" size={14} color={colors.light.primary} />
+          <Ionicons name="add" size={14} color={theme.primary} />
           <Text className="ml-1 text-caption font-medium text-primary-600">
             {isSingle ? "New list" : "New tag"}
           </Text>
@@ -150,16 +157,15 @@ export function ListTagPicker(props: ListTagPickerProps) {
           onPress={() => setCreating(false)}
         >
           <Pressable
-            className="w-full rounded-2xl bg-white p-6"
-            style={shadows.lg}
+            className="w-full rounded-2xl border border-line bg-surface p-6"
             onPress={(e) => e.stopPropagation()}
           >
             <Heading size="h3">{isSingle ? "New list" : "New tag"}</Heading>
 
             <TextInput
-              className="mt-5 min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
+              className="mt-5 min-h-12 rounded-lg border border-neutral-200 bg-surface px-4 text-body-lg text-neutral-900"
               placeholder={isSingle ? "List name" : "Tag name"}
-              placeholderTextColor={colors.light.textDisabled}
+              placeholderTextColor={theme.textDisabled}
               value={draftName}
               onChangeText={setDraftName}
               autoFocus
@@ -172,7 +178,7 @@ export function ListTagPicker(props: ListTagPickerProps) {
               Color
             </Text>
             <View className="flex-row flex-wrap gap-3">
-              {COLOR_PRESETS.map((color) => {
+              {colorPresets.map((color) => {
                 const selected = draftColor === color;
                 return (
                   <Pressable
@@ -187,7 +193,7 @@ export function ListTagPicker(props: ListTagPickerProps) {
                     style={{ backgroundColor: color }}
                   >
                     {selected ? (
-                      <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
+                      <Ionicons name="checkmark" size={16} color={theme.primaryForeground} />
                     ) : null}
                   </Pressable>
                 );

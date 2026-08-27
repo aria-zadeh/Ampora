@@ -2,20 +2,12 @@ import React, { useCallback } from "react";
 import { View, Text } from "react-native";
 import * as Haptics from "expo-haptics";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 /** Priority labels indexed to match PRIORITY_VALUES (1=Low … 4=Urgent). */
 export const PRIORITY_LABELS = ["Low", "Medium", "High", "Urgent"] as const;
 /** The numeric `Task.priority` values, in the same order as PRIORITY_LABELS. */
 export const PRIORITY_VALUES = [1, 2, 3, 4] as const;
-
-/** Selected-state accent per priority level (higher = warmer/more urgent). */
-const SELECTED_CLASSES: Record<number, { bg: string; text: string; dot: string }> = {
-  1: { bg: "bg-white", text: "text-neutral-800", dot: colors.light.textMuted },
-  2: { bg: "bg-white", text: "text-primary-700", dot: colors.light.primary },
-  3: { bg: "bg-white", text: "text-warning-700", dot: colors.light.warning },
-  4: { bg: "bg-white", text: "text-danger-700", dot: colors.light.dangerStrong },
-};
 
 interface PrioritySelectorProps {
   /** Current priority (1..4). Defaults to Medium (2) upstream. */
@@ -24,6 +16,19 @@ interface PrioritySelectorProps {
 }
 
 export function PrioritySelector({ value, onChange }: PrioritySelectorProps) {
+  const theme = useThemeColors();
+
+  /** Selected-state accent per priority level (higher = warmer/more urgent).
+   *  `bg-raised` lifts the selected segment above both the sunken track and
+   *  the card behind it, replacing the old hand-rolled drop shadow (rule 4:
+   *  no shadows — raise a surface step instead). */
+  const selectedClasses: Record<number, { bg: string; text: string; dot: string }> = {
+    1: { bg: "bg-raised", text: "text-neutral-800", dot: theme.textMuted },
+    2: { bg: "bg-raised", text: "text-primary-700", dot: theme.primary },
+    3: { bg: "bg-raised", text: "text-warning-700", dot: theme.warning },
+    4: { bg: "bg-raised", text: "text-danger-700", dot: theme.dangerStrong },
+  };
+
   const select = useCallback(
     (priority: number) => {
       if (priority === value) return;
@@ -35,12 +40,12 @@ export function PrioritySelector({ value, onChange }: PrioritySelectorProps) {
 
   return (
     <View
-      className="flex-row rounded-lg border border-neutral-200 bg-neutral-100 p-1"
+      className="flex-row rounded-lg border border-neutral-200 bg-canvas p-1"
       accessibilityRole="radiogroup"
     >
       {PRIORITY_VALUES.map((priority, i) => {
         const active = value === priority;
-        const accent = SELECTED_CLASSES[priority];
+        const accent = selectedClasses[priority];
         return (
           <PressableScale
             key={priority}
@@ -55,7 +60,6 @@ export function PrioritySelector({ value, onChange }: PrioritySelectorProps) {
               className={`flex-row items-center justify-center gap-1.5 rounded-md py-2 ${
                 active ? accent.bg : "bg-transparent"
               }`}
-              style={active ? SEGMENT_SHADOW : undefined}
             >
               {active ? (
                 <View
@@ -79,12 +83,3 @@ export function PrioritySelector({ value, onChange }: PrioritySelectorProps) {
     </View>
   );
 }
-
-/** Soft lift for the selected segment so it reads as raised above the track. */
-const SEGMENT_SHADOW = {
-  shadowColor: colors.light.text,
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.06,
-  shadowRadius: 3,
-  elevation: 2,
-} as const;

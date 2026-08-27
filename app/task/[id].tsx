@@ -14,11 +14,16 @@ import { PressableScale } from "@/components/ui/PressableScale";
 import { SkeletonLoader } from "@/components/ui/SkeletonLoader";
 import { TaskActionSheet } from "@/components/ui/TaskActionSheet";
 import { Text } from "@/components/ui/Text";
-import { TaskEditorForm, COLOR_SWATCHES } from "@/components/task-editor/TaskEditorForm";
+import {
+  TaskEditorForm,
+  COLOR_SWATCHES,
+  SWATCH_LIST_COLOR_NAMES,
+} from "@/components/task-editor/TaskEditorForm";
 import { VerificationSheet } from "@/components/verification/VerificationSheet";
 import { StakeSetupSheet, type ArmedStake } from "@/components/stakes/StakeSetupSheet";
 import { PRIORITY_LABELS } from "@/components/task-editor/PrioritySelector";
-import { colors, listColors, tabularNums, type ListColorName } from "@/utils/design-tokens";
+import { useThemeColors, useListColors } from "@/hooks/useThemeColors";
+import { tabularNums } from "@/utils/design-tokens";
 import type { Task } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -27,26 +32,6 @@ import type { Task } from "@/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-/**
- * The app's list/task color picker only ever writes one of `COLOR_SWATCHES`'s
- * 8 fixed swatch hexes (TaskEditorForm.tsx, re-used verbatim by
- * ListEditorModal.tsx) onto `List.color`, never a `listColors` key directly.
- * This array is index-paired with that canonical swatch array — the Nth hex
- * there names the Nth tone here — so a stored hex can resolve to its
- * `listColors` tint without re-hardcoding any of the 8 hexes a second time
- * (no raw literals in the rendered style).
- */
-const SWATCH_LIST_COLOR_NAMES: ListColorName[] = [
-  "blue",
-  "purple",
-  "green",
-  "orange",
-  "red",
-  "teal",
-  "pink",
-  "slate",
-];
 
 function startOfDay(ms: number): number {
   const d = new Date(ms);
@@ -93,18 +78,19 @@ function tomorrowDue(now: number): number {
 // Local presentation components
 // ---------------------------------------------------------------------------
 
-/** 44px round sunken-bg back + overflow icon buttons, centered one-line title (D4 item 1). */
+/** 44px round raised back + overflow icon buttons, centered one-line title (D4 item 1). */
 function ScreenHeader({ title, onMore }: { title: string; onMore?: () => void }) {
+  const theme = useThemeColors();
   return (
     <View className="flex-row items-center justify-between px-5 pb-2 pt-3">
       <PressableScale
         onPress={() => router.back()}
         haptic="light"
-        className="h-11 w-11 items-center justify-center rounded-full bg-neutral-100"
+        className="h-11 w-11 items-center justify-center rounded-full bg-raised"
         accessibilityRole="button"
         accessibilityLabel="Back"
       >
-        <Ionicons name="chevron-back" size={22} color={colors.light.text} />
+        <Ionicons name="chevron-back" size={22} color={theme.text} />
       </PressableScale>
 
       <Heading size="h4" numberOfLines={1} className="flex-1 px-3 text-center">
@@ -115,11 +101,11 @@ function ScreenHeader({ title, onMore }: { title: string; onMore?: () => void })
         <PressableScale
           onPress={onMore}
           haptic="light"
-          className="h-11 w-11 items-center justify-center rounded-full bg-neutral-100"
+          className="h-11 w-11 items-center justify-center rounded-full bg-raised"
           accessibilityRole="button"
           accessibilityLabel="More options"
         >
-          <Ionicons name="ellipsis-horizontal" size={20} color={colors.light.text} />
+          <Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />
         </PressableScale>
       ) : (
         // Keeps the title centered when there's nothing to show on the right.
@@ -145,7 +131,10 @@ function MetaChip({
   numeric?: boolean;
 }) {
   const TONE_CLASSES: Record<"neutral" | "warning" | "danger", { bg: string; text: string }> = {
-    neutral: { bg: "bg-neutral-100", text: "text-neutral-600" },
+    // `neutral` uses `bg-raised`, NOT `bg-neutral-100` — the latter IS the
+    // canvas role in the role-mapped ramp (identical CSS var), so it would
+    // render as an invisible hole on the canvas this chip sits on.
+    neutral: { bg: "bg-raised", text: "text-neutral-600" },
     warning: { bg: "bg-warning-100", text: "text-warning-700" },
     danger: { bg: "bg-danger-100", text: "text-danger-700" },
   };
@@ -176,6 +165,8 @@ function MetaChip({
  * behind "Save task", which patches the store via updateTask.
  */
 export default function TaskEditScreen() {
+  const theme = useThemeColors();
+  const listColors = useListColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const task = useTaskStore((s) => s.tasks[id]);
   const updateTask = useTaskStore((s) => s.updateTask);
@@ -212,7 +203,7 @@ export default function TaskEditScreen() {
     );
     const name = swatchIndex >= 0 ? SWATCH_LIST_COLOR_NAMES[swatchIndex] : undefined;
     return name ? { bg: listColors[name].bg, text: listColors[name].text } : undefined;
-  }, [list]);
+  }, [list, listColors]);
   const dueLabel = useMemo(() => formatDueChip(task?.due), [task?.due]);
   const priorityChip = useMemo(() => {
     if (!task || task.priority == null) return null;
@@ -285,11 +276,11 @@ export default function TaskEditScreen() {
         <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
           <ScreenHeader title="Task" />
           <View className="gap-6 px-5 pb-10 pt-4" accessibilityLabel="Loading task">
-            <View className="gap-5 rounded-2xl border border-neutral-200 bg-white p-5">
+            <View className="gap-5 rounded-xl border border-line bg-surface p-4">
               <SkeletonLoader height={48} radius={8} />
               <SkeletonLoader height={96} radius={8} />
             </View>
-            <View className="gap-5 rounded-2xl border border-neutral-200 bg-white p-5">
+            <View className="gap-5 rounded-xl border border-line bg-surface p-4">
               <SkeletonLoader height={20} width="40%" radius={6} />
               <SkeletonLoader height={44} radius={10} />
               <SkeletonLoader height={44} radius={10} />
@@ -328,7 +319,7 @@ export default function TaskEditScreen() {
             bottom of the form (D4 item 7). */}
         {isDone ? (
           <View className="mx-5 flex-row items-center justify-center gap-2 rounded-md bg-success-100 py-3">
-            <Ionicons name="checkmark-circle" size={18} color={colors.light.successStrong} />
+            <Ionicons name="checkmark-circle" size={18} color={theme.successStrong} />
             <Text variant="label" className="text-success-700">
               Completed
             </Text>
@@ -341,7 +332,7 @@ export default function TaskEditScreen() {
                 variant="secondary"
                 size="md"
                 onPress={startFocus}
-                icon={<Ionicons name="play" size={16} color={colors.light.text} />}
+                icon={<Ionicons name="play" size={16} color={theme.text} />}
                 accessibilityLabel="Start focus session"
               />
             </View>
@@ -351,7 +342,7 @@ export default function TaskEditScreen() {
                 variant="secondary"
                 size="md"
                 onPress={() => setVerifyOpen(true)}
-                icon={<Ionicons name="checkmark-done" size={16} color={colors.light.text} />}
+                icon={<Ionicons name="checkmark-done" size={16} color={theme.text} />}
                 accessibilityLabel="Mark task done"
               />
             </View>

@@ -9,7 +9,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { Text } from "@/components/ui/Text";
-import { colors, shadows, tabularNums } from "@/utils/design-tokens";
+import { tabularNums } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { staggerDelay, DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import * as taskLogic from "@/core/task-logic";
@@ -30,11 +31,11 @@ const DEFAULT_ESTIMATE = 15;
 
 /**
  * One step row: the "quiet card" treatment (doc design decision D4 item 4).
- * Its own white card (radius 12, xs shadow), a 23px check circle (blue fill +
- * white check when done, sunken empty circle otherwise), a 15px/500 title
- * (done: strike-through + textDisabled, weight drops to 400), and a
- * right-aligned tabular time label. Reorder + delete stay available inside
- * the same card so no existing affordance is lost.
+ * Its own surface card (radius 12, hairline border, no shadow), a 24px check
+ * circle (blue fill + white check when done, a raised empty circle
+ * otherwise), a 15px/500 title (done: strike-through + textDisabled, weight
+ * drops to 400), and a right-aligned tabular time label. Reorder + delete
+ * stay available inside the same card so no existing affordance is lost.
  */
 function StepRow({
   subtask,
@@ -53,6 +54,7 @@ function StepRow({
   onDelete: (subtaskId: string) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
 }) {
+  const theme = useThemeColors();
   const done = taskLogic.isSubtaskDone(subtask);
 
   const handleToggle = () => {
@@ -62,11 +64,10 @@ function StepRow({
 
   return (
     <View
-      className="flex-row items-center gap-2 rounded-lg bg-white px-3 py-1"
-      style={shadows.xs}
+      className="flex-row items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1"
       accessibilityLabel={`${subtask.title}, ${subtask.estimatedMin} minutes${done ? ", completed" : ""}`}
     >
-      {/* Check circle: 44px hit area around a 23px visual circle. */}
+      {/* Check circle: 44px hit area around a 24px visual circle. */}
       <Pressable
         onPress={handleToggle}
         hitSlop={4}
@@ -76,11 +77,11 @@ function StepRow({
         accessibilityLabel={done ? "Mark step incomplete" : "Mark step complete"}
       >
         <View
-          className={`h-[23px] w-[23px] items-center justify-center rounded-full ${
-            done ? "bg-primary-600" : "bg-neutral-100"
+          className={`h-6 w-6 items-center justify-center rounded-full ${
+            done ? "bg-primary-600" : "bg-raised"
           }`}
         >
-          {done ? <Ionicons name="checkmark" size={13} color={colors.light.primaryForeground} /> : null}
+          {done ? <Ionicons name="checkmark" size={13} color={theme.primaryForeground} /> : null}
         </View>
       </Pressable>
 
@@ -126,7 +127,7 @@ function StepRow({
           <Ionicons
             name="chevron-up"
             size={14}
-            color={index === 0 ? colors.light.borderStrong : colors.light.textMuted}
+            color={index === 0 ? theme.borderStrong : theme.textMuted}
           />
         </Pressable>
         <Pressable
@@ -141,7 +142,7 @@ function StepRow({
           <Ionicons
             name="chevron-down"
             size={14}
-            color={isLast ? colors.light.borderStrong : colors.light.textMuted}
+            color={isLast ? theme.borderStrong : theme.textMuted}
           />
         </Pressable>
       </View>
@@ -154,7 +155,7 @@ function StepRow({
         accessibilityRole="button"
         accessibilityLabel={`Delete step: ${subtask.title}`}
       >
-        <Ionicons name="trash-outline" size={16} color={colors.light.textMuted} />
+        <Ionicons name="trash-outline" size={16} color={theme.textMuted} />
       </Pressable>
     </View>
   );
@@ -168,6 +169,7 @@ export function SubtaskChecklist({
   onEditTitle,
   onReorder,
 }: SubtaskChecklistProps) {
+  const theme = useThemeColors();
   const [newTitle, setNewTitle] = useState("");
   const [newMin, setNewMin] = useState("");
   const reduceMotion = useReduceMotion();
@@ -222,9 +224,9 @@ export function SubtaskChecklist({
       {/* Add-row input, unchanged. */}
       <View className="mt-3 flex-row items-center gap-2">
         <TextInput
-          className="min-h-12 flex-1 rounded-md border border-neutral-200 bg-white px-3 text-body-lg text-neutral-900"
+          className="min-h-12 flex-1 rounded-lg border border-neutral-200 bg-surface px-3 text-body-lg text-neutral-900"
           placeholder="Add a step"
-          placeholderTextColor={colors.light.textDisabled}
+          placeholderTextColor={theme.textDisabled}
           value={newTitle}
           onChangeText={setNewTitle}
           returnKeyType="done"
@@ -232,9 +234,9 @@ export function SubtaskChecklist({
           accessibilityLabel="New step title"
         />
         <TextInput
-          className="min-h-12 w-16 rounded-md border border-neutral-200 bg-white px-2 text-center text-body-lg text-neutral-900"
+          className="min-h-12 w-16 rounded-lg border border-neutral-200 bg-surface px-2 text-center text-body-lg text-neutral-900"
           placeholder="min"
-          placeholderTextColor={colors.light.textDisabled}
+          placeholderTextColor={theme.textDisabled}
           value={newMin}
           onChangeText={setNewMin}
           keyboardType="number-pad"
@@ -246,15 +248,14 @@ export function SubtaskChecklist({
           onPress={commitAdd}
           haptic={canAdd ? "light" : false}
           disabled={!canAdd}
-          className={`h-12 w-12 items-center justify-center rounded-md ${
+          className={`h-12 w-12 items-center justify-center rounded-lg ${
             canAdd ? "bg-primary-600" : "bg-neutral-200"
           }`}
-          style={canAdd ? shadows.xs : undefined}
           accessibilityRole="button"
           accessibilityLabel="Add step"
           accessibilityState={{ disabled: !canAdd }}
         >
-          <Ionicons name="add" size={22} color={colors.light.primaryForeground} />
+          <Ionicons name="add" size={22} color={theme.primaryForeground} />
         </PressableScale>
       </View>
     </View>

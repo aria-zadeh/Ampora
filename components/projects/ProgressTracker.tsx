@@ -16,9 +16,9 @@ import { View, Text, Pressable, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { PROJECT_ACCENT } from "./projectUtils";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { newId } from "@/core/id";
-import { colors, iconSizes, TOUCH_TARGET_MIN } from "@/utils/design-tokens";
+import { iconSizes, TOUCH_TARGET_MIN } from "@/utils/design-tokens";
 import type { Phase, Project } from "@/types";
 
 interface ProgressTrackerProps {
@@ -27,6 +27,7 @@ interface ProgressTrackerProps {
 }
 
 export function ProgressTracker({ project, onChange }: ProgressTrackerProps) {
+  const theme = useThemeColors();
   const { phases, percent, kind } = project;
   const noun = kind === "study" ? "topic" : "phase";
   const [newTitle, setNewTitle] = useState("");
@@ -84,14 +85,14 @@ export function ProgressTracker({ project, onChange }: ProgressTrackerProps) {
               accessibilityState={{ checked: phase.done }}
               accessibilityLabel={`${phase.title}, ${phase.done ? "done" : "not done"}. Tap to toggle.`}
               style={{ minHeight: TOUCH_TARGET_MIN }}
-              className="flex-row items-center rounded-xl border border-neutral-200 bg-white px-3 py-3"
+              className="flex-row items-center rounded-xl border border-line bg-surface px-3 py-3"
             >
               <View
                 className={`h-6 w-6 items-center justify-center rounded-full border-2 ${
                   phase.done ? "border-accent-600 bg-accent-600" : "border-neutral-300"
                 }`}
               >
-                {phase.done ? <Ionicons name="checkmark" size={14} color={colors.light.primaryForeground} /> : null}
+                {phase.done ? <Ionicons name="checkmark" size={14} color={theme.primaryForeground} /> : null}
               </View>
               <Text
                 className={`flex-1 ml-3 text-body font-medium ${
@@ -108,7 +109,7 @@ export function ProgressTracker({ project, onChange }: ProgressTrackerProps) {
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${noun} ${phase.title}`}
               >
-                <Ionicons name="close-circle" size={iconSizes.sm} color={colors.light.borderStrong} />
+                <Ionicons name="close-circle" size={iconSizes.sm} color={theme.borderStrong} />
               </Pressable>
             </PressableScale>
           ))
@@ -140,16 +141,17 @@ function AddRow({
   onAdd: () => void;
   placeholder: string;
 }) {
+  const theme = useThemeColors();
   const canAdd = value.trim().length > 0;
   return (
     <View className="flex-row items-center gap-2">
-      <View className="flex-1 flex-row items-center bg-white border border-neutral-200 rounded-md min-h-11 px-3">
-        <Ionicons name="add" size={iconSizes.md} color={colors.light.textDisabled} />
+      <View className="flex-1 flex-row items-center bg-surface border border-neutral-200 rounded-lg min-h-11 px-3">
+        <Ionicons name="add" size={iconSizes.md} color={theme.textDisabled} />
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={colors.light.textDisabled}
+          placeholderTextColor={theme.textDisabled}
           className="flex-1 ml-2 text-body text-neutral-900"
           returnKeyType="done"
           onSubmitEditing={onAdd}
@@ -161,10 +163,10 @@ function AddRow({
         disabled={!canAdd}
         onPress={onAdd}
         accessibilityLabel="Add"
-        className="w-11 h-11 rounded-md items-center justify-center"
-        style={{ backgroundColor: canAdd ? PROJECT_ACCENT : colors.light.border }}
+        className="w-11 h-11 rounded-lg items-center justify-center"
+        style={{ backgroundColor: canAdd ? theme.accent : theme.border }}
       >
-        <Ionicons name="checkmark" size={iconSizes.md} color={colors.light.primaryForeground} />
+        <Ionicons name="checkmark" size={iconSizes.md} color={theme.primaryForeground} />
       </PressableScale>
     </View>
   );
