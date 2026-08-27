@@ -116,11 +116,13 @@ function downloadOnWeb(json: string, filename: string): boolean {
   }
 }
 
-/** A tappable action row with a leading icon bubble + chevron/trailing slot. */
+/**
+ * A tappable action row: label + optional sublabel, trailing chevron/busy
+ * glyph. No leading icon bubble — measured profile-settings rows put the
+ * label directly at the card's own padding; the danger tone still reads
+ * through the label and trailing glyph color.
+ */
 function ActionRow({
-  icon,
-  iconTint,
-  iconBg = 'bg-raised',
   label,
   sublabel,
   onPress,
@@ -129,9 +131,6 @@ function ActionRow({
   isLast = false,
   accessibilityHint,
 }: {
-  icon: keyof typeof Ionicons.glyphMap
-  iconTint?: string
-  iconBg?: string
   label: string
   sublabel?: string
   onPress: () => void
@@ -153,10 +152,7 @@ function ActionRow({
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
     >
-      <View className={`h-9 w-9 items-center justify-center rounded-full ${iconBg}`}>
-        <Ionicons name={icon} size={18} color={iconTint ?? theme.textSecondary} />
-      </View>
-      <View className="ml-3 flex-1 pr-3">
+      <View className="flex-1 pr-3">
         <Text
           className={`text-body-lg ${danger ? 'font-medium text-danger-600' : 'text-neutral-900'}`}
         >
@@ -367,9 +363,6 @@ export function DataSettings() {
       <SectionLabel>Your data</SectionLabel>
       <Group>
         <ActionRow
-          icon="download-outline"
-          iconTint={theme.primary}
-          iconBg="bg-primary-50"
           label="Export data"
           sublabel="Save a JSON copy of everything"
           onPress={handleExport}
@@ -391,18 +384,12 @@ export function DataSettings() {
       <Group>
         {userEmail ? (
           <View className="flex-row items-center border-b border-line py-3.5">
-            <View className="h-9 w-9 items-center justify-center rounded-full bg-raised">
-              <Ionicons name="mail-outline" size={18} color={theme.textSecondary} />
-            </View>
-            <Text className="ml-3 flex-1 text-body-lg text-neutral-900" numberOfLines={1}>
+            <Text className="flex-1 text-body-lg text-neutral-900" numberOfLines={1}>
               {userEmail}
             </Text>
           </View>
         ) : null}
         <ActionRow
-          icon="log-out-outline"
-          iconTint={theme.dangerStrong}
-          iconBg="bg-danger-100"
           label="Sign out"
           onPress={handleSignOut}
           busy={signingOut}
@@ -420,26 +407,19 @@ export function DataSettings() {
       </View>
       <Group>
         <ActionRow
-          icon="help-circle-outline"
-          iconTint={theme.primary}
-          iconBg="bg-primary-50"
           label="Help"
           sublabel="What Ampora does and how it's built to help"
           onPress={() => openInfo('help')}
           accessibilityHint="Opens a short explanation of how Ampora works"
         />
         <ActionRow
-          icon="document-text-outline"
           label="Legal"
           sublabel="Privacy and terms"
           onPress={() => openInfo('legal')}
           accessibilityHint="Opens the current privacy and terms notice"
         />
         <View className="flex-row items-center py-3.5">
-          <View className="h-9 w-9 items-center justify-center rounded-full bg-raised">
-            <Ionicons name="information-circle-outline" size={18} color={theme.textSecondary} />
-          </View>
-          <Text className="ml-3 flex-1 text-body-lg text-neutral-900">Version</Text>
+          <Text className="flex-1 text-body-lg text-neutral-900">Version</Text>
           <Text className="text-body text-neutral-500">{APP_VERSION}</Text>
         </View>
       </Group>
@@ -458,18 +438,12 @@ export function DataSettings() {
       <Group>
         {deleted ? (
           <View className="flex-row items-center py-3.5">
-            <View className="h-9 w-9 items-center justify-center rounded-full bg-success-100">
-              <Ionicons name="checkmark-circle-outline" size={18} color={theme.successAccent} />
-            </View>
-            <Text className="ml-3 flex-1 text-body-lg text-neutral-900">
+            <Text className="flex-1 text-body-lg text-neutral-900">
               Local data erased
             </Text>
           </View>
         ) : (
           <ActionRow
-            icon="trash-outline"
-            iconTint={theme.dangerStrong}
-            iconBg="bg-danger-100"
             label="Erase data on this device"
             sublabel="Clears tasks, projects, and history stored here"
             onPress={() => {
@@ -490,9 +464,6 @@ export function DataSettings() {
       <View className="mt-4">
         <Group>
           <ActionRow
-            icon="person-remove-outline"
-            iconTint={theme.dangerStrong}
-            iconBg="bg-danger-100"
             label="Delete account"
             sublabel="Permanently deletes your account and all its data"
             onPress={openDeleteAccount}

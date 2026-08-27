@@ -155,6 +155,7 @@ module.exports = {
         0.75: "3px",
         13: "52px", // primary/large button height (docs/02 button ladder 36/44/52)
         18: "72px", // [E] measured card height
+        19: "76px", // [E] measured profile avatar
         21: "84px", // [E] measured card pitch (72 + 12)
         22: "88px",
         // Kept so existing `mt-group` call sites resolve. The measured

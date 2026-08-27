@@ -10,15 +10,15 @@ export default function BusyTimesScreen() {
   const theme = useThemeColors();
   return (
     <View className="flex-1 bg-neutral-100">
-      {/* Back button header */}
+      {/* Back button header — matches the other secondary-screen headers
+          (More settings, Legal). */}
       <SafeAreaView edges={["top"]} className="bg-neutral-100">
-        <View className="flex-row items-center px-2 py-2">
+        <View className="flex-row items-center px-5 pb-2 pt-2">
           <Pressable
             onPress={() => router.back()}
-            className="min-w-11 min-h-11 items-center justify-center"
+            className="-ml-2 h-11 w-11 items-center justify-center rounded-full"
             accessibilityRole="button"
             accessibilityLabel="Go back"
-            hitSlop={8}
           >
             <Ionicons name="arrow-back" size={24} color={theme.text} />
           </Pressable>

@@ -129,40 +129,30 @@ function strengthBandOf(strength: number): StrengthBand {
 // takes a `format` prop this one hard-codes to `formatMinutes`). Left as a
 // duplicate rather than consolidated — this pass is a restyle, and switching
 // call sites to a shared import is a structural change outside that scope.
-// Both copies now render identically.
+// Both copies render identically: no leading icon bubble (measured
+// profile-settings rows put the label directly at the card's own padding),
+// label + optional sublabel, trailing slot.
 // ---------------------------------------------------------------------------
 
-/** A row inside the group: leading icon bubble, label + optional sublabel, trailing slot. */
+/** A row inside the group: label + optional sublabel, trailing slot. */
 function Row({
-  icon,
-  iconTint,
-  iconBg = "bg-raised",
   label,
   sublabel,
   trailing,
   isLast = false,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconTint?: string;
-  iconBg?: string;
   label: string;
   sublabel?: string;
   trailing?: React.ReactNode;
   isLast?: boolean;
 }) {
-  const theme = useThemeColors();
   return (
     <View
       className={`flex-row items-center py-3.5 ${
         isLast ? "" : "border-b border-line"
       }`}
     >
-      <View
-        className={`h-9 w-9 items-center justify-center rounded-full ${iconBg}`}
-      >
-        <Ionicons name={icon} size={18} color={iconTint ?? theme.textSecondary} />
-      </View>
-      <View className="ml-3 flex-1 pr-3">
+      <View className="flex-1 pr-3">
         <Text className="text-body-lg text-neutral-900">{label}</Text>
         {sublabel ? (
           <Text className="mt-0.5 text-caption text-neutral-500">{sublabel}</Text>
@@ -416,9 +406,6 @@ export function StakesSettings() {
       </Text>
       <View className="rounded-xl border border-line bg-surface px-4">
         <Row
-          icon="shield-checkmark-outline"
-          iconTint={theme.primary}
-          iconBg="bg-primary-50"
           label="Daily lock ceiling"
           sublabel="The most Ampora will ever lock in a day"
           trailing={
@@ -433,7 +420,6 @@ export function StakesSettings() {
           }
         />
         <Row
-          icon="hourglass-outline"
           label="Longest single lock"
           sublabel="The hard ceiling on any one lock — a long until-done task simply releases here"
           trailing={
@@ -481,7 +467,6 @@ export function StakesSettings() {
       </Text>
       <View className="rounded-xl border border-line bg-surface px-4">
         <Row
-          icon="moon-outline"
           label="Stakes rest during"
           sublabel="Any active lock releases automatically in this window"
           trailing={
@@ -512,10 +497,7 @@ export function StakesSettings() {
               : "Tap to choose apps."
           }
         >
-          <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
-            <Ionicons name="apps-outline" size={18} color={theme.primary} />
-          </View>
-          <View className="ml-3 flex-1 pr-3">
+          <View className="flex-1 pr-3">
             <Text className="text-body-lg text-neutral-900">Choose apps to lock</Text>
             <Text className="mt-0.5 text-caption text-neutral-500">
               {stakeAppCount > 0
@@ -556,9 +538,6 @@ export function StakesSettings() {
         {protectedKeys.map((key, i) => (
           <Row
             key={key}
-            icon="lock-open-outline"
-            iconTint={theme.successAccent}
-            iconBg="bg-success-100"
             label={categoryLabel(key)}
             trailing={
               <View className="flex-row items-center">
@@ -579,9 +558,6 @@ export function StakesSettings() {
         {userKeys.map((key, i) => (
           <Row
             key={key}
-            icon="lock-open-outline"
-            iconTint={theme.textSecondary}
-            iconBg="bg-raised"
             label={categoryLabel(key)}
             sublabel="Added earlier"
             trailing={
@@ -609,15 +585,10 @@ export function StakesSettings() {
       <View className="rounded-xl border border-line bg-surface p-4">
         {isPaused ? (
           <>
-            <View className="mb-3 flex-row items-center">
-              <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
-                <Ionicons name="pause-circle-outline" size={18} color={theme.primary} />
-              </View>
-              <Text className="ml-3 flex-1 text-body text-neutral-600">
-                Stakes are paused for the rest of today. Nothing will lock until
-                tomorrow.
-              </Text>
-            </View>
+            <Text className="mb-3 text-body text-neutral-600">
+              Stakes are paused for the rest of today. Nothing will lock until
+              tomorrow.
+            </Text>
             <Button
               title="Resume stakes"
               variant="secondary"

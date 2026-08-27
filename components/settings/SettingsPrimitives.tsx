@@ -68,11 +68,19 @@ export function Group({ children }: { children: React.ReactNode }) {
 // Row
 // ---------------------------------------------------------------------------
 
-/** A settings row: leading icon bubble, label + optional sublabel, trailing slot. */
+/**
+ * A settings row: label + optional sublabel, trailing slot. Measured off the
+ * profile-settings card rows: label sits directly at the card's own padding
+ * (no leading icon bubble), so the row's border-bottom divider — which is a
+ * plain child of the padded `Group` — lands exactly under the text column
+ * rather than under an icon, matching the "inset to text column, not
+ * full-bleed" divider spec. `icon`/`iconTint`/`iconBg` stay accepted so every
+ * existing call site keeps compiling; a row simply no longer renders one.
+ */
 export function Row({
-  icon,
-  iconTint,
-  iconBg = 'bg-raised',
+  icon: _icon,
+  iconTint: _iconTint,
+  iconBg: _iconBg,
   label,
   sublabel,
   trailing,
@@ -86,17 +94,13 @@ export function Row({
   trailing?: React.ReactNode
   isLast?: boolean
 }) {
-  const theme = useThemeColors()
   return (
     <View
       className={`flex-row items-center py-3.5 ${
         isLast ? '' : 'border-b border-line'
       }`}
     >
-      <View className={`h-9 w-9 items-center justify-center rounded-full ${iconBg}`}>
-        <Ionicons name={icon} size={18} color={iconTint ?? theme.textSecondary} />
-      </View>
-      <View className="ml-3 flex-1 pr-3">
+      <View className="flex-1 pr-3">
         <Text className="text-body-lg text-neutral-900">{label}</Text>
         {sublabel ? (
           <Text className="mt-0.5 text-caption text-neutral-500">

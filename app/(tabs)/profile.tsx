@@ -66,16 +66,18 @@ function SettingsGroup({
   );
 }
 
-/** A tappable settings row: leading icon, label, trailing value + chevron. */
+/**
+ * A tappable settings row: label, trailing value + chevron. No leading icon —
+ * measured profile-settings rows put the label directly at the card's own
+ * padding.
+ */
 function SettingsRow({
-  icon,
   label,
   value,
   onPress,
   isLast = false,
   accessibilityLabel,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value?: string | null;
   onPress: () => void;
@@ -93,12 +95,7 @@ function SettingsRow({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
     >
-      <View className="flex-1 flex-row items-center">
-        <View className="h-9 w-9 items-center justify-center rounded-full bg-raised">
-          <Ionicons name={icon} size={18} color={theme.textSecondary} />
-        </View>
-        <Text className="ml-3 text-body-lg text-neutral-900">{label}</Text>
-      </View>
+      <Text className="flex-1 text-body-lg text-neutral-900">{label}</Text>
       <View className="flex-row items-center">
         {value ? (
           <Text
@@ -218,27 +215,36 @@ export default function ProfileScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Header — a centred identity block (measured profile-settings:
+            circular avatar, name, one secondary line beneath it), followed
+            by the grouped settings sections below. Ampora has no profile
+            photo feature, so the avatar is a neutral fallback glyph rather
+            than an uploaded image. The email that used to repeat here is
+            dropped as a duplicate — it already has a permanent home in the
+            Account group further down, visible in every state this line was. */}
         <Animated.View
           entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
-          className="pb-2 pt-6"
+          className="items-center pb-2 pt-6"
         >
-          <Text className="text-overline font-semibold uppercase text-primary-600">
-            Your profile
-          </Text>
-          <Heading size="h1" className="mt-1">
+          <View
+            className="h-19 w-19 items-center justify-center rounded-full bg-raised"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Ionicons name="person-outline" size={32} color={theme.textMuted} />
+          </View>
+
+          <Heading size="h2" className="mt-4 text-center">
             {displayName || "Welcome"}
           </Heading>
-          {userEmail ? (
-            <Text className="mt-1.5 text-body text-neutral-500">{userEmail}</Text>
-          ) : null}
 
           {/* Subscription chip → paywall. Soft gate only (FR-88): a subtle
-              status pill, never a block. */}
+              status pill, never a block. Doubles as the identity block's
+              centred secondary line. */}
           <PressableScale
             onPress={() => router.push("/paywall")}
             haptic="light"
-            className="mt-3 self-start"
+            className="mt-2"
             accessibilityRole="button"
             accessibilityLabel={`${subscriptionChip.label}. Open subscription options`}
             accessibilityHint="Opens plans and your free trial"
@@ -336,7 +342,6 @@ export default function ProfileScreen() {
         {/* Profile */}
         <SettingsGroup title="Profile" index={2}>
           <SettingsRow
-            icon="person-outline"
             label="Display name"
             value={displayName || "Set name"}
             onPress={openNameModal}
@@ -348,13 +353,11 @@ export default function ProfileScreen() {
         {/* Scheduling */}
         <SettingsGroup title="Scheduling" index={3}>
           <SettingsRow
-            icon="calendar-outline"
             label="Busy times"
             onPress={() => router.push("/settings/busy-times")}
             accessibilityLabel="Busy times"
           />
           <SettingsRow
-            icon="options-outline"
             label="More settings"
             value="Scheduling, alerts, data"
             onPress={() => router.push("/settings/all")}
@@ -401,11 +404,8 @@ export default function ProfileScreen() {
         {userEmail && (
           <SettingsGroup title="Account" index={6}>
             <View className="flex-row items-center border-b border-line py-3.5">
-              <View className="h-9 w-9 items-center justify-center rounded-full bg-raised">
-                <Ionicons name="mail-outline" size={18} color={theme.textSecondary} />
-              </View>
               <Text
-                className="ml-3 flex-1 text-body-lg text-neutral-900"
+                className="flex-1 text-body-lg text-neutral-900"
                 numberOfLines={1}
               >
                 {userEmail}
@@ -429,10 +429,7 @@ export default function ProfileScreen() {
               accessibilityRole="button"
               accessibilityLabel="Sign out"
             >
-              <View className="h-9 w-9 items-center justify-center rounded-full bg-danger-100">
-                <Ionicons name="log-out-outline" size={18} color={theme.dangerStrong} />
-              </View>
-              <Text className="ml-3 text-body-lg font-medium text-danger-600">
+              <Text className="flex-1 text-body-lg font-medium text-danger-600">
                 Sign out
               </Text>
             </PressableScale>
