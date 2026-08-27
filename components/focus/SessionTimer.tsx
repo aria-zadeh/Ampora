@@ -26,9 +26,10 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { ProgressRing } from "@/components/focus/ProgressRing";
-import { colors, iconSizes, tabularNums } from "@/utils/design-tokens";
+import { iconSizes, tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export interface SessionTimerProps {
   /** Seconds left to serve. */
@@ -61,6 +62,7 @@ export function SessionTimer({
   onToggle,
 }: SessionTimerProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   return (
     <View className="items-center">
@@ -68,7 +70,7 @@ export function SessionTimer({
         progress={progress}
         size={212}
         strokeWidth={7}
-        color={ticking ? colors.light.primary : colors.light.border}
+        color={ticking ? theme.primary : theme.border}
       >
         {/* Raw RN Text, not the design-system primitive: 40px/48 has no scale
             entry (an off-scale bespoke size, same reasoning + convention as
@@ -97,7 +99,7 @@ export function SessionTimer({
         <Ionicons
           name={running ? "pause" : "play"}
           size={iconSizes.sm}
-          color={colors.light.textSecondary}
+          color={theme.textSecondary}
         />
         <Text variant="label" className="text-neutral-600">{running ? "Pause" : "Resume"}</Text>
       </PressableScale>
@@ -110,7 +112,7 @@ export function SessionTimer({
           className="mt-3 flex-row items-center gap-2 rounded-full bg-warning-100 px-3.5 py-2"
           accessibilityRole="alert"
         >
-          <Ionicons name="pause-circle-outline" size={iconSizes.xs} color={colors.light.warning} />
+          <Ionicons name="pause-circle-outline" size={iconSizes.xs} color={theme.warning} />
           <Text variant="captionMedium" className="text-warning-700">
             Paused while you were away. Resume when you&apos;re ready.
           </Text>

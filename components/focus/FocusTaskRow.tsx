@@ -21,7 +21,8 @@ import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { useListStore } from "@/store/listStore";
 import { nextStep } from "@/core/task-logic";
-import { colors, iconSizes, shadows } from "@/utils/design-tokens";
+import { iconSizes } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task } from "@/types";
 
 export interface FocusTaskRowProps {
@@ -32,6 +33,7 @@ export interface FocusTaskRowProps {
 }
 
 export function FocusTaskRow({ task, selected = false, onPress }: FocusTaskRowProps) {
+  const theme = useThemeColors();
   const lists = useListStore((s) => s.lists);
   const listName = task.listId ? lists[task.listId]?.name : undefined;
 
@@ -50,7 +52,6 @@ export function FocusTaskRow({ task, selected = false, onPress }: FocusTaskRowPr
       className={`rounded-lg p-4 ${
         selected ? "bg-primary-50 border border-primary-200" : "bg-white border border-neutral-200"
       }`}
-      style={shadows.xs}
       accessibilityRole="button"
       accessibilityLabel={`${task.title}${listName ? `, ${listName}` : ""}. Next: ${stepLabel}`}
       accessibilityHint="Loads this task into the focus composer"
@@ -68,7 +69,7 @@ export function FocusTaskRow({ task, selected = false, onPress }: FocusTaskRowPr
         <Ionicons
           name={selected ? "checkmark-circle" : "chevron-forward"}
           size={iconSizes.sm}
-          color={selected ? colors.light.primary : colors.light.textDisabled}
+          color={selected ? theme.primary : theme.textDisabled}
         />
       </View>
     </PressableScale>

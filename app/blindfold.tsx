@@ -5,13 +5,15 @@
  * move or the smallest next subtask via core/task-logic `nextStep`). Marking it
  * done reveals the NEXT step — never more than one at a time. A quiet exit.
  *
- * This is the calm-down surface, so it is deliberately warm and low-stimulation:
- * a soft warm wash, generous whitespace, one big line of text, one action, no
- * timer, no progress numbers, no chrome. Motion is a single gentle fade.
+ * This is the calm-down surface, so it is deliberately low-stimulation:
+ * generous whitespace, one big line of text, one action, no timer, no
+ * progress numbers, no chrome. Motion is a single gentle fade.
  *
  * Palette: the design system exposes a `warning` (warm orange) scale but no
- * `amber`, so all warm tints here are drawn from `warning-*` tokens (or inline
- * hex on the gradient, where any color is allowed).
+ * `amber`, so all warm tints here are drawn from `warning-*` tokens. Flat
+ * canvas background, no gradient wash — the source design has zero gradients
+ * anywhere (rule 5); the warmth reads through the warning-toned icon/copy/CTA
+ * instead of a tinted backdrop.
  *
  * Task selection: an optional `?taskId=` param (when launched from a focus
  * session), otherwise the highest-priority incomplete task. When everything is
@@ -33,7 +35,6 @@ import React, { useCallback, useMemo, useState } from "react";
 import { View, Text } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeIn } from "react-native-reanimated";
@@ -46,7 +47,7 @@ import { LockBanner } from "@/components/stakes/LockBanner";
 import { PanicValveSheet } from "@/components/stakes/PanicValveSheet";
 import { DURATIONS, EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { StakeSession, Task } from "@/types";
 import type { NextStep } from "@/core/task-logic";
 
@@ -78,6 +79,7 @@ function stepText(step: NextStep): string {
 
 export default function BlindfoldScreen() {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const params = useLocalSearchParams<{ taskId?: string }>();
 
   const tasks = useTaskStore((s) => s.tasks);
@@ -145,16 +147,7 @@ export default function BlindfoldScreen() {
     : FadeIn.duration(DURATIONS.slower).easing(EASINGS.standard);
 
   return (
-    <View className="flex-1" style={{ backgroundColor: "#FFFBF5" }}>
-      {/* Warm, soft wash — low stimulation. Inline hex (any color allowed). */}
-      <LinearGradient
-        colors={["#FFF3E6", "#FFFBF5"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        pointerEvents="none"
-        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-      />
-
+    <View className="flex-1 bg-neutral-100">
       <SafeAreaView className="flex-1" edges={["top", "bottom"]}>
         {/* Quiet exit — top-left, unobtrusive. */}
         <View className="flex-row items-center px-5 pt-2">
@@ -165,7 +158,7 @@ export default function BlindfoldScreen() {
             accessibilityRole="button"
             accessibilityLabel="Leave Blindfold mode"
           >
-            <Ionicons name="chevron-down" size={24} color={colors.light.warningStrong} />
+            <Ionicons name="chevron-down" size={24} color={theme.warningStrong} />
           </PressableScale>
         </View>
 
@@ -184,12 +177,12 @@ export default function BlindfoldScreen() {
           {done ? (
             <Animated.View key="done" entering={enter} className="items-center">
               <View className="w-16 h-16 rounded-full bg-warning-100 items-center justify-center mb-6">
-                <Ionicons name="checkmark" size={34} color={colors.light.warningStrong} />
+                <Ionicons name="checkmark" size={34} color={theme.warningStrong} />
               </View>
               <Text className="text-h2 font-semibold text-warning-700 text-center">
                 {"You're clear."}
               </Text>
-              <Text className="text-body text-neutral-500 text-center mt-3 max-w-[300px]">
+              <Text className="text-body text-neutral-500 text-center mt-3 max-w-300">
                 Nothing left to do right now. Take a breath.
               </Text>
             </Animated.View>
@@ -199,7 +192,7 @@ export default function BlindfoldScreen() {
               entering={enter}
               className="items-center w-full"
             >
-              <Text className="text-overline font-semibold uppercase tracking-widest text-warning-600 mb-5">
+              <Text className="text-overline font-semibold uppercase text-warning-600 mb-5">
                 Just this one thing
               </Text>
               <Text
@@ -230,12 +223,11 @@ export default function BlindfoldScreen() {
                 onPress={markDone}
                 haptic="success"
                 className="h-16 flex-row items-center justify-center rounded-2xl bg-warning-500"
-                style={{ shadowColor: colors.light.warningStrong, shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 4 }}
                 accessibilityRole="button"
                 accessibilityLabel="Mark this step done and reveal the next"
               >
-                <Ionicons name="checkmark-circle" size={24} color={colors.light.primaryForeground} />
-                <Text className="ml-2 text-h4 font-semibold text-white">
+                <Ionicons name="checkmark-circle" size={24} color={theme.primaryForeground} />
+                <Text className="ml-2 text-h4 font-semibold text-primary-foreground">
                   I did this
                 </Text>
               </PressableScale>

@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { View } from "react-native";
-import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+import Svg, { Circle } from "react-native-svg";
 import Animated, {
   useAnimatedProps,
   useSharedValue,
@@ -8,7 +8,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
-import { colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -19,23 +19,17 @@ interface ProgressRingProps {
   size: number;
   /** Ring stroke width in px. @default 6 */
   strokeWidth?: number;
-  /**
-   * Filled-arc color. @default primary "#2563EB" — when the resolved color
-   * is exactly `colors.light.primary` (the default, or an explicit pass),
-   * the ring renders as a same-hue tonal gradient sweep (`colorDeep` at the
-   * start to `color` further round) instead of a flat stroke. Any other
-   * color (e.g. the paused-state `colors.light.border` gray) renders flat,
-   * unchanged — a non-primary color has no "deep" pairing to assume.
-   */
+  /** Filled-arc color. @default the active theme's primary. Flat stroke. */
   color?: string;
   /**
-   * Deeper same-family stop for the tonal gradient. @default primaryDark
-   * "#1D4ED8". Only takes effect when `color` resolves to primary blue (see
-   * `color` above); pass both explicitly to force a custom tonal pair for
-   * any color.
+   * Unused. The ring used to render a same-hue tonal gradient sweep from
+   * `colorDeep` to `color`; the source design has zero gradients anywhere
+   * (rule 5), so the arc is now always a flat stroke of `color`. Kept only
+   * so any call site still passing this keeps compiling, matching how
+   * `gradients.*` in `utils/design-tokens.ts` were flattened to no-ops.
    */
   colorDeep?: string;
-  /** Unfilled track color. @default a faint neutral hairline */
+  /** Unfilled track color. @default the active theme's border */
   trackColor?: string;
   children?: React.ReactNode;
 }
@@ -47,12 +41,9 @@ interface ProgressRingProps {
  * track. Driven by a single Reanimated shared value on `strokeDashoffset`, so
  * it stays smooth without re-rendering React on every tick.
  *
- * The filled arc is a single-hue tonal gradient (deep `#1D4ED8` to primary
- * `#2563EB`) rather than a flat stroke — replacing what would otherwise be
- * the generic move here (a multi-hue decorative gradient unrelated to the
- * rest of the palette). One hue family, functional (it traces elapsed time),
- * never a second accent. See `color`/`colorDeep` above for exactly when the
- * gradient applies vs. a flat stroke (e.g. the paused gray state).
+ * The filled arc is a flat single-hue stroke (docs/02: the source design has
+ * zero gradients anywhere) — one accent color, functional (it traces elapsed
+ * time), never a second accent.
  *
  * `children` renders centered inside the ring (the timer digits) via absolute
  * positioning, so this component owns layout for both the ring and its
@@ -68,24 +59,14 @@ export function ProgressRing({
   size,
   strokeWidth = 6,
   color,
-  colorDeep,
-  trackColor = colors.light.border,
+  trackColor,
   children,
 }: ProgressRingProps) {
   const reduceMotion = useReduceMotion();
-  const gradientId = React.useId();
+  const theme = useThemeColors();
 
-  // Resolve the tonal pair. `colorDeep` only defaults to the deep blue when
-  // `color` itself resolves to primary blue (the default, or an explicit
-  // pass) — any other explicit `color` (the paused gray, or a future custom
-  // color) stays a flat stroke instead of pairing an unrelated hue with
-  // primaryDark. An explicit `colorDeep` always wins, for a deliberate
-  // custom tonal pair.
-  const resolvedColor = color ?? colors.light.primary;
-  const isPrimaryTone = resolvedColor === colors.light.primary;
-  const resolvedDeep = colorDeep ?? (isPrimaryTone ? colors.light.primaryDark : resolvedColor);
-  const showGradient = resolvedDeep !== resolvedColor;
-  const strokeColor = showGradient ? `url(#${gradientId})` : resolvedColor;
+  const resolvedColor = color ?? theme.primary;
+  const resolvedTrack = trackColor ?? theme.border;
 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -110,32 +91,22 @@ export function ProgressRing({
       importantForAccessibility="no-hide-descendants"
     >
       <Svg width={size} height={size}>
-        {showGradient && (
-          <Defs>
-            {/* Same-hue tonal sweep: deep at the ring's start, primary further
-                round — not a second accent, not a multi-hue decorative
-                gradient, just elapsed time on the one accent color. */}
-            <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor={resolvedDeep} />
-              <Stop offset="1" stopColor={resolvedColor} />
-            </LinearGradient>
-          </Defs>
-        )}
         {/* Track — the full unfilled ring. */}
         <Circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={trackColor}
+          stroke={resolvedTrack}
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Fill — rotated -90deg so it starts at 12 o'clock and sweeps clockwise. */}
+        {/* Fill — rotated -90deg so it starts at 12 o'clock and sweeps clockwise.
+            Flat stroke, no gradient (rule 5). */}
         <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={strokeColor}
+          stroke={resolvedColor}
           strokeWidth={strokeWidth}
           fill="none"
           strokeLinecap="round"

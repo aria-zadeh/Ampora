@@ -397,6 +397,31 @@ export function getListColors(scheme: "light" | "dark" | null | undefined) {
   return scheme === "light" ? listColorsByTheme.light : listColorsByTheme.dark;
 }
 
+/**
+ * Third-party app brand marks — the logo tint shown next to each app in
+ * `components/stakes/AppPicker.tsx`'s leisure-app catalog (Instagram pink,
+ * TikTok near-black, etc). These are trademarked brand colours, not theme
+ * colours: they identify a specific real-world app icon and must render the
+ * same regardless of light/dark theme, so they are deliberately kept OUTSIDE
+ * the theme system rather than resolved through `colors.light`/`colors.dark`.
+ * This is the one sanctioned exception to "never hardcode a colour" — every
+ * other colour in the app must still come from a token.
+ */
+export const appBrandColors = {
+  instagram: "#C13584",
+  tiktok: "#1C1917",
+  youtube: "#DC2626",
+  x: "#1C1917",
+  snapchat: "#CA8A04",
+  reddit: "#EA580C",
+  facebook: "#2563EB",
+  twitch: "#7C3AED",
+  discord: "#6366F1",
+  netflix: "#DC2626",
+  games: "#16A34A",
+  browser_fun: "#0891B2",
+} as const;
+
 /** Tabular (monospaced-width) numerals so digit columns do not jitter — timers, counters. */
 export const tabularNums: Pick<TextStyle, "fontVariant"> = { fontVariant: ["tabular-nums"] };
 

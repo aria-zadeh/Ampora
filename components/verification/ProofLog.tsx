@@ -26,9 +26,9 @@ import { Image } from "expo-image";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useProofStore } from "@/store/proofStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { useStakesStore } from "@/store/stakesStore";
@@ -41,13 +41,24 @@ import type { Proof } from "@/types";
 
 const METHOD_META: Record<
   Proof["method"],
-  { icon: keyof typeof Ionicons.glyphMap; label: string; tint: string; bg: string }
+  { icon: keyof typeof Ionicons.glyphMap; label: string; bg: string }
 > = {
-  focus_time: { icon: "timer-outline", label: "Focus time", tint: colors.light.primary, bg: "bg-primary-100" },
-  photo: { icon: "camera-outline", label: "Photo", tint: colors.light.accentStrong, bg: "bg-accent-100" },
-  screenshot: { icon: "phone-portrait-outline", label: "Screenshot", tint: colors.light.accentStrong, bg: "bg-accent-100" },
-  honor: { icon: "hand-left-outline", label: "Honor", tint: colors.light.textMuted, bg: "bg-neutral-100" },
+  focus_time: { icon: "timer-outline", label: "Focus time", bg: "bg-primary-100" },
+  photo: { icon: "camera-outline", label: "Photo", bg: "bg-accent-100" },
+  screenshot: { icon: "phone-portrait-outline", label: "Screenshot", bg: "bg-accent-100" },
+  // bg-raised (not bg-neutral-100/canvas): this well sits on the row's own
+  // bg-white/surface card, so it needs to step UP, not down to canvas.
+  honor: { icon: "hand-left-outline", label: "Honor", bg: "bg-raised" },
 };
+
+/** Method glyph tint. A plain function (not baked into METHOD_META) since it
+ * needs the live theme — `useThemeColors()` can only be called inside a
+ * component, and METHOD_META is a module-level constant. */
+function methodTint(method: Proof["method"], theme: ReturnType<typeof useThemeColors>): string {
+  if (method === "focus_time") return theme.primary;
+  if (method === "photo" || method === "screenshot") return theme.accentStrong;
+  return theme.textMuted;
+}
 
 /** A short "3:40 PM · Jul 1" style stamp; locale-formatted, never crashes. */
 function formatWhen(at: number): string {
@@ -75,7 +86,9 @@ function ProofRow({
   index: number;
 }) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const meta = METHOD_META[proof.method] ?? METHOD_META.honor;
+  const tint = methodTint(proof.method, theme);
   const hasImage = !!proof.uri && (proof.method === "photo" || proof.method === "screenshot");
 
   return (
@@ -84,7 +97,6 @@ function ProofRow({
         reduceMotion ? undefined : FadeInDown.delay(staggerDelay(index)).duration(DURATIONS.base)
       }
       className="flex-row items-center gap-3 rounded-xl border border-neutral-200 bg-white p-3"
-      style={shadows.xs}
       accessibilityLabel={`${meta.label} proof for ${taskTitle}, ${formatWhen(proof.at)}`}
     >
       {/* Thumbnail for photo/screenshot, else a tinted method glyph. */}
@@ -98,7 +110,7 @@ function ProofRow({
         />
       ) : (
         <View className={`h-11 w-11 items-center justify-center rounded-full ${meta.bg}`}>
-          <Ionicons name={meta.icon} size={20} color={meta.tint} />
+          <Ionicons name={meta.icon} size={20} color={tint} />
         </View>
       )}
 

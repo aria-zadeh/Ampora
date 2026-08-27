@@ -41,9 +41,9 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useStakesStore, selectEligibleApps, selectStakeSelection } from "@/store/stakesStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import type { StakeSession } from "@/types";
@@ -71,6 +71,7 @@ const TICK_MS = 60_000;
 
 export function LockBanner({ session, onPanic, variant = "default" }: LockBannerProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const eligibleApps = useStakesStore(useShallow(selectEligibleApps));
   const selection = useStakesStore(selectStakeSelection);
   const singleSessionCapMin = useSettingsStore((s) => s.settings.singleSessionCapMin);
@@ -139,11 +140,14 @@ export function LockBanner({ session, onPanic, variant = "default" }: LockBanner
     return (
       <Animated.View
         entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
-        className="flex-row items-center gap-3 rounded-xl bg-neutral-100 px-3.5 py-3"
+        // The host screen supplies its own card surface (bg-white/bg-surface),
+        // so this inset row steps UP to bg-raised rather than bg-neutral-100
+        // (which is the canvas colour and would read as a hole in that card).
+        className="flex-row items-center gap-3 rounded-xl bg-raised px-3.5 py-3"
         accessibilityRole="summary"
         accessibilityLabel={a11y}
       >
-        <Ionicons name="lock-closed" size={20} color={colors.light.textSecondary} />
+        <Ionicons name="lock-closed" size={20} color={theme.textSecondary} />
         <Text className="flex-1 text-body text-neutral-800">{headline}</Text>
       </Animated.View>
     );
@@ -154,18 +158,19 @@ export function LockBanner({ session, onPanic, variant = "default" }: LockBanner
       entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
       // Neutral surface, deliberately NOT primary/accent/warning-tinted: the
       // lock is consensual, so nothing here should read as an alert (doc `04`
-      // §7, PRD §8.8).
-      className="rounded-2xl border border-neutral-200 bg-neutral-100 p-4"
-      style={shadows.sm}
+      // §7, PRD §8.8). bg-raised (not bg-neutral-100/canvas): this banner is
+      // itself nested inside GlobalLockBanner's own canvas-toned wrapper, so
+      // it needs to step UP to read as a card rather than disappear into it.
+      className="rounded-2xl border border-neutral-200 bg-raised p-4"
       accessibilityRole="summary"
       accessibilityLabel={a11y}
     >
       <View className="flex-row items-start gap-3">
         <View className="h-9 w-9 items-center justify-center rounded-full bg-white">
-          <Ionicons name="lock-closed" size={18} color={colors.light.textSecondary} />
+          <Ionicons name="lock-closed" size={18} color={theme.textSecondary} />
         </View>
         <View className="flex-1">
-          <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500">
+          <Text className="text-overline font-semibold uppercase text-neutral-500">
             On the line
           </Text>
           {/* No `leading-5` here: that pinned a 15px line to a 20px box, */}
@@ -184,12 +189,11 @@ export function LockBanner({ session, onPanic, variant = "default" }: LockBanner
         onPress={onPanic}
         haptic="light"
         className="mt-3 flex-row items-center justify-center gap-1.5 self-start rounded-full bg-white px-3.5 py-2"
-        style={shadows.xs}
         accessibilityRole="button"
         accessibilityLabel="Unlock early"
         accessibilityHint="Opens a 60 second breather before your apps come back"
       >
-        <Ionicons name="leaf-outline" size={15} color={colors.light.textSecondary} />
+        <Ionicons name="leaf-outline" size={15} color={theme.textSecondary} />
         <Text className="text-caption font-medium text-neutral-700">Unlock early</Text>
       </PressableScale>
     </Animated.View>

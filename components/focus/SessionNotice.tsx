@@ -12,9 +12,10 @@ import { Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn } from "react-native-reanimated";
 
-import { colors, iconSizes } from "@/utils/design-tokens";
+import { iconSizes } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export interface SessionNoticeProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -26,13 +27,14 @@ export interface SessionNoticeProps {
 
 export function SessionNotice({ icon, text, role = "summary", className }: SessionNoticeProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   return (
     <Animated.View
       entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.base)}
       className={`flex-row items-start gap-2.5 rounded-2xl border border-neutral-200 bg-white p-4 ${className ?? ""}`}
       accessibilityRole={role}
     >
-      <Ionicons name={icon} size={iconSizes.sm} color={colors.light.primary} />
+      <Ionicons name={icon} size={iconSizes.sm} color={theme.primary} />
       {/* `leading-5` removed: 15px body belongs in the scale's 22px box, and */}
       {/* Lexend needs the room Inter did not. */}
       <Text className="flex-1 text-body font-medium text-neutral-800">{text}</Text>

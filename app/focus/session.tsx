@@ -68,9 +68,10 @@ import { EndCheckInSheet, type CheckInAnswer } from "@/components/focus/EndCheck
 import { LockBanner } from "@/components/stakes/LockBanner";
 import { PanicValveSheet } from "@/components/stakes/PanicValveSheet";
 import { DeEscalationSheet } from "@/components/stakes/DeEscalationSheet";
-import { colors, shadows, spacing, tabularNums } from "@/utils/design-tokens";
+import { spacing, tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { NextStep } from "@/core/task-logic";
 import type { StakeSession, Task } from "@/types";
 
@@ -106,6 +107,7 @@ function taskCompletionFraction(task: Task): number {
 
 export default function FocusSessionScreen() {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const params = useLocalSearchParams<{
     taskId?: string;
     // Stake config, armed by StakeSetupSheet and passed through so the lock
@@ -651,12 +653,12 @@ export default function FocusSessionScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
-      {/* One white hero card, inset 18 on the canvas, warm elevated shadow.
-          Doc `design/DECISION_SPEC` D4 item 1. `shadows.lg` per
-          `utils/design-tokens.ts`'s own pairing of `lg` with `rounded-3xl`
-          (26) hero surfaces. Fills to the bottom inset. */}
+      {/* One white hero card, inset 18 on the canvas. Doc
+          `design/DECISION_SPEC` D4 item 1. The source design has no shadows
+          anywhere (rule 5), so this keeps its lift with a `border-line`
+          hairline instead of the old `shadows.lg`. Fills to the bottom inset. */}
       <View style={{ flex: 1, margin: spacing.group }}>
-        <View className="flex-1 overflow-hidden rounded-3xl bg-white" style={shadows.lg}>
+        <View className="flex-1 overflow-hidden rounded-3xl border border-line bg-white">
           {/* Header: state + task title + close (kept, 44px target). */}
           <View className="flex-row items-center justify-between px-5 pt-4 pb-1">
             <View className="flex-1 pr-3">
@@ -682,7 +684,7 @@ export default function FocusSessionScreen() {
                   : "Closes this session"
               }
             >
-              <Ionicons name="close" size={26} color={colors.light.text} />
+              <Ionicons name="close" size={26} color={theme.text} />
             </PressableScale>
           </View>
 

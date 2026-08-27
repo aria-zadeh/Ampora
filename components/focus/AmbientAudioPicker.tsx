@@ -13,9 +13,10 @@ import Animated, { FadeIn } from "react-native-reanimated";
 
 import { PressableScale } from "@/components/ui/PressableScale";
 import { AUDIO_PICKER_OPTIONS, type FocusAudio } from "@/utils/audioConfig";
-import { colors, iconSizes } from "@/utils/design-tokens";
+import { iconSizes } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export interface AmbientAudioPickerProps {
   /** The currently selected ambient kind ("none" when silent). */
@@ -25,6 +26,7 @@ export interface AmbientAudioPickerProps {
 
 export function AmbientAudioPicker({ current, onPick }: AmbientAudioPickerProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const [open, setOpen] = useState(false);
 
   return (
@@ -46,7 +48,7 @@ export function AmbientAudioPicker({ current, onPick }: AmbientAudioPickerProps)
           <Ionicons
             name="musical-notes-outline"
             size={iconSizes.sm}
-            color={colors.light.textSecondary}
+            color={theme.textSecondary}
           />
           <Text className="text-label font-medium text-neutral-700">Ambient sound</Text>
         </View>
@@ -57,7 +59,7 @@ export function AmbientAudioPicker({ current, onPick }: AmbientAudioPickerProps)
           <Ionicons
             name={open ? "chevron-up" : "chevron-down"}
             size={iconSizes.sm}
-            color={colors.light.textMuted}
+            color={theme.textMuted}
           />
         </View>
       </PressableScale>
@@ -87,10 +89,10 @@ export function AmbientAudioPicker({ current, onPick }: AmbientAudioPickerProps)
                 <Ionicons
                   name={opt.icon as keyof typeof Ionicons.glyphMap}
                   size={iconSizes.sm}
-                  color={active ? colors.light.primaryForeground : colors.light.textSecondary}
+                  color={active ? theme.primaryForeground : theme.textSecondary}
                 />
                 <Text
-                  className={`text-label font-medium ${active ? "text-white" : "text-neutral-700"}`}
+                  className={`text-label font-medium ${active ? "text-primary-foreground" : "text-neutral-700"}`}
                 >
                   {opt.label}
                 </Text>

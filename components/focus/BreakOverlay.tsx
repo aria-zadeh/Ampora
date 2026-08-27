@@ -21,8 +21,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { colors, iconSizes, tabularNums } from "@/utils/design-tokens";
+import { iconSizes, tabularNums } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 /** Calm prompts, one picked per break. Never instructional-nagging. */
 const BREAK_PROMPTS: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
@@ -43,6 +44,7 @@ export interface BreakOverlayProps {
 
 export function BreakOverlay({ visible, minutes = 5, onResume, lockActive = false }: BreakOverlayProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const totalSec = Math.max(30, Math.round(minutes * 60));
 
   const [remaining, setRemaining] = useState(totalSec);
@@ -96,13 +98,13 @@ export function BreakOverlay({ visible, minutes = 5, onResume, lockActive = fals
       <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
         <View className="flex-1 items-center justify-center px-8">
           <View className="h-20 w-20 items-center justify-center rounded-full bg-primary-100">
-            <Ionicons name={prompt.icon} size={iconSizes.xl} color={colors.light.primary} />
+            <Ionicons name={prompt.icon} size={iconSizes.xl} color={theme.primary} />
           </View>
 
           <Heading size="h2" className="mt-6 text-center">
             Take a breather
           </Heading>
-          <Text className="mt-2 max-w-[300px] text-center text-body text-neutral-600 leading-6">
+          <Text className="mt-2 max-w-300 text-center text-body text-neutral-600 leading-6">
             {prompt.text}
           </Text>
 
@@ -126,7 +128,7 @@ export function BreakOverlay({ visible, minutes = 5, onResume, lockActive = fals
             className="mt-8 flex-row items-start gap-2 rounded-2xl bg-white border border-neutral-200 px-4 py-3"
             accessibilityRole="summary"
           >
-            <Ionicons name="pause-circle-outline" size={iconSizes.sm} color={colors.light.textSecondary} />
+            <Ionicons name="pause-circle-outline" size={iconSizes.sm} color={theme.textSecondary} />
             <Text className="flex-1 text-caption text-neutral-600 leading-5">
               {lockActive
                 ? "Your session timer is paused, so break time doesn't count toward your lock. Your apps stay on the line."
@@ -141,7 +143,7 @@ export function BreakOverlay({ visible, minutes = 5, onResume, lockActive = fals
             variant="primaryBlue"
             size="lg"
             onPress={onResume}
-            icon={<Ionicons name="arrow-forward" size={iconSizes.sm} color={colors.light.primaryForeground} />}
+            icon={<Ionicons name="arrow-forward" size={iconSizes.sm} color={theme.primaryForeground} />}
             accessibilityLabel="End the break and resume your session"
           />
         </View>

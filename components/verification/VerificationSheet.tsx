@@ -48,9 +48,9 @@ import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { Badge } from "@/components/ui/Badge";
-import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useTaskStore } from "@/store/taskStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { useProofStore } from "@/store/proofStore";
@@ -215,24 +215,27 @@ function MethodTile({
   onPress: () => void;
   right?: React.ReactNode;
 }) {
+  const theme = useThemeColors();
   return (
     <PressableScale
       onPress={onPress}
       haptic="selection"
-      className={`flex-row items-center gap-3 rounded-xl border p-3.5 ${
-        active ? "border-primary-500 bg-primary-50" : "border-neutral-200 bg-white"
+      className={`flex-row items-center gap-3 rounded-lg border p-3.5 ${
+        active ? "border-primary-500 bg-primary-50" : "border-transparent bg-raised"
       }`}
-      style={active ? undefined : shadows.xs}
       accessibilityRole="radio"
       accessibilityState={{ selected: active }}
       accessibilityLabel={`${option.title}. ${option.blurb}`}
     >
+      {/* Inactive: bg-white (=surface), one step DOWN from this tile's own
+          bg-raised, so the well stays a distinct inset circle rather than
+          bg-neutral-100 (=canvas), which would read as a hole in the tile. */}
       <View
         className={`h-10 w-10 items-center justify-center rounded-full ${
-          active ? "bg-primary-100" : "bg-neutral-100"
+          active ? "bg-primary-100" : "bg-white"
         }`}
       >
-        <Ionicons name={option.icon} size={20} color={active ? colors.light.primary : colors.light.textMuted} />
+        <Ionicons name={option.icon} size={20} color={active ? theme.primary : theme.textMuted} />
       </View>
       <View className="flex-1">
         <Text className={`text-body-lg font-medium ${active ? "text-primary-700" : "text-neutral-900"}`}>
@@ -244,7 +247,7 @@ function MethodTile({
         <Ionicons
           name={active ? "radio-button-on" : "radio-button-off"}
           size={20}
-          color={active ? colors.light.primary : colors.light.borderStrong}
+          color={active ? theme.primary : theme.borderStrong}
         />
       )}
     </PressableScale>
@@ -253,6 +256,7 @@ function MethodTile({
 
 export function VerificationSheet({ visible, task, onClose, onCompleted }: VerificationSheetProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   const completeTask = useTaskStore((s) => s.completeTask);
   const sessionHistory = useSessionStore((s) => s.history);
@@ -438,19 +442,18 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
           <Pressable onPress={() => {}} accessibilityElementsHidden={false}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
-              style={shadows.xl}
+              className="rounded-t-sheet bg-surface"
             >
               <SafeAreaView edges={["bottom"]}>
-                {/* Grabber */}
+                {/* Grabber: 40x4, bg-line, rounded-xxs (bottom-sheet spec). */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1 w-10 rounded-xxs bg-line" />
                 </View>
 
                 {/* Header */}
                 <View className="flex-row items-start justify-between px-5 pt-3">
                   <View className="flex-1 pr-3">
-                    <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+                    <Text className="text-overline font-semibold uppercase text-primary-600">
                       Mark done
                     </Text>
                     <Heading size="h3" className="mt-1" numberOfLines={2}>
@@ -463,12 +466,11 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                   <Pressable
                     onPress={handleClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
-                    style={shadows.xs}
+                    className="h-9 w-9 items-center justify-center rounded-full bg-raised"
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color={colors.light.textSecondary} />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
@@ -477,14 +479,17 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                     §2/§7). Shown once, above the method list. */}
                 {untilDoneStake ? (
                   <View className="mx-5 mt-3 flex-row items-center gap-2.5 rounded-xl border border-primary-100 bg-primary-50 px-3.5 py-3">
-                    <Ionicons name="lock-open-outline" size={16} color={colors.light.primary} />
+                    <Ionicons name="lock-open-outline" size={16} color={theme.primary} />
                     <Text className="flex-1 text-caption font-medium text-primary-700">
                       This task has apps on the line. Completing it here unlocks them.
                     </Text>
                   </View>
                 ) : sessionHoldStake ? (
-                  <View className="mx-5 mt-3 flex-row items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3.5 py-3">
-                    <Ionicons name="lock-closed-outline" size={16} color={colors.light.textMuted} />
+                  // bg-raised (not bg-white/surface): this note sits directly on
+                  // the sheet's own bg-surface, so it needs to step UP to read as
+                  // a distinct card instead of flattening into the sheet body.
+                  <View className="mx-5 mt-3 flex-row items-center gap-2.5 rounded-xl bg-raised px-3.5 py-3">
+                    <Ionicons name="lock-closed-outline" size={16} color={theme.textMuted} />
                     <Text className="flex-1 text-caption font-medium text-neutral-600">
                       Your apps stay locked for this session. Completing the task here won&apos;t unlock them — the session timer does.
                     </Text>
@@ -527,19 +532,18 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                   {method === "focus_time" ? (
                     <Animated.View
                       entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
-                      className="rounded-xl border border-neutral-200 bg-white p-4"
-                      style={shadows.xs}
+                      className="rounded-xl bg-raised p-4"
                     >
                       {focusPassed ? (
                         <View className="flex-row items-center gap-2">
-                          <Ionicons name="checkmark-circle" size={18} color={colors.light.successAccent} />
+                          <Ionicons name="checkmark-circle" size={18} color={theme.successAccent} />
                           <Text className="flex-1 text-caption text-neutral-600">
                             You focused {focusedMin}m — that clears the {requiredFocusMin}m needed. Nice.
                           </Text>
                         </View>
                       ) : (
                         <View className="flex-row items-center gap-2">
-                          <Ionicons name="time-outline" size={18} color={colors.light.textMuted} />
+                          <Ionicons name="time-outline" size={18} color={theme.textMuted} />
                           <Text className="flex-1 text-caption text-neutral-600">
                             {focusedMin}m focused so far. Start a focus session to reach {requiredFocusMin}m — or complete anyway below.
                           </Text>
@@ -551,8 +555,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                   {imageMethod ? (
                     <Animated.View
                       entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
-                      className="rounded-xl border border-neutral-200 bg-white p-4"
-                      style={shadows.xs}
+                      className="rounded-xl bg-raised p-4"
                     >
                       {imageUri ? (
                         <View className="gap-3">
@@ -580,11 +583,15 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                       ) : picker ? (
                         <Pressable
                           onPress={pickImage}
-                          className="min-h-24 items-center justify-center rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4"
+                          // bg-surface (not bg-neutral-50/raised): this dropzone
+                          // sits inside a bg-raised panel, so it steps back DOWN
+                          // to read as an inset target instead of matching its
+                          // parent's own surface.
+                          className="min-h-24 items-center justify-center rounded-lg border border-dashed border-neutral-300 bg-surface p-4"
                           accessibilityRole="button"
                           accessibilityLabel="Add a proof image"
                         >
-                          <Ionicons name="image-outline" size={26} color={colors.light.textMuted} />
+                          <Ionicons name="image-outline" size={26} color={theme.textMuted} />
                           <Text className="mt-2 text-label font-medium text-neutral-600">
                             Add an image
                           </Text>
@@ -592,7 +599,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                       ) : (
                         <View className="gap-2">
                           <View className="flex-row items-center gap-2">
-                            <Ionicons name="information-circle-outline" size={18} color={colors.light.textMuted} />
+                            <Ionicons name="information-circle-outline" size={18} color={theme.textMuted} />
                             <Text className="flex-1 text-caption text-neutral-600">
                               Image capture isn&apos;t available on this device. You can complete now and attach proof later.
                             </Text>
@@ -600,7 +607,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                           <Pressable
                             onPress={() => setAttachLater(true)}
                             className={`self-start rounded-full px-3 py-1.5 ${
-                              attachLater ? "bg-primary-100" : "bg-neutral-100"
+                              attachLater ? "bg-primary-100" : "bg-surface"
                             }`}
                             accessibilityRole="button"
                             accessibilityState={{ selected: attachLater }}
@@ -621,7 +628,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                 </ScrollView>
 
                 {/* Footer — primary action + always-available override */}
-                <View className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3" style={shadows.md}>
+                <View className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3">
                   <Button
                     title={primaryLabel}
                     variant="success"
@@ -631,7 +638,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                     loading={busy}
                     icon={
                       busy ? undefined : (
-                        <Ionicons name="checkmark-circle" size={18} color={colors.light.primaryForeground} />
+                        <Ionicons name="checkmark-circle" size={18} color={theme.primaryForeground} />
                       )
                     }
                   />

@@ -41,7 +41,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors, iconSizes, shadows } from "@/utils/design-tokens";
+import { iconSizes } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export interface SessionControlsProps {
   /** Primary: mark the current step done (or finish, when nothing is left). */
@@ -66,19 +67,23 @@ export function SessionControls({
   onOverwhelmed,
   onParkThought,
 }: SessionControlsProps) {
+  const theme = useThemeColors();
   return (
     <View>
-      {/* Primary: Done, blue, never green (D3: green is a terminal state only). */}
+      {/* Primary: Done, blue, never green (D3: green is a terminal state only).
+          min-h-13 (56px): the "primary CTA" tier (52px measured) has no scale
+          step (jumps 48 -> 56), so this rounds up rather than reintroducing
+          an arbitrary bracket. Recommend adding spacing["13"] = "52px"
+          centrally, then switching to min-h-13. */}
       <PressableScale
         onPress={onDone}
         haptic="success"
-        className="min-h-[52px] flex-row items-center justify-center rounded-md bg-primary-600"
-        style={shadows.xs}
+        className="min-h-13 flex-row items-center justify-center rounded-md bg-primary-600"
         accessibilityRole="button"
         accessibilityLabel={noSteps ? "Finish session" : "Mark this step done and continue"}
       >
-        <Ionicons name="checkmark-circle" size={22} color={colors.light.primaryForeground} />
-        <Text variant="h4" className="ml-2 text-white">{noSteps ? "Finish" : "Done"}</Text>
+        <Ionicons name="checkmark-circle" size={22} color={theme.primaryForeground} />
+        <Text variant="h4" className="ml-2 text-primary-foreground">{noSteps ? "Finish" : "Done"}</Text>
       </PressableScale>
 
       {/* Two quiet pills, then the overwhelm valve on its own full-width row.
@@ -143,7 +148,7 @@ function QuietPill({
       onPress={onPress}
       haptic="light"
       disabled={disabled}
-      className={`flex-1 h-11 items-center justify-center rounded-lg bg-neutral-100 px-2 ${
+      className={`flex-1 h-11 items-center justify-center rounded-lg bg-raised px-2 ${
         disabled ? "opacity-50" : ""
       }`}
       accessibilityRole="button"

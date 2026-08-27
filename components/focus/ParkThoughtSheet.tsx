@@ -29,9 +29,9 @@ import { Text } from "@/components/ui/Text";
 import { Heading } from "@/components/ui/Heading";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export interface ParkThoughtSheetProps {
   visible: boolean;
@@ -43,6 +43,7 @@ export interface ParkThoughtSheetProps {
 
 export function ParkThoughtSheet({ visible, onClose, onSubmit }: ParkThoughtSheetProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const [text, setText] = useState("");
 
   // Fresh field every time the sheet opens (mirrors `BrainDumpSheet` /
@@ -86,21 +87,14 @@ export function ParkThoughtSheet({ visible, onClose, onSubmit }: ParkThoughtShee
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              // `rounded-t-3xl`, matching every other bottom sheet in the app
-              // (EndCheckInSheet, FocusHeroCard, AddEventModal, AppPicker,
-              // DeEscalationSheet, PanicValveSheet, StakeSetupSheet). Doc 02
-              // says "Modals / bottom sheets: radius.xl (16) on top corners",
-              // and this sheet shipped at 16 first for that reason, but nine
-              // sheets already read as one family at 3xl. One sheet at a
-              // different radius reads as a bug, not as a quieter tier. The
-              // doc is what is stale here, not the convention.
-              className="rounded-t-3xl bg-neutral-100"
-              style={shadows.xl}
+              // Bottom-sheet spec (docs/02, measured off task-capture.pdf):
+              // rounded-t-sheet (24) top corners, bg-surface (not canvas).
+              className="rounded-t-sheet bg-surface"
             >
               <SafeAreaView edges={["bottom"]}>
-                {/* Grabber */}
+                {/* Grabber: 40x4, bg-line, rounded-xxs (bottom-sheet spec). */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1 w-10 rounded-xxs bg-line" />
                 </View>
 
                 <View className="flex-row items-center justify-between px-5 pb-1 pt-3">
@@ -108,13 +102,12 @@ export function ParkThoughtSheet({ visible, onClose, onSubmit }: ParkThoughtShee
                   <Pressable
                     onPress={handleClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
-                    style={shadows.xs}
+                    className="h-9 w-9 items-center justify-center rounded-full bg-raised"
                     accessibilityRole="button"
                     accessibilityLabel="Close park a thought"
                     accessibilityHint="Closes without saving"
                   >
-                    <Ionicons name="close" size={20} color={colors.light.textSecondary} />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 

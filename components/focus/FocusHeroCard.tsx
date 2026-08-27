@@ -1,7 +1,8 @@
 /**
  * FocusHeroCard, the Focus tab's three-state lock composer (doc
- * `design/DECISION_SPEC` D1). The tab's hero surface: white, radius 26, the
- * screen's only lg-shadow surface.
+ * `design/DECISION_SPEC` D1). The tab's hero surface: white, radius 26. The
+ * source design has no shadows anywhere (docs/02); this surface keeps its
+ * lift with a `border-line` hairline instead of the old `shadows.lg`.
  *
  * Three states, driven by `mode` (computed by the caller from the same
  * `stakesStore`/`sessionStore` reads `app/(tabs)/focus.tsx` also needs for its
@@ -68,9 +69,10 @@ import {
   type StartStakeRefusal,
 } from "@/store/stakesStore";
 import { computeDurationMin } from "@/core/task-logic";
-import { colors, iconSizes, shadows, tabularNums } from "@/utils/design-tokens";
+import { iconSizes, tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { StakeSession, Task } from "@/types";
 
 /** Quick-lock length presets (D1: "15 . 25 . 45", 45 default). Within `SESSION_MIN_BOUNDS` (15..50). */
@@ -132,6 +134,7 @@ export function FocusHeroCard({
   onOpenSetup,
 }: FocusHeroCardProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   const allTasks = useTaskStore((s) => s.tasks);
   const lists = useListStore((s) => s.lists);
@@ -320,7 +323,7 @@ export function FocusHeroCard({
   const selectedListName = selectedTask?.listId ? lists[selectedTask.listId]?.name : undefined;
 
   return (
-    <View className="rounded-3xl bg-white p-5" style={shadows.lg}>
+    <View className="rounded-3xl border border-line bg-white p-5">
       {mode === "active" && (
         <View accessibilityRole="summary" accessibilityLabel="Session running">
           <Text variant="overline" className="text-neutral-500">
@@ -336,22 +339,25 @@ export function FocusHeroCard({
           )}
           {activeStakeSnapshot && subject && (
             <View className="flex-row items-center mt-2.5">
-              <Ionicons name="lock-closed-outline" size={iconSizes.xs} color={colors.light.textSecondary} />
+              <Ionicons name="lock-closed-outline" size={iconSizes.xs} color={theme.textSecondary} />
               <Text variant="caption" className="ml-1.5 text-neutral-500" numberOfLines={1}>
                 {`${subject} locked`}
               </Text>
             </View>
           )}
 
+          {/* min-h-13 (56px): the "primary CTA" tier (52px measured) has no
+              scale step (jumps 48 -> 56), so this rounds up rather than
+              reintroducing an arbitrary bracket. Recommend adding
+              spacing["13"] = "52px" centrally, then switching to min-h-13. */}
           <PressableScale
             onPress={handleReturnToSession}
             haptic="medium"
-            className="mt-5 min-h-[52px] items-center justify-center rounded-md bg-primary-600"
-            style={shadows.xs}
+            className="mt-5 min-h-13 items-center justify-center rounded-md bg-primary-600"
             accessibilityRole="button"
             accessibilityLabel="Return to session"
           >
-            <Text variant="h4" className="text-white">
+            <Text variant="h4" className="text-primary-foreground">
               Return to session
             </Text>
           </PressableScale>
@@ -390,7 +396,7 @@ export function FocusHeroCard({
               {scheduledTask?.title ?? "Untitled task"}
             </Text>
             <View className="flex-row items-center mt-1.5">
-              <Ionicons name="lock-closed-outline" size={iconSizes.xs} color={colors.light.textSecondary} />
+              <Ionicons name="lock-closed-outline" size={iconSizes.xs} color={theme.textSecondary} />
               <Text variant="caption" className="ml-1.5 text-neutral-500" numberOfLines={1}>
                 {subject ?? "Choose what to lock"}
               </Text>
@@ -400,12 +406,11 @@ export function FocusHeroCard({
           <PressableScale
             onPress={handleStartNow}
             haptic="medium"
-            className="mt-5 min-h-[52px] items-center justify-center rounded-md bg-primary-600"
-            style={shadows.xs}
+            className="mt-5 min-h-13 items-center justify-center rounded-md bg-primary-600"
             accessibilityRole="button"
             accessibilityLabel="Start now"
           >
-            <Text variant="h4" className="text-white">
+            <Text variant="h4" className="text-primary-foreground">
               Start now
             </Text>
           </PressableScale>
@@ -448,7 +453,7 @@ export function FocusHeroCard({
           <PressableScale
             onPress={() => setPickerOpen(true)}
             haptic="light"
-            className="mt-3 flex-row items-center rounded-xl bg-neutral-100 px-4 py-3"
+            className="mt-3 flex-row items-center rounded-xl bg-raised px-4 py-3"
             accessibilityRole="button"
             accessibilityLabel={
               selectedTask ? `Task: ${selectedTask.title}. ${taskMetaLine(selectedTask, selectedListName)}` : "Choose a task"
@@ -470,23 +475,23 @@ export function FocusHeroCard({
                 </Text>
               )}
             </View>
-            <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.textMuted} />
+            <Ionicons name="chevron-forward" size={iconSizes.sm} color={theme.textMuted} />
           </PressableScale>
 
           {/* On the line: what is at stake. */}
           <PressableScale
             onPress={() => setAppPickerOpen(true)}
             haptic="light"
-            className="mt-2.5 flex-row items-center rounded-xl bg-neutral-100 px-4 py-3"
+            className="mt-2.5 flex-row items-center rounded-xl bg-raised px-4 py-3"
             accessibilityRole="button"
             accessibilityLabel={subject ? `On the line: ${subject}` : "Choose what to lock"}
             accessibilityHint="Opens the app picker"
           >
-            <Ionicons name="lock-closed-outline" size={iconSizes.sm} color={colors.light.textSecondary} />
+            <Ionicons name="lock-closed-outline" size={iconSizes.sm} color={theme.textSecondary} />
             <Text variant="bodyMedium" className="flex-1 ml-2.5 text-neutral-900" numberOfLines={1}>
               {subject ?? "Choose what to lock"}
             </Text>
-            <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.textMuted} />
+            <Ionicons name="chevron-forward" size={iconSizes.sm} color={theme.textMuted} />
           </PressableScale>
 
           {/* Length: for how long. */}
@@ -500,7 +505,7 @@ export function FocusHeroCard({
                     onPress={() => setLengthMin(min)}
                     haptic="selection"
                     className={`min-h-11 px-4 rounded-full items-center justify-center ${
-                      isSelected ? "bg-primary-600" : "bg-neutral-100"
+                      isSelected ? "bg-primary-600" : "bg-raised"
                     }`}
                     accessibilityRole="button"
                     accessibilityLabel={`${min} minutes`}
@@ -508,7 +513,7 @@ export function FocusHeroCard({
                   >
                     <Text
                       variant="captionMedium"
-                      className={isSelected ? "text-white" : "text-neutral-600"}
+                      className={isSelected ? "text-primary-foreground" : "text-neutral-600"}
                       style={tabularNums}
                     >
                       {min}
@@ -540,7 +545,7 @@ export function FocusHeroCard({
               className="mt-3 flex-row items-start gap-2 rounded-lg bg-warning-100 px-3 py-2.5"
               accessibilityRole="alert"
             >
-              <Ionicons name="information-circle-outline" size={iconSizes.xs} color={colors.light.warningStrong} />
+              <Ionicons name="information-circle-outline" size={iconSizes.xs} color={theme.warningStrong} />
               <Text variant="caption" className="flex-1 text-warning-700">
                 {REFUSAL_COPY[primaryRefusal]}
               </Text>
@@ -552,14 +557,13 @@ export function FocusHeroCard({
             onPress={handlePrimary}
             haptic="medium"
             disabled={!selectedTask}
-            className={`mt-5 min-h-[52px] items-center justify-center rounded-md bg-primary-600 ${
+            className={`mt-5 min-h-13 items-center justify-center rounded-md bg-primary-600 ${
               !selectedTask ? "opacity-50" : ""
             }`}
-            style={shadows.xs}
             accessibilityRole="button"
             accessibilityLabel={lockOn ? `Lock in, ${lengthMin} minutes` : "Start focus"}
           >
-            <Text variant="h4" className="text-white">
+            <Text variant="h4" className="text-primary-foreground">
               {lockOn ? `Lock in · ${lengthMin} min` : "Start focus"}
             </Text>
           </PressableScale>
@@ -603,12 +607,15 @@ export function FocusHeroCard({
             <Pressable onPress={() => {}}>
               <Animated.View
                 entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-                className="max-h-[70%] rounded-t-3xl bg-neutral-100"
-                style={shadows.xl}
+                // Bottom-sheet spec: rounded-t-sheet (24), bg-surface (not
+                // canvas). `70vh` (not `70%`) since NativeWind resolves
+                // viewport units directly, matching AppPicker/StakeSetupSheet.
+                className="max-h-[70vh] rounded-t-sheet bg-surface"
               >
                 <SafeAreaView edges={["bottom"]}>
+                  {/* Grabber: 40x4, bg-line, rounded-xxs (bottom-sheet spec). */}
                   <View className="items-center pt-3">
-                    <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                    <View className="h-1 w-10 rounded-xxs bg-line" />
                   </View>
                   <View className="px-5 pt-3 pb-2">
                     <Heading size="h4">Choose a task</Heading>

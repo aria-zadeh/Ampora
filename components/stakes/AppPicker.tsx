@@ -30,9 +30,10 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
-import { colors, shadows } from "@/utils/design-tokens";
+import { appBrandColors } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useStakesStore, isLockable } from "@/store/stakesStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import type { StakeApp, StakeSelection } from "@/types";
@@ -54,18 +55,18 @@ interface CatalogApp {
 }
 
 const CATALOG: CatalogApp[] = [
-  { key: "instagram", label: "Instagram", token: "com.burbn.instagram", icon: "logo-instagram", tint: "#C13584", tintBg: "bg-accent-100" },
-  { key: "tiktok", label: "TikTok", token: "com.zhiliaoapp.musically", icon: "musical-notes", tint: "#1C1917", tintBg: "bg-neutral-100" },
-  { key: "youtube", label: "YouTube", token: "com.google.ios.youtube", icon: "logo-youtube", tint: "#DC2626", tintBg: "bg-danger-100" },
-  { key: "x", label: "X (Twitter)", token: "com.atebits.Tweetie2", icon: "logo-twitter", tint: "#1C1917", tintBg: "bg-neutral-100" },
-  { key: "snapchat", label: "Snapchat", token: "com.toyopagroup.picaboo", icon: "logo-snapchat", tint: "#CA8A04", tintBg: "bg-warning-100" },
-  { key: "reddit", label: "Reddit", token: "com.reddit.Reddit", icon: "logo-reddit", tint: "#EA580C", tintBg: "bg-warning-100" },
-  { key: "facebook", label: "Facebook", token: "com.facebook.Facebook", icon: "logo-facebook", tint: "#2563EB", tintBg: "bg-primary-100" },
-  { key: "twitch", label: "Twitch", token: "tv.twitch", icon: "logo-twitch", tint: "#7C3AED", tintBg: "bg-accent-100" },
-  { key: "discord", label: "Discord", token: "com.hammerandchisel.discord", icon: "logo-discord", tint: "#6366F1", tintBg: "bg-primary-100" },
-  { key: "netflix", label: "Netflix", token: "com.netflix.Netflix", icon: "film-outline", tint: "#DC2626", tintBg: "bg-danger-100" },
-  { key: "games", label: "Games", token: "group.games.leisure", icon: "game-controller", tint: "#16A34A", tintBg: "bg-success-100" },
-  { key: "browser_fun", label: "Web browsing", token: "group.web.leisure", icon: "globe-outline", tint: "#0891B2", tintBg: "bg-primary-100" },
+  { key: "instagram", label: "Instagram", token: "com.burbn.instagram", icon: "logo-instagram", tint: appBrandColors.instagram, tintBg: "bg-accent-100" },
+  { key: "tiktok", label: "TikTok", token: "com.zhiliaoapp.musically", icon: "musical-notes", tint: appBrandColors.tiktok, tintBg: "bg-raised" },
+  { key: "youtube", label: "YouTube", token: "com.google.ios.youtube", icon: "logo-youtube", tint: appBrandColors.youtube, tintBg: "bg-danger-100" },
+  { key: "x", label: "X (Twitter)", token: "com.atebits.Tweetie2", icon: "logo-twitter", tint: appBrandColors.x, tintBg: "bg-raised" },
+  { key: "snapchat", label: "Snapchat", token: "com.toyopagroup.picaboo", icon: "logo-snapchat", tint: appBrandColors.snapchat, tintBg: "bg-warning-100" },
+  { key: "reddit", label: "Reddit", token: "com.reddit.Reddit", icon: "logo-reddit", tint: appBrandColors.reddit, tintBg: "bg-warning-100" },
+  { key: "facebook", label: "Facebook", token: "com.facebook.Facebook", icon: "logo-facebook", tint: appBrandColors.facebook, tintBg: "bg-primary-100" },
+  { key: "twitch", label: "Twitch", token: "tv.twitch", icon: "logo-twitch", tint: appBrandColors.twitch, tintBg: "bg-accent-100" },
+  { key: "discord", label: "Discord", token: "com.hammerandchisel.discord", icon: "logo-discord", tint: appBrandColors.discord, tintBg: "bg-primary-100" },
+  { key: "netflix", label: "Netflix", token: "com.netflix.Netflix", icon: "film-outline", tint: appBrandColors.netflix, tintBg: "bg-danger-100" },
+  { key: "games", label: "Games", token: "group.games.leisure", icon: "game-controller", tint: appBrandColors.games, tintBg: "bg-success-100" },
+  { key: "browser_fun", label: "Web browsing", token: "group.web.leisure", icon: "globe-outline", tint: appBrandColors.browser_fun, tintBg: "bg-primary-100" },
 ];
 
 /** Which `platform` value to stamp on chosen StakeApps for this device. */
@@ -107,6 +108,7 @@ export interface AppPickerProps {
  */
 export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const storedApps = useStakesStore((s) => s.apps);
   const setApps = useStakesStore((s) => s.setApps);
   const setSelection = useStakesStore((s) => s.setSelection);
@@ -231,19 +233,18 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
-              style={shadows.xl}
+              className="rounded-t-sheet bg-surface"
             >
               <SafeAreaView edges={["bottom"]}>
-                {/* Grabber */}
+                {/* Grabber: 40x4, bg-line, rounded-xxs (bottom-sheet spec). */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1 w-10 rounded-xxs bg-line" />
                 </View>
 
                 {/* Header */}
                 <View className="flex-row items-start justify-between px-5 pt-3">
                   <View className="flex-1 pr-3">
-                    <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+                    <Text className="text-overline font-semibold uppercase text-primary-600">
                       What&apos;s on the line
                     </Text>
                     <Heading size="h3" className="mt-1">
@@ -256,12 +257,11 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                   <Pressable
                     onPress={onClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
-                    style={shadows.xs}
+                    className="h-9 w-9 items-center justify-center rounded-full bg-raised"
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color={colors.light.textSecondary} />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
@@ -313,7 +313,6 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                         className={`flex-row items-center gap-3 rounded-xl border p-3.5 ${
                           isSel ? "border-primary-500 bg-primary-50" : "border-neutral-200 bg-white"
                         }`}
-                        style={isSel ? undefined : shadows.xs}
                         accessibilityRole="checkbox"
                         accessibilityState={{ checked: isSel }}
                         accessibilityLabel={app.label}
@@ -334,15 +333,15 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                         <Ionicons
                           name={isSel ? "checkmark-circle" : "ellipse-outline"}
                           size={22}
-                          color={isSel ? colors.light.primary : colors.light.borderStrong}
+                          color={isSel ? theme.primary : theme.borderStrong}
                         />
                       </Pressable>
                     );
                   })}
 
                   {/* Platform note — set expectations honestly. */}
-                  <View className="mt-2 flex-row items-start gap-2.5 rounded-xl bg-neutral-100 p-3.5">
-                    <Ionicons name="phone-portrait-outline" size={16} color={colors.light.textMuted} />
+                  <View className="mt-2 flex-row items-start gap-2.5 rounded-xl bg-raised p-3.5">
+                    <Ionicons name="phone-portrait-outline" size={16} color={theme.textMuted} />
                     <Text className="flex-1 text-caption text-neutral-500">
                       On iPhone, you&apos;ll pick the real apps with Apple&apos;s Screen Time picker once app
                       locking is enabled. This list is a preview of what that feels like.
@@ -351,13 +350,13 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                 </ScrollView>
 
                 {/* Footer */}
-                <View className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3" style={shadows.md}>
+                <View className="border-t border-neutral-200 bg-white px-5 pb-2 pt-3">
                   {refusalNote ? (
                     <View
                       className="mb-3 flex-row items-start gap-2 rounded-lg bg-warning-100 px-3 py-2.5"
                       accessibilityRole="alert"
                     >
-                      <Ionicons name="information-circle-outline" size={16} color={colors.light.warningStrong} />
+                      <Ionicons name="information-circle-outline" size={16} color={theme.warningStrong} />
                       <Text className="flex-1 text-caption font-medium text-warning-700">{refusalNote}</Text>
                     </View>
                   ) : null}

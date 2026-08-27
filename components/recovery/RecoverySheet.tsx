@@ -25,9 +25,9 @@ import { useShallow } from 'zustand/react/shallow'
 
 import { Button } from '@/components/ui/Button'
 import { Heading } from '@/components/ui/Heading'
-import { shadows } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { useTaskStore, selectAllTasks } from '@/store/taskStore'
 import { useScheduleStore, selectAllBlocks } from '@/store/scheduleStore'
 import { useRecoveryStore } from '@/store/recoveryStore'
@@ -143,13 +143,12 @@ export function RecoverySheet({ visible, onClose }: RecoverySheetProps) {
               entering={
                 reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)
               }
-              className="rounded-t-3xl bg-neutral-100"
-              style={shadows.xl}
+              className="rounded-t-sheet bg-surface"
             >
               <SafeAreaView edges={['bottom']}>
-                {/* Grabber */}
+                {/* Grabber: 40x4, bg-line, rounded-xxs (bottom-sheet spec). */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1 w-10 rounded-xxs bg-line" />
                 </View>
 
                 {rebuilt ? (
@@ -186,11 +185,12 @@ function PreviewBody({
   onRebuild: () => void
   onClose: () => void
 }) {
+  const theme = useThemeColors()
   return (
     <>
       <View className="px-6 pt-5">
         <View className="h-14 w-14 items-center justify-center rounded-full bg-primary-100">
-          <Ionicons name="sparkles-outline" size={26} color="#2563EB" />
+          <Ionicons name="sparkles-outline" size={26} color={theme.primary} />
         </View>
         <Heading size="h2" className="mt-4">
           Let's catch you up
@@ -211,7 +211,7 @@ function PreviewBody({
           {preview.drops.length > 0 && (
             <PreviewGroup
               icon="checkmark-done-outline"
-              tint="#16A34A"
+              tint={theme.successAccent}
               tintBg="bg-success-100"
               title="Clearing what's behind you"
               caption="These are past their moment. We'll take them off your plate."
@@ -221,7 +221,7 @@ function PreviewBody({
           {preview.bumps.length > 0 && (
             <PreviewGroup
               icon="arrow-up-circle-outline"
-              tint="#2563EB"
+              tint={theme.primary}
               tintBg="bg-primary-100"
               title="Moving these up front"
               caption="These matter most right now, so they come first."
@@ -230,7 +230,7 @@ function PreviewBody({
           )}
           {preview.rebuildCount > 0 && (
             <View className="mb-2 mt-2 flex-row items-center gap-2 px-1">
-              <Ionicons name="calendar-outline" size={16} color="#6F6862" />
+              <Ionicons name="calendar-outline" size={16} color={theme.textMuted} />
               <Text className="text-caption text-neutral-500">
                 {preview.rebuildCount} other{' '}
                 {preview.rebuildCount === 1 ? 'task' : 'tasks'} replanned around your week.
@@ -247,7 +247,7 @@ function PreviewBody({
           variant="primaryBlue"
           size="lg"
           onPress={onRebuild}
-          icon={<Ionicons name="refresh" size={18} color="#FFFFFF" />}
+          icon={<Ionicons name="refresh" size={18} color={theme.primaryForeground} />}
           accessibilityLabel="Rebuild my week"
           accessibilityHint="Clears past-due items, moves urgent tasks up, and replans your schedule"
         />
@@ -289,12 +289,14 @@ function PreviewGroup({
         <Text className="text-label font-semibold text-neutral-900">{title}</Text>
       </View>
       <Text className="mb-2 px-1 text-caption text-neutral-500">{caption}</Text>
-      <View className="rounded-2xl border border-neutral-200 bg-white px-4" style={shadows.sm}>
+      {/* bg-raised (not bg-white/surface): this list sits directly on the
+          sheet's own bg-surface, so it steps UP to read as a card. */}
+      <View className="rounded-2xl bg-raised px-4">
         {tasks.map((task, i) => (
           <View
             key={task.id}
             className={`flex-row items-center py-3 ${
-              i === tasks.length - 1 ? '' : 'border-b border-neutral-100'
+              i === tasks.length - 1 ? '' : 'border-b border-line'
             }`}
           >
             <Text className="flex-1 text-body text-neutral-800" numberOfLines={1}>
@@ -318,13 +320,14 @@ function SuccessBody({
   onDone: () => void
   reduceMotion: boolean
 }) {
+  const theme = useThemeColors()
   return (
     <View className="items-center px-6 pt-6">
       <Animated.View
         entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.base)}
         className="h-16 w-16 items-center justify-center rounded-full bg-success-100"
       >
-        <Ionicons name="checkmark-circle" size={34} color="#16A34A" />
+        <Ionicons name="checkmark-circle" size={34} color={theme.successAccent} />
       </Animated.View>
 
       {/* Exact success copy required by FR-60. */}

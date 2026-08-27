@@ -26,15 +26,16 @@ import { useShallow } from 'zustand/react/shallow'
 
 import { PressableScale } from '@/components/ui/PressableScale'
 import { RecoverySheet } from '@/components/recovery/RecoverySheet'
-import { shadows } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { useRecoveryStore, selectShowRecoveryBanner } from '@/store/recoveryStore'
 import { useScheduleStore, selectAllBlocks } from '@/store/scheduleStore'
 import { countMissedBlocks } from '@/core/recovery'
 
 export function RecoveryBanner() {
   const reduceMotion = useReduceMotion()
+  const theme = useThemeColors()
 
   const show = useRecoveryStore(selectShowRecoveryBanner)
   const dismissBanner = useRecoveryStore((s) => s.dismissBanner)
@@ -52,7 +53,6 @@ export function RecoveryBanner() {
       <Animated.View
         entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
         className="rounded-2xl border border-primary-200 bg-primary-50 p-4"
-        style={shadows.sm}
         accessibilityRole="summary"
         accessibilityLabel={`You have ${missedCount} unfinished ${
           missedCount === 1 ? 'block' : 'blocks'
@@ -60,10 +60,10 @@ export function RecoveryBanner() {
       >
         <View className="flex-row items-start gap-3">
           <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-100">
-            <Ionicons name="refresh-outline" size={18} color="#2563EB" />
+            <Ionicons name="refresh-outline" size={18} color={theme.primary} />
           </View>
           <View className="flex-1">
-            <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+            <Text className="text-overline font-semibold uppercase text-primary-600">
               Fresh start
             </Text>
             {/* `leading-5` removed: 15px body belongs in the scale's 22px */}
@@ -82,7 +82,7 @@ export function RecoveryBanner() {
             accessibilityLabel="Dismiss"
             className="active:opacity-60"
           >
-            <Ionicons name="close" size={18} color="#60A5FA" />
+            <Ionicons name="close" size={18} color={theme.primaryLight} />
           </Pressable>
         </View>
 
@@ -91,13 +91,12 @@ export function RecoveryBanner() {
             onPress={() => setSheetOpen(true)}
             haptic="light"
             className="flex-row items-center gap-1.5 rounded-full bg-primary-600 px-4 py-2.5"
-            style={shadows.xs}
             accessibilityRole="button"
             accessibilityLabel="Catch me up"
             accessibilityHint="Opens a preview of a rebuilt plan"
           >
-            <Ionicons name="sparkles-outline" size={16} color="#FFFFFF" />
-            <Text className="text-label font-semibold text-white">Catch me up</Text>
+            <Ionicons name="sparkles-outline" size={16} color={theme.primaryForeground} />
+            <Text className="text-label font-semibold text-primary-foreground">Catch me up</Text>
           </PressableScale>
         </View>
       </Animated.View>

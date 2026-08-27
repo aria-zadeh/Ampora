@@ -25,9 +25,10 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 
 import { PressableScale } from "@/components/ui/PressableScale";
 import { Heading } from "@/components/ui/Heading";
-import { colors, iconSizes, shadows } from "@/utils/design-tokens";
+import { iconSizes } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 /**
  * The three end-check-in answers (FR-85). `undefined` at a call site means the
@@ -86,6 +87,7 @@ export function EndCheckInSheet({
   onDismiss,
 }: EndCheckInSheetProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   return (
     <Modal
@@ -106,25 +108,24 @@ export function EndCheckInSheet({
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
-              style={shadows.xl}
+              className="rounded-t-sheet bg-surface"
             >
               <SafeAreaView edges={["bottom"]}>
-                {/* Grabber */}
+                {/* Grabber: 40x4, bg-line, rounded-xxs (bottom-sheet spec). */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1 w-10 rounded-xxs bg-line" />
                 </View>
 
                 <View className="px-6 pt-5">
                   {unlocked ? (
                     <View
-                      className="mb-4 flex-row items-center gap-2.5 rounded-2xl bg-white border border-neutral-200 px-4 py-3"
+                      className="mb-4 flex-row items-center gap-2.5 rounded-lg bg-raised px-4 py-3"
                       accessibilityRole="summary"
                     >
                       <Ionicons
                         name="lock-open-outline"
                         size={iconSizes.sm}
-                        color={colors.light.primary}
+                        color={theme.primary}
                       />
                       <Text className="flex-1 text-body font-medium text-neutral-800">
                         You served the session. Your apps are yours again.
@@ -132,7 +133,7 @@ export function EndCheckInSheet({
                     </View>
                   ) : null}
 
-                  <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+                  <Text className="text-overline font-semibold uppercase text-primary-600">
                     {served ? "Session complete" : "Session ended"}
                   </Text>
                   <Heading size="h2" className="mt-1.5">
@@ -151,10 +152,10 @@ export function EndCheckInSheet({
                       key={opt.answer}
                       onPress={() => onAnswer(opt.answer)}
                       haptic={opt.primary ? "success" : "light"}
-                      className={`min-h-[64px] flex-row items-center gap-3 rounded-xl border px-4 py-3 ${
+                      className={`min-h-16 flex-row items-center gap-3 rounded-lg border px-4 py-3 ${
                         opt.primary
                           ? "bg-success-700 border-success-700"
-                          : "bg-white border-neutral-200"
+                          : "bg-raised border-transparent"
                       }`}
                       accessibilityRole="button"
                       accessibilityLabel={opt.title}
@@ -163,18 +164,18 @@ export function EndCheckInSheet({
                       <Ionicons
                         name={opt.icon}
                         size={iconSizes.lg}
-                        color={opt.primary ? colors.light.primaryForeground : colors.light.textSecondary}
+                        color={opt.primary ? theme.primaryForeground : theme.textSecondary}
                       />
                       <View className="flex-1">
                         <Text
                           className={`text-h4 font-semibold ${
-                            opt.primary ? "text-white" : "text-neutral-900"
+                            opt.primary ? "text-primary-foreground" : "text-neutral-900"
                           }`}
                         >
                           {opt.title}
                         </Text>
                         <Text
-                          className={`text-caption ${opt.primary ? "text-white" : "text-neutral-500"}`}
+                          className={`text-caption ${opt.primary ? "text-primary-foreground" : "text-neutral-500"}`}
                         >
                           {opt.blurb}
                         </Text>

@@ -27,9 +27,10 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { colors, shadows } from "@/utils/design-tokens";
+import { tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useStakesStore } from "@/store/stakesStore";
 import type { StakeSession } from "@/types";
 
@@ -48,6 +49,7 @@ export interface PanicValveSheetProps {
 
 export function PanicValveSheet({ visible, session, onClose, onReleased }: PanicValveSheetProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const panicValve = useStakesStore((s) => s.panicValve);
 
   const [remaining, setRemaining] = useState(PANIC_COUNTDOWN_SEC);
@@ -125,19 +127,18 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
-              style={shadows.xl}
+              className="rounded-t-sheet bg-surface"
             >
               <SafeAreaView edges={["bottom"]}>
-                {/* Grabber */}
+                {/* Grabber: 40x4, bg-line, rounded-xxs (bottom-sheet spec). */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1 w-10 rounded-xxs bg-line" />
                 </View>
 
                 <View className="items-center px-6 pt-6">
                   {/* Calm icon — a breath, not an alarm. */}
                   <View className="h-16 w-16 items-center justify-center rounded-full bg-primary-100">
-                    <Ionicons name="leaf-outline" size={30} color={colors.light.primary} />
+                    <Ionicons name="leaf-outline" size={30} color={theme.primary} />
                   </View>
 
                   <Heading size="h2" className="mt-5 text-center">
@@ -154,7 +155,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                     <View className="mt-7 items-center">
                       <Text
                         className="text-neutral-900 font-bold"
-                        style={{ fontSize: 56, lineHeight: 60, fontVariant: ["tabular-nums"] }}
+                        style={{ fontSize: 56, lineHeight: 60, ...tabularNums }}
                         accessibilityRole="timer"
                         accessibilityLabel={`${remaining} seconds until your apps unlock`}
                       >
@@ -167,7 +168,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                     </View>
                   ) : (
                     <View className="mt-7 h-14 items-center justify-center">
-                      <Ionicons name="checkmark-circle-outline" size={40} color={colors.light.primary} />
+                      <Ionicons name="checkmark-circle-outline" size={40} color={theme.primary} />
                     </View>
                   )}
                 </View>
@@ -190,7 +191,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                         variant="primaryBlue"
                         size="lg"
                         onPress={handleBackToTask}
-                        icon={<Ionicons name="arrow-back" size={18} color={colors.light.primaryForeground} />}
+                        icon={<Ionicons name="arrow-back" size={18} color={theme.primaryForeground} />}
                         accessibilityLabel="Cancel the unlock and go back to your task"
                       />
                       <Text className="pb-1 text-center text-caption text-neutral-500">

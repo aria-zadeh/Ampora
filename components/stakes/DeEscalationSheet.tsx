@@ -27,9 +27,9 @@ import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
-import { colors, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useStakesStore } from "@/store/stakesStore";
 
 export interface DeEscalationSheetProps {
@@ -42,6 +42,7 @@ export interface DeEscalationSheetProps {
 
 export function DeEscalationSheet({ visible, onClose, onPaused }: DeEscalationSheetProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const pauseStakesForToday = useStakesStore((s) => s.pauseStakesForToday);
 
   const handlePause = () => {
@@ -74,19 +75,18 @@ export function DeEscalationSheet({ visible, onClose, onPaused }: DeEscalationSh
           <Pressable onPress={() => {}}>
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
-              style={shadows.xl}
+              className="rounded-t-sheet bg-surface"
             >
               <SafeAreaView edges={["bottom"]}>
-                {/* Grabber */}
+                {/* Grabber: 40x4, bg-line, rounded-xxs (bottom-sheet spec). */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1 w-10 rounded-xxs bg-line" />
                 </View>
 
                 <View className="items-center px-6 pt-6">
                   {/* Warm icon — a hand on the shoulder, not a warning. */}
                   <View className="h-16 w-16 items-center justify-center rounded-full bg-warning-100">
-                    <Ionicons name="heart-outline" size={30} color={colors.light.warningStrong} />
+                    <Ionicons name="heart-outline" size={30} color={theme.warningStrong} />
                   </View>
 
                   <Heading size="h2" className="mt-5 text-center">
@@ -105,7 +105,7 @@ export function DeEscalationSheet({ visible, onClose, onPaused }: DeEscalationSh
                     variant="primaryBlue"
                     size="lg"
                     onPress={handlePause}
-                    icon={<Ionicons name="pause-circle-outline" size={18} color={colors.light.primaryForeground} />}
+                    icon={<Ionicons name="pause-circle-outline" size={18} color={theme.primaryForeground} />}
                     accessibilityLabel="Pause all stakes for the rest of today"
                   />
                   <Pressable

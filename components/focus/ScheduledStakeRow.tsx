@@ -22,7 +22,8 @@ import { useShallow } from "zustand/react/shallow";
 import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { useStakesStore, selectEligibleApps, selectStakeSelection } from "@/store/stakesStore";
-import { colors, iconSizes, shadows, tabularNums } from "@/utils/design-tokens";
+import { iconSizes, tabularNums } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { StakeApp, StakeSession, Task } from "@/types";
 
 /**
@@ -63,6 +64,7 @@ export interface ScheduledStakeRowProps {
 }
 
 export function ScheduledStakeRow({ session, task, onEdit }: ScheduledStakeRowProps) {
+  const theme = useThemeColors();
   const cancelScheduledStake = useStakesStore((s) => s.cancelScheduledStake);
   const namedApps = useStakesStore(useShallow(selectEligibleApps));
   const selection = useStakesStore(selectStakeSelection);
@@ -85,10 +87,7 @@ export function ScheduledStakeRow({ session, task, onEdit }: ScheduledStakeRowPr
   };
 
   return (
-    <View
-      className="flex-row items-center rounded-lg bg-white border border-neutral-200 px-4 py-3"
-      style={shadows.xs}
-    >
+    <View className="flex-row items-center rounded-lg bg-white border border-neutral-200 px-4 py-3">
       <PressableScale
         onPress={handleEdit}
         haptic="light"
@@ -97,7 +96,7 @@ export function ScheduledStakeRow({ session, task, onEdit }: ScheduledStakeRowPr
         accessibilityLabel={summary}
         accessibilityHint="Edit this scheduled lock"
       >
-        <Ionicons name="time-outline" size={iconSizes.sm} color={colors.light.textSecondary} />
+        <Ionicons name="time-outline" size={iconSizes.sm} color={theme.textSecondary} />
         <Text
           variant="caption"
           className="flex-1 ml-2.5 text-neutral-700"
