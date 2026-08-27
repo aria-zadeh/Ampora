@@ -7,9 +7,9 @@ import { PressableScale } from "@/components/ui/PressableScale";
 import { Heading } from "@/components/ui/Heading";
 import { useTaskStore } from "@/store/taskStore";
 import { useScheduleStore, selectMissedBlocks } from "@/store/scheduleStore";
-import { shadows } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { ScheduledBlock, Task } from "@/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -151,14 +151,12 @@ function MissedCard({
   onReschedule: () => void;
   onLetGo: () => void;
 }) {
+  const theme = useThemeColors();
   const { block, task } = row;
   const when = useMemo(() => formatWhenDue(block.start, now), [block.start, now]);
 
   return (
-    <View
-      className="bg-white border border-neutral-200 rounded-lg p-4"
-      style={shadows.sm}
-    >
+    <View className="bg-white border border-neutral-200 rounded-lg p-4">
       <View className="flex-row items-start gap-3">
         {/* Calm amber marker — a cue, not an alarm. Decorative, hidden from a11y. */}
         <View
@@ -166,7 +164,7 @@ function MissedCard({
           accessibilityElementsHidden
           importantForAccessibility="no"
         >
-          <Ionicons name="time-outline" size={16} color="#C2410C" />
+          <Ionicons name="time-outline" size={16} color={theme.warningAccent} />
         </View>
         <View className="flex-1">
           <Text
@@ -181,24 +179,26 @@ function MissedCard({
         </View>
       </View>
 
-      {/* Inline actions — Reschedule (primary) + Let it go (ghost). */}
+      {/* Inline actions — both non-filled (the Today screen's one filled,
+          primary action is TodayFocusCard's Start): Reschedule reads as the
+          more affirmative choice via primary-tinted text/icon, Let it go
+          stays neutral. Neither competes with Start for "the" primary CTA. */}
       <View className="mt-3 flex-row gap-2">
         <PressableScale
           onPress={onReschedule}
           haptic="light"
-          className="flex-1 min-h-11 flex-row items-center justify-center gap-1.5 rounded-md bg-primary-600"
-          style={shadows.xs}
+          className="flex-1 min-h-11 flex-row items-center justify-center gap-1.5 rounded-lg border border-line bg-surface"
           accessibilityRole="button"
           accessibilityLabel={`Reschedule ${task.title}`}
           accessibilityHint="Finds a new time for the remaining work"
         >
-          <Ionicons name="refresh-outline" size={16} color="#FFFFFF" />
-          <Text className="text-label font-semibold text-white">Reschedule</Text>
+          <Ionicons name="refresh-outline" size={16} color={theme.primary} />
+          <Text className="text-label font-semibold text-primary-600">Reschedule</Text>
         </PressableScale>
         <PressableScale
           onPress={onLetGo}
           haptic="selection"
-          className="min-h-11 flex-row items-center justify-center rounded-md border border-neutral-200 bg-white px-4"
+          className="min-h-11 flex-row items-center justify-center rounded-lg border border-line bg-surface px-4"
           accessibilityRole="button"
           accessibilityLabel={`Let it go: ${task.title}`}
           accessibilityHint="Clears this reminder without changing the task"

@@ -1,12 +1,11 @@
 import React from "react";
 import { View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { FeatureShell } from "./FeatureShell";
 import { PressableScale } from "./PressableScale";
 import { PulseScale } from "./PulseScale";
 import { Text } from "./Text";
-import { gradients, colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { StarterAction } from "@/types";
 
 interface StarterActionCardProps {
@@ -17,69 +16,63 @@ interface StarterActionCardProps {
 /**
  * The signature focal card: the task's "First move". One of the app's ~4
  * `FeatureShell` uses (doc 02 §14.4) — the nested double-bezel gives it the
- * quiet weight of the single most important thing on Home. A subtle gradient
- * wash sits inside the shell's white inner surface (same wash technique as
- * `GradientCard`, hand-composed here so it clips to the shell's own radius
- * instead of stacking a second border/shadow on top of it); completing the
+ * quiet weight of the single most important thing on Home. Completing the
  * action gives a warm pulse (via PulseScale) + success haptic (via
  * PressableScale's success haptic).
+ *
+ * Previously also carried a decorative gradient wash inside the shell,
+ * matching `GradientCard`'s old treatment — removed for the same reason: the
+ * source design has zero gradients and every `gradients.*` token is a flat
+ * no-op pair, so it always rendered as a uniform rectangle.
  */
 export function StarterActionCard({ action, onToggle }: StarterActionCardProps) {
   const done = action.done;
+  const theme = useThemeColors();
 
   return (
     // PulseScale pops once when `done` flips false -> true (completion feedback).
     <PulseScale trigger={done}>
       <FeatureShell>
-        <View>
-          {/* Subtle top wash — decorative only, matches GradientCard's wash
-              but clipped by the shell's own rounded-xl + overflow-hidden. */}
-          <LinearGradient
-            colors={gradients.firstMove}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            pointerEvents="none"
-            style={{ position: "absolute", top: 0, left: 0, right: 0, height: "60%" }}
-          />
+        <View className="p-5">
+          {/* Overline */}
+          <Text variant="overline" className="text-primary-600">
+            First move
+          </Text>
 
-          <View className="p-5">
-            {/* Overline */}
-            <Text variant="overline" className="text-primary-600">
-              First move
-            </Text>
+          {/* The action */}
+          <Text
+            variant="bodyMedium"
+            className={`mt-1.5 ${done ? "text-neutral-500 line-through" : "text-neutral-900"}`}
+            accessibilityLabel={`First move: ${action.text}${done ? ", done" : ""}`}
+          >
+            {action.text}
+          </Text>
 
-            {/* The action */}
-            <Text
-              variant="bodyMedium"
-              className={`mt-1.5 ${done ? "text-neutral-500 line-through" : "text-neutral-900"}`}
-              accessibilityLabel={`First move: ${action.text}${done ? ", done" : ""}`}
-            >
-              {action.text}
-            </Text>
-
-            {/* Mark done — success haptic on completion, light on undo. */}
-            <PressableScale
-              onPress={onToggle}
-              haptic={done ? "light" : "success"}
-              className={`mt-4 h-12 flex-row items-center justify-center rounded-md ${
-                done ? "bg-success-100" : "bg-primary-600"
-              }`}
-              accessibilityRole="button"
-              accessibilityState={{ checked: done }}
-              accessibilityLabel={done ? "Mark first move not done" : "Mark first move done"}
-            >
-              <View className="flex-row items-center">
-                <Ionicons
-                  name={done ? "checkmark-circle" : "ellipse-outline"}
-                  size={18}
-                  color={done ? colors.light.successStrong : colors.light.primaryForeground}
-                />
-                <Text variant="label" className={`ml-2 ${done ? "text-success-700" : "text-white"}`}>
-                  {done ? "Done" : "Start"}
-                </Text>
-              </View>
-            </PressableScale>
-          </View>
+          {/* Mark done — success haptic on completion, light on undo. */}
+          <PressableScale
+            onPress={onToggle}
+            haptic={done ? "light" : "success"}
+            className={`mt-4 h-12 flex-row items-center justify-center rounded-lg ${
+              done ? "bg-success-100" : "bg-primary-600"
+            }`}
+            accessibilityRole="button"
+            accessibilityState={{ checked: done }}
+            accessibilityLabel={done ? "Mark first move not done" : "Mark first move done"}
+          >
+            <View className="flex-row items-center">
+              <Ionicons
+                name={done ? "checkmark-circle" : "ellipse-outline"}
+                size={18}
+                color={done ? theme.successStrong : theme.primaryForeground}
+              />
+              <Text
+                variant="label"
+                className={`ml-2 ${done ? "text-success-700" : "text-primary-foreground"}`}
+              >
+                {done ? "Done" : "Start"}
+              </Text>
+            </View>
+          </PressableScale>
         </View>
       </FeatureShell>
     </PulseScale>

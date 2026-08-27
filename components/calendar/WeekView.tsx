@@ -250,7 +250,7 @@ export function WeekView({
             <View
               key={hour}
               pointerEvents="none"
-              className="absolute left-0 right-0 h-[1px] bg-neutral-200"
+              className="absolute left-0 right-0 h-px bg-line"
               style={{ top: hour * pxPerHour }}
             />
           ))}
@@ -261,7 +261,7 @@ export function WeekView({
               <View
                 key={day.dayStartMs}
                 style={{ width: colWidth, height: totalHeight }}
-                className={`border-l border-neutral-200 ${day.isToday ? 'bg-primary-50/40' : ''}`}
+                className={`border-l border-line ${day.isToday ? 'bg-primary-50/40' : ''}`}
               >
                 {day.laid.map((laid) => {
                   const item = laid.item
@@ -502,7 +502,7 @@ function GutterLabels({
   )
 }
 
-/** Red current-time indicator scoped to a single day column (re-reads clock/min). */
+/** Current-time indicator scoped to a single day column (re-reads clock/min). */
 function NowLine({
   dayStartMs,
   pxPerMin,
@@ -538,8 +538,8 @@ function NowLine({
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <View className="w-2 h-2 rounded-full bg-danger-500" />
-      <View className="flex-1 h-[2px] bg-danger-500" />
+      <View className="w-2 h-2 rounded-full bg-primary-500" />
+      <View className="flex-1 h-0.5 bg-primary-500" />
     </View>
   )
 }

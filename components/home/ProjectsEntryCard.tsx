@@ -4,7 +4,8 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { useProjectStore } from "@/store/projectStore";
-import { shadows, iconSizes } from "@/utils/design-tokens";
+import { iconSizes } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 /**
  * ProjectsEntryCard — the Home entry into the Projects hub (doc 10).
@@ -12,8 +13,8 @@ import { shadows, iconSizes } from "@/utils/design-tokens";
  * Projects are the larger, knowledge + chat + progress layer above single
  * tasks; they used to hide behind a small pill in the Tasks header. This lifts
  * them into a prominent, always-present Home row so they are easy to find. The
- * accent color (#7C3AED) is reserved app-wide for Projects, so it is the one
- * place it belongs.
+ * accent color (AI/smart/Projects only, docs/02 §13.1) is reserved app-wide
+ * for Projects here, so it is the one place it belongs.
  *
  * Reads a stable scalar (the project count) so it never returns a fresh
  * array/object from the store (Zustand v5 selector rule) — no useShallow
@@ -21,6 +22,7 @@ import { shadows, iconSizes } from "@/utils/design-tokens";
  * teaching line when they do not. Purely additive; it never mutates state.
  */
 export function ProjectsEntryCard() {
+  const theme = useThemeColors();
   // Primitive count -> stable by value, safe as a raw selector (no loop).
   const projectCount = useProjectStore((s) => Object.keys(s.projects).length);
 
@@ -42,13 +44,10 @@ export function ProjectsEntryCard() {
       accessibilityLabel={a11yLabel}
       accessibilityHint="Opens your projects, which plan and track larger work"
     >
-      <View
-        className="flex-row items-center rounded-2xl border border-neutral-200 bg-white p-4"
-        style={shadows.sm}
-      >
+      <View className="flex-row items-center rounded-2xl border border-neutral-200 bg-white p-4">
         {/* Accent tile — the one place accent is used (Projects). */}
         <View className="h-11 w-11 items-center justify-center rounded-xl bg-accent-100">
-          <Ionicons name="rocket-outline" size={22} color="#7C3AED" />
+          <Ionicons name="rocket-outline" size={22} color={theme.accent} />
         </View>
 
         <View className="ml-3.5 flex-1">
@@ -63,7 +62,7 @@ export function ProjectsEntryCard() {
         <Ionicons
           name="chevron-forward"
           size={iconSizes.sm}
-          color="#A8A29A"
+          color={theme.textMuted}
         />
       </View>
     </PressableScale>

@@ -6,7 +6,7 @@ import { useTaskStore } from "@/store/taskStore";
 import { useScheduleStore, selectAllCalEvents } from "@/store/scheduleStore";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
-import { colors, shadows } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { getBlockingEventFix } from "./blockingEvent";
 import { SOURCE_LABEL } from "@/components/calendar/EventActionSheet";
 import type { CalEvent, SchedulingHours, Task } from "@/types";
@@ -74,6 +74,7 @@ export interface UnschedulableFixSheetProps {
  * the second run a no-op).
  */
 export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixSheetProps) {
+  const theme = useThemeColors();
   const updateTask = useTaskStore((s) => s.updateTask);
   const completeTask = useTaskStore((s) => s.completeTask);
   const recompute = useScheduleStore((s) => s.recompute);
@@ -236,13 +237,13 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
       >
-        <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+        <Pressable className="bg-neutral-100 rounded-t-3xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
           <View className="items-center mb-4">
             <View className="w-10 h-1 rounded-full bg-neutral-200" />
           </View>
 
           <View className="flex-row items-center gap-2">
-            <Ionicons name="alert-circle-outline" size={18} color="#C2410C" />
+            <Ionicons name="alert-circle-outline" size={18} color={theme.dangerStrong} />
             <Heading size="h3">Couldn&apos;t schedule</Heading>
           </View>
           {task && (
@@ -270,7 +271,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
                       key={fix.key}
                       title={fix.label}
                       variant="secondary"
-                      icon={<Ionicons name={fix.icon} size={16} color="#2563EB" />}
+                      icon={<Ionicons name={fix.icon} size={16} color={theme.primary} />}
                       onPress={fix.onPress}
                       accessibilityLabel={fix.label}
                       accessibilityHint={fix.hint}
@@ -288,7 +289,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
                     <Button
                       title="Remove the blocking event"
                       variant="secondary"
-                      icon={<Ionicons name="trash-outline" size={16} color={colors.light.dangerStrong} />}
+                      icon={<Ionicons name="trash-outline" size={16} color={theme.dangerStrong} />}
                       onPress={() => setConfirmDeleteEvent(blockingFix.event)}
                       accessibilityLabel="Remove the blocking event"
                       accessibilityHint={`Asks you to confirm, then deletes "${blockingFix.event.title}" from your calendar`}
@@ -297,10 +298,9 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
                 ) : (
                   <View
                     className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 mb-2"
-                    style={shadows.xs}
                     accessibilityLabel={`"${blockingFix.event.title}" is on your ${SOURCE_LABEL[blockingFix.event.source]} calendar and is in the way. Edit or remove it there to free this time.`}
                   >
-                    <Ionicons name="link-outline" size={20} color={colors.light.textMuted} style={{ marginTop: 1 }} />
+                    <Ionicons name="link-outline" size={20} color={theme.textMuted} style={{ marginTop: 1 }} />
                     <Text className="flex-1 text-body text-neutral-600">
                       &quot;{blockingFix.event.title}&quot; on your {SOURCE_LABEL[blockingFix.event.source]}{" "}
                       calendar is in the way. Ampora only reads it — edit or remove it there to free this
@@ -342,13 +342,11 @@ function DeleteEventConfirm({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const theme = useThemeColors();
   return (
     <View>
-      <View
-        className="flex-row items-start gap-3 rounded-xl border border-danger-100 bg-danger-100/50 px-4 py-3 mb-4"
-        style={shadows.xs}
-      >
-        <Ionicons name="warning-outline" size={20} color={colors.light.dangerStrong} style={{ marginTop: 1 }} />
+      <View className="flex-row items-start gap-3 rounded-xl border border-danger-100 bg-danger-100/50 px-4 py-3 mb-4">
+        <Ionicons name="warning-outline" size={20} color={theme.dangerStrong} style={{ marginTop: 1 }} />
         <View className="flex-1">
           <Text className="text-body font-semibold text-neutral-900">
             Delete &quot;{event.title}&quot;?

@@ -37,6 +37,7 @@ import {
 } from '@/store/scheduleStore'
 import { useTaskStore } from '@/store/taskStore'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { EASINGS, DURATIONS, SPRINGS } from '@/utils/motion'
 import { shadows, tabularNums } from '@/utils/design-tokens'
 import { TimeGrid } from './TimeGrid'
@@ -219,6 +220,7 @@ function DraggableBlock({
   scrollController?: GridScrollController
 }) {
   const reduceMotion = useReduceMotion()
+  const theme = useThemeColors()
 
   const item = laid.item
   const block = item.kind === 'task' ? item.block : undefined
@@ -803,11 +805,17 @@ function DraggableBlock({
           >
             <View
               className="flex-row items-center rounded-full bg-neutral-900 px-3 py-1"
-              style={shadows.sm}
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
             >
-              <Text style={tabularNums} className="text-caption font-semibold text-white">
+              {/* Deliberately inverted from `neutral-900`/canvas rather than a
+                  plain surface pairing: this floating pill needs to pop
+                  against the block underneath it in EITHER theme, so it
+                  always reads as the opposite extreme of the canvas (a
+                  near-white chip in dark mode, a near-black one in light
+                  mode) — not a flat "card + primary text" pairing, which
+                  would go bg #F2F2F7 + text #F2F2F7 (invisible) in dark. */}
+              <Text style={tabularNums} className="text-caption font-semibold text-canvas">
                 {pillLabel}
               </Text>
             </View>

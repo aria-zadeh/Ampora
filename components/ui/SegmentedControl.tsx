@@ -1,7 +1,6 @@
 import React, { useCallback } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import * as Haptics from "expo-haptics";
-import { shadows, colors } from "@/utils/design-tokens";
 
 interface Segment {
   key: string;
@@ -32,7 +31,7 @@ export function SegmentedControl({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      className="bg-neutral-100 rounded-full self-start"
+      className="bg-canvas border border-line rounded-full self-start"
       contentContainerClassName="p-1"
     >
       <View className="flex-row gap-1">
@@ -45,8 +44,7 @@ export function SegmentedControl({
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               accessibilityLabel={segment.label}
-              className="rounded-full px-4 py-1.5"
-              style={active ? [{ backgroundColor: colors.light.card }, shadows.xs] : undefined}
+              className={`rounded-full px-4 py-1.5 ${active ? "bg-surface" : ""}`}
             >
               <Text
                 className={

@@ -17,9 +17,10 @@ import { useScheduleStore, selectBlocksByDay } from "@/store/scheduleStore";
 import { useTaskStore } from "@/store/taskStore";
 import { useProjectStore } from "@/store/projectStore";
 import { nextStep } from "@/core/task-logic";
-import { colors, iconSizes } from "@/utils/design-tokens";
+import { iconSizes } from "@/utils/design-tokens";
 import { EASINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { ScheduledBlock, Task } from "@/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -58,6 +59,7 @@ function starterLine(task: Task): string | null {
  * Reduce-motion renders a static moon + halo at rest, no animation.
  */
 function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
+  const theme = useThemeColors();
   const breathe = useSharedValue(0);
 
   useEffect(() => {
@@ -102,12 +104,12 @@ function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
             width: iconSizes.lg + 20,
             height: iconSizes.lg + 20,
             borderRadius: (iconSizes.lg + 20) / 2,
-            backgroundColor: colors.light.primary,
+            backgroundColor: theme.primary,
           },
         ]}
       />
       <Animated.View style={moonStyle}>
-        <Ionicons name="moon-outline" size={iconSizes.lg} color={colors.light.primary} />
+        <Ionicons name="moon-outline" size={iconSizes.lg} color={theme.primary} />
       </Animated.View>
     </View>
   );
@@ -129,6 +131,7 @@ function MoonPhase({ reduceMotion }: { reduceMotion: boolean }) {
  */
 export function TomorrowPlanCard() {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   // Tomorrow's local-day window. Recomputed from `Date.now()` each render; the
   // Home screen re-mounts often enough that this stays fresh without a timer.
@@ -187,7 +190,7 @@ export function TomorrowPlanCard() {
       >
         <View className="flex-row items-center justify-between">
           <View className="flex-1 pr-3">
-            <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+            <Text className="text-overline font-semibold uppercase text-primary-600">
               Ready for tomorrow
             </Text>
             <Text className="mt-1.5 text-body-lg font-medium text-neutral-900">
@@ -230,14 +233,14 @@ export function TomorrowPlanCard() {
     >
       {/* Header: overline + session count. */}
       <View className="flex-row items-center justify-between">
-        <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+        <Text className="text-overline font-semibold uppercase text-primary-600">
           Ready for tomorrow
         </Text>
         <View className="flex-row items-center">
           <Ionicons
             name="calendar-outline"
             size={iconSizes.xs}
-            color={colors.light.textMuted}
+            color={theme.textMuted}
           />
           <Text className="ml-1 text-caption font-medium text-neutral-500">
             {sessionLabel}
@@ -274,9 +277,9 @@ export function TomorrowPlanCard() {
           start. Only shown when the task actually surfaces one. */}
       {firstStep ? (
         <View className="mt-3 flex-row items-center rounded-lg bg-primary-50 px-3 py-2.5">
-          <Ionicons name="flag-outline" size={iconSizes.xs} color={colors.light.primary} />
+          <Ionicons name="flag-outline" size={iconSizes.xs} color={theme.primary} />
           <View className="ml-2 flex-1">
-            <Text className="text-tiny font-semibold uppercase tracking-wide text-primary-600">
+            <Text className="text-tiny font-semibold uppercase text-primary-600">
               First move
             </Text>
             <Text
@@ -297,7 +300,7 @@ export function TomorrowPlanCard() {
         <Ionicons
           name="chevron-forward"
           size={iconSizes.xs}
-          color={colors.light.primary}
+          color={theme.primary}
         />
       </View>
     </Card>

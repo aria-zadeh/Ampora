@@ -10,7 +10,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { borderRadius } from "@/utils/design-tokens";
+import { DURATIONS } from "@/utils/motion";
 
 interface SkeletonLoaderProps {
   width?: DimensionValue;
@@ -20,18 +22,15 @@ interface SkeletonLoaderProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const SHIMMER_DURATION = 1200;
+// No ambient/looping duration exists in DURATIONS (it only covers discrete
+// interaction feedback up to 400ms) — derived from the shared scale instead
+// of a bare literal. slower(400) * 3 reproduces the previously-tuned 1200ms.
+const SHIMMER_DURATION = DURATIONS.slower * 3;
 const HIGHLIGHT_WIDTH = 120;
-// Transparent -> light highlight -> transparent, tuned for a neutral-200 base.
-const HIGHLIGHT_COLORS = [
-  "rgba(255,255,255,0)",
-  "rgba(255,255,255,0.55)",
-  "rgba(255,255,255,0)",
-] as const;
 
 /**
- * Shimmer placeholder box. A neutral-200 surface with a light highlight sweeping
- * left-to-right on a 1200ms linear loop. Respects reduce-motion (static box).
+ * Shimmer placeholder box. A neutral-200 surface with a highlight sweeping
+ * left-to-right on a linear loop. Respects reduce-motion (static box).
  */
 export function SkeletonLoader({
   width = "100%",
@@ -40,8 +39,20 @@ export function SkeletonLoader({
   style,
 }: SkeletonLoaderProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const [boxWidth, setBoxWidth] = useState(0);
   const progress = useSharedValue(0);
+  // Transparent -> highlight -> transparent, in the theme's strongest ink
+  // token so the sweep reads clearly against the neutral-200 base in BOTH
+  // themes (previously a literal white, invisible-ish on a dark base).
+  // LinearGradient needs literal color strings, not a className, so this
+  // builds them from useThemeColors() with an appended alpha channel (8C =
+  // ~55%) rather than a hardcoded hex/rgba().
+  const highlightColors = [
+    `${theme.textStrong}00`,
+    `${theme.textStrong}8C`,
+    `${theme.textStrong}00`,
+  ] as const;
 
   useEffect(() => {
     if (reduceMotion || boxWidth === 0) return;
@@ -84,7 +95,7 @@ export function SkeletonLoader({
           ]}
         >
           <LinearGradient
-            colors={HIGHLIGHT_COLORS}
+            colors={highlightColors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={{ flex: 1 }}

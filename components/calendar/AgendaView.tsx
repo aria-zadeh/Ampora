@@ -14,9 +14,10 @@ import type { CalEvent, ScheduledBlock, Task } from '@/types'
 import { PressableScale } from '@/components/ui/PressableScale'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Text } from '@/components/ui/Text'
-import { colors, shadows, spacing, listColors, tabularNums, type ListColorName } from '@/utils/design-tokens'
+import { spacing, tabularNums, type ListColorName } from '@/utils/design-tokens'
 import { DURATIONS, staggerDelay } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useListColors, useThemeColors } from '@/hooks/useThemeColors'
 import { dayStart, formatClockTime } from './hours'
 
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -83,14 +84,18 @@ function remainingSteps(task: Task): number {
  * fallback-to-raw-hex when nothing matches) so a list reads the same color
  * here as everywhere else. Falls back to the neutral `slate` tone for rows
  * with no list (fixed events, list-less tasks).
+ *
+ * Takes the caller's resolved `useListColors()` map rather than reaching into
+ * the dark-pinned `listColors` export, so a list dot stays correct in light
+ * mode too.
  */
-function listDotColor(hex: string | undefined): string {
-  if (!hex) return listColors.slate.bar
+function listDotColor(hex: string | undefined, listColorsMap: ReturnType<typeof useListColors>): string {
+  if (!hex) return listColorsMap.slate.bar
   const upper = hex.toUpperCase()
-  const match = (Object.keys(listColors) as ListColorName[]).find(
-    (name) => listColors[name].bar.toUpperCase() === upper || listColors[name].text.toUpperCase() === upper
+  const match = (Object.keys(listColorsMap) as ListColorName[]).find(
+    (name) => listColorsMap[name].bar.toUpperCase() === upper || listColorsMap[name].text.toUpperCase() === upper
   )
-  return match ? listColors[match].bar : hex
+  return match ? listColorsMap[match].bar : hex
 }
 
 /**
@@ -328,7 +333,7 @@ function DayCard({
       <Text variant="overline" className="text-neutral-500 px-0.5 pb-1.5" style={tabularNums}>
         {section.label}
       </Text>
-      <View className="bg-white rounded-lg px-4 pt-0.5 pb-1" style={shadows.xs}>
+      <View className="bg-white rounded-lg px-4 pt-0.5 pb-1">
         {section.nodes.map((node, i) => {
           // Borderless when it's the day's first row, or when it immediately
           // follows the now-line (avoids a double divider directly under it).
@@ -369,11 +374,11 @@ function NowDivider({ time }: { time: number }) {
       accessibilityRole="text"
       accessibilityLabel={label}
     >
-      <View className="flex-1 h-[2px] rounded-full bg-primary-600" />
+      <View className="flex-1 h-0.5 rounded-full bg-primary-600" />
       <Text variant="captionMedium" className="text-primary-600" style={tabularNums}>
         {label}
       </Text>
-      <View className="flex-1 h-[2px] rounded-full bg-primary-600" />
+      <View className="flex-1 h-0.5 rounded-full bg-primary-600" />
     </View>
   )
 }
@@ -386,6 +391,7 @@ interface ChipData {
 
 /** A single sunken-pill chip, 13px/500, optionally leading with a small glyph. */
 function Chip({ label, icon, tone = 'neutral' }: ChipData) {
+  const theme = useThemeColors()
   const bg = tone === 'warning' ? 'bg-warning-100' : 'bg-neutral-100'
   const fg = tone === 'warning' ? 'text-warning-700' : 'text-neutral-600'
   return (
@@ -394,7 +400,7 @@ function Chip({ label, icon, tone = 'neutral' }: ChipData) {
         <Ionicons
           name={icon}
           size={11}
-          color={tone === 'warning' ? colors.light.warningStrong : colors.light.textSecondary}
+          color={tone === 'warning' ? theme.warningStrong : theme.textSecondary}
         />
       ) : null}
       <Text variant="captionMedium" className={fg}>
@@ -431,9 +437,10 @@ function TaskRow({
   listHex: string | undefined
   onPress?: (block: ScheduledBlock) => void
 }) {
+  const listColorsMap = useListColors()
   const steps = remainingSteps(task)
   const done = block.status === 'done'
-  const dotColor = useMemo(() => listDotColor(listHex), [listHex])
+  const dotColor = useMemo(() => listDotColor(listHex, listColorsMap), [listHex, listColorsMap])
   const timeLabel = useMemo(() => formatClockTime(block.start), [block.start])
 
   const chips: ChipData[] = []
@@ -516,6 +523,7 @@ function EventRow({
   first: boolean
   onPress?: (event: CalEvent) => void
 }) {
+  const listColorsMap = useListColors()
   const timeLabel = useMemo(
     () => (event.allDay ? '' : formatClockTime(event.start)),
     [event.allDay, event.start]
@@ -533,7 +541,7 @@ function EventRow({
         accessibilityHint="Opens details"
       >
         <View
-          style={{ backgroundColor: listColors.slate.bar }}
+          style={{ backgroundColor: listColorsMap.slate.bar }}
           className="w-2 h-2 rounded-full"
           accessibilityElementsHidden
           importantForAccessibility="no"

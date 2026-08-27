@@ -42,7 +42,8 @@ import { PressableScale } from "@/components/ui/PressableScale";
 import { useTopNavClearance } from "@/components/ui/SegmentedTabBar";
 import { useStakesStore } from "@/store/stakesStore";
 import { useSettingsStore } from "@/store/settingsStore";
-import { colors, iconSizes, shadows, tabularNums } from "@/utils/design-tokens";
+import { iconSizes, tabularNums } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { StakeSession } from "@/types";
 
 /** Routes that already show the lock in context. */
@@ -61,6 +62,7 @@ const TAB_PATHNAMES = new Set(["/", "/calendar", "/tasks", "/focus", "/profile"]
 const REFRESH_MS = 20_000;
 
 export function GlobalLockBanner() {
+  const theme = useThemeColors();
   const pathname = usePathname();
   const topNavClearance = useTopNavClearance();
   const insets = useSafeAreaInsets();
@@ -138,12 +140,12 @@ export function GlobalLockBanner() {
           right: 12,
         }}
       >
-        <View className="rounded-2xl bg-neutral-100" style={shadows.lg}>
+        <View className="rounded-2xl border border-line bg-neutral-100">
           <LockBanner session={session} onPanic={() => setPanicSession(session)} />
 
           <View className="flex-row items-center gap-3 px-4 pb-3 pt-2">
             <View className="flex-1 flex-row items-center gap-1.5">
-              <Ionicons name="time-outline" size={iconSizes.xs} color={colors.light.textSecondary} />
+              <Ionicons name="time-outline" size={iconSizes.xs} color={theme.textSecondary} />
               <Text className="flex-1 text-caption text-neutral-600" style={tabularNums}>
                 {line}
               </Text>
@@ -163,9 +165,9 @@ export function GlobalLockBanner() {
               <Ionicons
                 name="arrow-forward"
                 size={iconSizes.xs}
-                color={colors.light.primaryForeground}
+                color={theme.primaryForeground}
               />
-              <Text className="text-caption font-semibold text-white">Back to session</Text>
+              <Text className="text-caption font-semibold text-primary-foreground">Back to session</Text>
             </PressableScale>
           </View>
         </View>

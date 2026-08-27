@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View } from "react-native";
+import { Text } from "./Text";
 import { tabularNums } from "@/utils/design-tokens";
 
 interface TimerDisplayProps {
@@ -22,13 +23,14 @@ export function TimerDisplay({ seconds, running, label }: TimerDisplayProps) {
       accessibilityLabel={`${formatTime(seconds)} ${running ? "running" : "paused"}`}
     >
       {label && (
-        <Text className="text-caption text-neutral-500 mb-1">{label}</Text>
+        <Text variant="caption" className="text-neutral-500 mb-1">
+          {label}
+        </Text>
       )}
       <Text
-        className={`text-display font-bold ${
-          running ? "text-neutral-900" : "text-neutral-500"
-        }`}
-        style={{ fontSize: 56, lineHeight: 64, ...tabularNums }}
+        variant="display"
+        className={running ? undefined : "text-neutral-500"}
+        style={tabularNums}
       >
         {formatTime(seconds)}
       </Text>

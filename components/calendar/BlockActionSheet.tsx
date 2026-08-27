@@ -25,7 +25,8 @@
  *
  * RN + NativeWind, web-export safe. No native module imported (the custom-time
  * path uses the cross-platform DateTimePicker already in the design system).
- * Reuses the design system (Heading, PressableScale, Badge, shadows, motion).
+ * Reuses the design system (Heading, PressableScale, Badge, motion). The
+ * source design has no shadows — depth comes from the surface ladder instead.
  */
 
 import React, { useEffect, useMemo, useState } from 'react'
@@ -39,9 +40,9 @@ import { Heading } from '@/components/ui/Heading'
 import { PressableScale } from '@/components/ui/PressableScale'
 import { Button } from '@/components/ui/Button'
 import { DateTimePickerCrossPlatform } from '@/components/ui/DateTimePickerCrossPlatform'
-import { shadows } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { MS_PER_HOUR } from '@/core/calendar'
 import { formatBlockTimeRange, formatClockTime } from './hours'
 import type { ScheduledBlock, Task } from '@/types'
@@ -152,6 +153,7 @@ export function BlockActionSheet({
   now,
 }: BlockActionSheetProps) {
   const reduceMotion = useReduceMotion()
+  const theme = useThemeColors()
   const [pickingTime, setPickingTime] = useState(false)
   // Draft instant for the custom-time path (committed only via "Set time"), so
   // the date/time wheels can be adjusted without prematurely moving the block.
@@ -232,7 +234,6 @@ export function BlockActionSheet({
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
               className="rounded-t-3xl bg-neutral-100"
-              style={shadows.xl}
             >
               <SafeAreaView edges={['bottom']}>
                 {/* Grabber */}
@@ -252,11 +253,10 @@ export function BlockActionSheet({
                     onPress={onClose}
                     hitSlop={8}
                     className="h-9 w-9 items-center justify-center rounded-full bg-white"
-                    style={shadows.xs}
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#57534E" />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
@@ -270,11 +270,10 @@ export function BlockActionSheet({
                         onPress={() => handlePostpone(o.at)}
                         haptic={false}
                         className="flex-1 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-2 py-3"
-                        style={shadows.xs}
                         accessibilityRole="button"
                         accessibilityLabel={`Postpone to ${describeInstant(o.at, nowMs)}`}
                       >
-                        <Ionicons name={o.icon} size={18} color="#2563EB" />
+                        <Ionicons name={o.icon} size={18} color={theme.primary} />
                         <Text className="text-caption font-medium text-neutral-800" numberOfLines={1}>
                           {o.label}
                         </Text>
@@ -292,17 +291,16 @@ export function BlockActionSheet({
                     className={`mt-2 flex-row items-center gap-3 rounded-xl border px-4 py-3 ${
                       pickingTime ? 'border-primary-300 bg-primary-50' : 'border-neutral-200 bg-white'
                     }`}
-                    style={pickingTime ? undefined : shadows.xs}
                     accessibilityRole="button"
                     accessibilityLabel="Pick a specific time to postpone to"
                     accessibilityState={{ expanded: pickingTime }}
                   >
-                    <Ionicons name="time-outline" size={20} color="#2563EB" />
+                    <Ionicons name="time-outline" size={20} color={theme.primary} />
                     <Text className="flex-1 text-body font-medium text-neutral-800">Pick a time…</Text>
                     <Ionicons
                       name={pickingTime ? 'chevron-up' : 'chevron-down'}
                       size={18}
-                      color="#A8A29A"
+                      color={theme.textMuted}
                     />
                   </PressableScale>
 
@@ -310,7 +308,6 @@ export function BlockActionSheet({
                     <Animated.View
                       entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.fast)}
                       className="mt-2 rounded-xl border border-neutral-200 bg-white p-3"
-                      style={shadows.xs}
                     >
                       <View className="flex-row gap-2">
                         <View className="flex-1">
@@ -393,11 +390,14 @@ export function BlockActionSheet({
 
 type Tint = 'neutral' | 'primary' | 'success' | 'danger'
 
-const TINT_STYLES: Record<Tint, { icon: string; iconBg: string; text: string }> = {
-  neutral: { icon: '#44403C', iconBg: 'bg-neutral-100', text: 'text-neutral-900' },
-  primary: { icon: '#2563EB', iconBg: 'bg-primary-100', text: 'text-neutral-900' },
-  success: { icon: '#15803D', iconBg: 'bg-success-100', text: 'text-neutral-900' },
-  danger: { icon: '#DC2626', iconBg: 'bg-danger-100', text: 'text-danger-700' },
+/** Theme-driven tint lookup — icon colors resolve from `useThemeColors()` so every row stays correct in both themes. */
+function getTintStyles(theme: ReturnType<typeof useThemeColors>): Record<Tint, { icon: string; iconBg: string; text: string }> {
+  return {
+    neutral: { icon: theme.textSecondary, iconBg: 'bg-neutral-100', text: 'text-neutral-900' },
+    primary: { icon: theme.primary, iconBg: 'bg-primary-100', text: 'text-neutral-900' },
+    success: { icon: theme.success, iconBg: 'bg-success-100', text: 'text-neutral-900' },
+    danger: { icon: theme.danger, iconBg: 'bg-danger-100', text: 'text-danger-700' },
+  }
 }
 
 /**
@@ -423,7 +423,8 @@ export function ActionRow({
   active?: boolean
   tint?: Tint
 }) {
-  const t = TINT_STYLES[tint]
+  const theme = useThemeColors()
+  const t = getTintStyles(theme)[tint]
   return (
     <PressableScale
       onPress={disabled ? undefined : onPress}
@@ -436,7 +437,6 @@ export function ActionRow({
             ? 'border-primary-300 bg-primary-50'
             : 'border-neutral-200 bg-white'
       }`}
-      style={active ? undefined : shadows.xs}
       accessibilityRole={active != null ? 'switch' : 'button'}
       accessibilityLabel={blurb ? `${label}. ${blurb}` : label}
       accessibilityState={{ disabled, checked: active }}

@@ -23,9 +23,10 @@ import { FAB } from "@/components/ui/FAB";
 import { Heading } from "@/components/ui/Heading";
 import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors, shadows, iconSizes, tabularNums } from "@/utils/design-tokens";
+import { iconSizes, tabularNums } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task, ScheduledBlock, List } from "@/types";
 
 /** Time-of-day greeting. */
@@ -109,8 +110,7 @@ function UpNextRow({ row }: { row: UpNextRowData }) {
     <PressableScale
       onPress={() => router.push(`/task/${task.id}`)}
       haptic="light"
-      style={shadows.sm}
-      className="min-h-11 flex-row items-center gap-3 rounded-lg bg-white px-4 py-3"
+      className="min-h-11 flex-row items-center gap-3 rounded-lg border border-line bg-white px-4 py-3"
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
       accessibilityHint="Opens this task"
@@ -140,6 +140,7 @@ function UpNextRow({ row }: { row: UpNextRowData }) {
 
 export default function HomeScreen() {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   const tasks = useTaskStore((s) => s.tasks);
   const lists = useListStore((s) => s.lists);
@@ -283,7 +284,7 @@ export default function HomeScreen() {
                 <Ionicons
                   name="sparkles-outline"
                   size={iconSizes.xs}
-                  color={colors.light.primary}
+                  color={theme.primary}
                 />
                 <Text variant="captionMedium" className="text-primary-600">
                   Rebuild

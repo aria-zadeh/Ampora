@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { shadows, colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task } from "@/types";
 
 /**
@@ -59,6 +59,7 @@ interface UrgentStripProps {
 }
 
 export function UrgentStrip({ task, nowMs }: UrgentStripProps) {
+  const theme = useThemeColors();
   const urgencyLabel = useMemo(
     () => formatUrgency(task.due as number, nowMs),
     [task.due, nowMs]
@@ -70,18 +71,17 @@ export function UrgentStrip({ task, nowMs }: UrgentStripProps) {
     <PressableScale
       onPress={() => router.push(`/task/${task.id}`)}
       haptic="light"
-      className="min-h-11 flex-row items-center gap-2.5 rounded-lg bg-white px-4 py-3"
-      style={shadows.sm}
+      className="min-h-11 flex-row items-center gap-2.5 rounded-lg border border-line bg-white px-4 py-3"
       accessibilityRole="button"
       accessibilityLabel={`${task.title}, ${urgencyLabel}`}
       accessibilityHint="Opens this task"
     >
-      {/* Dot in a tinted ring. The ring is a solid warning-100 circle rather */}
+      {/* Dot in a tinted ring. The ring is a solid danger-100 circle rather */}
       {/* than an alpha shadow so nothing here needs a raw rgba literal. */}
-      <View className="h-3.5 w-3.5 items-center justify-center rounded-full bg-warning-100">
+      <View className="h-3.5 w-3.5 items-center justify-center rounded-full bg-danger-100">
         <View
           className="h-2 w-2 rounded-full"
-          style={{ backgroundColor: colors.light.warningAccent }}
+          style={{ backgroundColor: theme.danger }}
         />
       </View>
       <Text className="flex-1 text-body font-semibold text-neutral-900" numberOfLines={2}>

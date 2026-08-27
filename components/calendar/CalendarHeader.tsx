@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics'
 import { Heading } from '@/components/ui/Heading'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { PressableScale } from '@/components/ui/PressableScale'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { dayStart, isSameDay } from './hours'
 
 /** The five calendar views (PRD FR-23). `3day` is the phone default. */
@@ -144,6 +145,7 @@ function NavButton({
   label: string
   onPress: () => void
 }) {
+  const theme = useThemeColors()
   return (
     <PressableScale
       onPress={onPress}
@@ -152,7 +154,7 @@ function NavButton({
       accessibilityLabel={label}
       className="w-9 h-9 rounded-full items-center justify-center bg-white border border-neutral-200"
     >
-      <Ionicons name={icon} size={18} color="#44403C" />
+      <Ionicons name={icon} size={18} color={theme.textSecondary} />
     </PressableScale>
   )
 }

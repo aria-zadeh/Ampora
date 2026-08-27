@@ -13,8 +13,9 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { EASINGS } from "@/utils/motion";
-import { colors, motion, shadows } from "@/utils/design-tokens";
+import { motion } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 type ButtonVariant =
   | "primary"
@@ -33,17 +34,25 @@ interface ButtonProps extends Omit<PressableProps, "children" | "style"> {
   icon?: React.ReactNode;
 }
 
+/**
+ * Filled variants all share the same foreground: `text-primary-foreground`
+ * resolves to dark ink in dark theme / white in light theme, whichever
+ * clears 4.5:1 on that theme's fill (docs/09_Decisions.md). A literal
+ * `text-white` label reads fine in light theme but fails contrast on every
+ * filled dark-theme surface (2.8-3:1 on the accent, ~2:1 on success-700),
+ * so it is never correct here even though it looks fine at a glance.
+ */
 const variantClasses: Record<ButtonVariant, { base: string; text: string }> = {
   primary: {
-    base: "bg-neutral-900",
-    text: "text-white",
+    base: "bg-primary-600",
+    text: "text-primary-foreground",
   },
   primaryBlue: {
     base: "bg-primary-600",
-    text: "text-white",
+    text: "text-primary-foreground",
   },
   secondary: {
-    base: "bg-white border border-neutral-200",
+    base: "bg-surface border border-line",
     text: "text-neutral-900",
   },
   ghost: {
@@ -52,28 +61,27 @@ const variantClasses: Record<ButtonVariant, { base: string; text: string }> = {
   },
   destructive: {
     base: "bg-danger-600",
-    text: "text-white",
+    text: "text-primary-foreground",
   },
   success: {
     base: "bg-success-700",
-    text: "text-white",
+    text: "text-primary-foreground",
   },
 };
 
+// NOTE: 52px (the "lg" measured height) has no matching step on the
+// Tailwind spacing scale (it jumps 48 -> 56, i.e. min-h-12 -> min-h-14).
+// tailwind.config.js is outside this pass's scope (components/ui only), so
+// this rounds up to the nearest real scale step rather than reintroducing
+// an arbitrary bracket value. Recommend adding `spacing["13"] = "52px"` to
+// tailwind.config.js centrally, then switching this to `min-h-13`.
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "min-h-[36px] px-4",
-  md: "min-h-[44px] px-5",
-  lg: "min-h-[52px] px-6",
+  sm: "min-h-9 px-4",
+  md: "min-h-11 px-5",
+  lg: "min-h-14 px-6",
 };
 
-const LIGHT_TEXT_VARIANTS: ButtonVariant[] = [
-  "primary",
-  "primaryBlue",
-  "destructive",
-  "success",
-];
-
-/** Filled variants get a subtle lift; secondary/ghost stay flat. */
+/** Filled variants get a subtle lift; secondary/ghost stay flat. Also which variants need the theme-correct foreground on their icon/spinner. */
 const FILLED_VARIANTS: ButtonVariant[] = [
   "primary",
   "primaryBlue",
@@ -91,12 +99,17 @@ export function Button({
   onPress,
   onPressIn,
   onPressOut,
+  hitSlop,
   ...props
 }: ButtonProps) {
+  const theme = useThemeColors();
   const styles = variantClasses[variant];
   const isDisabled = disabled || loading;
-  const usesLightText = LIGHT_TEXT_VARIANTS.includes(variant);
   const isFilled = FILLED_VARIANTS.includes(variant);
+  // "sm" renders at 36px, 8px short of the 44px touch-target floor — widen
+  // the hit area rather than the visible pill. Callers that pass their own
+  // hitSlop keep it.
+  const resolvedHitSlop = hitSlop ?? (size === "sm" ? { top: 4, bottom: 4 } : undefined);
 
   const reduceMotion = useReduceMotion();
   const scale = useSharedValue(1);
@@ -159,6 +172,7 @@ export function Button({
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      hitSlop={resolvedHitSlop}
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       accessibilityLabel={props.accessibilityLabel || title}
@@ -167,12 +181,12 @@ export function Button({
           className interop applies (it does not apply to createAnimatedComponent
           wrappers). The Pressable above is the touch target. */}
       <Animated.View
-        className={`flex-row items-center justify-center rounded-[14px] ${sizeClasses[size]} ${styles.base} ${isDisabled ? "opacity-50" : ""}`}
-        style={[isFilled ? shadows.xs : null, animatedStyle]}
+        className={`flex-row items-center justify-center rounded-lg ${sizeClasses[size]} ${styles.base} ${isDisabled ? "opacity-50" : ""}`}
+        style={animatedStyle}
       >
         {loading ? (
           <ActivityIndicator
-            color={usesLightText ? colors.light.primaryForeground : colors.light.text}
+            color={isFilled ? theme.primaryForeground : theme.text}
             className="mr-2"
           />
         ) : icon ? (

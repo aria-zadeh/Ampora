@@ -42,6 +42,7 @@ import { PressableScale } from "@/components/ui/PressableScale";
 import { DURATIONS, SPRINGS, staggerDelay } from "@/utils/motion";
 import { listColors } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -166,6 +167,7 @@ function dueRangeFromDays(days: number): { start: number; end: number } {
 
 export default function TasksScreen() {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   // Only stagger-animate rows on the first paint; scrolling a recycled
   // FlashList cell should not re-fire the entrance (ADHD: no jarring motion).
@@ -700,7 +702,7 @@ export default function TasksScreen() {
           accessibilityLabel="Projects"
           accessibilityHint="Opens your projects, which plan and track larger work"
         >
-          <Ionicons name="rocket-outline" size={16} color="#7C3AED" />
+          <Ionicons name="rocket-outline" size={16} color={theme.accentStrong} />
           <Text className="text-caption font-semibold text-accent-700 ml-1.5">Projects</Text>
         </Pressable>
       </View>
@@ -743,7 +745,7 @@ export default function TasksScreen() {
             accessibilityLabel="Brain dump"
             accessibilityHint="Speak your tasks out loud instead of typing them"
           >
-            <Ionicons name="mic-outline" size={20} color="#2563EB" />
+            <Ionicons name="mic-outline" size={20} color={theme.primary} />
           </Pressable>
         </View>
 
@@ -821,18 +823,20 @@ export default function TasksScreen() {
           {missedTaskIds.length > 0 && (
             <Chip
               label="Missed"
-              color="#EA580C"
+              color={theme.warning}
               selected={missedFilter}
               onPress={() => setMissedFilter((m) => !m)}
             />
           )}
           {/* At risk (FR-20) — same conditional-visibility pattern as Missed
               above: only shown once the engine has actually flagged
-              something, never an always-there empty affordance. */}
+              something, never an always-there empty affordance. Danger-toned
+              (not warning) to match `AtRiskPill` below — both are the same
+              "engine could not place this" signal. */}
           {unschedulableByTaskId.size > 0 && (
             <Chip
               label="At risk"
-              color="#EA580C"
+              color={theme.danger}
               selected={atRiskFilter}
               onPress={() => setAtRiskFilter((v) => !v)}
             />
@@ -906,7 +910,7 @@ export default function TasksScreen() {
               }`}
               accessibilityHint="Edit this list's name, color, and scheduling hours"
             >
-              <Ionicons name="create-outline" size={15} color="#2563EB" />
+              <Ionicons name="create-outline" size={15} color={theme.primary} />
               <Text className="text-caption font-medium text-primary-600">
                 Edit list
               </Text>
@@ -917,7 +921,7 @@ export default function TasksScreen() {
 
       {/* Sort control */}
       <View className="px-5 mt-4 flex-row items-center gap-3">
-        <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide">
+        <Text className="text-overline font-semibold text-neutral-500 uppercase">
           Sort
         </Text>
         <View className="flex-1">
@@ -1025,6 +1029,7 @@ export default function TasksScreen() {
 
 function ChevronSpring({ collapsed }: { collapsed: boolean }) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const rotation = useSharedValue(collapsed ? 0 : 90);
 
   useEffect(() => {
@@ -1038,7 +1043,7 @@ function ChevronSpring({ collapsed }: { collapsed: boolean }) {
 
   return (
     <Animated.View style={[{ marginRight: 6 }, style]}>
-      <Ionicons name="chevron-forward" size={18} color="#6F6862" />
+      <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
     </Animated.View>
   );
 }
@@ -1047,9 +1052,9 @@ function ChevronSpring({ collapsed }: { collapsed: boolean }) {
 // At-risk pill (FR-20) — flags a task the engine could not place, with the
 // engine's own calm reason as the accessibility label so a screen-reader
 // user gets the full explanation without needing to open the sheet. Kept
-// deliberately small and non-alarming: icon + short label, warning (not
-// danger) tone, no red — this is the app explaining itself, not the user
-// having failed at anything.
+// deliberately small and non-alarming: icon + short label, danger tone
+// (docs/02 §13.1: danger covers "at-risk" as well as destructive) — this is
+// the app explaining itself, not the user having failed at anything.
 // ---------------------------------------------------------------------------
 
 function AtRiskPill({
@@ -1061,16 +1066,17 @@ function AtRiskPill({
   info: Unschedulable;
   onPress: () => void;
 }) {
+  const theme = useThemeColors();
   return (
     <PressableScale
       onPress={onPress}
       haptic="light"
-      className="mt-1.5 self-start flex-row items-center gap-1.5 rounded-full bg-warning-100 pl-2.5 pr-3 min-h-11"
+      className="mt-1.5 self-start flex-row items-center gap-1.5 rounded-full bg-danger-100 pl-2.5 pr-3 min-h-11"
       accessibilityRole="button"
       accessibilityLabel={`Couldn't schedule: ${task.title}. ${info.reason}`}
       accessibilityHint="Opens ways to fix this so it can be scheduled"
     >
-      <Ionicons name="alert-circle-outline" size={16} color="#C2410C" />
+      <Ionicons name="alert-circle-outline" size={16} color={theme.dangerStrong} />
       <Text className="text-caption font-medium text-warning-700">Couldn&apos;t schedule — fix it</Text>
     </PressableScale>
   );
@@ -1124,6 +1130,7 @@ function TaskRowImpl({
   atRisk,
   onAtRisk,
 }: TaskRowProps) {
+  const theme = useThemeColors();
   const swipeRef = useRef<Swipeable>(null);
   const isDone = task.status === "done";
 
@@ -1175,13 +1182,13 @@ function TaskRowImpl({
             accessibilityRole="button"
             accessibilityLabel="Mark task done"
           >
-            <Ionicons name="checkmark" size={24} color="#FFFFFF" />
-            <Text className="text-tiny text-white mt-1">Done</Text>
+            <Ionicons name="checkmark" size={24} color={theme.primaryForeground} />
+            <Text className="text-tiny text-primary-foreground mt-1">Done</Text>
           </Pressable>
         </RNAnimated.View>
       );
     },
-    [isDone, handleCompleteSwipe],
+    [isDone, handleCompleteSwipe, theme],
   );
 
   // Left-swipe = Schedule (Inbox rows) or Schedule-tomorrow (dated rows), plus
@@ -1242,8 +1249,8 @@ function TaskRowImpl({
               accessibilityRole="button"
               accessibilityLabel={isInbox ? "Schedule task" : "Schedule tomorrow"}
             >
-              <Ionicons name={isInbox ? "calendar-outline" : "sunny-outline"} size={20} color="#FFFFFF" />
-              <Text className="text-tiny text-white mt-1">{isInbox ? "Schedule" : "Tomorrow"}</Text>
+              <Ionicons name={isInbox ? "calendar-outline" : "sunny-outline"} size={20} color={theme.primaryForeground} />
+              <Text className="text-tiny text-primary-foreground mt-1">{isInbox ? "Schedule" : "Tomorrow"}</Text>
             </Pressable>
           </RNAnimated.View>
           <RNAnimated.View
@@ -1260,14 +1267,14 @@ function TaskRowImpl({
               accessibilityRole="button"
               accessibilityLabel="Delete task"
             >
-              <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-              <Text className="text-tiny text-white mt-1">Delete</Text>
+              <Ionicons name="trash-outline" size={20} color={theme.primaryForeground} />
+              <Text className="text-tiny text-primary-foreground mt-1">Delete</Text>
             </Pressable>
           </RNAnimated.View>
         </View>
       );
     },
-    [close, onDelete, onSchedule, onScheduleTomorrow, task, isInbox],
+    [close, onDelete, onSchedule, onScheduleTomorrow, task, isInbox, theme],
   );
 
   // Reset the armed tracker whenever the row closes, so the NEXT open swipe
@@ -1359,6 +1366,7 @@ function DraggableTaskCardImpl({
   onToggle,
 }: DraggableTaskCardProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const translateY = useSharedValue(0);
   const dragging = useSharedValue(0);
 
@@ -1520,7 +1528,7 @@ function DraggableTaskCardImpl({
               onAccessibilityAction={handleAccessibilityAction}
               accessibilityValue={accessibilityValue}
             >
-              <Ionicons name="reorder-three-outline" size={22} color="#A8A29A" />
+              <Ionicons name="reorder-three-outline" size={22} color={theme.textMuted} />
             </Animated.View>
           </GestureDetector>
         }
@@ -1575,7 +1583,7 @@ function DueRangeModal({ visible, activeLabel, onClose, onSelect, onClear }: Due
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
       >
-        <Pressable className="bg-white rounded-t-2xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+        <Pressable className="bg-neutral-100 rounded-t-3xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
           <View className="items-center mb-4">
             <View className="w-10 h-1 rounded-full bg-neutral-200" />
           </View>
@@ -1636,7 +1644,7 @@ function ScheduleModal({ task, onClose, onSave }: ScheduleModalProps) {
         accessibilityLabel="Dismiss"
       >
         <Pressable
-          className="bg-white rounded-t-2xl p-5 pb-8"
+          className="bg-neutral-100 rounded-t-3xl p-5 pb-8"
           onPress={(e) => e.stopPropagation()}
         >
           <View className="items-center mb-4">
@@ -1649,7 +1657,7 @@ function ScheduleModal({ task, onClose, onSave }: ScheduleModalProps) {
             </Text>
           )}
 
-          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2.5">
+          <Text className="text-overline font-semibold text-neutral-500 uppercase mb-2.5">
             Duration
           </Text>
           <View className="flex-row flex-wrap gap-2 mb-6">
@@ -1663,7 +1671,7 @@ function ScheduleModal({ task, onClose, onSave }: ScheduleModalProps) {
             ))}
           </View>
 
-          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2.5">
+          <Text className="text-overline font-semibold text-neutral-500 uppercase mb-2.5">
             Due
           </Text>
           <View className="flex-row flex-wrap gap-2 mb-7">

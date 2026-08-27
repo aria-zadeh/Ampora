@@ -10,10 +10,12 @@ interface FeatureShellProps {
 
 /**
  * The nested "feature card" treatment (doc 02 v3 "Calm Premium"): a subtle
- * double-bezel — an outer hairline-ringed wrapper with a faint black wash,
- * around an inner white surface with its own smaller radius and a 1px
- * top inner-highlight. Presentational only (a View, not pressable) — wrap
- * a `<Card>`/`<PressableScale>` or plain content inside it for interaction.
+ * double-bezel built entirely from the flat surface ladder — an outer
+ * hairline-ringed frame one wash above canvas, around an inner card surface
+ * that pops forward. No shadow and no highlight trick (the source design has
+ * neither); the two flat surface steps plus the border carry the depth.
+ * Presentational only (a View, not pressable) — wrap a `<Card>`/
+ * `<PressableScale>` or plain content inside it for interaction.
  *
  * RESTRAINT IS THE POINT: reserve this for the 3-4 true focal cards in the
  * app (Home starter/first-move card, paywall plan cards, project
@@ -23,10 +25,10 @@ interface FeatureShellProps {
 export function FeatureShell({ children, className = "", style }: FeatureShellProps) {
   return (
     <View
-      className={`bg-black/[0.02] border border-black/[0.06] rounded-2xl p-1 ${className}`.trim()}
+      className={`bg-surface-ghost border border-line rounded-2xl p-1 ${className}`.trim()}
       style={style}
     >
-      <View className="bg-white rounded-xl border-t border-white overflow-hidden">
+      <View className="bg-surface rounded-xl overflow-hidden">
         {children}
       </View>
     </View>

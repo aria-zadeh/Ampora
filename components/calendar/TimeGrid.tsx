@@ -86,9 +86,11 @@ function NowLine({
       importantForAccessibility="no-hide-descendants"
     >
       <View className="flex-row items-center">
-        {/* Dot at the gutter edge, then a hairline across the day. */}
-        <View className="w-2.5 h-2.5 rounded-full bg-danger-500" />
-        <View className="flex-1 h-[2px] bg-danger-500 rounded-full" />
+        {/* Dot at the gutter edge, then a hairline across the day. Primary,
+            not danger — the "now" line marks the present moment, not a
+            warning (doc 02 §14.7 blue/green ruling). */}
+        <View className="w-2.5 h-2.5 rounded-full bg-primary-500" />
+        <View className="flex-1 h-0.5 bg-primary-500 rounded-full" />
       </View>
     </View>
   )
@@ -187,7 +189,7 @@ export function TimeGrid({
                       {hour === 0 ? '' : hourLabel(hour)}
                     </Text>
                   </View>
-                  <View className="flex-1 h-[1px] bg-neutral-200" />
+                  <View className="flex-1 h-px bg-line" />
                 </View>
               </View>
             )

@@ -146,12 +146,26 @@ module.exports = {
       },
 
       spacing: {
+        // 3px hairline (a mini progress-fill bar thickness) — not on the
+        // default Tailwind scale (which has 0.5 = 2px, 1 = 4px), added here
+        // per the "add it to the scale, don't inline it" rule.
+        0.75: "3px",
         18: "72px", // [E] measured card height
         21: "84px", // [E] measured card pitch (72 + 12)
         22: "88px",
         // Kept so existing `mt-group` call sites resolve. The measured
         // rhythm is 12 (`gap-3`) within a stack and 24 between sections.
         group: "16px",
+      },
+
+      // Off-grid reading-width caps that appeared as arbitrary `max-w-[Npx]`
+      // brackets during the screen migration (contract rule 2: add the exact
+      // measured value here instead of inlining it). Same numeric-key-as-px
+      // convention as `spacing` above.
+      maxWidth: {
+        260: "260px",
+        280: "280px",
+        300: "300px",
       },
 
       // Letter-spacing measured EXACTLY 0 on all 241 text runs across the

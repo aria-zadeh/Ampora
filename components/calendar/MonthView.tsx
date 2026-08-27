@@ -9,9 +9,9 @@ import { slackColor } from '@/core/scheduler'
 import type { SlackColor } from '@/core/scheduler'
 import type { ScheduledBlock } from '@/types'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { colors } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { dayStart, isSameDay } from './hours'
 
 const MS_PER_DAY = 86_400_000
@@ -185,6 +185,7 @@ function sortSlacks(slacks: SlackColor[]): SlackColor[] {
 }
 
 function DayCellView({ cell, onPress }: { cell: DayCell; onPress?: () => void }) {
+  const theme = useThemeColors()
   const { dayNum, inMonth, isToday, slacks, eventCount } = cell
   const shown = slacks.slice(0, MAX_DOTS)
   const overflow = slacks.length - shown.length
@@ -272,7 +273,7 @@ function DayCellView({ cell, onPress }: { cell: DayCell; onPress?: () => void })
             <Ionicons
               name="calendar-clear-outline"
               size={9}
-              color={inMonth ? colors.light.textMuted : colors.light.textDisabled}
+              color={inMonth ? theme.textMuted : theme.textDisabled}
             />
             {eventCount > 1 ? (
               <Text

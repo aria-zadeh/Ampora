@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { PressableScale } from "./PressableScale";
-import { colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface ChipProps {
   label: string;
@@ -19,9 +19,14 @@ export function Chip({
   onPress,
   onRemove,
 }: ChipProps) {
+  const theme = useThemeColors();
+  // neutral-100 is the CANVAS role (role-mapped, not lightness-mapped), so an
+  // unselected chip filled with it would blend into the page background or
+  // read as a dark hole on a card. neutral-200 (the border role) is one
+  // visible step off canvas in both themes.
   const containerClass = selected
     ? "flex-row items-center rounded-full px-3 py-1.5 bg-primary-100 border border-primary-200"
-    : "flex-row items-center rounded-full px-3 py-1.5 bg-neutral-100";
+    : "flex-row items-center rounded-full px-3 py-1.5 bg-neutral-200";
   const textClass = selected
     ? "text-caption font-medium text-primary-700"
     : "text-caption font-medium text-neutral-600";
@@ -46,7 +51,7 @@ export function Chip({
           <Ionicons
             name="close"
             size={14}
-            color={selected ? colors.light.primaryDark : colors.light.textMuted}
+            color={selected ? theme.primaryDark : theme.textMuted}
           />
         </Pressable>
       ) : null}

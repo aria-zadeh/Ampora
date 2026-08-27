@@ -4,21 +4,24 @@ import { Ionicons } from '@expo/vector-icons'
 import type { ScheduledBlock, CalEvent, Task } from '@/types'
 import { slackColor } from '@/core/scheduler'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { shadows } from '@/utils/design-tokens'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { formatBlockTimeRange } from './hours'
 
 /**
  * Deadline-slack visual mapping (PRD §9.5.5 / doc 02 §13.2). Color is NEVER the
  * sole signal — every block also carries a status dot and the block is labeled,
  * satisfying NFR-5 / §8.12. Events use a neutral treatment (no deadline slack).
+ * Maps to the semantic success/warning/danger tokens (never the raw ramp) so
+ * every tone stays correct in both themes — see `SlackStyle` below for the
+ * theme-driven resolver.
  */
-const SLACK_STYLES = {
-  green: { accent: '#22C55E', tint: '#F0FDF4', dot: '#16A34A', label: 'On track' },
-  amber: { accent: '#F97316', tint: '#FFF7ED', dot: '#EA580C', label: 'Getting close' },
-  red: { accent: '#EF4444', tint: '#FEF2F2', dot: '#DC2626', label: 'At risk' },
+const SLACK_LABELS = {
+  green: 'On track',
+  amber: 'Getting close',
+  red: 'At risk',
 } as const
 
-const EVENT_STYLE = { accent: '#6F6862', tint: '#FAF9F7', dot: '#6F6862', label: 'Event' } as const
+const EVENT_LABEL = 'Event'
 
 /** §8.7 height thresholds. */
 const H_FULL = 44 // >= 44: title + time (+ meta)
@@ -95,12 +98,23 @@ export function CalendarBlock({
   const start = event?.start ?? block?.start ?? 0
   const end = event?.end ?? block?.end ?? 0
   const nowMs = now ?? Date.now()
+  const theme = useThemeColors()
 
+  // Theme-driven deadline-slack style (accent bar / status dot / soft tint).
+  // Events get a neutral treatment — no deadline slack applies to them.
   const style = useMemo(() => {
-    if (isEvent) return EVENT_STYLE
-    if (task) return SLACK_STYLES[slackColor(task, nowMs)]
-    return SLACK_STYLES.green
-  }, [isEvent, task, nowMs])
+    if (isEvent) {
+      return { accent: theme.textMuted, tint: theme.surfaceGhost, dot: theme.textMuted, label: EVENT_LABEL }
+    }
+    const slack = task ? slackColor(task, nowMs) : 'green'
+    if (slack === 'red') {
+      return { accent: theme.danger, tint: theme.dangerLight, dot: theme.danger, label: SLACK_LABELS.red }
+    }
+    if (slack === 'amber') {
+      return { accent: theme.warning, tint: theme.warningLight, dot: theme.warning, label: SLACK_LABELS.amber }
+    }
+    return { accent: theme.success, tint: theme.successLight, dot: theme.success, label: SLACK_LABELS.green }
+  }, [isEvent, task, nowMs, theme])
 
   const title = event?.title ?? task?.title ?? 'Untitled'
   const steps = remainingSteps(task)
@@ -141,10 +155,9 @@ export function CalendarBlock({
             // regardless of hue, on top of the distinct EVENT_STYLE tint and
             // the calendar glyph below.
             borderStyle: isEvent ? 'dashed' : 'solid',
-            borderColor: isEvent ? '#E8E6E0' : `${style.accent}33`,
+            borderColor: isEvent ? theme.border : `${style.accent}33`,
             opacity: done ? 0.6 : 1,
           },
-          shadows.xs,
         ]}
       >
         {/* Left accent bar (doc 02 §13.3 "stronger left edge"). */}
@@ -198,7 +211,7 @@ export function CalendarBlock({
                   {timeRange}
                 </Text>
                 {steps > 0 ? (
-                  <View className="ml-1.5 px-1.5 py-[1px] rounded-full bg-white/70 border border-neutral-200">
+                  <View className="ml-1.5 px-1.5 py-px rounded-full bg-white/70 border border-neutral-200">
                     <Text className="text-tiny font-medium text-neutral-600">{steps} steps</Text>
                   </View>
                 ) : null}
@@ -207,7 +220,7 @@ export function CalendarBlock({
 
             {/* Progress fill (FR-18) — only when there's room and progress exists. */}
             {progressFraction > 0 && height >= H_FULL ? (
-              <View className="mt-1 h-[3px] rounded-full overflow-hidden bg-white/60">
+              <View className="mt-1 h-0.75 rounded-full overflow-hidden bg-white/60">
                 <View
                   className="h-full rounded-full"
                   style={{ width: `${progressFraction * 100}%`, backgroundColor: style.accent }}

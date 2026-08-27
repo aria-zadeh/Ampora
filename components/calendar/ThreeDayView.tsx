@@ -100,7 +100,7 @@ function DayHeader({
   )
 }
 
-/** Red current-time line across the day columns (PRD FR-24), re-read each minute. */
+/** Current-time line across the day columns (PRD FR-24), re-read each minute. */
 function NowLine({
   dayStartMs,
   pxPerMin,
@@ -144,8 +144,8 @@ function NowLine({
       importantForAccessibility="no-hide-descendants"
     >
       <View className="flex-row items-center">
-        <View className="w-2 h-2 rounded-full bg-danger-500" />
-        <View className="flex-1 h-[2px] bg-danger-500 rounded-full" />
+        <View className="w-2 h-2 rounded-full bg-primary-500" />
+        <View className="flex-1 h-0.5 bg-primary-500 rounded-full" />
       </View>
     </View>
   )
@@ -293,7 +293,7 @@ export function ThreeDayView({
                         {hour === 0 ? '' : hourLabel(hour)}
                       </Text>
                     </View>
-                    <View className="flex-1 h-[1px] bg-neutral-200" />
+                    <View className="flex-1 h-px bg-line" />
                   </View>
                 </View>
               )
@@ -314,7 +314,7 @@ export function ThreeDayView({
               {dayStarts.map((ds, i) => (
                 <View
                   key={ds}
-                  className={`flex-1 ${i > 0 ? 'border-l border-neutral-200' : ''}`}
+                  className={`flex-1 ${i > 0 ? 'border-l border-line' : ''}`}
                 />
               ))}
             </View>

@@ -28,9 +28,9 @@ import * as Haptics from 'expo-haptics'
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 
 import { Heading } from '@/components/ui/Heading'
-import { shadows } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { ActionRow } from './BlockActionSheet'
 import { formatBlockTimeRange } from './hours'
 import type { CalEvent } from '@/types'
@@ -61,6 +61,7 @@ export interface EventActionSheetProps {
 
 export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: EventActionSheetProps) {
   const reduceMotion = useReduceMotion()
+  const theme = useThemeColors()
 
   if (!event) return null
 
@@ -97,7 +98,6 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
             <Animated.View
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
               className="rounded-t-3xl bg-neutral-100"
-              style={shadows.xl}
             >
               <SafeAreaView edges={['bottom']}>
                 {/* Grabber */}
@@ -117,11 +117,10 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
                     onPress={onClose}
                     hitSlop={8}
                     className="h-9 w-9 items-center justify-center rounded-full bg-white"
-                    style={shadows.xs}
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color="#57534E" />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
@@ -136,10 +135,9 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
                     // ours (FR-22 — read-only, write-back out of scope).
                     <View
                       className="flex-row items-start gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3"
-                      style={shadows.xs}
                       accessibilityLabel={`Synced from ${SOURCE_LABEL[event.source]}. Edit or delete it there.`}
                     >
-                      <Ionicons name="link-outline" size={20} color="#6F6862" style={{ marginTop: 1 }} />
+                      <Ionicons name="link-outline" size={20} color={theme.textMuted} style={{ marginTop: 1 }} />
                       <Text className="flex-1 text-body text-neutral-600">
                         Synced from {SOURCE_LABEL[event.source]}. Edit or delete it there — Ampora only reads it
                         to keep this time free.

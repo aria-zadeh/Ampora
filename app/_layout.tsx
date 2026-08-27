@@ -12,6 +12,7 @@ import { useStakeTick } from "@/hooks/useStakeTick";
 import { useStakeScheduler } from "@/hooks/useStakeScheduler";
 import { useNightlyPass } from "@/hooks/useNightlyPass";
 import { useWebSystemTheme } from "@/hooks/useWebSystemTheme";
+import { useThemeColors } from "@/hooks/useThemeColors";
 // Outfit (docs/02 §2.1 binding convention: weight lives in the family name).
 // Confirmed as the typeface behind the Figma source screens; replaced Lexend
 // 2026-08-26. Inter and Lexend were both removed from package.json in the same
@@ -38,6 +39,7 @@ import type { User } from "@supabase/supabase-js";
 
 export default function RootLayout() {
   const { colorScheme, setColorScheme } = useColorScheme();
+  const theme = useThemeColors();
   const themePreference = useSettingsStore((s) => s.settings.themePreference);
   const onboardingComplete = useSettingsStore((s) => s.settings.onboardingComplete);
 
@@ -361,7 +363,7 @@ export default function RootLayout() {
   return (
     <>
       <View className="flex-1 bg-neutral-100">
-        <DotGridBackground />
+        <DotGridBackground tint={theme.text} />
         <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="auth" />
         <Stack.Screen name="onboarding" />

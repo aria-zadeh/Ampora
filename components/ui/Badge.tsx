@@ -15,7 +15,12 @@ interface BadgeProps {
 }
 
 const toneClasses: Record<BadgeTone, { bg: string; text: string }> = {
-  neutral: { bg: "bg-neutral-100", text: "text-neutral-600" },
+  // neutral-100 IS canvas (the role map is by-role, not lightness), so this
+  // used to render as an invisible-on-canvas / dark-hole-on-card pill.
+  // neutral-200 (the border role) reads as a visible neutral pill in both
+  // themes, matching how every other tone here is one visible step off its
+  // surface. Verified 5.36:1 dark / well over 4.5:1 light for the text pair.
+  neutral: { bg: "bg-neutral-200", text: "text-neutral-600" },
   success: { bg: "bg-success-100", text: "text-success-700" },
   warning: { bg: "bg-warning-100", text: "text-warning-700" },
   accent: { bg: "bg-accent-100", text: "text-accent-700" },

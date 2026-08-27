@@ -1,13 +1,12 @@
 import React from "react";
 import { View, type ViewProps, type PressableProps } from "react-native";
-import { shadows } from "@/utils/design-tokens";
 import { PressableScale } from "./PressableScale";
 
 type CardVariant = "default" | "elevated" | "flat";
 
 interface CardBaseProps {
   variant?: CardVariant;
-  /** Feature/hero card: rounded-2xl + more padding + softer lift. */
+  /** Feature/hero card: rounded-2xl + more padding. */
   feature?: boolean;
   children: React.ReactNode;
   className?: string;
@@ -27,22 +26,23 @@ interface StaticCardProps
 
 type CardProps = TappableCardProps | StaticCardProps;
 
-/** Base surface classes per variant (shadow comes from style={shadows.*}). */
+/**
+ * Base surface classes per variant. The source design has no shadows —
+ * depth comes entirely from the surface ladder (canvas -> surface -> raised)
+ * or a border, never a `style={shadows.*}` prop.
+ *
+ * `default` is the measured card: bg-surface + border-line. `elevated` steps
+ * up the surface ladder instead of adding a shadow. `flat` uses the subtlest
+ * wash and no border, for a card that should barely separate from canvas.
+ */
 const variantClasses: Record<CardVariant, string> = {
-  default: "bg-white border border-neutral-200",
-  elevated: "bg-white border border-neutral-200",
-  flat: "bg-neutral-50",
-};
-
-/** Elevation per variant; flat gets none. */
-const variantShadow: Record<CardVariant, (typeof shadows)[keyof typeof shadows]> = {
-  default: shadows.sm,
-  elevated: shadows.md,
-  flat: shadows.none,
+  default: "bg-surface border border-line",
+  elevated: "bg-raised border border-line",
+  flat: "bg-surface-ghost",
 };
 
 function buildClasses(variant: CardVariant, feature: boolean, className: string) {
-  const radius = feature ? "rounded-2xl" : "rounded-lg";
+  const radius = feature ? "rounded-2xl" : "rounded-xl";
   const pad = feature ? "p-5" : "p-4";
   return `${variantClasses[variant]} ${radius} ${pad} ${className}`.trim();
 }
@@ -56,7 +56,6 @@ export function Card({
   ...props
 }: CardProps) {
   const classes = buildClasses(variant, feature, className);
-  const shadow = variantShadow[variant];
 
   if (onPress) {
     const {
@@ -71,7 +70,6 @@ export function Card({
         onPress={onPress}
         haptic="light"
         className={classes}
-        style={shadow}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
@@ -85,7 +83,7 @@ export function Card({
   }
 
   return (
-    <View className={classes} style={shadow} {...(props as ViewProps)}>
+    <View className={classes} {...(props as ViewProps)}>
       {children}
     </View>
   );

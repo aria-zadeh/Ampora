@@ -39,7 +39,8 @@ import {
   selectStakeSelection,
 } from "@/store/stakesStore";
 import { useListStore } from "@/store/listStore";
-import { colors, shadows, tabularNums } from "@/utils/design-tokens";
+import { tabularNums } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { Task, StakeApp } from "@/types";
 
 interface TodayFocusCardProps {
@@ -77,6 +78,7 @@ function describeLockSubject(namedApps: StakeApp[], fallbackCount: number): stri
  * change it. Glyph plus words always, never colour alone.
  */
 function LockChip({ task }: { task: Task }) {
+  const theme = useThemeColors();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   // Raw field selects (Zustand v5 discipline), SCALARS for the active
@@ -162,7 +164,7 @@ function LockChip({ task }: { task: Task }) {
         accessibilityLabel={a11yLabel}
         accessibilityHint="Opens lock settings for this task"
       >
-        <Ionicons name="lock-closed-outline" size={14} color={colors.light.textSecondary} />
+        <Ionicons name="lock-closed-outline" size={14} color={theme.textSecondary} />
         <Text variant="label" className="text-neutral-600" numberOfLines={1}>
           {label}
         </Text>
@@ -232,7 +234,7 @@ export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
   const firstMoveText = task.firstMove.text;
 
   return (
-    <View className="rounded-2xl bg-white p-4" style={shadows.md}>
+    <View className="rounded-2xl border border-line bg-white p-4">
       <Text variant="overline" className="text-neutral-500">
         Today's focus
       </Text>
@@ -248,7 +250,7 @@ export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
       {/* First move: display only here. Completing it happens inside the
           session, never on Today (doc `04` §5: it is the on-ramp, never
           the unlock condition). */}
-      <View className="mt-3.5 rounded-[14px] bg-neutral-100 p-3">
+      <View className="mt-3.5 rounded-xl bg-neutral-100 p-3">
         <Text variant="overline" className="text-primary-600">
           First move
         </Text>
@@ -261,12 +263,11 @@ export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
         <PressableScale
           onPress={handleStart}
           haptic="medium"
-          className="h-12 flex-1 flex-row items-center justify-center rounded-[14px] bg-primary-600"
-          style={shadows.xs}
+          className="h-12 flex-1 flex-row items-center justify-center rounded-lg bg-primary-600"
           accessibilityRole="button"
           accessibilityLabel={`Start focus session for ${task.title}`}
         >
-          <Text variant="label" className="text-white">
+          <Text variant="label" className="text-primary-foreground">
             Start
           </Text>
         </PressableScale>

@@ -66,9 +66,10 @@ import { Chip } from "@/components/ui/Chip";
 import { Badge } from "@/components/ui/Badge";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { colors, shadows, listColors, tabularNums } from "@/utils/design-tokens";
+import { listColors, tabularNums } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { List } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -163,6 +164,7 @@ type Mode = "record" | "processing" | "preview";
 
 export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const voice = useVoiceCapture();
   const createTask = useTaskStore((s) => s.createTask);
   const lists = useListStore(useShallow(selectAllLists));
@@ -292,10 +294,7 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
       presentationStyle={Platform.OS === "ios" ? "pageSheet" : undefined}
     >
       <SafeAreaView className="flex-1 bg-neutral-100" edges={["top", "bottom"]}>
-        <View
-          className="flex-row items-center justify-between border-b border-neutral-200 bg-white px-5 py-3.5"
-          style={shadows.xs}
-        >
+        <View className="flex-row items-center justify-between border-b border-neutral-200 bg-white px-5 py-3.5">
           <View className="min-w-11">
             <PressableScale
               onPress={handleClose}
@@ -304,7 +303,7 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
               accessibilityRole="button"
               accessibilityLabel="Close Brain dump"
             >
-              <Ionicons name="close" size={24} color={colors.light.text} />
+              <Ionicons name="close" size={24} color={theme.text} />
             </PressableScale>
           </View>
           <Heading size="h3">Brain dump</Heading>
@@ -350,15 +349,16 @@ export function BrainDumpSheet({ visible, onClose }: BrainDumpSheetProps) {
 // ---------------------------------------------------------------------------
 
 function UnavailablePanel({ onClose }: { onClose: () => void }) {
+  const theme = useThemeColors();
   return (
     <View className="flex-1 items-center justify-center px-8">
       <View className="w-16 h-16 rounded-full bg-neutral-100 items-center justify-center mb-5">
-        <Ionicons name="mic-off-outline" size={32} color={colors.light.textDisabled} />
+        <Ionicons name="mic-off-outline" size={32} color={theme.textDisabled} />
       </View>
       <Heading size="h4" className="text-center">
         Voice capture isn't available here
       </Heading>
-      <Text className="text-body text-neutral-500 text-center mt-2 max-w-[280px]">
+      <Text className="text-body text-neutral-500 text-center mt-2 max-w-280">
         This device or browser doesn't support on-device speech recognition. You can still type your tasks below.
       </Text>
       <View className="mt-6">
@@ -401,6 +401,7 @@ function RecordPanel({
   onTypeInstead,
   reduceMotion,
 }: RecordPanelProps) {
+  const theme = useThemeColors();
   const isRecording = status === "recording" || status === "stopping";
   const isBusy = status === "starting" || status === "stopping";
   const isError = status === "error";
@@ -433,7 +434,7 @@ function RecordPanel({
   if (processing) {
     return (
       <View className="flex-1 items-center justify-center px-8">
-        <ActivityIndicator size="large" color={colors.light.primary} />
+        <ActivityIndicator size="large" color={theme.primary} />
         <Text className="text-body text-neutral-500 text-center mt-4">{statusLabel}</Text>
       </View>
     );
@@ -466,14 +467,14 @@ function RecordPanel({
       {isRecording && <LevelMeter level={level} reduceMotion={reduceMotion} />}
 
       {isRecording && (transcript || interim) ? (
-        <Text className="text-body text-neutral-500 text-center mt-5 max-w-[300px]" numberOfLines={3}>
+        <Text className="text-body text-neutral-500 text-center mt-5 max-w-300" numberOfLines={3}>
           {transcript}
           {interim ? ` ${interim}` : ""}
         </Text>
       ) : null}
 
       {isError && (
-        <View className="mt-6 gap-3 items-center w-full max-w-[260px]">
+        <View className="mt-6 gap-3 items-center w-full max-w-260">
           <Button title="Try again" variant="primaryBlue" onPress={onStart} />
           <Button title="Type instead" variant="ghost" onPress={onTypeInstead} />
         </View>
@@ -504,6 +505,7 @@ function MicButton({
   onPress: () => void;
   reduceMotion: boolean;
 }) {
+  const theme = useThemeColors();
   const pulse = useSharedValue(1);
 
   useEffect(() => {
@@ -544,16 +546,15 @@ function MicButton({
             borderRadius: 44,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: recording ? colors.light.text : colors.light.primary,
+            backgroundColor: recording ? theme.text : theme.primary,
           },
-          shadows.md,
           animatedStyle,
         ]}
       >
         {busy ? (
-          <ActivityIndicator color={colors.light.primaryForeground} />
+          <ActivityIndicator color={theme.primaryForeground} />
         ) : (
-          <Ionicons name={recording ? "stop" : "mic"} size={32} color={colors.light.primaryForeground} />
+          <Ionicons name={recording ? "stop" : "mic"} size={32} color={theme.primaryForeground} />
         )}
       </Animated.View>
     </PressableScale>
@@ -589,6 +590,7 @@ function LevelBar({
   weight: number;
   reduceMotion: boolean;
 }) {
+  const theme = useThemeColors();
   const height = useSharedValue(4);
 
   useEffect(() => {
@@ -598,7 +600,7 @@ function LevelBar({
 
   const style = useAnimatedStyle(() => ({ height: height.value }));
 
-  return <Animated.View style={[{ width: 5, borderRadius: 3, backgroundColor: colors.light.primary }, style]} />;
+  return <Animated.View style={[{ width: 5, borderRadius: 3, backgroundColor: theme.primary }, style]} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -651,7 +653,7 @@ function PreviewPanel({
           />
         ))}
       </ScrollView>
-      <View className="px-5 pt-3 pb-2 gap-2.5 border-t border-neutral-200 bg-white" style={shadows.xs}>
+      <View className="px-5 pt-3 pb-2 gap-2.5 border-t border-neutral-200 bg-white">
         <Button
           title={validCount > 0 ? `Add ${validCount} ${validCount === 1 ? "task" : "tasks"}` : "Add tasks"}
           variant="primaryBlue"
@@ -684,6 +686,7 @@ function DraftRowCard({
   onChangeText: (key: string, text: string) => void;
   onRemove: (key: string) => void;
 }) {
+  const theme = useThemeColors();
   const resolved = useMemo(() => resolveDraft(row, Date.now()), [row]);
   const matchedList = useMemo(() => {
     if (!resolved.list) return null;
@@ -697,7 +700,6 @@ function DraftRowCard({
     <Animated.View
       entering={FadeInDown.delay(index * 40).duration(DURATIONS.base)}
       className="bg-white rounded-lg border border-neutral-200 p-3"
-      style={shadows.xs}
     >
       <View className="flex-row items-center gap-2">
         <View className="flex-1">
@@ -715,7 +717,7 @@ function DraftRowCard({
           accessibilityRole="button"
           accessibilityLabel={`Drop task: ${resolved.title || row.text || "untitled"}`}
         >
-          <Ionicons name="trash-outline" size={18} color={colors.light.textDisabled} />
+          <Ionicons name="trash-outline" size={18} color={theme.textDisabled} />
         </Pressable>
       </View>
       {hasChips && (
