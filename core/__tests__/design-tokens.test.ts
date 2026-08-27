@@ -63,19 +63,21 @@ const THEMES = ['light', 'dark'] as const
 describe('radius ladder (extracted from corner-arc geometry)', () => {
   it('keeps every existing key name so no call site breaks', () => {
     expect(Object.keys(borderRadius).sort()).toEqual(
-      ['2xl', '3xl', 'full', 'lg', 'md', 'sm', 'xl', 'xs'].sort()
+      ['2xl', '3xl', 'full', 'lg', 'md', 'sheet', 'sm', 'tile', 'xl', 'xs', 'xxs'].sort()
     )
   })
 
   it('hits the measured tiers exactly', () => {
     expect(borderRadius.md).toBe(8) // chips, inputs (x28 in the source)
     expect(borderRadius.lg).toBe(12) // buttons (x22)
-    expect(borderRadius.xl).toBe(16) // cards, sheets (x44, the dominant radius)
+    expect(borderRadius.xl).toBe(16) // cards (x44, the dominant radius)
+    expect(borderRadius.tile).toBe(10) // 40x40 icon tiles (x18)
+    expect(borderRadius.sheet).toBe(24) // bottom sheets
     expect(borderRadius['3xl']).toBe(20) // full-bleed banner
   })
 
   it('is strictly ascending', () => {
-    const order: (keyof typeof borderRadius)[] = ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', 'full']
+    const order: (keyof typeof borderRadius)[] = ['xxs', 'xs', 'sm', 'md', 'tile', 'lg', 'xl', '2xl', '3xl', 'sheet', 'full']
     for (let i = 1; i < order.length; i++) {
       expect(borderRadius[order[i]]).toBeGreaterThan(borderRadius[order[i - 1]])
     }

@@ -177,8 +177,12 @@ export const spacing = {
 /**
  * Radius ladder, entirely [E] from corner-arc geometry. Usage counts across
  * the nine screens: 16 x44 (cards, sheets), 8 x28 (chips, inputs), 12 x22
- * (buttons), 10 x18 (icon tiles), 14 x7 (toggle pills, = height/2),
- * 6/4/2 (micro elements, bars), 18/20 (the full-bleed banner).
+ * (buttons), 10 x18 (icon tiles), 24 (bottom sheets), 6/4/2 (micro elements,
+ * bars), 18/20 (the full-bleed banner).
+ *
+ * Radii that measure exactly half an element height are pills/circles, not
+ * ladder entries: the 48x28 toggle track measures 14 and the 24x24 knob
+ * measures 12, both of which are `rounded-full` in code. Do not add them.
  *
  * The 36pt value that shows up in the data is the artboard device corner,
  * NOT a UI value, and is deliberately absent.
@@ -187,14 +191,17 @@ export const spacing = {
  * call site keeps resolving — only the values moved.
  */
 export const borderRadius = {
-  xs: 4, // [E] bars, micro
+  xxs: 2, // [E] grab handles, thin progress bars
+  xs: 4, // [E]
   sm: 6, // [E]
-  md: 8, // [E] chips, inputs
-  lg: 12, // [E] buttons
-  xl: 16, // [E] cards, sheets — the dominant radius
+  md: 8, // [E] chips, small inputs
+  tile: 10, // [E] 40x40 icon tiles
+  lg: 12, // [E] buttons, input fields
+  xl: 16, // [E] cards — the dominant radius (x44)
   "2xl": 18, // [E] feature surfaces
   "3xl": 20, // [E] full-bleed banner
-  full: 9999, // [F]
+  sheet: 24, // [E] bottom sheets (top corners)
+  full: 9999, // [F] pills, avatars, toggle tracks and knobs
 } as const;
 
 /**

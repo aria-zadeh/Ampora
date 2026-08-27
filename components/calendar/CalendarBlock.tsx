@@ -12,8 +12,9 @@ import { formatBlockTimeRange } from './hours'
  * sole signal — every block also carries a status dot and the block is labeled,
  * satisfying NFR-5 / §8.12. Events use a neutral treatment (no deadline slack).
  * Maps to the semantic success/warning/danger tokens (never the raw ramp) so
- * every tone stays correct in both themes — see `SlackStyle` below for the
- * theme-driven resolver.
+ * every tone stays correct in both themes — resolved theme-side inside the
+ * component (see the `style` useMemo below), since the accent/tint/dot hexes
+ * depend on the active color scheme.
  */
 const SLACK_LABELS = {
   green: 'On track',

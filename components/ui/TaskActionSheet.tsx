@@ -14,17 +14,18 @@
  */
 
 import React, { useMemo, useState } from 'react'
-import { View, Text, Modal, Pressable, ScrollView } from 'react-native'
+import { View, Pressable, Modal, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 
 import { Heading } from '@/components/ui/Heading'
+import { Text } from '@/components/ui/Text'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { shadows, colors } from '@/utils/design-tokens'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import type { List, Task } from '@/types'
 
 // ---------------------------------------------------------------------------
@@ -69,6 +70,7 @@ export function TaskActionSheet({
   onPutOnTheLine,
 }: TaskActionSheetProps) {
   const reduceMotion = useReduceMotion()
+  const theme = useThemeColors()
   const [pickingList, setPickingList] = useState(false)
 
   if (!task) return null
@@ -136,14 +138,18 @@ export function TaskActionSheet({
         <View className="flex-1 justify-end">
           <Pressable onPress={() => {}}>
             <Animated.View
+              // Measured bottom-sheet spec (task-capture.pdf): surface is the
+              // card colour, not canvas. rounded-t-sheet (24) is a pending
+              // tailwind.config.js addition (coordinator-owned) — falls back
+              // to no radius until it lands.
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-neutral-100"
-              style={shadows.xl}
+              className="rounded-t-sheet bg-surface"
             >
               <SafeAreaView edges={['bottom']}>
-                {/* Grabber */}
+                {/* Grabber — 40x4, bg-line, radius 2 (rounded-xxs, also
+                    pending centrally in tailwind.config.js). */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1 w-10 bg-line rounded-xxs" />
                 </View>
 
                 {/* Header: task title */}
@@ -153,18 +159,21 @@ export function TaskActionSheet({
                       {title}
                     </Heading>
                     {isDone && (
-                      <Text className="mt-1 text-caption text-neutral-500">Completed</Text>
+                      <Text variant="caption" className="mt-1 text-neutral-500">
+                        Completed
+                      </Text>
                     )}
                   </View>
                   <Pressable
                     onPress={handleClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-white"
-                    style={shadows.xs}
+                    // bg-raised, not bg-surface: the sheet root is bg-surface,
+                    // so this needs to sit one step up to stay visible.
+                    className="h-9 w-9 items-center justify-center rounded-full bg-raised border border-line"
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
-                    <Ionicons name="close" size={20} color={colors.light.textSecondary} />
+                    <Ionicons name="close" size={20} color={theme.textSecondary} />
                   </Pressable>
                 </View>
 
@@ -244,9 +253,10 @@ function ListPicker({
   onPick: (listId: string | undefined) => void
   onBack: () => void
 }) {
+  const theme = useThemeColors()
   const options = useMemo(
-    () => [{ id: undefined as string | undefined, name: 'No list', color: colors.light.textDisabled }, ...lists],
-    [lists],
+    () => [{ id: undefined as string | undefined, name: 'No list', color: theme.textDisabled }, ...lists],
+    [lists, theme.textDisabled],
   )
 
   return (
@@ -258,8 +268,8 @@ function ListPicker({
         accessibilityRole="button"
         accessibilityLabel="Back to actions"
       >
-        <Ionicons name="chevron-back" size={16} color={colors.light.primary} />
-        <Text className="text-caption font-medium text-primary-600">Back</Text>
+        <Ionicons name="chevron-back" size={16} color={theme.primary} />
+        <Text variant="captionMedium" className="text-primary-600">Back</Text>
       </Pressable>
       <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
         <View className="gap-2">
@@ -270,10 +280,12 @@ function ListPicker({
                 key={opt.id ?? 'none'}
                 onPress={() => onPick(opt.id)}
                 haptic={false}
-                className={`flex-row items-center gap-3 rounded-xl border px-4 py-3 ${
-                  selected ? 'border-primary-300 bg-primary-50' : 'border-neutral-200 bg-white'
+                // Fields/rows inside a sheet sit on bg-raised at rounded-lg
+                // (12), not the sheet's own surface — selected keeps its own
+                // primary-tinted treatment.
+                className={`flex-row items-center gap-3 rounded-lg border px-4 py-3 ${
+                  selected ? 'border-primary-300 bg-primary-50' : 'border-line bg-raised'
                 }`}
-                style={selected ? undefined : shadows.xs}
                 accessibilityRole="button"
                 accessibilityLabel={opt.name}
                 accessibilityState={{ selected }}
@@ -284,8 +296,8 @@ function ListPicker({
                   accessibilityElementsHidden
                   importantForAccessibility="no"
                 />
-                <Text className="flex-1 text-body-lg font-medium text-neutral-900">{opt.name}</Text>
-                {selected && <Ionicons name="checkmark" size={18} color={colors.light.primary} />}
+                <Text variant="bodyLg" className="flex-1 text-neutral-900">{opt.name}</Text>
+                {selected && <Ionicons name="checkmark" size={18} color={theme.primary} />}
               </PressableScale>
             )
           })}
@@ -301,11 +313,30 @@ function ListPicker({
 
 type Tint = 'neutral' | 'primary' | 'success' | 'danger'
 
-const TINT_STYLES: Record<Tint, { icon: string; iconBg: string; text: string }> = {
-  neutral: { icon: colors.light.textStrong, iconBg: 'bg-neutral-100', text: 'text-neutral-900' },
-  primary: { icon: colors.light.primary, iconBg: 'bg-primary-100', text: 'text-neutral-900' },
-  success: { icon: colors.light.successStrong, iconBg: 'bg-success-100', text: 'text-neutral-900' },
-  danger: { icon: colors.light.dangerStrong, iconBg: 'bg-danger-100', text: 'text-danger-700' },
+/** Static (theme-safe) half of each tint — the icon wash + label classes. */
+const TINT_STYLES: Record<Tint, { iconBg: string; text: string }> = {
+  neutral: { iconBg: 'bg-neutral-100', text: 'text-neutral-900' },
+  primary: { iconBg: 'bg-primary-100', text: 'text-neutral-900' },
+  success: { iconBg: 'bg-success-100', text: 'text-neutral-900' },
+  danger: { iconBg: 'bg-danger-100', text: 'text-danger-700' },
+}
+
+/**
+ * The icon glyph itself needs a literal colour (Ionicons `color`), which
+ * can't come from a className — resolved against the ACTIVE theme, so this
+ * takes `theme` as a parameter rather than reading `colors.light` directly.
+ */
+function tintIconColor(tint: Tint, theme: ReturnType<typeof useThemeColors>): string {
+  switch (tint) {
+    case 'primary':
+      return theme.primary
+    case 'success':
+      return theme.successStrong
+    case 'danger':
+      return theme.dangerStrong
+    default:
+      return theme.textStrong
+  }
 }
 
 function ActionRow({
@@ -321,23 +352,25 @@ function ActionRow({
   onPress: () => void
   tint?: Tint
 }) {
+  const theme = useThemeColors()
   const t = TINT_STYLES[tint]
   return (
     <PressableScale
       onPress={onPress}
       haptic={false}
-      className="flex-row items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3"
-      style={shadows.xs}
+      // Fields/rows inside a sheet sit on bg-raised at rounded-lg (12), not
+      // the sheet's own surface.
+      className="flex-row items-center gap-3 rounded-lg border border-line bg-raised px-4 py-3"
       accessibilityRole="button"
       accessibilityLabel={blurb ? `${label}. ${blurb}` : label}
     >
       <View className={`h-10 w-10 items-center justify-center rounded-full ${t.iconBg}`}>
-        <Ionicons name={icon} size={20} color={t.icon} />
+        <Ionicons name={icon} size={20} color={tintIconColor(tint, theme)} />
       </View>
       <View className="flex-1">
-        <Text className={`text-body-lg font-medium ${t.text}`}>{label}</Text>
+        <Text variant="bodyLg" className={t.text}>{label}</Text>
         {blurb ? (
-          <Text className="mt-0.5 text-caption text-neutral-500" numberOfLines={2}>
+          <Text variant="caption" className="mt-0.5 text-neutral-500" numberOfLines={2}>
             {blurb}
           </Text>
         ) : null}

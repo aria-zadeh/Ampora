@@ -130,13 +130,20 @@ export function AddEventModal({
         <View className="flex-1 justify-end">
           <Pressable onPress={() => {}}>
             <Animated.View
+              // Measured bottom-sheet spec (task-capture.pdf): surface is the
+              // card colour, not canvas — several older sheets in this app
+              // used canvas, which was a mistake, not a pattern to match.
+              // rounded-t-sheet (24) is a pending tailwind.config.js addition
+              // (coordinator-owned, avoids a second worker touching that
+              // file) — falls back to no radius until it lands.
               entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInUp.duration(DURATIONS.base)}
-              className="rounded-t-3xl bg-canvas"
+              className="rounded-t-sheet bg-surface"
             >
               <SafeAreaView edges={["bottom"]}>
-                {/* Grabber */}
+                {/* Grabber — 40x4, bg-line, radius 2 (rounded-xxs, also
+                    pending centrally in tailwind.config.js). */}
                 <View className="items-center pt-3">
-                  <View className="h-1.5 w-10 rounded-full bg-neutral-300" />
+                  <View className="h-1 w-10 bg-line rounded-xxs" />
                 </View>
 
                 {/* Header */}
@@ -145,7 +152,11 @@ export function AddEventModal({
                   <Pressable
                     onPress={onClose}
                     hitSlop={8}
-                    className="h-9 w-9 items-center justify-center rounded-full bg-surface border border-line"
+                    // bg-raised, not bg-surface: the sheet root is bg-surface
+                    // now, so this control needs to sit one step up to stay
+                    // visible against it (same "controls sit on raised" rule
+                    // as the fields below).
+                    className="h-9 w-9 items-center justify-center rounded-full bg-raised border border-line"
                     accessibilityRole="button"
                     accessibilityLabel="Close"
                   >
@@ -163,14 +174,16 @@ export function AddEventModal({
                     onChangeText={setTitle}
                     placeholder="e.g. Soccer practice"
                     placeholderTextColor={theme.textMuted}
-                    className="mb-4 min-h-11 rounded-xl border border-line bg-surface px-4 py-3 text-body text-neutral-900"
+                    // Fields inside a sheet sit on bg-raised at rounded-lg
+                    // (12) per the measured spec, not the sheet's own surface.
+                    className="mb-4 min-h-11 rounded-lg border border-line bg-raised px-4 py-3 text-body text-neutral-900"
                     accessibilityLabel="Event title"
                   />
 
                   {/* All day — collapses the time pickers below (an all-day
                       event has no meaningful clock time) and shapes the saved
                       span to whole local days on Save (see `allDaySpan`). */}
-                  <View className="mb-4 flex-row items-center justify-between rounded-xl border border-line bg-surface px-4 py-3">
+                  <View className="mb-4 flex-row items-center justify-between rounded-lg border border-line bg-raised px-4 py-3">
                     <Text>All day</Text>
                     <Toggle value={allDay} onChange={setAllDay} a11yLabel="All-day event" />
                   </View>

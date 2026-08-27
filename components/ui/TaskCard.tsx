@@ -11,9 +11,10 @@ import { PressableScale } from "./PressableScale";
 import { PulseScale } from "./PulseScale";
 import { ProgressBar } from "./ProgressBar";
 import { Badge } from "./Badge";
-import { shadows, listColors, tabularNums, colors, type ListColorName } from "@/utils/design-tokens";
+import { tabularNums, type ListColorName } from "@/utils/design-tokens";
 import { EASINGS, DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors, useListColors } from "@/hooks/useThemeColors";
 import type { Task } from "@/types";
 
 export interface TaskCardProps {
@@ -30,7 +31,7 @@ export interface TaskCardProps {
    * that lives in the Tasks screen.
    */
   leading?: React.ReactNode;
-  /** Lifts the card (scale + tinted shadow) while a long-press/drag holds it. */
+  /** Lifts the card (scale + a step up the surface ladder) while a long-press/drag holds it. */
   lifted?: boolean;
 }
 
@@ -71,16 +72,19 @@ function formatDue(due: number | undefined): string | null {
   return time ? `${day}, ${time}` : day;
 }
 
-/** Resolve a list color hex to its nearest `listColors` pastel bar tone, falling back to the hex itself. */
-function resolveBarColor(hex?: string): string | undefined {
+/** Resolve a list color hex to its nearest `listColors` pastel bar tone for the ACTIVE theme, falling back to the hex itself. */
+function resolveBarColor(
+  hex: string | undefined,
+  palette: ReturnType<typeof useListColors>,
+): string | undefined {
   if (!hex) return undefined;
   const upper = hex.toUpperCase();
-  const match = (Object.keys(listColors) as ListColorName[]).find(
+  const match = (Object.keys(palette) as ListColorName[]).find(
     (name) =>
-      listColors[name].bar.toUpperCase() === upper ||
-      listColors[name].text.toUpperCase() === upper,
+      palette[name].bar.toUpperCase() === upper ||
+      palette[name].text.toUpperCase() === upper,
   );
-  return match ? listColors[match].bar : hex;
+  return match ? palette[match].bar : hex;
 }
 
 function TaskCardImpl({
@@ -93,6 +97,8 @@ function TaskCardImpl({
   lifted = false,
 }: TaskCardProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
+  const listColorPalette = useListColors();
   const isDone = task.status === "done";
   const subtaskCount = task.subtasks.length;
   const hasSubtasks = subtaskCount > 0;
@@ -108,7 +114,10 @@ function TaskCardImpl({
     [hasSubtasks, task.progressMin, task.durationMin],
   );
 
-  const barColor = useMemo(() => resolveBarColor(listColor), [listColor]);
+  const barColor = useMemo(
+    () => resolveBarColor(listColor, listColorPalette),
+    [listColor, listColorPalette],
+  );
   const hasFirstMove = task.firstMove != null && !task.firstMove.done;
   const hasProject = task.projectId != null;
 
@@ -160,7 +169,7 @@ function TaskCardImpl({
             }`}
           >
             <Animated.View style={checkAnimatedStyle}>
-              <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
+              <Ionicons name="checkmark" size={16} color={theme.primaryForeground} />
             </Animated.View>
           </View>
         </Pressable>
@@ -173,14 +182,17 @@ function TaskCardImpl({
         delayLongPress={220}
         haptic="light"
         style={[
-          shadows.sm,
           // `rounded-lg` in this project's Tailwind config is 12px (not the
           // Tailwind default 8px) — match that exactly so the tint bar's
           // outer corners are flush with the card's, per the design system.
           barColor ? { borderTopLeftRadius: 12, borderBottomLeftRadius: 12 } : null,
-          lifted ? { transform: [{ scale: 1.02 }], shadowOpacity: 0.16, shadowRadius: 16 } : null,
+          lifted ? { transform: [{ scale: 1.02 }] } : null,
         ]}
-        className="flex-1 flex-row bg-white border border-neutral-200 rounded-lg min-h-14 overflow-hidden"
+        // No shadows (source design has none) — a drag-lift now steps up the
+        // surface ladder (raised, stronger border) instead of a bigger shadow.
+        className={`flex-1 flex-row border rounded-lg min-h-14 overflow-hidden ${
+          lifted ? "bg-raised border-line-strong" : "bg-surface border-line"
+        }`}
         accessibilityRole="button"
         accessibilityLabel={`Task: ${task.title}.${dueLabel ? ` ${dueLabel}.` : ""}${
           hasSubtasks ? ` ${doneSubtaskCount} of ${subtaskCount} steps.` : ""
@@ -246,7 +258,7 @@ function TaskCardImpl({
             )}
             {hasProject && (
               <View className="w-4 h-4 rounded-full bg-accent-100 items-center justify-center">
-                <Ionicons name="rocket-outline" size={10} color={colors.light.accentStrong} />
+                <Ionicons name="rocket-outline" size={10} color={theme.accentStrong} />
               </View>
             )}
           </View>

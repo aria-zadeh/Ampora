@@ -125,13 +125,16 @@ module.exports = {
       // from corner-arc geometry. 16 is the dominant card/sheet radius (x44),
       // 12 buttons (x22), 8 chips/inputs (x28).
       borderRadius: {
+        xxs: "2px",
         xs: "4px",
         sm: "6px",
         md: "8px",
+        tile: "10px",
         lg: "12px",
         xl: "16px",
         "2xl": "18px",
         "3xl": "20px",
+        sheet: "24px",
         full: "9999px",
       },
 
