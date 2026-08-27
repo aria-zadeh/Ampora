@@ -229,7 +229,7 @@ function DayCellView({ cell, onPress }: { cell: DayCell; onPress?: () => void })
             <Text
               className={`text-caption ${
                 isToday
-                  ? 'text-white font-semibold'
+                  ? 'text-primary-foreground font-semibold'
                   : inMonth
                     ? 'text-neutral-800 font-medium'
                     : 'text-neutral-300'

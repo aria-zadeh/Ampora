@@ -90,7 +90,7 @@ function DayHeader({
       >
         <Text
           className={`text-label font-semibold ${
-            isToday ? 'text-white' : 'text-neutral-800'
+            isToday ? 'text-primary-foreground' : 'text-neutral-800'
           }`}
         >
           {dayNum}

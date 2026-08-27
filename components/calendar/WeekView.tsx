@@ -433,7 +433,7 @@ function DayHeader({
         }`}
       >
         <Text
-          className={`text-caption font-semibold ${isToday ? 'text-white' : 'text-neutral-800'}`}
+          className={`text-caption font-semibold ${isToday ? 'text-primary-foreground' : 'text-neutral-800'}`}
         >
           {dateNum}
         </Text>
