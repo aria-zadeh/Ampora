@@ -13,7 +13,6 @@ import {
   Pressable,
   ActivityIndicator,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
@@ -25,9 +24,9 @@ import {
   signInWithGoogle,
   isAppleSignInAvailable,
 } from "@/services/supabase";
-import { shadows, gradients } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { useRouter } from "expo-router";
 import { FEATURE_FLAGS } from "@/constants/featureFlags";
 import { useDevAuthStore } from "@/store/devAuthStore";
@@ -35,6 +34,18 @@ import { useDevAuthStore } from "@/store/devAuthStore";
 type ScreenState = "idle" | "loading" | "success" | "error";
 type ErrorKind = "invalidEmail" | "network" | "generic";
 type SocialProvider = "apple" | "google";
+
+/**
+ * Third-party brand marks — deliberately outside the design token system.
+ * Apple and Google both specify these exact colours in their own sign-in
+ * button guidelines, so they must never be swapped for a themed token.
+ */
+const BRAND_COLORS = {
+  /** Apple's "Sign in with Apple" button: literal white icon/label on black. */
+  appleForeground: "#FFFFFF",
+  /** Google's brand blue, used for the monochrome "G" mark. */
+  googleBlue: "#4285F4",
+} as const;
 
 /** Seconds the user must wait before "Resend link" becomes tappable again. */
 const RESEND_COOLDOWN_SECONDS = 45;
@@ -67,6 +78,7 @@ function classifyError(error: Error): ErrorKind {
 
 export default function AuthScreen() {
   const router = useRouter();
+  const theme = useThemeColors();
   const [email, setEmail] = useState("");
   const [screenState, setScreenState] = useState<ScreenState>("idle");
   const [errorKind, setErrorKind] = useState<ErrorKind>("generic");
@@ -165,13 +177,11 @@ export default function AuthScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       className="flex-1 bg-neutral-100"
     >
-      {/* Hero gradient wash behind the brand block */}
-      <LinearGradient
-        colors={gradients.heroWash}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+      {/* Hero wash behind the brand block — flat surface, the source has no gradients */}
+      <View
         pointerEvents="none"
-        style={{ position: "absolute", top: 0, left: 0, right: 0, height: 360 }}
+        className="absolute top-0 left-0 right-0 bg-surface"
+        style={{ height: 360 }}
       />
 
       <ScrollView
@@ -184,12 +194,11 @@ export default function AuthScreen() {
           <Animated.View entering={enter(0)} className="mb-14">
             <View
               className="w-14 h-14 rounded-2xl bg-white items-center justify-center mb-6 border border-neutral-200"
-              style={shadows.sm}
             >
               <Ionicons
                 name="aperture"
                 size={30}
-                color="#2563EB"
+                color={theme.primary}
                 accessibilityLabel="Ampora app icon"
               />
             </View>
@@ -200,7 +209,7 @@ export default function AuthScreen() {
             >
               Ampora
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 max-w-[320px] leading-6">
+            <Text className="text-body-lg text-neutral-600 mt-3 max-w-xs leading-6">
               Built for brains that work differently. Sign in and pick up right
               where you left off.
             </Text>
@@ -226,7 +235,7 @@ export default function AuthScreen() {
               <Pressable
                 onPress={() => handleSocial("apple")}
                 disabled={socialLoading !== null}
-                className={`min-h-[48px] flex-row items-center justify-center rounded-md bg-black px-5 ${
+                className={`min-h-12 flex-row items-center justify-center rounded-md bg-black px-5 ${
                   socialLoading !== null ? "opacity-50" : ""
                 }`}
                 accessibilityRole="button"
@@ -237,11 +246,11 @@ export default function AuthScreen() {
                 }}
               >
                 {socialLoading === "apple" ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={BRAND_COLORS.appleForeground} />
                 ) : (
                   <>
-                    <Ionicons name="logo-apple" size={19} color="#FFFFFF" />
-                    <Text className="text-label font-medium text-white ml-2">
+                    <Ionicons name="logo-apple" size={19} color={BRAND_COLORS.appleForeground} />
+                    <Text className="text-label font-medium text-pure-white ml-2">
                       Sign in with Apple
                     </Text>
                   </>
@@ -252,7 +261,7 @@ export default function AuthScreen() {
             <Pressable
               onPress={() => handleSocial("google")}
               disabled={socialLoading !== null}
-              className={`min-h-[48px] flex-row items-center justify-center rounded-md bg-white border border-neutral-200 px-5 ${
+              className={`min-h-12 flex-row items-center justify-center rounded-md bg-white border border-neutral-200 px-5 ${
                 socialLoading !== null ? "opacity-50" : ""
               }`}
               accessibilityRole="button"
@@ -263,10 +272,10 @@ export default function AuthScreen() {
               }}
             >
               {socialLoading === "google" ? (
-                <ActivityIndicator color="#1C1917" />
+                <ActivityIndicator color={theme.text} />
               ) : (
                 <>
-                  <Ionicons name="logo-google" size={18} color="#4285F4" />
+                  <Ionicons name="logo-google" size={18} color={BRAND_COLORS.googleBlue} />
                   <Text className="text-label font-medium text-neutral-900 ml-2">
                     Sign in with Google
                   </Text>
@@ -292,12 +301,12 @@ export default function AuthScreen() {
                   useDevAuthStore.getState().enableBypass();
                   router.replace("/");
                 }}
-                className="min-h-[48px] flex-row items-center justify-center rounded-md border border-dashed border-neutral-300 px-5"
+                className="min-h-12 flex-row items-center justify-center rounded-md border border-dashed border-neutral-300 px-5"
                 accessibilityRole="button"
                 accessibilityLabel="Skip sign-in, development only"
                 accessibilityHint="Opens the app with no account and no cloud sync. Not available in released builds."
               >
-                <Ionicons name="construct-outline" size={16} color="#78716C" />
+                <Ionicons name="construct-outline" size={16} color={theme.textMuted} />
                 <Text className="text-label font-medium text-neutral-500 ml-2">
                   Skip sign-in (dev)
                 </Text>
@@ -316,14 +325,13 @@ export default function AuthScreen() {
             <Animated.View
               entering={reduceMotion ? undefined : FadeIn.duration(DURATIONS.slow)}
               className="bg-white border border-neutral-200 rounded-2xl p-6 gap-3"
-              style={shadows.sm}
               accessibilityLiveRegion="polite"
             >
               <View className="w-11 h-11 rounded-full bg-primary-50 items-center justify-center">
                 <Ionicons
                   name="mail-outline"
                   size={22}
-                  color="#2563EB"
+                  color={theme.primary}
                   accessibilityLabel="Mail icon"
                 />
               </View>
@@ -342,7 +350,7 @@ export default function AuthScreen() {
                 onPress={handleResend}
                 disabled={cooldown > 0}
                 hitSlop={8}
-                className="mt-1 min-h-[44px] items-center justify-center rounded-md"
+                className="mt-1 min-h-11 items-center justify-center rounded-md"
                 accessibilityRole="button"
                 accessibilityLabel="Resend sign-in link"
                 accessibilityState={{ disabled: cooldown > 0 }}

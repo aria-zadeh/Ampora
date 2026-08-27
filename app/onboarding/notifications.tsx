@@ -2,15 +2,14 @@ import React from "react";
 import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { requestNotificationPermissions } from "@/services/notifications";
-import { gradients } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { ProgressDots } from "./ProgressDots";
 
 const PROMISES = [
@@ -22,6 +21,7 @@ const PROMISES = [
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   const handleAllow = async () => {
     await requestNotificationPermissions();
@@ -42,12 +42,10 @@ export default function NotificationsScreen() {
       className="flex-1 bg-neutral-100"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom + 24 }}
     >
-      <LinearGradient
-        colors={gradients.heroWash}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+      <View
         pointerEvents="none"
-        style={{ position: "absolute", top: 0, left: 0, right: 0, height: 360 }}
+        className="absolute top-0 left-0 right-0 bg-surface"
+        style={{ height: 360 }}
       />
 
       <View className="flex-1 justify-between px-6" style={{ paddingTop: 48 }}>
@@ -59,10 +57,10 @@ export default function NotificationsScreen() {
             <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
               Gentle by default
             </Text>
-            <Heading size="h1" className="text-neutral-900 max-w-[300px]">
+            <Heading size="h1" className="text-neutral-900 max-w-300">
               Reminders that respect your focus
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[330px]">
+            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-330">
               We only reach out when it actually helps. No spam, no pressure —
               here’s our promise.
             </Text>
@@ -76,7 +74,7 @@ export default function NotificationsScreen() {
                 className="flex-row items-center gap-3"
               >
                 <View className="w-9 h-9 rounded-full bg-primary-50 items-center justify-center">
-                  <Ionicons name={item.icon} size={18} color="#2563EB" />
+                  <Ionicons name={item.icon} size={18} color={theme.primary} />
                 </View>
                 <Text className="text-body text-neutral-700 flex-1 leading-6">
                   {item.text}

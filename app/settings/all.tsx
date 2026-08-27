@@ -27,7 +27,7 @@ import { NotificationSettings } from '@/components/settings/NotificationSettings
 import { DataSettings } from '@/components/settings/DataSettings'
 import { DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
-import { colors } from '@/utils/design-tokens'
+import { useThemeColors } from '@/hooks/useThemeColors'
 
 /** A titled section wrapper with a staggered entrance. */
 function Section({
@@ -58,6 +58,7 @@ function Section({
 export default function AllSettingsScreen() {
   const insets = useSafeAreaInsets()
   const reduceMotion = useReduceMotion()
+  const theme = useThemeColors()
 
   return (
     <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
@@ -70,7 +71,7 @@ export default function AllSettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color={colors.light.text} />
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
         </PressableScale>
       </View>
 
@@ -83,7 +84,7 @@ export default function AllSettingsScreen() {
           entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
           className="pt-2"
         >
-          <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+          <Text className="text-overline font-semibold uppercase text-primary-600">
             Settings
           </Text>
           <Heading size="h1" className="mt-1">

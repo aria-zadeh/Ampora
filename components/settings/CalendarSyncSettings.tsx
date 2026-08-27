@@ -128,12 +128,7 @@ export function CalendarSyncSettings() {
   // --- Web / unsupported: calm explainer, no dead end (FR-64). -------------
   if (status === 'unsupported') {
     return (
-      // `forceLight`: `EmptyState`/`Heading` (components/ui/, outside this
-      // task's touch scope) still hardcode dark-ink text with no `dark:`
-      // counterpart. A `Group` that went dark here would turn that text
-      // dark-on-dark and disappear, so this card is pinned light on purpose
-      // — see the `Group` doc comment in SettingsPrimitives.tsx.
-      <Group forceLight>
+      <Group>
         <EmptyState
           icon="calendar-outline"
           title="Calendar sync needs the phone app"
@@ -153,12 +148,7 @@ export function CalendarSyncSettings() {
     const denied = status === 'denied'
     return (
       <View>
-        {/* `forceLight` — see the comment on the 'unsupported' branch above.
-            This state also sits directly on the screen canvas rather than
-            a Group at all previously, which is worse in dark mode (the
-            un-themed text would sit right on a dark page background), so a
-            forced-light Group wrap is added here too, not only kept. */}
-        <Group forceLight>
+        <Group>
           <EmptyState
             icon="calendar-outline"
             title="See your classes automatically"
@@ -187,14 +177,13 @@ export function CalendarSyncSettings() {
   // --- Granted: per-calendar picker. ----------------------------------------
   return (
     <View>
-      <Text className="mb-4 text-body text-neutral-500 dark:text-[#78716C]">
+      <Text className="mb-4 text-body text-neutral-500">
         Choose which calendars count as busy time. Ampora only reads them — it
         never changes anything on your device calendar.
       </Text>
 
       {calendarsLoading && calendars.length === 0 ? null : calendars.length === 0 ? (
-        // `forceLight` — see the comment on the 'unsupported' branch above.
-        <Group forceLight>
+        <Group>
           <EmptyState
             icon="calendar-clear-outline"
             title="No calendars found"
@@ -208,7 +197,7 @@ export function CalendarSyncSettings() {
               key={cal.id}
               icon="calendar-outline"
               iconTint={cal.color || theme.textSecondary}
-              iconBg="bg-neutral-100 dark:bg-neutral-800"
+              iconBg="bg-raised"
               label={cal.title}
               sublabel={cal.sourceName}
               isLast={i === calendars.length - 1}
@@ -230,7 +219,7 @@ export function CalendarSyncSettings() {
       </SectionFootnote>
 
       <View className="mt-4 flex-row items-center justify-between px-1">
-        <Text className="text-caption text-neutral-500 dark:text-[#78716C]">
+        <Text className="text-caption text-neutral-500">
           {formatSyncedAt(externalEventsSyncedAt)}
         </Text>
         <View className="flex-row items-center">
@@ -253,7 +242,7 @@ export function CalendarSyncSettings() {
             accessibilityLabel="Disconnect all calendars"
             accessibilityHint="Stops syncing every calendar; you can reconnect any time"
           >
-            <Text className="text-label font-medium text-neutral-500 dark:text-[#78716C]">Disconnect</Text>
+            <Text className="text-label font-medium text-neutral-500">Disconnect</Text>
           </PressableScale>
         </View>
       </View>

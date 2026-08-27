@@ -51,10 +51,10 @@ export default function NameScreen() {
             <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
               A quick hello
             </Text>
-            <Heading size="h1" className="text-neutral-900 max-w-[300px]">
+            <Heading size="h1" className="text-neutral-900 max-w-300">
               What should we call you?
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[320px]">
+            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-xs">
               Just a first name — we’ll use it to keep things personal.
             </Text>
           </Animated.View>

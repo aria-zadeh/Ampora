@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { View, Text, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
@@ -13,9 +12,9 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { breakdownTask, type BreakdownResult } from "@/services/ai";
 import { parseQuickAdd } from "@/core/quick-add";
 import { newId } from "@/core/id";
-import { gradients, shadows } from "@/utils/design-tokens";
 import { DURATIONS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import type { StarterAction, Subtask } from "@/types";
 import { ProgressDots } from "./ProgressDots";
 
@@ -41,6 +40,7 @@ type Phase = "input" | "loading" | "preview";
 export default function FirstTaskScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   const [raw, setRaw] = useState("");
   const [phase, setPhase] = useState<Phase>("input");
@@ -120,12 +120,10 @@ export default function FirstTaskScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       className="flex-1 bg-neutral-100"
     >
-      <LinearGradient
-        colors={gradients.heroWash}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+      <View
         pointerEvents="none"
-        style={{ position: "absolute", top: 0, left: 0, right: 0, height: 360 }}
+        className="absolute top-0 left-0 right-0 bg-surface"
+        style={{ height: 360 }}
       />
 
       <ScrollView
@@ -143,10 +141,10 @@ export default function FirstTaskScreen() {
           <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
             Let&apos;s try one for real
           </Text>
-          <Heading size="h1" className="text-neutral-900 max-w-[320px]">
+          <Heading size="h1" className="text-neutral-900 max-w-330">
             Add one real assignment
           </Heading>
-          <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[330px]">
+          <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-330">
             Type something you actually have to do. Watch Ampora break it into
             a first move you can start in minutes.
           </Text>
@@ -171,7 +169,7 @@ export default function FirstTaskScreen() {
               <View className="mt-3 flex-row flex-wrap gap-2">
                 {preview.due != null ? (
                   <View className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5">
-                    <Ionicons name="calendar-outline" size={14} color="#2563EB" />
+                    <Ionicons name="calendar-outline" size={14} color={theme.primary} />
                     <Text className="text-caption font-medium text-primary-700">
                       Due {new Date(preview.due).toLocaleDateString([], { month: "short", day: "numeric" })}
                     </Text>
@@ -179,7 +177,7 @@ export default function FirstTaskScreen() {
                 ) : null}
                 {preview.durationMin != null ? (
                   <View className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5">
-                    <Ionicons name="time-outline" size={14} color="#2563EB" />
+                    <Ionicons name="time-outline" size={14} color={theme.primary} />
                     <Text className="text-caption font-medium text-primary-700">
                       {preview.durationMin} min
                     </Text>
@@ -193,7 +191,7 @@ export default function FirstTaskScreen() {
             entering={reduceMotion ? FadeIn.duration(DURATIONS.base) : FadeInDown.duration(DURATIONS.base)}
             className="mt-8 gap-4"
           >
-            <View className="rounded-2xl border border-neutral-200 bg-white p-5" style={shadows.sm}>
+            <View className="rounded-2xl border border-neutral-200 bg-white p-5">
               <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500">
                 Your task
               </Text>
@@ -203,7 +201,7 @@ export default function FirstTaskScreen() {
 
               {breakdown ? (
                 <View className="mt-4 flex-row items-start gap-2.5 rounded-lg bg-primary-50 px-3.5 py-3">
-                  <Ionicons name="flag-outline" size={16} color="#2563EB" style={{ marginTop: 1 }} />
+                  <Ionicons name="flag-outline" size={16} color={theme.primary} style={{ marginTop: 1 }} />
                   <View className="flex-1">
                     <Text className="text-tiny font-semibold uppercase tracking-wide text-primary-600">
                       First move

@@ -21,13 +21,16 @@ export const TOP_NAV_TRACK_HEIGHT = 48;
 const TOP_NAV_GAP = 8;
 
 /**
- * Vertical space something ELSE floating over routed content (currently only
- * `GlobalLockBanner`) must clear so it doesn't sit on top of the nav. The nav
- * itself is in flow now, not floating, so ordinary screens don't need this.
+ * DEPRECATED shim, retained so existing call sites keep compiling.
+ *
+ * Navigation moved to the BOTTOM on 2026-08-26 to match the source screens,
+ * and the bar is in flow rather than floating (see `BottomTabBar.tsx`), so
+ * nothing needs to reserve vertical clearance for it any more. Returns 0.
+ *
+ * Remove this and its call sites once every screen has been checked.
  */
 export function useTopNavClearance(): number {
-  const insets = useSafeAreaInsets();
-  return insets.top + TOP_NAV_GAP + TOP_NAV_TRACK_HEIGHT + TOP_NAV_GAP;
+  return 0;
 }
 
 /** The active segment gets extra room for its label. Inactive ones stay square-ish. */

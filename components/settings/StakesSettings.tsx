@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/Button";
 import { AppPicker } from "@/components/stakes/AppPicker";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useStakesStore } from "@/store/stakesStore";
-import { shadows } from "@/utils/design-tokens";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import {
   DAILY_LOCK_CAP_BOUNDS,
@@ -124,13 +123,20 @@ function strengthBandOf(strength: number): StrengthBand {
 
 // ---------------------------------------------------------------------------
 // Local presentation primitives
+//
+// NOTE: this is a pre-existing local duplicate of `Row`/`Stepper` from
+// `components/settings/SettingsPrimitives.tsx` (that file's `Stepper` also
+// takes a `format` prop this one hard-codes to `formatMinutes`). Left as a
+// duplicate rather than consolidated — this pass is a restyle, and switching
+// call sites to a shared import is a structural change outside that scope.
+// Both copies now render identically.
 // ---------------------------------------------------------------------------
 
 /** A row inside the group: leading icon bubble, label + optional sublabel, trailing slot. */
 function Row({
   icon,
   iconTint,
-  iconBg = "bg-neutral-100 dark:bg-neutral-800",
+  iconBg = "bg-raised",
   label,
   sublabel,
   trailing,
@@ -148,7 +154,7 @@ function Row({
   return (
     <View
       className={`flex-row items-center py-3.5 ${
-        isLast ? "" : "border-b border-neutral-100 dark:border-neutral-800"
+        isLast ? "" : "border-b border-line"
       }`}
     >
       <View
@@ -157,9 +163,9 @@ function Row({
         <Ionicons name={icon} size={18} color={iconTint ?? theme.textSecondary} />
       </View>
       <View className="ml-3 flex-1 pr-3">
-        <Text className="text-body-lg text-neutral-900 dark:text-neutral-50">{label}</Text>
+        <Text className="text-body-lg text-neutral-900">{label}</Text>
         {sublabel ? (
-          <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">{sublabel}</Text>
+          <Text className="mt-0.5 text-caption text-neutral-500">{sublabel}</Text>
         ) : null}
       </View>
       {trailing}
@@ -200,7 +206,7 @@ function Stepper({
         onPress={() => bump(-1)}
         disabled={atMin}
         hitSlop={6}
-        className={`h-9 w-9 items-center justify-center rounded-full border border-neutral-200 dark:border-neutral-700 ${
+        className={`h-9 w-9 items-center justify-center rounded-full border border-line ${
           atMin ? "opacity-40" : "active:opacity-60"
         }`}
         accessibilityRole="button"
@@ -210,7 +216,7 @@ function Stepper({
         <Ionicons name="remove" size={18} color={theme.text} />
       </Pressable>
       <Text
-        className="mx-3 min-w-[56px] text-center text-body-lg font-semibold text-neutral-900 dark:text-neutral-50"
+        className="mx-3 min-w-14 text-center text-body-lg font-semibold text-neutral-900"
         accessibilityLabel={`${a11yLabel}: ${formatMinutes(value)}`}
       >
         {formatMinutes(value)}
@@ -219,7 +225,7 @@ function Stepper({
         onPress={() => bump(1)}
         disabled={atMax}
         hitSlop={6}
-        className={`h-9 w-9 items-center justify-center rounded-full border border-neutral-200 dark:border-neutral-700 ${
+        className={`h-9 w-9 items-center justify-center rounded-full border border-line ${
           atMax ? "opacity-40" : "active:opacity-60"
         }`}
         accessibilityRole="button"
@@ -261,7 +267,7 @@ function StrengthPicker({
             className={`min-h-11 items-center justify-center rounded-full border px-4 ${
               selected
                 ? "border-primary-600 bg-primary-50"
-                : "border-neutral-200 bg-white dark:border-neutral-700 dark:bg-transparent"
+                : "border-line bg-surface"
             }`}
             accessibilityRole="radio"
             accessibilityState={{ selected, checked: selected }}
@@ -269,7 +275,7 @@ function StrengthPicker({
           >
             <Text
               className={`text-label font-medium ${
-                selected ? "text-primary-700" : "text-neutral-600 dark:text-neutral-400"
+                selected ? "text-primary-700" : "text-neutral-600"
               }`}
             >
               {b.label}
@@ -399,19 +405,16 @@ export function StakesSettings() {
   return (
     <View>
       {/* Intro — set the protective tone before any control. */}
-      <Text className="mb-4 text-body text-neutral-500 dark:text-[#78716C]">
+      <Text className="mb-4 text-body text-neutral-500">
         Stakes help you start. These limits keep them gentle — you are always in
         control, and nothing here can trap you.
       </Text>
 
       {/* Protective caps ---------------------------------------------------- */}
-      <Text className="mb-2 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+      <Text className="mb-2 ml-1 text-overline font-semibold uppercase text-neutral-500">
         Protective limits
       </Text>
-      <View
-        className="rounded-2xl border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
-        style={shadows.sm}
-      >
+      <View className="rounded-xl border border-line bg-surface px-4">
         <Row
           icon="shield-checkmark-outline"
           iconTint={theme.primary}
@@ -448,17 +451,14 @@ export function StakesSettings() {
       </View>
 
       {/* Stake strength (FR-44) — fixed defaults plus this one control. ----- */}
-      <Text className="mb-2 ml-1 mt-6 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+      <Text className="mb-2 ml-1 mt-6 text-overline font-semibold uppercase text-neutral-500">
         Stake strength
       </Text>
-      <View
-        className="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
-        style={shadows.sm}
-      >
-        <Text className="text-body-lg text-neutral-900 dark:text-neutral-50">
+      <View className="rounded-xl border border-line bg-surface p-4">
+        <Text className="text-body-lg text-neutral-900">
           How firm a lock holds you to it
         </Text>
-        <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
+        <Text className="mt-0.5 text-caption text-neutral-500">
           Fixed, sensible defaults per band — never a number to tune.
         </Text>
         <View className="mt-3">
@@ -466,7 +466,7 @@ export function StakesSettings() {
         </View>
         {recentlyDeEscalated ? (
           <Text
-            className="mt-3 text-caption text-neutral-500 dark:text-[#78716C]"
+            className="mt-3 text-caption text-neutral-500"
             accessibilityLiveRegion="polite"
           >
             Eased after a few recent overrides, to take pressure off. Set it
@@ -476,19 +476,16 @@ export function StakesSettings() {
       </View>
 
       {/* Quiet hours -------------------------------------------------------- */}
-      <Text className="mb-2 ml-1 mt-6 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+      <Text className="mb-2 ml-1 mt-6 text-overline font-semibold uppercase text-neutral-500">
         Quiet hours
       </Text>
-      <View
-        className="rounded-2xl border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
-        style={shadows.sm}
-      >
+      <View className="rounded-xl border border-line bg-surface px-4">
         <Row
           icon="moon-outline"
           label="Stakes rest during"
           sublabel="Any active lock releases automatically in this window"
           trailing={
-            <Text className="text-body font-medium text-neutral-500 dark:text-[#78716C]">
+            <Text className="text-body font-medium text-neutral-500">
               {quietHoursLabel}
             </Text>
           }
@@ -497,13 +494,10 @@ export function StakesSettings() {
       </View>
 
       {/* Apps on the line -------------------------------------------------- */}
-      <Text className="mb-2 ml-1 mt-6 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+      <Text className="mb-2 ml-1 mt-6 text-overline font-semibold uppercase text-neutral-500">
         Apps on the line
       </Text>
-      <View
-        className="rounded-2xl border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
-        style={shadows.sm}
-      >
+      <View className="rounded-xl border border-line bg-surface px-4">
         <Pressable
           onPress={() => {
             setAppPickerOpen(true);
@@ -522,8 +516,8 @@ export function StakesSettings() {
             <Ionicons name="apps-outline" size={18} color={theme.primary} />
           </View>
           <View className="ml-3 flex-1 pr-3">
-            <Text className="text-body-lg text-neutral-900 dark:text-neutral-50">Choose apps to lock</Text>
-            <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
+            <Text className="text-body-lg text-neutral-900">Choose apps to lock</Text>
+            <Text className="mt-0.5 text-caption text-neutral-500">
               {stakeAppCount > 0
                 ? `${stakeAppCount} app${stakeAppCount === 1 ? "" : "s"} ready to put on the line`
                 : "The leisure apps a stake can lock"}
@@ -532,14 +526,14 @@ export function StakesSettings() {
           <Ionicons name="chevron-forward" size={18} color={theme.textDisabled} />
         </Pressable>
       </View>
-      <Text className="ml-1 mt-2 text-caption text-neutral-500 dark:text-[#78716C]">
+      <Text className="ml-1 mt-2 text-caption text-neutral-500">
         On iPhone you&apos;ll pick these with Apple&apos;s Screen Time picker once app
         locking is enabled.
       </Text>
 
       {/* Never-lock (protected) apps --------------------------------------- */}
       <View className="mb-2 ml-1 mt-6 flex-row items-center justify-between">
-        <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+        <Text className="text-overline font-semibold uppercase text-neutral-500">
           Always reachable
         </Text>
         <Pressable
@@ -551,10 +545,7 @@ export function StakesSettings() {
           <Ionicons name="information-circle-outline" size={18} color={theme.textMuted} />
         </Pressable>
       </View>
-      <View
-        className="rounded-2xl border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
-        style={shadows.sm}
-      >
+      <View className="rounded-xl border border-line bg-surface px-4">
         {/* The 6 safety categories — always shown first, always Protected.
             View only throughout this section (§8.11): no add or remove
             control anywhere here, on purpose (see the file header). The six
@@ -590,12 +581,12 @@ export function StakesSettings() {
             key={key}
             icon="lock-open-outline"
             iconTint={theme.textSecondary}
-            iconBg="bg-neutral-100 dark:bg-neutral-800"
+            iconBg="bg-raised"
             label={categoryLabel(key)}
             sublabel="Added earlier"
             trailing={
               <View className="flex-row items-center">
-                <Text className="mr-1 text-caption font-medium text-neutral-500 dark:text-[#78716C]">
+                <Text className="mr-1 text-caption font-medium text-neutral-500">
                   Always reachable
                 </Text>
                 <Ionicons name="checkmark-circle" size={16} color={theme.textMuted} />
@@ -605,27 +596,24 @@ export function StakesSettings() {
           />
         ))}
       </View>
-      <Text className="ml-1 mt-2 text-caption text-neutral-500 dark:text-[#78716C]">
+      <Text className="ml-1 mt-2 text-caption text-neutral-500">
         These stay reachable no matter what — nothing here can be locked.
         This list isn&apos;t something you manage; Ampora keeps it protected
         automatically.
       </Text>
 
       {/* Pause for today ---------------------------------------------------- */}
-      <Text className="mb-2 ml-1 mt-6 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+      <Text className="mb-2 ml-1 mt-6 text-overline font-semibold uppercase text-neutral-500">
         Take a break
       </Text>
-      <View
-        className="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
-        style={shadows.sm}
-      >
+      <View className="rounded-xl border border-line bg-surface p-4">
         {isPaused ? (
           <>
             <View className="mb-3 flex-row items-center">
               <View className="h-9 w-9 items-center justify-center rounded-full bg-primary-50">
                 <Ionicons name="pause-circle-outline" size={18} color={theme.primary} />
               </View>
-              <Text className="ml-3 flex-1 text-body text-neutral-600 dark:text-neutral-400">
+              <Text className="ml-3 flex-1 text-body text-neutral-600">
                 Stakes are paused for the rest of today. Nothing will lock until
                 tomorrow.
               </Text>
@@ -640,7 +628,7 @@ export function StakesSettings() {
           </>
         ) : (
           <>
-            <Text className="mb-3 text-body text-neutral-600 dark:text-neutral-400">
+            <Text className="mb-3 text-body text-neutral-600">
               Not today? Pause every stake until tomorrow. No streak lost, no
               questions asked.
             </Text>
@@ -655,7 +643,10 @@ export function StakesSettings() {
         )}
       </View>
 
-      {/* Protected-apps explainer sheet ------------------------------------- */}
+      {/* Protected-apps explainer sheet — a centered dialog (not a bottom
+          sheet: it fades in and floats mid-screen), so it gets the sheet
+          surface + all-four-corner radius rather than the top-only
+          bottom-sheet treatment (contract §3b). */}
       <Modal
         visible={protectedInfoOpen}
         transparent
@@ -667,12 +658,11 @@ export function StakesSettings() {
           onPress={() => setProtectedInfoOpen(false)}
         >
           <Pressable
-            className="w-full max-w-[360px] rounded-2xl bg-white p-6 dark:bg-neutral-900"
-            style={shadows.lg}
+            className="w-full max-w-360 rounded-sheet bg-surface p-6"
             onPress={(e) => e.stopPropagation()}
           >
-            <Heading size="h3" className="dark:text-neutral-50">Always reachable</Heading>
-            <Text className="mt-2 text-body text-neutral-600 dark:text-neutral-400">
+            <Heading size="h3">Always reachable</Heading>
+            <Text className="mt-2 text-body text-neutral-600">
               Phone, messages, maps, accessibility, system settings, and Ampora
               itself can never be locked. Focus should never get between you and
               the things that keep you safe or connected.

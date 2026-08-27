@@ -6,7 +6,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { EASINGS, DURATIONS } from "@/utils/motion";
+import { borderRadius } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 interface ProgressDotsProps {
   /** Total number of onboarding steps. */
@@ -39,6 +41,7 @@ export function ProgressDots({ total, current }: ProgressDotsProps) {
 
 function Dot({ active }: { active: boolean }) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const progress = useSharedValue(active ? 1 : 0);
 
   useEffect(() => {
@@ -54,14 +57,12 @@ function Dot({ active }: { active: boolean }) {
 
   const style = useAnimatedStyle(() => ({
     width: 6 + progress.value * 14,
-    backgroundColor: active
-      ? "#2563EB"
-      : `rgba(161, 161, 170, ${0.5 - progress.value * 0.1})`,
+    backgroundColor: active ? theme.primary : theme.textDisabled,
   }));
 
   return (
     <Animated.View
-      style={[{ height: 6, borderRadius: 3 }, style]}
+      style={[{ height: 6, borderRadius: borderRadius.full }, style]}
     />
   );
 }

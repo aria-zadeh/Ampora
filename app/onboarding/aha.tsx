@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { View, Text } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
@@ -11,9 +10,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useTaskStore } from "@/store/taskStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { StakeSetupSheet, type ArmedStake } from "@/components/stakes/StakeSetupSheet";
-import { gradients, shadows } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { ProgressDots } from "./ProgressDots";
 
 /**
@@ -38,6 +37,7 @@ import { ProgressDots } from "./ProgressDots";
 export default function AhaScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const { taskId } = useLocalSearchParams<{ taskId?: string }>();
 
   const task = useTaskStore((s) => (taskId ? s.tasks[taskId] : undefined));
@@ -134,12 +134,10 @@ export default function AhaScreen() {
       className="flex-1 bg-neutral-100"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom + 16 }}
     >
-      <LinearGradient
-        colors={gradients.firstMove}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+      <View
         pointerEvents="none"
-        style={{ position: "absolute", top: 0, left: 0, right: 0, height: 380 }}
+        className="absolute top-0 left-0 right-0 bg-surface"
+        style={{ height: 380 }}
       />
 
       <View className="flex-1 justify-between px-6">
@@ -152,10 +150,10 @@ export default function AhaScreen() {
             <Text className="text-overline text-primary-600 uppercase tracking-wide mb-3">
               This is it
             </Text>
-            <Heading size="h1" className="text-neutral-900 max-w-[320px]">
+            <Heading size="h1" className="text-neutral-900 max-w-330">
               Lock in your first session
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[330px]">
+            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-330">
               Pick the apps that usually pull you away. They&apos;ll go dark
               while you work on this — and come back the moment you&apos;ve
               earned it.
@@ -165,7 +163,6 @@ export default function AhaScreen() {
           <Animated.View
             entering={enter(100 + staggerDelay(0))}
             className="mt-6 rounded-2xl border border-neutral-200 bg-white p-5"
-            style={shadows.sm}
           >
             <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500">
               Your task
@@ -175,7 +172,7 @@ export default function AhaScreen() {
             </Heading>
             {task.firstMove?.text ? (
               <View className="mt-3.5 flex-row items-start gap-2.5 rounded-lg bg-primary-50 px-3.5 py-3">
-                <Ionicons name="flag-outline" size={16} color="#2563EB" style={{ marginTop: 1 }} />
+                <Ionicons name="flag-outline" size={16} color={theme.primary} style={{ marginTop: 1 }} />
                 <View className="flex-1">
                   <Text className="text-tiny font-semibold uppercase tracking-wide text-primary-600">
                     First move
@@ -194,7 +191,7 @@ export default function AhaScreen() {
             title="Choose apps to lock"
             variant="primaryBlue"
             size="lg"
-            icon={<Ionicons name="lock-closed-outline" size={18} color="#FFFFFF" />}
+            icon={<Ionicons name="lock-closed-outline" size={18} color={theme.primaryForeground} />}
             onPress={() => setStakeOpen(true)}
             accessibilityLabel="Choose apps to lock and start a focus session"
             accessibilityHint="Opens the stake setup sheet for this task"

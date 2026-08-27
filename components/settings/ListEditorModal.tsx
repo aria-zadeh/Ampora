@@ -5,22 +5,10 @@ import * as Haptics from "expo-haptics";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
-import { Stepper } from "@/components/settings/SettingsPrimitives";
+import { Stepper, Toggle } from "@/components/settings/SettingsPrimitives";
 import { useListStore, selectListById } from "@/store/listStore";
-import { colors, shadows } from "@/utils/design-tokens";
+import { useThemeColors, useListColors } from "@/hooks/useThemeColors";
 import type { List, SchedulingHours } from "@/types";
-
-// Shared swatch set, matching the task editor's palette.
-const COLOR_SWATCHES = [
-  "#2563EB",
-  "#7C3AED",
-  "#16A34A",
-  "#EA580C",
-  "#DC2626",
-  "#0891B2",
-  "#DB2777",
-  "#57534E",
-];
 
 /** Weekdays Mon-Fri as Date#getDay() indices (1 = Mon ... 5 = Fri). */
 const WEEKDAYS = [1, 2, 3, 4, 5];
@@ -76,9 +64,19 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
     listId ? selectListById(listId)(s) : undefined
   );
   const updateList = useListStore((s) => s.updateList);
+  const theme = useThemeColors();
+  // The categorical list/tag swatch set (contract: "Categorical list/calendar
+  // hues come from useListColors() — never for actions"), not the app's
+  // action colors. `bar` is the decorative, text-free swatch tone measured
+  // for exactly this purpose (see utils/design-tokens.ts).
+  const listColors = useListColors();
+  const swatches = useMemo(
+    () => Object.values(listColors).map((c) => c.bar),
+    [listColors]
+  );
 
   const [name, setName] = useState("");
-  const [color, setColor] = useState<string>(COLOR_SWATCHES[0]);
+  const [color, setColor] = useState<string>(swatches[0]);
   const [hoursEnabled, setHoursEnabled] = useState(false);
   const [startHour, setStartHour] = useState(15); // 3 PM
   const [endHour, setEndHour] = useState(21); // 9 PM
@@ -132,7 +130,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
         accessibilityLabel="Dismiss"
       >
         <Pressable
-          className="bg-white rounded-t-2xl"
+          className="bg-surface rounded-t-sheet"
           onPress={(e) => e.stopPropagation()}
         >
           <ScrollView
@@ -141,7 +139,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
             showsVerticalScrollIndicator={false}
           >
             <View className="items-center mb-4">
-              <View className="w-10 h-1 rounded-full bg-neutral-200" />
+              <View className="w-10 h-1 rounded-xxs bg-line" />
             </View>
             <Heading size="h3">Edit list</Heading>
 
@@ -150,9 +148,9 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
               Name
             </Text>
             <TextInput
-              className="min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900"
+              className="min-h-12 rounded-lg bg-raised px-4 text-body-lg text-neutral-900"
               placeholder="List name"
-              placeholderTextColor={colors.light.textDisabled}
+              placeholderTextColor={theme.textDisabled}
               value={name}
               onChangeText={setName}
               returnKeyType="done"
@@ -164,7 +162,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
               Color
             </Text>
             <View className="flex-row flex-wrap items-center gap-3">
-              {COLOR_SWATCHES.map((c) => {
+              {swatches.map((c) => {
                 const selected = color === c;
                 return (
                   <Pressable
@@ -179,7 +177,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
                     accessibilityState={{ selected }}
                   >
                     {selected ? (
-                      <Ionicons name="checkmark" size={16} color={colors.light.primaryForeground} />
+                      <Ionicons name="checkmark" size={16} color={theme.primaryForeground} />
                     ) : null}
                   </Pressable>
                 );
@@ -190,12 +188,9 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
             <Text className="mt-6 mb-2 text-label font-medium text-neutral-600">
               Scheduling hours
             </Text>
-            <View
-              className="rounded-2xl border border-neutral-200 bg-white px-4"
-              style={shadows.sm}
-            >
+            <View className="rounded-lg bg-raised px-4">
               {/* Toggle: custom window vs default */}
-              <View className="flex-row items-center py-3.5 border-b border-neutral-100">
+              <View className="flex-row items-center py-3.5 border-b border-line">
                 <View className="flex-1 pr-3">
                   <Text className="text-body-lg text-neutral-900">
                     Custom hours for this list
@@ -204,31 +199,17 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
                     {summary}
                   </Text>
                 </View>
-                <Pressable
-                  onPress={() => {
-                    Haptics.selectionAsync().catch(() => {});
-                    setHoursEnabled((v) => !v);
-                  }}
-                  className={`h-7 w-12 rounded-full px-0.5 justify-center ${
-                    hoursEnabled ? "bg-primary-600" : "bg-neutral-300"
-                  }`}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: hoursEnabled }}
-                  accessibilityLabel="Custom hours for this list"
-                >
-                  <View
-                    className={`h-6 w-6 rounded-full bg-white ${
-                      hoursEnabled ? "self-end" : "self-start"
-                    }`}
-                    style={shadows.xs}
-                  />
-                </Pressable>
+                <Toggle
+                  value={hoursEnabled}
+                  onChange={setHoursEnabled}
+                  a11yLabel="Custom hours for this list"
+                />
               </View>
 
               {/* Start / End steppers — only when custom hours are on. */}
               {hoursEnabled ? (
                 <>
-                  <View className="flex-row items-center py-3.5 border-b border-neutral-100">
+                  <View className="flex-row items-center py-3.5 border-b border-line">
                     <Text className="flex-1 text-body-lg text-neutral-900">Start</Text>
                     <Stepper
                       value={startHour}

@@ -79,7 +79,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { Heading } from '@/components/ui/Heading'
 import { Text } from '@/components/ui/Text'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { colors, layout } from '@/utils/design-tokens'
+import { layout } from '@/utils/design-tokens'
+import { useThemeColors } from '@/hooks/useThemeColors'
 
 const LAST_UPDATED = 'August 24, 2026'
 
@@ -121,12 +122,13 @@ function Bullet({ children }: { children: React.ReactNode }) {
 
 /** A visually distinct callout for a value that must be filled in before publishing. */
 function PlaceholderNotice({ children }: { children: React.ReactNode }) {
+  const theme = useThemeColors()
   return (
     <View className="mt-2 flex-row items-start gap-2 rounded-xl bg-warning-100 p-3">
       <Ionicons
         name="alert-circle-outline"
         size={18}
-        color={colors.light.warningStrong}
+        color={theme.warningStrong}
         style={{ marginTop: 1 }}
       />
       <Text variant="bodyMedium" className="flex-1 text-warning-700">
@@ -142,6 +144,7 @@ function PlaceholderNotice({ children }: { children: React.ReactNode }) {
 
 export default function TermsOfServiceScreen() {
   const insets = useSafeAreaInsets()
+  const theme = useThemeColors()
 
   return (
     <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
@@ -154,7 +157,7 @@ export default function TermsOfServiceScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color={colors.light.text} />
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
         </PressableScale>
       </View>
 

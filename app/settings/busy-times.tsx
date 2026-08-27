@@ -4,9 +4,10 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ComingSoon } from "@/components/ComingSoon";
-import { colors } from "@/utils/design-tokens";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export default function BusyTimesScreen() {
+  const theme = useThemeColors();
   return (
     <View className="flex-1 bg-neutral-100">
       {/* Back button header */}
@@ -19,7 +20,7 @@ export default function BusyTimesScreen() {
             accessibilityLabel="Go back"
             hitSlop={8}
           >
-            <Ionicons name="arrow-back" size={24} color={colors.light.text} />
+            <Ionicons name="arrow-back" size={24} color={theme.text} />
           </Pressable>
         </View>
       </SafeAreaView>

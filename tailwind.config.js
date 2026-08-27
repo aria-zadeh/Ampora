@@ -170,6 +170,8 @@ module.exports = {
         260: "260px",
         280: "280px",
         300: "300px",
+        330: "330px",
+        360: "360px",
       },
 
       // Letter-spacing measured EXACTLY 0 on all 241 text runs across the

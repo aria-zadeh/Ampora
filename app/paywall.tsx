@@ -40,15 +40,14 @@
  * No dark patterns: trial state and what happens at its end are stated
  * plainly, a cancelled purchase is a normal outcome (never a crash or an
  * alarming error), and a lapsed subscriber is never nudged back into
- * "start your free trial" copy. Projects/premium accent (#7C3AED) sets the
- * tone. RN + NativeWind, web-export safe.
+ * "start your free trial" copy. Projects/premium accent (the `accent` token,
+ * `utils/design-tokens.ts`) sets the tone. RN + NativeWind, web-export safe.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ScrollView, Platform, BackHandler } from 'react-native'
 import { router, useNavigation } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import Animated, {
@@ -75,9 +74,9 @@ import {
 } from '@/core/subscription'
 import { getPurchaseStrategy, PLACEHOLDER_OFFERINGS, type IapOffering, type IapPlan } from '@/core/iap'
 import { FEATURE_FLAGS } from '@/constants/featureFlags'
-import { shadows } from '@/utils/design-tokens'
 import { DURATIONS, SPRINGS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
+import { useThemeColors } from '@/hooks/useThemeColors'
 
 // ---------------------------------------------------------------------------
 // Plan display shape. Populated from `PurchaseStrategy.getOfferings()` (real
@@ -147,6 +146,7 @@ function PlanCard({
   selected: boolean
   onSelect: () => void
 }) {
+  const theme = useThemeColors()
   return (
     <PressableScale
       onPress={onSelect}
@@ -164,7 +164,6 @@ function PlanCard({
           FeatureShell's own bezel is a fixed neutral wash. */}
       <FeatureShell
         className={selected ? 'border-accent-600' : ''}
-        style={shadows.sm}
       >
         <View className="p-4">
           <View className="flex-row items-center justify-between">
@@ -190,7 +189,7 @@ function PlanCard({
             <Ionicons
               name={selected ? 'checkmark-circle' : 'ellipse-outline'}
               size={18}
-              color={selected ? '#7C3AED' : '#D7D3CC'}
+              color={selected ? theme.accent : theme.textDisabled}
             />
             <Text
               className={`ml-1.5 text-caption ${
@@ -213,6 +212,7 @@ function PlanCard({
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets()
   const reduceMotion = useReduceMotion()
+  const theme = useThemeColors()
   const navigation = useNavigation()
 
   const subscription = useSettingsStore((s) => s.settings.subscription)
@@ -440,7 +440,7 @@ export default function PaywallScreen() {
         <PaywallHeader onClose={close} dismissible={dismissible} />
         <View className="flex-1 items-center justify-center px-8">
           <View className="h-16 w-16 items-center justify-center rounded-full bg-accent-100">
-            <Ionicons name="checkmark-circle" size={36} color="#7C3AED" />
+            <Ionicons name="checkmark-circle" size={36} color={theme.accent} />
           </View>
           <Heading size="h2" className="mt-5 text-center">
             You're all set
@@ -449,7 +449,7 @@ export default function PaywallScreen() {
             Your {subscription.plan ?? 'Ampora'} subscription is active. Thanks for
             being here.
           </Text>
-          <View className="mt-8 w-full max-w-[320px]">
+          <View className="mt-8 w-full max-w-xs">
             <Button
               title="Done"
               variant="primaryBlue"
@@ -488,13 +488,11 @@ export default function PaywallScreen() {
 
   return (
     <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
-      {/* Accent wash behind the hero */}
-      <LinearGradient
-        colors={['#F3EEFF', 'rgba(244,244,245,0)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+      {/* Accent wash behind the hero — flat surface, the source has no gradients */}
+      <View
         pointerEvents="none"
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 280 }}
+        className="absolute top-0 left-0 right-0 bg-accent-100"
+        style={{ height: 280 }}
       />
 
       <PaywallHeader onClose={close} dismissible={dismissible} />
@@ -510,7 +508,7 @@ export default function PaywallScreen() {
           className="pt-4"
         >
           <View className="h-14 w-14 items-center justify-center rounded-2xl bg-accent-100">
-            <Ionicons name="sparkles" size={26} color="#7C3AED" />
+            <Ionicons name="sparkles" size={26} color={theme.accent} />
           </View>
 
           {showTrialChip ? (
@@ -538,7 +536,6 @@ export default function PaywallScreen() {
             reduceMotion ? undefined : FadeInDown.delay(60).duration(DURATIONS.base)
           }
           className="mt-7 rounded-2xl border border-neutral-200 bg-white p-5"
-          style={shadows.sm}
         >
           {VALUE_POINTS.map((point, i) => (
             <View
@@ -546,7 +543,7 @@ export default function PaywallScreen() {
               className={`flex-row items-center ${i === 0 ? '' : 'mt-3.5'}`}
             >
               <View className="h-8 w-8 items-center justify-center rounded-full bg-accent-100">
-                <Ionicons name={point.icon} size={16} color="#7C3AED" />
+                <Ionicons name={point.icon} size={16} color={theme.accent} />
               </View>
               <Text className="ml-3 flex-1 text-body text-neutral-800">{point.text}</Text>
             </View>
@@ -627,7 +624,7 @@ export default function PaywallScreen() {
             <PressableScale
               onPress={close}
               haptic="light"
-              className="mt-3 min-h-[44px] items-center justify-center py-2"
+              className="mt-3 min-h-11 items-center justify-center py-2"
               accessibilityRole="button"
               accessibilityLabel="Maybe later"
             >
@@ -644,7 +641,7 @@ export default function PaywallScreen() {
             onPress={handleRestore}
             haptic="selection"
             disabled={busy}
-            className="mt-3 min-h-[44px] items-center justify-center py-2"
+            className="mt-3 min-h-11 items-center justify-center py-2"
             accessibilityRole="button"
             accessibilityLabel="Restore purchases"
             accessibilityHint="Checks for a previous purchase on this account and unlocks it if found"
@@ -665,7 +662,7 @@ export default function PaywallScreen() {
             <PressableScale
               onPress={() => router.push('/legal/terms')}
               haptic="light"
-              className="min-h-[48px] items-center justify-center px-2"
+              className="min-h-12 items-center justify-center px-2"
               accessibilityRole="link"
               accessibilityLabel="Terms of Use"
             >
@@ -679,7 +676,7 @@ export default function PaywallScreen() {
             <PressableScale
               onPress={() => router.push('/legal/privacy')}
               haptic="light"
-              className="min-h-[48px] items-center justify-center px-2"
+              className="min-h-12 items-center justify-center px-2"
               accessibilityRole="link"
               accessibilityLabel="Privacy Policy"
             >
@@ -710,7 +707,7 @@ export default function PaywallScreen() {
               accessibilityLabel="Skip payment and enter the app (developer only)"
               accessibilityHint="Marks your subscription active locally without a purchase"
             >
-              <Ionicons name="construct-outline" size={16} color="#6F6862" />
+              <Ionicons name="construct-outline" size={16} color={theme.textSecondary} />
               <Text className="text-label font-medium text-neutral-600">
                 Skip / bypass payment (dev)
               </Text>
@@ -731,6 +728,7 @@ const VALUE_POINTS: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
 
 /** Shared close (X) header for the paywall. Renders an inert same-size spacer instead of a button when not dismissible (FR-88) — never a dead tap target. */
 function PaywallHeader({ onClose, dismissible }: { onClose: () => void; dismissible: boolean }) {
+  const theme = useThemeColors()
   return (
     <View className="flex-row items-center justify-end px-4 pb-1 pt-1">
       {dismissible ? (
@@ -741,7 +739,7 @@ function PaywallHeader({ onClose, dismissible }: { onClose: () => void; dismissi
           accessibilityRole="button"
           accessibilityLabel="Close"
         >
-          <Ionicons name="close" size={24} color="#57534E" />
+          <Ionicons name="close" size={24} color={theme.textSecondary} />
         </PressableScale>
       ) : (
         <View className="h-11 w-11" />

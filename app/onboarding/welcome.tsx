@@ -2,14 +2,13 @@ import React from "react";
 import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Button } from "@/components/ui/Button";
 import { Heading } from "@/components/ui/Heading";
-import { gradients } from "@/utils/design-tokens";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { ProgressDots } from "./ProgressDots";
 
 /**
@@ -53,6 +52,7 @@ const VALUE_LINES = [
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   const enter = (delay: number) =>
     reduceMotion ? undefined : FadeInDown.delay(delay).duration(DURATIONS.base);
@@ -62,13 +62,11 @@ export default function WelcomeScreen() {
       className="flex-1 bg-neutral-100"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom + 24 }}
     >
-      {/* Hero gradient wash behind the intro */}
-      <LinearGradient
-        colors={gradients.heroWash}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+      {/* Hero wash behind the intro — flat surface, the source has no gradients */}
+      <View
         pointerEvents="none"
-        style={{ position: "absolute", top: 0, left: 0, right: 0, height: 380 }}
+        className="absolute top-0 left-0 right-0 bg-surface"
+        style={{ height: 380 }}
       />
 
       <View className="flex-1 justify-between px-6">
@@ -81,10 +79,10 @@ export default function WelcomeScreen() {
             <Text className="text-overline text-primary-600 uppercase tracking-wide mb-3">
               Welcome to Ampora
             </Text>
-            <Heading size="display" className="text-neutral-900 max-w-[320px]">
+            <Heading size="display" className="text-neutral-900 max-w-330">
               Big tasks, broken into first steps.
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-4 leading-7 max-w-[330px]">
+            <Text className="text-body-lg text-neutral-600 mt-4 leading-7 max-w-330">
               Ampora is built for brains that work differently. We help you find
               the very next thing to do — so starting never feels like the hard
               part.
@@ -102,7 +100,7 @@ export default function WelcomeScreen() {
                 <Ionicons
                   name={item.icon}
                   size={20}
-                  color="#2563EB"
+                  color={theme.primary}
                   style={{ marginTop: 2 }}
                 />
                 <Text className="text-body text-neutral-700 flex-1 leading-6">

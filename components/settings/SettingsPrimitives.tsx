@@ -2,16 +2,17 @@
  * Shared settings presentation primitives — Phase 7 (PRD §8.11 full settings
  * surface). Extracted so SchedulingSettings / NotificationSettings /
  * DataSettings all render with one consistent, premium visual language
- * (grouped white cards, soft shadow, overline headers, -/+ steppers, inline
- * segmented pickers) instead of each re-inventing rows.
+ * (grouped cards, overline headers, -/+ steppers, inline segmented pickers)
+ * instead of each re-inventing rows.
  *
  * Everything here is presentation only — no store access, no side effects.
  * RN + NativeWind, web-export safe. Values come from the design tokens; no
  * hardcoded colors beyond the Ionicons `color` prop and the Reanimated
- * `useAnimatedStyle` backgrounds (neither can take a `dark:` class), both of
- * which resolve through `useThemeColors()` so they track the active scheme.
- * className-driven color (background/border/text) uses `dark:` variants
- * directly — see the cheatsheet atop `utils/design-tokens.ts`.
+ * `useAnimatedStyle` backgrounds (neither can take a class), both of which
+ * resolve through `useThemeColors()` so they track the active scheme.
+ * className-driven color (background/border/text) resolves through a CSS
+ * variable and needs no `dark:` variant at all — see the cheatsheet atop
+ * `utils/design-tokens.ts`.
  */
 
 import React, { useEffect } from 'react'
@@ -23,7 +24,6 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated'
-import { shadows } from '@/utils/design-tokens'
 import { EASINGS, DURATIONS } from '@/utils/motion'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
 import { useThemeColors } from '@/hooks/useThemeColors'
@@ -35,7 +35,7 @@ import { useThemeColors } from '@/hooks/useThemeColors'
 /** Uppercase overline section label, matched to the Profile screen. */
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Text className="mb-2 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+    <Text className="mb-2 ml-1 text-overline font-semibold uppercase text-neutral-500">
       {children}
     </Text>
   )
@@ -44,37 +44,21 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
 /** A calm caption under a card, for the "why" / reassurance copy. */
 export function SectionFootnote({ children }: { children: React.ReactNode }) {
   return (
-    <Text className="ml-1 mt-2 text-caption text-neutral-500 dark:text-[#78716C]">
+    <Text className="ml-1 mt-2 text-caption text-neutral-500">
       {children}
     </Text>
   )
 }
 
 /**
- * Grouped white card with a soft shadow + 1px border (the default card look).
- * Themed dark in dark mode UNLESS `forceLight` is set — used by the handful
- * of call sites (the `EmptyState`-driven CalendarSyncSettings branches) that
- * wrap a `components/ui/EmptyState`/`Heading`, both outside this task's
- * touch scope and both still hardcoded to dark ink text. Forcing those
- * specific cards to stay light keeps that text readable (a light card on a
- * dark screen) instead of silently going dark-on-dark and disappearing.
+ * Grouped card: `bg-surface` + `border-line` + the standard card radius — the
+ * default card look (contract rule 6). Colour resolves through a CSS
+ * variable, so this already renders correctly in both themes with no
+ * `dark:` variant needed.
  */
-export function Group({
-  children,
-  forceLight = false,
-}: {
-  children: React.ReactNode
-  forceLight?: boolean
-}) {
+export function Group({ children }: { children: React.ReactNode }) {
   return (
-    <View
-      className={
-        forceLight
-          ? 'rounded-2xl border border-neutral-200 bg-white px-4'
-          : 'rounded-2xl border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900'
-      }
-      style={shadows.sm}
-    >
+    <View className="rounded-xl border border-line bg-surface px-4">
       {children}
     </View>
   )
@@ -88,7 +72,7 @@ export function Group({
 export function Row({
   icon,
   iconTint,
-  iconBg = 'bg-neutral-100 dark:bg-neutral-800',
+  iconBg = 'bg-raised',
   label,
   sublabel,
   trailing,
@@ -106,16 +90,16 @@ export function Row({
   return (
     <View
       className={`flex-row items-center py-3.5 ${
-        isLast ? '' : 'border-b border-neutral-100 dark:border-neutral-800'
+        isLast ? '' : 'border-b border-line'
       }`}
     >
       <View className={`h-9 w-9 items-center justify-center rounded-full ${iconBg}`}>
         <Ionicons name={icon} size={18} color={iconTint ?? theme.textSecondary} />
       </View>
       <View className="ml-3 flex-1 pr-3">
-        <Text className="text-body-lg text-neutral-900 dark:text-neutral-50">{label}</Text>
+        <Text className="text-body-lg text-neutral-900">{label}</Text>
         {sublabel ? (
-          <Text className="mt-0.5 text-caption text-neutral-500 dark:text-[#78716C]">
+          <Text className="mt-0.5 text-caption text-neutral-500">
             {sublabel}
           </Text>
         ) : null}
@@ -168,7 +152,7 @@ export function Stepper({
         onPress={() => bump(-1)}
         disabled={atMin}
         hitSlop={6}
-        className={`h-9 w-9 items-center justify-center rounded-full border border-neutral-200 dark:border-neutral-700 ${
+        className={`h-9 w-9 items-center justify-center rounded-full border border-line ${
           atMin ? 'opacity-40' : 'active:opacity-60'
         }`}
         accessibilityRole="button"
@@ -178,7 +162,7 @@ export function Stepper({
         <Ionicons name="remove" size={18} color={theme.text} />
       </Pressable>
       <Text
-        className="mx-3 min-w-[64px] text-center text-body-lg font-semibold text-neutral-900 dark:text-neutral-50"
+        className="mx-3 min-w-16 text-center text-body-lg font-semibold text-neutral-900"
         accessibilityLabel={`${a11yLabel}: ${format(value)}`}
       >
         {format(value)}
@@ -187,7 +171,7 @@ export function Stepper({
         onPress={() => bump(1)}
         disabled={atMax}
         hitSlop={6}
-        className={`h-9 w-9 items-center justify-center rounded-full border border-neutral-200 dark:border-neutral-700 ${
+        className={`h-9 w-9 items-center justify-center rounded-full border border-line ${
           atMax ? 'opacity-40' : 'active:opacity-60'
         }`}
         accessibilityRole="button"
@@ -224,7 +208,7 @@ export function InlineSegmented<T extends string>({
   }
   return (
     <View
-      className="flex-row rounded-lg border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 p-0.5"
+      className="flex-row rounded-lg border border-line bg-canvas p-0.5"
       accessibilityLabel={a11yLabel}
     >
       {options.map((opt) => {
@@ -234,7 +218,7 @@ export function InlineSegmented<T extends string>({
             key={opt.key}
             onPress={() => select(opt.key)}
             className="min-h-9 items-center justify-center rounded-md px-3 py-1.5"
-            style={active ? [{ backgroundColor: theme.elevated }, shadows.xs] : undefined}
+            style={active ? { backgroundColor: theme.elevated } : undefined}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             accessibilityLabel={`${opt.label}${active ? ', selected' : ''}`}
@@ -242,8 +226,8 @@ export function InlineSegmented<T extends string>({
             <Text
               className={
                 active
-                  ? 'text-label font-semibold text-neutral-900 dark:text-neutral-50'
-                  : 'text-label font-medium text-neutral-500 dark:text-[#78716C]'
+                  ? 'text-label font-semibold text-neutral-900'
+                  : 'text-label font-medium text-neutral-500'
               }
             >
               {opt.label}
@@ -262,9 +246,10 @@ export function InlineSegmented<T extends string>({
 /**
  * A track-and-thumb toggle switch matching the app's calm, springless
  * settings motion (eased withTiming, not a spring — a switch here is a
- * settings commit, not a tactile drag control). Track tints primary-600 when
- * on, neutral-200 when off; thumb is always white. Reduce-motion collapses
- * the transition to an instant snap.
+ * settings commit, not a tactile drag control). Track is 48x28
+ * (`bg-primary` on / `theme.border` off), knob 24x24 literal white — the one
+ * place a literal is correct, since a toggle knob is white in both themes.
+ * Reduce-motion collapses the transition to an instant snap.
  */
 export function Toggle({
   value,
@@ -320,11 +305,11 @@ export function Toggle({
     >
       <Animated.View
         style={trackStyle}
-        className="h-7 w-[46px] justify-center rounded-full px-0.5"
+        className="h-7 w-12 justify-center rounded-full px-0.5"
       >
         <Animated.View
-          style={[thumbStyle, shadows.xs]}
-          className="h-6 w-6 rounded-full bg-white"
+          style={thumbStyle}
+          className="h-6 w-6 rounded-full bg-pure-white"
         />
       </Animated.View>
     </Pressable>

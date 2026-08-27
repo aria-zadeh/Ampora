@@ -75,7 +75,7 @@ import { Heading } from '@/components/ui/Heading'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { colors, shadows } from '@/utils/design-tokens'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { SectionLabel, SectionFootnote, Group } from '@/components/settings/SettingsPrimitives'
 import {
   serializeExport,
@@ -119,8 +119,8 @@ function downloadOnWeb(json: string, filename: string): boolean {
 /** A tappable action row with a leading icon bubble + chevron/trailing slot. */
 function ActionRow({
   icon,
-  iconTint = colors.light.textSecondary,
-  iconBg = 'bg-neutral-100',
+  iconTint,
+  iconBg = 'bg-raised',
   label,
   sublabel,
   onPress,
@@ -140,20 +140,21 @@ function ActionRow({
   isLast?: boolean
   accessibilityHint?: string
 }) {
+  const theme = useThemeColors()
   return (
     <PressableScale
       onPress={onPress}
       haptic="light"
       disabled={busy}
       className={`flex-row items-center py-3.5 ${
-        isLast ? '' : 'border-b border-neutral-100'
+        isLast ? '' : 'border-b border-line'
       }`}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
     >
       <View className={`h-9 w-9 items-center justify-center rounded-full ${iconBg}`}>
-        <Ionicons name={icon} size={18} color={iconTint} />
+        <Ionicons name={icon} size={18} color={iconTint ?? theme.textSecondary} />
       </View>
       <View className="ml-3 flex-1 pr-3">
         <Text
@@ -168,7 +169,7 @@ function ActionRow({
       <Ionicons
         name={busy ? 'hourglass-outline' : 'chevron-forward'}
         size={18}
-        color={danger ? colors.light.dangerStrong : colors.light.textDisabled}
+        color={danger ? theme.dangerStrong : theme.textDisabled}
       />
     </PressableScale>
   )
@@ -179,6 +180,7 @@ function ActionRow({
 // ---------------------------------------------------------------------------
 
 export function DataSettings() {
+  const theme = useThemeColors()
   const [exporting, setExporting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleted, setDeleted] = useState(false)
@@ -366,7 +368,7 @@ export function DataSettings() {
       <Group>
         <ActionRow
           icon="download-outline"
-          iconTint={colors.light.primary}
+          iconTint={theme.primary}
           iconBg="bg-primary-50"
           label="Export data"
           sublabel="Save a JSON copy of everything"
@@ -388,9 +390,9 @@ export function DataSettings() {
       </View>
       <Group>
         {userEmail ? (
-          <View className="flex-row items-center border-b border-neutral-100 py-3.5">
-            <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-              <Ionicons name="mail-outline" size={18} color={colors.light.textSecondary} />
+          <View className="flex-row items-center border-b border-line py-3.5">
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-raised">
+              <Ionicons name="mail-outline" size={18} color={theme.textSecondary} />
             </View>
             <Text className="ml-3 flex-1 text-body-lg text-neutral-900" numberOfLines={1}>
               {userEmail}
@@ -399,7 +401,7 @@ export function DataSettings() {
         ) : null}
         <ActionRow
           icon="log-out-outline"
-          iconTint={colors.light.dangerStrong}
+          iconTint={theme.dangerStrong}
           iconBg="bg-danger-100"
           label="Sign out"
           onPress={handleSignOut}
@@ -419,7 +421,7 @@ export function DataSettings() {
       <Group>
         <ActionRow
           icon="help-circle-outline"
-          iconTint={colors.light.primary}
+          iconTint={theme.primary}
           iconBg="bg-primary-50"
           label="Help"
           sublabel="What Ampora does and how it's built to help"
@@ -434,8 +436,8 @@ export function DataSettings() {
           accessibilityHint="Opens the current privacy and terms notice"
         />
         <View className="flex-row items-center py-3.5">
-          <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100">
-            <Ionicons name="information-circle-outline" size={18} color={colors.light.textSecondary} />
+          <View className="h-9 w-9 items-center justify-center rounded-full bg-raised">
+            <Ionicons name="information-circle-outline" size={18} color={theme.textSecondary} />
           </View>
           <Text className="ml-3 flex-1 text-body-lg text-neutral-900">Version</Text>
           <Text className="text-body text-neutral-500">{APP_VERSION}</Text>
@@ -457,7 +459,7 @@ export function DataSettings() {
         {deleted ? (
           <View className="flex-row items-center py-3.5">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-success-100">
-              <Ionicons name="checkmark-circle-outline" size={18} color={colors.light.successAccent} />
+              <Ionicons name="checkmark-circle-outline" size={18} color={theme.successAccent} />
             </View>
             <Text className="ml-3 flex-1 text-body-lg text-neutral-900">
               Local data erased
@@ -466,7 +468,7 @@ export function DataSettings() {
         ) : (
           <ActionRow
             icon="trash-outline"
-            iconTint={colors.light.dangerStrong}
+            iconTint={theme.dangerStrong}
             iconBg="bg-danger-100"
             label="Erase data on this device"
             sublabel="Clears tasks, projects, and history stored here"
@@ -489,7 +491,7 @@ export function DataSettings() {
         <Group>
           <ActionRow
             icon="person-remove-outline"
-            iconTint={colors.light.dangerStrong}
+            iconTint={theme.dangerStrong}
             iconBg="bg-danger-100"
             label="Delete account"
             sublabel="Permanently deletes your account and all its data"
@@ -505,8 +507,10 @@ export function DataSettings() {
         </SectionFootnote>
       </View>
 
-      {/* Erase-local-data confirmation — single confirm is proportionate here:
-          device-only and reversible by signing back in. */}
+      {/* Erase-local-data confirmation — a centered dialog (fades in and
+          floats mid-screen, not bottom-anchored), so it gets the sheet
+          surface + all-four-corner radius (contract §3b). Single confirm is
+          proportionate here: device-only and reversible by signing back in. */}
       <Modal
         visible={confirmDelete}
         transparent
@@ -518,12 +522,11 @@ export function DataSettings() {
           onPress={() => setConfirmDelete(false)}
         >
           <Pressable
-            className="w-full max-w-[360px] rounded-2xl bg-white p-6"
-            style={shadows.lg}
+            className="w-full max-w-360 rounded-sheet bg-surface p-6"
             onPress={(e) => e.stopPropagation()}
           >
             <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-              <Ionicons name="trash-outline" size={24} color={colors.light.dangerStrong} />
+              <Ionicons name="trash-outline" size={24} color={theme.dangerStrong} />
             </View>
             <Heading size="h3" className="mt-4">
               Erase data on this device?
@@ -559,7 +562,8 @@ export function DataSettings() {
           above: an explanation with data export offered first, then a typed
           "DELETE" confirmation (not just a tap), then the attempt itself.
           `deleteAccountStep` drives which of the four panels below renders;
-          only one Modal so there is only ever one dialog on screen. */}
+          only one Modal so there is only ever one dialog on screen. Same
+          centered-dialog sheet treatment as above. */}
       <Modal
         visible={deleteAccountStep !== 'closed'}
         transparent
@@ -575,14 +579,13 @@ export function DataSettings() {
             onPress={closeDeleteAccount}
           >
             <Pressable
-              className="w-full max-w-[360px] rounded-2xl bg-white p-6"
-              style={shadows.lg}
+              className="w-full max-w-360 rounded-sheet bg-surface p-6"
               onPress={(e) => e.stopPropagation()}
             >
               {deleteAccountStep === 'intro' ? (
                 <>
                   <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-                    <Ionicons name="person-remove-outline" size={24} color={colors.light.dangerStrong} />
+                    <Ionicons name="person-remove-outline" size={24} color={theme.dangerStrong} />
                   </View>
                   <Heading size="h3" className="mt-4">
                     Delete your account
@@ -596,7 +599,7 @@ export function DataSettings() {
                     onPress={handleExport}
                     haptic="light"
                     disabled={exporting}
-                    className="mt-4 flex-row items-center rounded-lg border border-neutral-200 bg-neutral-50 p-3"
+                    className="mt-4 flex-row items-center rounded-lg bg-raised p-3"
                     accessibilityRole="button"
                     accessibilityLabel="Export your data"
                     accessibilityHint="Saves a copy of your tasks, projects, and settings before you delete your account"
@@ -605,7 +608,7 @@ export function DataSettings() {
                       <Ionicons
                         name={exporting ? 'hourglass-outline' : 'download-outline'}
                         size={18}
-                        color={colors.light.primary}
+                        color={theme.primary}
                       />
                     </View>
                     <View className="ml-3 flex-1">
@@ -639,7 +642,7 @@ export function DataSettings() {
               {deleteAccountStep === 'confirm' ? (
                 <>
                   <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-                    <Ionicons name="warning-outline" size={24} color={colors.light.dangerStrong} />
+                    <Ionicons name="warning-outline" size={24} color={theme.dangerStrong} />
                   </View>
                   <Heading size="h3" className="mt-4">
                     Type DELETE to confirm
@@ -690,7 +693,7 @@ export function DataSettings() {
               {deleteAccountStep === 'deleting' ? (
                 <View className="items-center py-2">
                   <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-                    <Ionicons name="person-remove-outline" size={24} color={colors.light.dangerStrong} />
+                    <Ionicons name="person-remove-outline" size={24} color={theme.dangerStrong} />
                   </View>
                   <View accessibilityLiveRegion="polite" className="items-center">
                     <Heading size="h3" className="mt-4 text-center">
@@ -702,7 +705,7 @@ export function DataSettings() {
                   </View>
                   <View className="mt-4">
                     <ActivityIndicator
-                      color={colors.light.dangerStrong}
+                      color={theme.dangerStrong}
                       accessibilityLabel="Deleting"
                     />
                   </View>
@@ -712,7 +715,7 @@ export function DataSettings() {
               {deleteAccountStep === 'error' ? (
                 <>
                   <View className="h-12 w-12 items-center justify-center rounded-full bg-danger-100">
-                    <Ionicons name="alert-circle-outline" size={24} color={colors.light.dangerStrong} />
+                    <Ionicons name="alert-circle-outline" size={24} color={theme.dangerStrong} />
                   </View>
                   <View accessibilityLiveRegion="polite">
                     <Heading size="h3" className="mt-4">
@@ -745,7 +748,8 @@ export function DataSettings() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Help / Legal info sheet — honest, static content; no external links. */}
+      {/* Help / Legal info sheet — honest, static content; no external links.
+          Same centered-dialog sheet treatment as above. */}
       <Modal
         visible={infoSheet != null}
         transparent
@@ -757,14 +761,13 @@ export function DataSettings() {
           onPress={() => setInfoSheet(null)}
         >
           <Pressable
-            className="w-full max-w-[360px] rounded-2xl bg-white p-6"
-            style={shadows.lg}
+            className="w-full max-w-360 rounded-sheet bg-surface p-6"
             onPress={(e) => e.stopPropagation()}
           >
             {infoSheet === 'help' ? (
               <>
                 <View className="h-12 w-12 items-center justify-center rounded-full bg-primary-50">
-                  <Ionicons name="help-circle-outline" size={24} color={colors.light.primary} />
+                  <Ionicons name="help-circle-outline" size={24} color={theme.primary} />
                 </View>
                 <Heading size="h3" className="mt-4">
                   How Ampora helps
@@ -779,8 +782,8 @@ export function DataSettings() {
               </>
             ) : (
               <>
-                <View className="h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
-                  <Ionicons name="document-text-outline" size={24} color={colors.light.textSecondary} />
+                <View className="h-12 w-12 items-center justify-center rounded-full bg-raised">
+                  <Ionicons name="document-text-outline" size={24} color={theme.textSecondary} />
                 </View>
                 <Heading size="h3" className="mt-4">
                   Privacy and terms

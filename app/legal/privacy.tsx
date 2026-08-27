@@ -41,15 +41,14 @@
  * - AI breakdown sends title/notes/duration/due/source text, not identity:
  *   supabase/functions/ai-breakdown/index.ts (the exact request shape) and
  *   PRD NFR-4 ("AI calls send only needed content, no identity"). AI
- *   provider is written as Anthropic per this task's explicit instruction
- *   (the app is described as moving off Google Gemini onto the Claude API
- *   this week) — AS OF THIS READ, supabase/functions/_shared/gemini.ts,
- *   PRD §9.3, and this repo's CLAUDE.md still describe the live
- *   implementation as Google Gemini (gemini-2.5-flash). This paragraph is
- *   therefore a forward-looking claim about an announced migration, not a
- *   verified-in-code current fact — re-check this file against
- *   supabase/functions/_shared/ before publishing if the migration's
- *   timing is at all uncertain.
+ *   provider is written as Google below — re-verified 2026-08-27 against
+ *   supabase/functions/_shared/gemini.ts, PRD §9.3, and this repo's
+ *   CLAUDE.md, which all still describe the live implementation as Google
+ *   Gemini (gemini-2.5-flash). A prior draft of this file named Anthropic
+ *   here on an announced-but-not-yet-live migration; that was reverted since
+ *   it did not match the verified-in-code current fact. Re-check this file
+ *   against supabase/functions/_shared/ before publishing if a real provider
+ *   migration happens.
  * - Proof verification never uploads the image, only a text caption/
  *   filename: supabase/functions/ai-verify-proof/index.ts's own doc
  *   comment ("this text check reasons over the task title plus any
@@ -80,7 +79,7 @@
  * Design system: uses components/ui/Text (variant prop, the enforced type
  * scale) and components/ui/Heading exclusively, never a hand-written
  * text-* / font-* combo. Colors via Tailwind semantic classes (mirroring
- * utils/design-tokens.ts through tailwind.config.js) or colors.light.* for
+ * utils/design-tokens.ts through tailwind.config.js) or useThemeColors() for
  * icon `color` props, which RN requires as a literal. Back-button header
  * pattern matches app/settings/all.tsx (the closest existing precedent for
  * a pushed stack screen with a back control) since components/ui/Screen.tsx
@@ -98,7 +97,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { Heading } from '@/components/ui/Heading'
 import { Text } from '@/components/ui/Text'
 import { PressableScale } from '@/components/ui/PressableScale'
-import { colors, layout } from '@/utils/design-tokens'
+import { layout } from '@/utils/design-tokens'
+import { useThemeColors } from '@/hooks/useThemeColors'
 
 const LAST_UPDATED = 'August 24, 2026'
 
@@ -140,12 +140,13 @@ function Bullet({ children }: { children: React.ReactNode }) {
 
 /** A visually distinct callout for a value that must be filled in before publishing. */
 function PlaceholderNotice({ children }: { children: React.ReactNode }) {
+  const theme = useThemeColors()
   return (
     <View className="mt-2 flex-row items-start gap-2 rounded-xl bg-warning-100 p-3">
       <Ionicons
         name="alert-circle-outline"
         size={18}
-        color={colors.light.warningStrong}
+        color={theme.warningStrong}
         style={{ marginTop: 1 }}
       />
       <Text variant="bodyMedium" className="flex-1 text-warning-700">
@@ -161,6 +162,7 @@ function PlaceholderNotice({ children }: { children: React.ReactNode }) {
 
 export default function PrivacyPolicyScreen() {
   const insets = useSafeAreaInsets()
+  const theme = useThemeColors()
 
   return (
     <View className="flex-1 bg-neutral-100" style={{ paddingTop: insets.top }}>
@@ -173,7 +175,7 @@ export default function PrivacyPolicyScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color={colors.light.text} />
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
         </PressableScale>
       </View>
 
@@ -280,9 +282,9 @@ export default function PrivacyPolicyScreen() {
             <Paragraph>
               When you ask Ampora to break a task into steps, the task&apos;s title, notes,
               duration, and due date, plus any assignment text or source material you choose to
-              paste in, are sent to a third-party AI provider, Anthropic, to generate the
+              paste in, are sent to a third-party AI provider, Google, to generate the
               breakdown and first move. This content is used only to generate your response — it
-              is not used to train Anthropic&apos;s models.
+              is not used to train Google&apos;s models.
             </Paragraph>
             <Paragraph>
               For the optional photo/screenshot proof check, only the task title and a short text
@@ -326,9 +328,9 @@ export default function PrivacyPolicyScreen() {
             <Paragraph>
               We do not sell personal information, and we share it only with the service
               providers that make Ampora work: Supabase (our database, authentication, and
-              backend host), Anthropic (our AI provider, as described above), and Apple or Google
-              if you choose to sign in or subscribe through them. Each only receives what it
-              needs to perform its role.
+              backend host), Google (our AI provider, as described above, and also an option for
+              signing in or subscribing), and Apple if you choose to sign in or subscribe through
+              them. Each only receives what it needs to perform its role.
             </Paragraph>
           </Section>
 

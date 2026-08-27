@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Animated, {
@@ -16,9 +15,9 @@ import { Heading } from "@/components/ui/Heading";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { useSettingsStore } from "@/store/settingsStore";
 import type { SchedulingHours } from "@/types";
-import { shadows, gradients } from "@/utils/design-tokens";
 import { DURATIONS, SPRINGS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { ProgressDots } from "./ProgressDots";
 
 /** Weekdays Mon-Fri as Date#getDay() indices (1 = Mon ... 5 = Fri). */
@@ -72,6 +71,7 @@ function formatHour(hour: number): string {
 export default function AvailabilityScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
 
   const [selected, setSelected] = useState<PresetId>("afterSchool");
   const [customStart, setCustomStart] = useState(16); // 4pm
@@ -123,12 +123,10 @@ export default function AvailabilityScreen() {
       className="flex-1 bg-neutral-100"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom + 16 }}
     >
-      <LinearGradient
-        colors={gradients.heroWash}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+      <View
         pointerEvents="none"
-        style={{ position: "absolute", top: 0, left: 0, right: 0, height: 340 }}
+        className="absolute top-0 left-0 right-0 bg-surface"
+        style={{ height: 340 }}
       />
 
       <ScrollView
@@ -143,10 +141,10 @@ export default function AvailabilityScreen() {
           <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
             Your focus window
           </Text>
-          <Heading size="h1" className="text-neutral-900 max-w-[320px]">
+          <Heading size="h1" className="text-neutral-900 max-w-330">
             When are you usually free to work?
           </Heading>
-          <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-[330px]">
+          <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-330">
             Pick a typical weekday window. Ampora only plans tasks inside it —
             you can fine-tune any day later.
           </Text>
@@ -176,7 +174,6 @@ export default function AvailabilityScreen() {
           <Animated.View
             entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
             className="mt-4 bg-white border border-neutral-200 rounded-2xl p-5"
-            style={shadows.sm}
           >
             <View className="flex-row items-center justify-between">
               <StepperColumn
@@ -188,7 +185,7 @@ export default function AvailabilityScreen() {
                 canDown={customStart > 0}
               />
               <View className="px-4">
-                <Ionicons name="arrow-forward" size={20} color="#A8A29A" />
+                <Ionicons name="arrow-forward" size={20} color={theme.textMuted} />
               </View>
               <StepperColumn
                 label="End"
@@ -205,7 +202,7 @@ export default function AvailabilityScreen() {
         {/* Summary line */}
         <Animated.View entering={enter(280)} className="mt-6">
           <Text className="text-caption text-neutral-500 leading-5">
-            <Ionicons name="time-outline" size={13} color="#6F6862" /> We’ll plan
+            <Ionicons name="time-outline" size={13} color={theme.textSecondary} /> We’ll plan
             your weekdays between{" "}
             <Text className="text-neutral-700 font-medium">
               {formatHour(startHour)}
@@ -246,6 +243,7 @@ interface PresetCardProps {
  */
 function PresetCard({ preset, isSelected, onPress }: PresetCardProps) {
   const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
   const scale = useSharedValue(1);
 
   const pulse = () => {
@@ -271,7 +269,7 @@ function PresetCard({ preset, isSelected, onPress }: PresetCardProps) {
       accessibilityLabel={`${preset.label}, ${preset.subtitle}`}
     >
       <Animated.View
-        style={[isSelected ? undefined : shadows.sm, animatedStyle]}
+        style={animatedStyle}
         className={`flex-row items-center gap-4 rounded-2xl p-4 border ${
           isSelected
             ? "border-primary-500 bg-primary-50"
@@ -280,13 +278,13 @@ function PresetCard({ preset, isSelected, onPress }: PresetCardProps) {
       >
         <View
           className={`w-11 h-11 rounded-full items-center justify-center ${
-            isSelected ? "bg-primary-100" : "bg-neutral-100"
+            isSelected ? "bg-primary-100" : "bg-raised"
           }`}
         >
           <Ionicons
             name={preset.icon}
             size={22}
-            color={isSelected ? "#2563EB" : "#6F6862"}
+            color={isSelected ? theme.primary : theme.textSecondary}
           />
         </View>
         <View className="flex-1">
@@ -302,7 +300,7 @@ function PresetCard({ preset, isSelected, onPress }: PresetCardProps) {
           </Text>
         </View>
         {isSelected && (
-          <Ionicons name="checkmark-circle" size={24} color="#2563EB" />
+          <Ionicons name="checkmark-circle" size={24} color={theme.primary} />
         )}
       </Animated.View>
     </PressableScale>
@@ -326,6 +324,7 @@ function StepperColumn({
   canUp,
   canDown,
 }: StepperColumnProps) {
+  const theme = useThemeColors();
   return (
     <View className="flex-1 items-center">
       <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-2">
@@ -346,7 +345,7 @@ function StepperColumn({
             <Ionicons
               name="remove"
               size={18}
-              color={canDown ? "#1C1917" : "#D7D3CC"}
+              color={canDown ? theme.text : theme.textDisabled}
             />
           </View>
         </PressableScale>
@@ -367,7 +366,7 @@ function StepperColumn({
             <Ionicons
               name="add"
               size={18}
-              color={canUp ? "#1C1917" : "#D7D3CC"}
+              color={canUp ? theme.text : theme.textDisabled}
             />
           </View>
         </PressableScale>

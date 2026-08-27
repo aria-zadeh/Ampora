@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { View, Text, ScrollView, Pressable, Modal, TextInput } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Animated, {
@@ -22,11 +21,10 @@ import { CalendarSyncSettings } from "@/components/settings/CalendarSyncSettings
 import { getCurrentUser, signOut } from "@/services/supabase";
 import { flushBeforeSignOut } from "@/store/syncStore";
 import { trialDaysLeft, isActive } from "@/core/subscription";
-import { shadows, gradients, spacing } from "@/utils/design-tokens";
+import { spacing } from "@/utils/design-tokens";
 import { DURATIONS, SPRINGS } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useThemeColors } from "@/hooks/useThemeColors";
-import { useColorScheme } from "nativewind";
 
 const THEME_OPTIONS = [
   { value: "light", label: "Light", icon: "sunny-outline" },
@@ -38,7 +36,7 @@ const THEME_OPTIONS = [
 // Presentation primitives (screen-local)
 // ---------------------------------------------------------------------------
 
-/** Grouped white card with an overline header and soft shadow. */
+/** Grouped card with an overline header. */
 function SettingsGroup({
   title,
   index,
@@ -58,13 +56,10 @@ function SettingsGroup({
       }
       className="mt-6"
     >
-      <Text className="mb-2 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+      <Text className="mb-2 ml-1 text-overline font-semibold uppercase text-neutral-500">
         {title}
       </Text>
-      <View
-        className="rounded-2xl border border-neutral-200 bg-white px-4 dark:border-neutral-800 dark:bg-neutral-900"
-        style={shadows.sm}
-      >
+      <View className="rounded-xl border border-line bg-surface px-4">
         {children}
       </View>
     </Animated.View>
@@ -93,28 +88,26 @@ function SettingsRow({
       onPress={onPress}
       haptic="light"
       className={`flex-row items-center justify-between py-3.5 ${
-        isLast ? "" : "border-b border-neutral-100 dark:border-neutral-800"
+        isLast ? "" : "border-b border-line"
       }`}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
     >
       <View className="flex-1 flex-row items-center">
-        <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
+        <View className="h-9 w-9 items-center justify-center rounded-full bg-raised">
           <Ionicons name={icon} size={18} color={theme.textSecondary} />
         </View>
-        <Text className="ml-3 text-body-lg text-neutral-900 dark:text-neutral-50">{label}</Text>
+        <Text className="ml-3 text-body-lg text-neutral-900">{label}</Text>
       </View>
       <View className="flex-row items-center">
         {value ? (
           <Text
-            className="mr-1.5 max-w-[140px] text-body text-neutral-500 dark:text-[#78716C]"
+            className="mr-1.5 max-w-36 text-body text-neutral-500"
             numberOfLines={1}
           >
             {value}
           </Text>
         ) : null}
-        {/* `theme.textDisabled` replaces a stray, untokenized "#C4C4CC" that
-            matched no design-tokens.ts value in either theme. */}
         <Ionicons name="chevron-forward" size={18} color={theme.textDisabled} />
       </View>
     </PressableScale>
@@ -125,10 +118,6 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const theme = useThemeColors();
-  // Resolved scheme (not the raw "system" preference) — NativeWind already
-  // resolves "system" to the OS's actual light/dark setting here, matching
-  // what `app/_layout.tsx` reads for the same purpose.
-  const { colorScheme } = useColorScheme();
 
   const displayName = useSettingsStore((s) => s.settings.displayName);
   const themePreference = useSettingsStore((s) => s.settings.themePreference);
@@ -153,6 +142,18 @@ export default function ProfileScreen() {
     }
     return { label: "Choose a plan", tone: "lapsed" as const };
   }, [subscription]);
+
+  // The chip's icon/chevron share one tone-derived color, matching the
+  // `text-accent-700` / `text-primary-700` / `text-warning-700` classes used
+  // for its label below (accent = active/Plus, primary = trial, warning =
+  // lapsed) — same tone mapping, just resolved to a theme-aware literal for
+  // the two Ionicons `color` props, which can't take a class.
+  const chipIconColor =
+    subscriptionChip.tone === "active"
+      ? theme.accentStrong
+      : subscriptionChip.tone === "trial"
+        ? theme.primaryDark
+        : theme.warningStrong;
 
   // Trial countdown chip tick — a quiet dip+settle whenever the chip's LABEL
   // changes (days-left counting down, or the status itself flipping), so the
@@ -207,25 +208,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View className="flex-1 bg-neutral-100 dark:bg-neutral-950">
-      {/* Faint top wash behind the header. Dark mode swaps in a wash built
-          from existing colors.dark tokens (see gradients.heroWashDark) —
-          the light wash's bright blue tint would look jarring on a dark
-          canvas. */}
-      <LinearGradient
-        colors={colorScheme === "dark" ? gradients.heroWashDark : gradients.heroWash}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 220,
-        }}
-      />
-
+    <View className="flex-1 bg-neutral-100">
       {/* Plain safe-area inset plus normal spacing. The nav lives in flow */}
       {/* above the screen now instead of floating over the bottom, so the */}
       {/* last row just needs to clear the device's own gesture bar. */}
@@ -240,14 +223,14 @@ export default function ProfileScreen() {
           entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
           className="pb-2 pt-6"
         >
-          <Text className="text-overline font-semibold uppercase tracking-wide text-primary-600">
+          <Text className="text-overline font-semibold uppercase text-primary-600">
             Your profile
           </Text>
-          <Heading size="h1" className="mt-1 dark:text-neutral-50">
+          <Heading size="h1" className="mt-1">
             {displayName || "Welcome"}
           </Heading>
           {userEmail ? (
-            <Text className="mt-1.5 text-body text-neutral-500 dark:text-[#78716C]">{userEmail}</Text>
+            <Text className="mt-1.5 text-body text-neutral-500">{userEmail}</Text>
           ) : null}
 
           {/* Subscription chip → paywall. Soft gate only (FR-88): a subtle
@@ -279,13 +262,7 @@ export default function ProfileScreen() {
                       : "alert-circle-outline"
                 }
                 size={14}
-                color={
-                  subscriptionChip.tone === "active"
-                    ? "#6D28D9"
-                    : subscriptionChip.tone === "trial"
-                      ? "#2563EB"
-                      : "#C2410C"
-                }
+                color={chipIconColor}
               />
               <Text
                 className={`ml-1.5 text-caption font-semibold ${
@@ -301,13 +278,7 @@ export default function ProfileScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={13}
-                color={
-                  subscriptionChip.tone === "active"
-                    ? "#6D28D9"
-                    : subscriptionChip.tone === "trial"
-                      ? "#2563EB"
-                      : "#C2410C"
-                }
+                color={chipIconColor}
                 style={{ marginLeft: 2 }}
               />
             </Animated.View>
@@ -317,11 +288,12 @@ export default function ProfileScreen() {
         {/* Appearance — the theme picker itself. Selecting an option writes
             `settings.themePreference`, which `app/_layout.tsx` mirrors into
             NativeWind's `setColorScheme` (including resolving "system"), so
-            this control is what actually drives every `dark:` class in the
-            app, not just its own row. */}
+            this control is what actually drives every themed class in the
+            app, not just its own row. Dark-first: `themePreference` defaults
+            to `'dark'`. */}
         <SettingsGroup title="Appearance" index={1}>
           <View className="py-4">
-            <View className="flex-row items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-800 dark:bg-neutral-950">
+            <View className="flex-row items-center gap-2 rounded-lg border border-line bg-canvas p-1">
               {THEME_OPTIONS.map((option) => {
                 const isSelected = themePreference === option.value;
                 return (
@@ -336,9 +308,8 @@ export default function ProfileScreen() {
                   >
                     <View
                       className={`min-h-11 flex-row items-center justify-center gap-1.5 rounded-md py-2.5 ${
-                        isSelected ? "bg-white dark:bg-neutral-800" : "bg-transparent"
+                        isSelected ? "bg-surface" : "bg-transparent"
                       }`}
-                      style={isSelected ? shadows.xs : undefined}
                     >
                       <Ionicons
                         name={option.icon}
@@ -348,8 +319,8 @@ export default function ProfileScreen() {
                       <Text
                         className={
                           isSelected
-                            ? "text-label font-semibold text-neutral-900 dark:text-neutral-50"
-                            : "text-label font-medium text-neutral-500 dark:text-[#78716C]"
+                            ? "text-label font-semibold text-neutral-900"
+                            : "text-label font-medium text-neutral-500"
                         }
                       >
                         {option.label}
@@ -359,24 +330,6 @@ export default function ProfileScreen() {
                 );
               })}
             </View>
-            {/* Says so out loud, because the alternative is worse. The theme
-                mechanism is real and correct, but only Profile and Settings are
-                converted so far. Someone choosing Dark and finding Today still
-                bright would reasonably read the app as broken, and an honest
-                line costs far less trust than that does. Delete this the round
-                the remaining screens land, not before. */}
-            {/* Raw `Text` with a `text-caption` class rather than the
-                design-system `Text` variant prop, because this file binds
-                `Text` to react-native's at the top and follows this pattern
-                throughout (see the chip near line 291). Aliasing the UI Text
-                for one line would be noisier than matching the file. Worth
-                fixing when this screen is converted properly. */}
-            {themePreference !== "light" && (
-              <Text className="mt-3 text-caption text-neutral-500 dark:text-[#A8A29E]">
-                Dark mode is still rolling out. Profile and Settings follow it
-                today, the rest of the app stays light for now.
-              </Text>
-            )}
           </View>
         </SettingsGroup>
 
@@ -421,7 +374,7 @@ export default function ProfileScreen() {
           }
           className="mt-6"
         >
-          <Text className="mb-3 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+          <Text className="mb-3 ml-1 text-overline font-semibold uppercase text-neutral-500">
             Focus stakes
           </Text>
           <StakesSettings />
@@ -438,7 +391,7 @@ export default function ProfileScreen() {
           }
           className="mt-6"
         >
-          <Text className="mb-3 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500 dark:text-[#78716C]">
+          <Text className="mb-3 ml-1 text-overline font-semibold uppercase text-neutral-500">
             Calendar sync
           </Text>
           <CalendarSyncSettings />
@@ -447,12 +400,12 @@ export default function ProfileScreen() {
         {/* Account */}
         {userEmail && (
           <SettingsGroup title="Account" index={6}>
-            <View className="flex-row items-center border-b border-neutral-100 py-3.5 dark:border-neutral-800">
-              <View className="h-9 w-9 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
+            <View className="flex-row items-center border-b border-line py-3.5">
+              <View className="h-9 w-9 items-center justify-center rounded-full bg-raised">
                 <Ionicons name="mail-outline" size={18} color={theme.textSecondary} />
               </View>
               <Text
-                className="ml-3 flex-1 text-body-lg text-neutral-900 dark:text-neutral-50"
+                className="ml-3 flex-1 text-body-lg text-neutral-900"
                 numberOfLines={1}
               >
                 {userEmail}
@@ -487,7 +440,10 @@ export default function ProfileScreen() {
         )}
       </ScrollView>
 
-      {/* Display name modal */}
+      {/* Display name modal — a centered dialog (fades in and floats
+          mid-screen, not bottom-anchored), so it gets the sheet surface +
+          all-four-corner radius (contract §3b), and its field sits on the
+          raised surface fields/rows inside a sheet use. */}
       <Modal
         visible={showNameModal}
         transparent
@@ -499,16 +455,15 @@ export default function ProfileScreen() {
           onPress={() => setShowNameModal(false)}
         >
           <Pressable
-            className="w-full max-w-[360px] rounded-2xl bg-white p-6 dark:bg-neutral-900"
-            style={shadows.lg}
+            className="w-full max-w-360 rounded-sheet bg-surface p-6"
             onPress={(e) => e.stopPropagation()}
           >
-            <Heading size="h3" className="dark:text-neutral-50">Display name</Heading>
-            <Text className="mt-1.5 text-body text-neutral-500 dark:text-[#78716C]">
+            <Heading size="h3">Display name</Heading>
+            <Text className="mt-1.5 text-body text-neutral-500">
               This is how Ampora greets you.
             </Text>
             <TextInput
-              className="mt-5 min-h-12 rounded-md border border-neutral-200 bg-white px-4 text-body-lg text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              className="mt-5 min-h-12 rounded-lg bg-raised px-4 text-body-lg text-neutral-900"
               value={nameDraft}
               onChangeText={setNameDraft}
               placeholder="Your name"
