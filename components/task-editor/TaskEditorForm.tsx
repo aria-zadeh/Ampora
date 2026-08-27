@@ -108,16 +108,6 @@ export function asTaskView(draft: Partial<Task>): Task {
   };
 }
 
-/**
- * Compatibility alias for the one canonical swatch palette, which now lives
- * in `utils/design-tokens.ts` (`LIST_COLOR_SWATCHES`) so the three pickers
- * that write `List.color` cannot drift apart. Re-exported under the old name
- * because `app/task/[id].tsx` still resolves a stored hex by index against
- * `COLOR_SWATCHES` imported from this module; point that import at the token
- * directly and this alias can go.
- */
-export const COLOR_SWATCHES = LIST_COLOR_SWATCHES;
-
 // ---------------------------------------------------------------------------
 // Presentation primitives (form-local)
 // ---------------------------------------------------------------------------

@@ -239,7 +239,7 @@ export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
   return (
     <View className="rounded-2xl bg-white p-4 dark:bg-neutral-900" style={shadows.md}>
       <Text variant="overline" className="text-neutral-500 dark:text-[#78716C]">
-        Today's focus
+        Today&apos;s focus
       </Text>
       <Heading size="h3" className="mt-1.5" numberOfLines={2}>
         {task.title}

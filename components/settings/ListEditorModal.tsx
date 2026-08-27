@@ -275,7 +275,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
               ) : null}
             </View>
             <Text className="ml-1 mt-2 text-caption text-neutral-500 dark:text-[#78716C]">
-              A task's own hours still win; then this list's; then your default.
+              A task&apos;s own hours still win; then this list&apos;s; then your default.
             </Text>
 
             {/* Actions */}

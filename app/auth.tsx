@@ -377,7 +377,7 @@ export default function AuthScreen() {
                 . Tap it and you are in — no password needed.
               </Text>
               <Text className="text-caption text-neutral-500 dark:text-[#78716C]">
-                The link expires in 1 hour. Didn't get it? Check spam, or resend
+                The link expires in 1 hour. Didn&apos;t get it? Check spam, or resend
                 below.
               </Text>
 

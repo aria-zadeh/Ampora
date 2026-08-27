@@ -86,8 +86,8 @@ export default function AgeGateScreen() {
             variant="bodyLg"
             className="mt-3 max-w-[300px] text-center text-neutral-600 dark:text-neutral-400 leading-6"
           >
-            That's a rule we follow closely, not a judgment on you. Come back
-            and join us once you turn 13, we'll be here.
+            That&apos;s a rule we follow closely, not a judgment on you. Come back
+            and join us once you turn 13, we&apos;ll be here.
           </Text>
         </Animated.View>
       </View>
@@ -109,7 +109,7 @@ export default function AgeGateScreen() {
               One quick check
             </Text>
             <Heading size="h1" className="max-w-[300px]">
-              When's your birthday?
+              When&apos;s your birthday?
             </Heading>
             <Text variant="bodyLg" className="mt-3 max-w-[320px] leading-6 text-neutral-600 dark:text-neutral-400">
               Ampora is for ages 13 and up. We only keep a yes or no from
@@ -132,7 +132,7 @@ export default function AgeGateScreen() {
                  the 4.5:1 a 13px line owes, danger-500 clears it at 5.25:1.
                  Light is untouched, and the copy itself is unchanged. */
               <Text variant="caption" className="mt-2 text-danger-600 dark:text-danger-500">
-                That date hasn't happened yet, double check it.
+                That date hasn&apos;t happened yet, double check it.
               </Text>
             ) : null}
           </Animated.View>

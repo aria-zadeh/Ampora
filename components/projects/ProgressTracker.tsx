@@ -145,6 +145,13 @@ function AddRow({
   onAdd: () => void;
   placeholder: string;
 }) {
+  // Only for the literal-colour props below (Ionicons `color`,
+  // `placeholderTextColor`, SVG stroke) which cannot take a `dark:`
+  // class. Must live INSIDE the component: an identical call sat at
+  // module scope here until 2026-08-27 and would have thrown
+  // "Invalid hook call" at import. tsc cannot see that, eslint's
+  // react-hooks/rules-of-hooks can, which is why lint is a real gate.
+  const theme = useThemeColors();
   const canAdd = value.trim().length > 0;
   return (
     <View className="flex-row items-center gap-2">
@@ -174,7 +181,3 @@ function AddRow({
     </View>
   );
 }
-  // Only for literal-colour props below (Ionicons `color`,
-  // `placeholderTextColor`, animated styles) which cannot take a
-  // `dark:` class.
-  const theme = useThemeColors();

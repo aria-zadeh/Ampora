@@ -468,7 +468,7 @@ export default function PaywallScreen() {
             <Ionicons name="checkmark-circle" size={36} color={theme.accentStrong} />
           </View>
           <Heading size="h2" className="mt-5 text-center">
-            You're all set
+            You&apos;re all set
           </Heading>
           <Text className="mt-2 text-center text-body text-neutral-500 dark:text-neutral-400">
             Your {subscription.plan ?? 'Ampora'} subscription is active. Thanks for

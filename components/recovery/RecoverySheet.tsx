@@ -201,7 +201,7 @@ function PreviewBody({
           <Ionicons name="sparkles-outline" size={26} color={theme.primary} />
         </View>
         <Heading size="h2" className="mt-4">
-          Let's catch you up
+          Let&apos;s catch you up
         </Heading>
         <Text className="mt-2 text-body text-neutral-600 leading-6 dark:text-neutral-400">
           {nothingToDo

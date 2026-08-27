@@ -440,7 +440,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                         {task.title}
                       </Heading>
                       <Text className="mt-1 text-caption text-neutral-500 dark:text-[#78716C]">
-                        A lock that lifts when you've earned it. You're always in control.
+                        A lock that lifts when you&apos;ve earned it. You&apos;re always in control.
                       </Text>
                     </View>
                     <Pressable
@@ -483,7 +483,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
 
                     {!stakeOn ? (
                       <Text className="px-1 text-caption text-neutral-500 dark:text-[#78716C]">
-                        No lock this time. Turn this on whenever you're ready.
+                        No lock this time. Turn this on whenever you&apos;re ready.
                       </Text>
                     ) : (
                       <>

@@ -225,7 +225,7 @@ export function NotificationSettings() {
         />
       </Group>
       <SectionFootnote>
-        Turning all three off stops proactive nudges. You'll still hear from
+        Turning all three off stops proactive nudges. You&apos;ll still hear from
         Ampora the moment you finish something.
       </SectionFootnote>
 

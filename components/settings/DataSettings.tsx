@@ -516,7 +516,7 @@ export function DataSettings() {
           />
         </Group>
         <SectionFootnote>
-          Permanent, and removes your account from every device. This can't
+          Permanent, and removes your account from every device. This can&apos;t
           be undone.
         </SectionFootnote>
       </View>
@@ -720,7 +720,7 @@ export function DataSettings() {
                       Deleting your account
                     </Heading>
                     <Text className="mt-3 text-center text-body text-neutral-500 dark:text-[#78716C]">
-                      This only takes a moment. Don't close the app.
+                      This only takes a moment. Don&apos;t close the app.
                     </Text>
                   </View>
                   <View className="mt-4">
@@ -797,7 +797,7 @@ export function DataSettings() {
                   small first step for every task, and can lock your own apps
                   behind the work if you choose to turn that on. A panic valve is
                   always available if a lock ever feels like too much. Nothing
-                  here is medical advice — it's a planning tool.
+                  here is medical advice — it&apos;s a planning tool.
                 </Text>
               </>
             ) : (
@@ -812,7 +812,7 @@ export function DataSettings() {
                   Your tasks and settings live on your device first and sync to
                   your account so you can pick up on another device. Full,
                   published privacy and terms documents are being finalized —
-                  this notice will link to them once they're live.
+                  this notice will link to them once they&apos;re live.
                 </Text>
               </>
             )}
