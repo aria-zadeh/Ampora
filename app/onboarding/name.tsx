@@ -48,7 +48,7 @@ export default function NameScreen() {
             <ProgressDots total={8} current={3} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
-            <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
+            <Text className="text-overline text-neutral-500 uppercase mb-3">
               A quick hello
             </Text>
             <Heading size="h1" className="text-neutral-900 max-w-300">

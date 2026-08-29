@@ -106,10 +106,10 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
           </Text>
 
           {/* Title */}
-          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+          <Text className="text-overline font-semibold text-neutral-500 uppercase mb-2">
             Name
           </Text>
-          <View className="flex-row items-center bg-surface border border-neutral-200 rounded-lg min-h-12 px-3 mb-5">
+          <View className="flex-row items-center bg-raised rounded-lg min-h-12 px-3 mb-5">
             <Ionicons name="bookmark-outline" size={iconSizes.md} color={theme.textDisabled} />
             <TextInput
               value={title}
@@ -124,7 +124,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
           </View>
 
           {/* Kind chooser */}
-          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+          <Text className="text-overline font-semibold text-neutral-500 uppercase mb-2">
             Type
           </Text>
           <View className="gap-2 mb-5">
@@ -172,10 +172,10 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
           </View>
 
           {/* Optional one-paragraph context line (doc `06` §2) */}
-          <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+          <Text className="text-overline font-semibold text-neutral-500 uppercase mb-2">
             Context (optional)
           </Text>
-          <View className="bg-surface border border-neutral-200 rounded-lg px-3 py-2.5 mb-6">
+          <View className="bg-raised rounded-lg px-3 py-2.5 mb-6">
             <TextInput
               value={contextLine}
               onChangeText={setContextLine}

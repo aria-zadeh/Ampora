@@ -54,7 +54,7 @@ export default function NotificationsScreen() {
             <ProgressDots total={8} current={5} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
-            <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
+            <Text className="text-overline text-neutral-500 uppercase mb-3">
               Gentle by default
             </Text>
             <Heading size="h1" className="text-neutral-900 max-w-300">

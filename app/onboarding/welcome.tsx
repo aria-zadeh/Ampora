@@ -76,7 +76,7 @@ export default function WelcomeScreen() {
             <ProgressDots total={8} current={0} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
-            <Text className="text-overline text-primary-600 uppercase tracking-wide mb-3">
+            <Text className="text-overline text-primary-600 uppercase mb-3">
               Welcome to Ampora
             </Text>
             <Heading size="display" className="text-neutral-900 max-w-330">

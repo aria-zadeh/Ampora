@@ -170,13 +170,13 @@ function PlanCard({
             <Text className="text-label font-semibold text-neutral-900">{plan.title}</Text>
             {plan.best ? (
               <View className="rounded-full bg-accent-100 px-2 py-0.5">
-                <Text className="text-tiny font-semibold uppercase tracking-wide text-accent-700">
+                <Text className="text-tiny font-semibold uppercase text-accent-700">
                   Best value
                 </Text>
               </View>
             ) : null}
           </View>
-          <Text className="mt-3 text-h2 font-bold tracking-tight-h2 text-neutral-900">
+          <Text className="mt-3 text-h2 font-bold text-neutral-900">
             {plan.price}
           </Text>
           <Text className="text-caption text-neutral-500">{plan.cadence}</Text>
@@ -557,7 +557,7 @@ export default function PaywallScreen() {
           }
           className="mt-7"
         >
-          <Text className="mb-3 ml-1 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+          <Text className="mb-3 ml-1 text-overline font-semibold uppercase text-neutral-500">
             Choose a plan
           </Text>
           <View className="flex-row gap-3">

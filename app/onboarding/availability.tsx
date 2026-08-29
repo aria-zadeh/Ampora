@@ -138,7 +138,7 @@ export default function AvailabilityScreen() {
           <ProgressDots total={8} current={4} />
         </Animated.View>
         <Animated.View entering={enter(0)}>
-          <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
+          <Text className="text-overline text-neutral-500 uppercase mb-3">
             Your focus window
           </Text>
           <Heading size="h1" className="text-neutral-900 max-w-330">
@@ -327,7 +327,7 @@ function StepperColumn({
   const theme = useThemeColors();
   return (
     <View className="flex-1 items-center">
-      <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-2">
+      <Text className="text-overline text-neutral-500 uppercase mb-2">
         {label}
       </Text>
       <View className="flex-row items-center gap-3">

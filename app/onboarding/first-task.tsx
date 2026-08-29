@@ -138,7 +138,7 @@ export default function FirstTaskScreen() {
         </Animated.View>
 
         <Animated.View entering={enter(0)}>
-          <Text className="text-overline text-neutral-500 uppercase tracking-wide mb-3">
+          <Text className="text-overline text-neutral-500 uppercase mb-3">
             Let&apos;s try one for real
           </Text>
           <Heading size="h1" className="text-neutral-900 max-w-330">
@@ -192,7 +192,7 @@ export default function FirstTaskScreen() {
             className="mt-8 gap-4"
           >
             <View className="rounded-2xl border border-neutral-200 bg-white p-5">
-              <Text className="text-overline font-semibold uppercase tracking-wide text-neutral-500">
+              <Text className="text-overline font-semibold uppercase text-neutral-500">
                 Your task
               </Text>
               <Heading size="h4" className="mt-1.5 text-neutral-900">
@@ -203,7 +203,7 @@ export default function FirstTaskScreen() {
                 <View className="mt-4 flex-row items-start gap-2.5 rounded-lg bg-primary-50 px-3.5 py-3">
                   <Ionicons name="flag-outline" size={16} color={theme.primary} style={{ marginTop: 1 }} />
                   <View className="flex-1">
-                    <Text className="text-tiny font-semibold uppercase tracking-wide text-primary-600">
+                    <Text className="text-tiny font-semibold uppercase text-primary-600">
                       First move
                     </Text>
                     <Text className="mt-0.5 text-body font-medium text-neutral-900">

@@ -1583,7 +1583,7 @@ function DueRangeModal({ visible, activeLabel, onClose, onSelect, onClear }: Due
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
       >
-        <Pressable className="bg-neutral-100 rounded-t-3xl p-5 pb-8" onPress={(e) => e.stopPropagation()}>
+        <Pressable className="bg-surface rounded-t-sheet p-5 pb-8" onPress={(e) => e.stopPropagation()}>
           <View className="items-center mb-4">
             <View className="w-10 h-1 rounded-full bg-neutral-200" />
           </View>
@@ -1644,7 +1644,7 @@ function ScheduleModal({ task, onClose, onSave }: ScheduleModalProps) {
         accessibilityLabel="Dismiss"
       >
         <Pressable
-          className="bg-neutral-100 rounded-t-3xl p-5 pb-8"
+          className="bg-surface rounded-t-sheet p-5 pb-8"
           onPress={(e) => e.stopPropagation()}
         >
           <View className="items-center mb-4">

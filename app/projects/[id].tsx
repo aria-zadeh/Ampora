@@ -182,7 +182,7 @@ export default function ProjectDetailScreen() {
             <View className="flex-row items-center mb-1">
               <Ionicons name="flash" size={iconSizes.md} color={theme.accent} />
               <Text
-                className="text-overline font-semibold uppercase tracking-wide ml-1.5"
+                className="text-overline font-semibold uppercase ml-1.5"
                 style={{ color: theme.accent }}
               >
                 Next session
@@ -211,7 +211,7 @@ export default function ProjectDetailScreen() {
 
         {/* Progress — the phase list plus the percent bar (doc `06` §5). */}
         <View className="px-5 mt-6">
-          <Text className="mb-3 text-overline font-semibold uppercase tracking-wide text-neutral-500">
+          <Text className="mb-3 text-overline font-semibold uppercase text-neutral-500">
             Progress
           </Text>
           <ProgressTracker project={project} onChange={handlePhasesChange} />
@@ -302,7 +302,7 @@ function PlannedSheet({
             >
               <Ionicons name="checkmark" size={iconSizes.md} color={theme.primaryForeground} />
             </View>
-            <Text className="text-overline font-semibold uppercase tracking-wide ml-2 text-neutral-500">
+            <Text className="text-overline font-semibold uppercase ml-2 text-neutral-500">
               Session ready
             </Text>
           </View>
@@ -323,7 +323,7 @@ function PlannedSheet({
               </View>
 
               {/* Steps */}
-              <Text className="text-overline font-semibold text-neutral-500 uppercase tracking-wide mt-4 mb-2">
+              <Text className="text-overline font-semibold text-neutral-500 uppercase mt-4 mb-2">
                 {result.subtasks.length} {result.subtasks.length === 1 ? "step" : "steps"}
               </Text>
               <View className="gap-2 mb-1">
