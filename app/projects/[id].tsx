@@ -109,7 +109,7 @@ export default function ProjectDetailScreen() {
     return (
       <SafeAreaView className="flex-1 bg-neutral-100 items-center justify-center px-8">
         <Stack.Screen options={{ headerShown: false }} />
-        <Ionicons name="folder-open-outline" size={iconSizes.hero} color={theme.textDisabled} />
+        <Ionicons name="folder-open-outline" size={iconSizes.hero} color={theme.textMuted} />
         <Text className="text-body text-neutral-500 text-center mt-3">
           This project isn&apos;t available.
         </Text>

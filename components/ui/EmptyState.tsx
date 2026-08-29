@@ -40,7 +40,14 @@ export function EmptyState({
           into the page it sits on. bg-raised is a real step up the surface
           ladder, matching its name — a soft raised badge behind the icon. */}
       <View className="w-16 h-16 rounded-full bg-raised items-center justify-center mb-5">
-        <Ionicons name={icon} size={iconSizes.hero} color={theme.textDisabled} />
+        {/*
+          `textMuted`, not `textDisabled`. Measured on the running app, the
+          disabled tone puts this 48px glyph at 2.0:1 on the dark canvas -
+          under the 3:1 bar for a UI glyph and, more to the point, too dim to
+          actually see. An empty state whose icon is invisible is just a
+          smaller empty state. textMuted clears 5.71:1.
+        */}
+        <Ionicons name={icon} size={iconSizes.hero} color={theme.textMuted} />
       </View>
       <Heading size="h4" className="text-center">
         {title}
