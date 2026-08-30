@@ -159,7 +159,7 @@ function ActionRow({
           {label}
         </Text>
         {sublabel ? (
-          <Text className="mt-0.5 text-caption text-neutral-500">{sublabel}</Text>
+          <Text className="mt-0.5 text-caption font-sans text-neutral-500">{sublabel}</Text>
         ) : null}
       </View>
       <Ionicons
@@ -354,7 +354,7 @@ export function DataSettings() {
 
   return (
     <View>
-      <Text className="mb-4 text-body text-neutral-500">
+      <Text className="mb-4 text-body font-sans text-neutral-500">
         Your data lives on your device. Take a copy any time, or clear it out
         completely.
       </Text>
@@ -384,7 +384,7 @@ export function DataSettings() {
       <Group>
         {userEmail ? (
           <View className="flex-row items-center border-b border-line py-3.5">
-            <Text className="flex-1 text-body-lg text-neutral-900" numberOfLines={1}>
+            <Text className="flex-1 text-body-lg font-medium text-neutral-900" numberOfLines={1}>
               {userEmail}
             </Text>
           </View>
@@ -419,8 +419,8 @@ export function DataSettings() {
           accessibilityHint="Opens the current privacy and terms notice"
         />
         <View className="flex-row items-center py-3.5">
-          <Text className="flex-1 text-body-lg text-neutral-900">Version</Text>
-          <Text className="text-body text-neutral-500">{APP_VERSION}</Text>
+          <Text className="flex-1 text-body-lg font-medium text-neutral-900">Version</Text>
+          <Text className="text-body font-sans text-neutral-500">{APP_VERSION}</Text>
         </View>
       </Group>
 
@@ -438,7 +438,7 @@ export function DataSettings() {
       <Group>
         {deleted ? (
           <View className="flex-row items-center py-3.5">
-            <Text className="flex-1 text-body-lg text-neutral-900">
+            <Text className="flex-1 text-body-lg font-medium text-neutral-900">
               Local data erased
             </Text>
           </View>
@@ -502,7 +502,7 @@ export function DataSettings() {
             <Heading size="h3" className="mt-4">
               Erase data on this device?
             </Heading>
-            <Text className="mt-2 text-body text-neutral-600 leading-6">
+            <Text className="mt-2 text-body font-sans text-neutral-600 leading-6">
               This clears every task, project, schedule, and record stored on
               this device. Your Ampora account and cloud copy are not
               affected. Sign back in here or on any device to get it all
@@ -561,7 +561,7 @@ export function DataSettings() {
                   <Heading size="h3" className="mt-4">
                     Delete your account
                   </Heading>
-                  <Text className="mt-2 text-body text-neutral-600 leading-6">
+                  <Text className="mt-2 text-body font-sans text-neutral-600 leading-6">
                     This permanently deletes your Ampora account and every
                     task, project, and record tied to it, on every device you
                     use. It cannot be undone.
@@ -586,7 +586,7 @@ export function DataSettings() {
                       <Text className="text-label font-medium text-neutral-900">
                         Export your data first
                       </Text>
-                      <Text className="mt-0.5 text-caption text-neutral-500">
+                      <Text className="mt-0.5 text-caption font-sans text-neutral-500">
                         Save a copy before you go
                       </Text>
                     </View>
@@ -618,7 +618,7 @@ export function DataSettings() {
                   <Heading size="h3" className="mt-4">
                     Type DELETE to confirm
                   </Heading>
-                  <Text className="mt-2 text-body text-neutral-600 leading-6">
+                  <Text className="mt-2 text-body font-sans text-neutral-600 leading-6">
                     This is permanent. Your account and everything in it will
                     be deleted from every device. Type DELETE below to
                     confirm.
@@ -670,7 +670,7 @@ export function DataSettings() {
                     <Heading size="h3" className="mt-4 text-center">
                       Deleting your account
                     </Heading>
-                    <Text className="mt-3 text-body text-neutral-500 text-center">
+                    <Text className="mt-3 text-body font-sans text-neutral-500 text-center">
                       This only takes a moment. Don&apos;t close the app.
                     </Text>
                   </View>
@@ -692,7 +692,7 @@ export function DataSettings() {
                     <Heading size="h3" className="mt-4">
                       {deleteAccountHeading}
                     </Heading>
-                    <Text className="mt-2 text-body text-neutral-600 leading-6">
+                    <Text className="mt-2 text-body font-sans text-neutral-600 leading-6">
                       {deleteAccountError}
                     </Text>
                   </View>
@@ -743,7 +743,7 @@ export function DataSettings() {
                 <Heading size="h3" className="mt-4">
                   How Ampora helps
                 </Heading>
-                <Text className="mt-2 text-body text-neutral-600 leading-6">
+                <Text className="mt-2 text-body font-sans text-neutral-600 leading-6">
                   Ampora plans your week around how you actually work, gives you a
                   small first step for every task, and can lock your own apps
                   behind the work if you choose to turn that on. A panic valve is
@@ -759,7 +759,7 @@ export function DataSettings() {
                 <Heading size="h3" className="mt-4">
                   Privacy and terms
                 </Heading>
-                <Text className="mt-2 text-body text-neutral-600 leading-6">
+                <Text className="mt-2 text-body font-sans text-neutral-600 leading-6">
                   Your tasks and settings live on your device first and sync to
                   your account so you can pick up on another device. Full,
                   published privacy and terms documents are being finalized.

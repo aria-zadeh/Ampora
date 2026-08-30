@@ -209,7 +209,7 @@ export default function AuthScreen() {
             >
               Ampora
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 max-w-xs leading-6">
+            <Text className="text-body-lg font-medium text-neutral-600 mt-3 max-w-xs leading-6">
               Built for brains that work differently.
             </Text>
           </Animated.View>
@@ -224,7 +224,7 @@ export default function AuthScreen() {
           <Animated.View entering={enter(45)} className="gap-3 mb-6">
             {socialError && (
               <View accessibilityLiveRegion="polite">
-                <Text className="text-caption text-danger-600 text-center">
+                <Text className="text-caption font-sans text-danger-600 text-center">
                   {socialError}
                 </Text>
               </View>
@@ -314,7 +314,7 @@ export default function AuthScreen() {
 
             <View className="flex-row items-center my-1">
               <View className="flex-1 h-px bg-neutral-200" />
-              <Text className="text-caption text-neutral-500 mx-3">or</Text>
+              <Text className="text-caption font-sans text-neutral-500 mx-3">or</Text>
               <View className="flex-1 h-px bg-neutral-200" />
             </View>
           </Animated.View>
@@ -335,12 +335,12 @@ export default function AuthScreen() {
                 />
               </View>
               <Heading size="h4">Check your email</Heading>
-              <Text className="text-body text-neutral-600 leading-6">
+              <Text className="text-body font-sans text-neutral-600 leading-6">
                 We sent a sign-in link to{" "}
                 <Text className="text-neutral-900 font-medium">{email.trim()}</Text>
                 . Tap it to sign in. No password needed.
               </Text>
-              <Text className="text-caption text-neutral-500">
+              <Text className="text-caption font-sans text-neutral-500">
                 The link expires in 1 hour. Didn&apos;t get it? Check spam, or resend
                 below.
               </Text>

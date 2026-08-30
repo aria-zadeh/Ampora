@@ -153,9 +153,9 @@ function Row({
       }`}
     >
       <View className="flex-1 pr-3">
-        <Text className="text-body-lg text-neutral-900">{label}</Text>
+        <Text className="text-body-lg font-medium text-neutral-900">{label}</Text>
         {sublabel ? (
-          <Text className="mt-0.5 text-caption text-neutral-500">{sublabel}</Text>
+          <Text className="mt-0.5 text-caption font-sans text-neutral-500">{sublabel}</Text>
         ) : null}
       </View>
       {trailing}
@@ -435,10 +435,10 @@ export function StakesSettings() {
         Stake strength
       </Text>
       <View className="rounded-xl border border-line bg-surface p-4">
-        <Text className="text-body-lg text-neutral-900">
+        <Text className="text-body-lg font-medium text-neutral-900">
           How firm a lock holds you to it
         </Text>
-        <Text className="mt-0.5 text-caption text-neutral-500">
+        <Text className="mt-0.5 text-caption font-sans text-neutral-500">
           Fixed, sensible defaults per band. Never a number to tune.
         </Text>
         <View className="mt-3">
@@ -446,7 +446,7 @@ export function StakesSettings() {
         </View>
         {recentlyDeEscalated ? (
           <Text
-            className="mt-3 text-caption text-neutral-500"
+            className="mt-3 text-caption font-sans text-neutral-500"
             accessibilityLiveRegion="polite"
           >
             Eased after a few recent overrides, to take pressure off. Set it
@@ -492,8 +492,8 @@ export function StakesSettings() {
           }
         >
           <View className="flex-1 pr-3">
-            <Text className="text-body-lg text-neutral-900">Choose apps to lock</Text>
-            <Text className="mt-0.5 text-caption text-neutral-500">
+            <Text className="text-body-lg font-medium text-neutral-900">Choose apps to lock</Text>
+            <Text className="mt-0.5 text-caption font-sans text-neutral-500">
               {stakeAppCount > 0
                 ? `${stakeAppCount} app${stakeAppCount === 1 ? "" : "s"} ready to put on the line`
                 : "The leisure apps a stake can lock"}
@@ -502,7 +502,7 @@ export function StakesSettings() {
           <Ionicons name="chevron-forward" size={18} color={theme.textDisabled} />
         </Pressable>
       </View>
-      <Text className="ml-1 mt-2 text-caption text-neutral-500">
+      <Text className="ml-1 mt-2 text-caption font-sans text-neutral-500">
         On iPhone you&apos;ll pick these with Apple&apos;s Screen Time picker once app
         locking is enabled.
       </Text>
@@ -566,7 +566,7 @@ export function StakesSettings() {
           />
         ))}
       </View>
-      <Text className="ml-1 mt-2 text-caption text-neutral-500">
+      <Text className="ml-1 mt-2 text-caption font-sans text-neutral-500">
         These stay reachable no matter what. You can&apos;t manage this list.
         Ampora protects it automatically.
       </Text>
@@ -578,7 +578,7 @@ export function StakesSettings() {
       <View className="rounded-xl border border-line bg-surface p-4">
         {isPaused ? (
           <>
-            <Text className="mb-3 text-body text-neutral-600">
+            <Text className="mb-3 text-body font-sans text-neutral-600">
               Stakes are paused for the rest of today. Nothing will lock until
               tomorrow.
             </Text>
@@ -592,7 +592,7 @@ export function StakesSettings() {
           </>
         ) : (
           <>
-            <Text className="mb-3 text-body text-neutral-600">
+            <Text className="mb-3 text-body font-sans text-neutral-600">
               Not today? Pause every stake until tomorrow. No streak lost, no
               questions asked.
             </Text>
@@ -626,7 +626,7 @@ export function StakesSettings() {
             onPress={(e) => e.stopPropagation()}
           >
             <Heading size="h3">Always reachable</Heading>
-            <Text className="mt-2 text-body text-neutral-600">
+            <Text className="mt-2 text-body font-sans text-neutral-600">
               Phone, messages, maps, accessibility, system settings, and Ampora
               itself can never be locked. Focus should never get between you and
               the things that keep you safe or connected.

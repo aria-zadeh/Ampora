@@ -105,7 +105,7 @@ function PermissionNudge() {
           <Text className="text-body-lg font-medium text-neutral-900">
             Notifications are off
           </Text>
-          <Text className="mt-1 text-body text-neutral-500">
+          <Text className="mt-1 text-body font-sans text-neutral-500">
             Turn them on in Settings to get first-move nudges and deadline
             reminders. Ampora still works fine without them.
           </Text>
@@ -168,7 +168,7 @@ export function NotificationSettings() {
     <View>
       <PermissionNudge />
 
-      <Text className="mb-4 text-body text-neutral-500">
+      <Text className="mb-4 text-body font-sans text-neutral-500">
         Turn off any reminder type below.
       </Text>
 

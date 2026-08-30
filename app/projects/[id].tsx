@@ -110,7 +110,7 @@ export default function ProjectDetailScreen() {
       <SafeAreaView className="flex-1 bg-neutral-100 items-center justify-center px-8">
         <Stack.Screen options={{ headerShown: false }} />
         <Ionicons name="folder-open-outline" size={iconSizes.hero} color={theme.textMuted} />
-        <Text className="text-body text-neutral-500 text-center mt-3">
+        <Text className="text-body font-sans text-neutral-500 text-center mt-3">
           This project isn&apos;t available.
         </Text>
         <View className="mt-5">
@@ -165,14 +165,14 @@ export default function ProjectDetailScreen() {
               </Heading>
               <View className="flex-row items-center gap-2 mt-2">
                 <Badge label={meta.label} tone="accent" />
-                <Text className="text-caption text-neutral-500">
+                <Text className="text-caption font-sans text-neutral-500">
                   {projectTasks.length} {projectTasks.length === 1 ? "task" : "tasks"}
                 </Text>
               </View>
             </View>
           </View>
           {project.contextLine ? (
-            <Text className="text-body text-neutral-600 mt-3">{project.contextLine}</Text>
+            <Text className="text-body font-sans text-neutral-600 mt-3">{project.contextLine}</Text>
           ) : null}
         </View>
 
@@ -191,7 +191,7 @@ export default function ProjectDetailScreen() {
             <Text className="text-body-lg font-semibold text-neutral-900">
               Hand me the next move
             </Text>
-            <Text className="text-body text-neutral-500 mt-1 mb-4">
+            <Text className="text-body font-sans text-neutral-500 mt-1 mb-4">
               Ampora turns where you are into one concrete {SESSION_MIN}-minute session you can
               schedule and lock against.
             </Text>
@@ -318,7 +318,7 @@ function PlannedSheet({
                 <Ionicons name="footsteps-outline" size={iconSizes.md} color={theme.primary} />
                 <View className="flex-1 ml-2.5">
                   <Text className="text-caption font-semibold text-primary-700">First move</Text>
-                  <Text className="text-body text-neutral-900 mt-0.5">{result.firstMove}</Text>
+                  <Text className="text-body font-sans text-neutral-900 mt-0.5">{result.firstMove}</Text>
                 </View>
               </View>
 
@@ -332,10 +332,10 @@ function PlannedSheet({
                     <View className="w-6 h-6 rounded-full bg-raised items-center justify-center">
                       <Text className="text-caption font-semibold text-neutral-600">{i + 1}</Text>
                     </View>
-                    <Text className="flex-1 text-body text-neutral-800 ml-2.5" numberOfLines={2}>
+                    <Text className="flex-1 text-body font-sans text-neutral-800 ml-2.5" numberOfLines={2}>
                       {s.title}
                     </Text>
-                    <Text className="text-caption text-neutral-500 ml-2">{s.estimatedMin}m</Text>
+                    <Text className="text-caption font-sans text-neutral-500 ml-2">{s.estimatedMin}m</Text>
                   </View>
                 ))}
               </View>
@@ -343,7 +343,7 @@ function PlannedSheet({
               {result.isFallback && result.note && (
                 <View className="flex-row items-center mt-3">
                   <Ionicons name="cloud-offline-outline" size={iconSizes.xs} color={theme.textDisabled} />
-                  <Text className="text-tiny text-neutral-500 ml-1">{result.note}</Text>
+                  <Text className="text-tiny font-sans text-neutral-500 ml-1">{result.note}</Text>
                 </View>
               )}
 
@@ -410,7 +410,7 @@ function ConfirmDeleteSheet({
             <View className="h-1 w-10 rounded-xxs bg-line" />
           </View>
           <Heading size="h3">Delete project?</Heading>
-          <Text className="text-body text-neutral-500 mt-1.5 mb-5">
+          <Text className="text-body font-sans text-neutral-500 mt-1.5 mb-5">
             &quot;{name}&quot; and its progress will be removed.
             {taskCount > 0
               ? ` It generated ${taskCount} ${taskLabel}. Choose what happens to ${taskCount === 1 ? "it" : "them"} below.`
@@ -437,7 +437,7 @@ function ConfirmDeleteSheet({
                 <Text className="text-label font-medium text-neutral-800">
                   Also delete its {taskCount} generated {taskLabel}
                 </Text>
-                <Text className="text-caption text-neutral-500 mt-0.5">
+                <Text className="text-caption font-sans text-neutral-500 mt-0.5">
                   {alsoDeleteTasks
                     ? "These tasks will be permanently removed too."
                     : `Off by default. ${taskCount === 1 ? "It" : "They"} will stay in your task list, unlinked from this project.`}

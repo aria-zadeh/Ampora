@@ -76,13 +76,13 @@ export default function WelcomeScreen() {
             <ProgressDots total={8} current={0} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
-            <Text className="text-overline text-primary-600 uppercase mb-3">
+            <Text className="text-overline font-medium text-primary-600 uppercase mb-3">
               Welcome to Ampora
             </Text>
             <Heading size="display" className="text-neutral-900 max-w-330">
               Big tasks, broken into first steps.
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-4 leading-7 max-w-330">
+            <Text className="text-body-lg font-medium text-neutral-600 mt-4 leading-7 max-w-330">
               Ampora is built for brains that work differently.
             </Text>
           </Animated.View>
@@ -101,7 +101,7 @@ export default function WelcomeScreen() {
                   color={theme.primary}
                   style={{ marginTop: 2 }}
                 />
-                <Text className="text-body text-neutral-700 flex-1 leading-6">
+                <Text className="text-body font-sans text-neutral-700 flex-1 leading-6">
                   {item.text}
                 </Text>
               </Animated.View>

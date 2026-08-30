@@ -147,13 +147,13 @@ export default function AhaScreen() {
           </Animated.View>
 
           <Animated.View entering={enter(0)}>
-            <Text className="text-overline text-primary-600 uppercase mb-3">
+            <Text className="text-overline font-medium text-primary-600 uppercase mb-3">
               This is it
             </Text>
             <Heading size="h1" className="text-neutral-900 max-w-330">
               Lock in your first session
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-330">
+            <Text className="text-body-lg font-medium text-neutral-600 mt-3 leading-6 max-w-330">
               Pick the apps that usually pull you away. They&apos;ll go dark
               while you work on this, and come back the moment you&apos;ve
               earned it.

@@ -54,7 +54,7 @@ export function ProjectsEntryCard() {
           <Text className="text-body-lg font-semibold text-ink">
             Projects
           </Text>
-          <Text className="mt-0.5 text-caption text-ink-muted" numberOfLines={1}>
+          <Text className="mt-0.5 text-caption font-sans text-ink-muted" numberOfLines={1}>
             {subtitle}
           </Text>
         </View>

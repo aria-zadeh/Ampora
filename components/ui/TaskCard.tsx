@@ -235,7 +235,7 @@ function TaskCardImpl({
             importantForAccessibility="no"
           >
             {dueLabel && !isOverdue && (
-              <Text style={tabularNums} className="text-caption text-neutral-500" numberOfLines={1}>
+              <Text style={tabularNums} className="text-caption font-sans text-neutral-500" numberOfLines={1}>
                 {dueLabel}
               </Text>
             )}
@@ -246,14 +246,14 @@ function TaskCardImpl({
               />
             )}
             {hasSubtasks && (
-              <Text style={tabularNums} className="text-caption text-neutral-500">
+              <Text style={tabularNums} className="text-caption font-sans text-neutral-500">
                 {doneSubtaskCount}/{subtaskCount}
               </Text>
             )}
             {hasFirstMove && (
               <View className="flex-row items-center gap-1">
                 <View className="w-1.5 h-1.5 rounded-full bg-primary-500" />
-                <Text className="text-caption text-primary-600">First move</Text>
+                <Text className="text-caption font-sans text-primary-600">First move</Text>
               </View>
             )}
             {hasProject && (

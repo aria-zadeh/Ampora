@@ -55,7 +55,7 @@ export function ProjectCard({ project, taskCount, onPress }: ProjectCardProps) {
           {taskCount > 0 && (
             <View className="flex-row items-center">
               <Ionicons name="checkbox-outline" size={iconSizes.xs} color={theme.textMuted} />
-              <Text className="text-caption text-neutral-500 ml-1">
+              <Text className="text-caption font-sans text-neutral-500 ml-1">
                 {taskCount} {taskCount === 1 ? "task" : "tasks"}
               </Text>
             </View>

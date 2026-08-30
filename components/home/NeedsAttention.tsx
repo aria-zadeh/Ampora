@@ -112,7 +112,7 @@ export function NeedsAttention() {
     >
       <View className="flex-row items-baseline justify-between mb-4">
         <Heading size="h3">Needs attention</Heading>
-        <Text className="text-caption text-ink-muted">
+        <Text className="text-caption font-sans text-ink-muted">
           {rows.length} {rows.length === 1 ? "item" : "items"}
         </Text>
       </View>
@@ -172,7 +172,7 @@ function MissedCard({
           >
             {task.title}
           </Text>
-          <Text className="mt-0.5 text-caption text-ink-muted">
+          <Text className="mt-0.5 text-caption font-sans text-ink-muted">
             Was planned {when}
           </Text>
         </View>

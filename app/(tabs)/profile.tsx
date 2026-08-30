@@ -95,11 +95,11 @@ function SettingsRow({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
     >
-      <Text className="flex-1 text-body-lg text-neutral-900">{label}</Text>
+      <Text className="flex-1 text-body-lg font-medium text-neutral-900">{label}</Text>
       <View className="flex-row items-center">
         {value ? (
           <Text
-            className="mr-1.5 max-w-36 text-body text-neutral-500"
+            className="mr-1.5 max-w-36 text-body font-sans text-neutral-500"
             numberOfLines={1}
           >
             {value}
@@ -406,7 +406,7 @@ export default function ProfileScreen() {
           <SettingsGroup title="Account" index={6}>
             <View className="flex-row items-center border-b border-line py-3.5">
               <Text
-                className="flex-1 text-body-lg text-neutral-900"
+                className="flex-1 text-body-lg font-medium text-neutral-900"
                 numberOfLines={1}
               >
                 {userEmail}
@@ -457,11 +457,11 @@ export default function ProfileScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <Heading size="h3">Display name</Heading>
-            <Text className="mt-1.5 text-body text-neutral-500">
+            <Text className="mt-1.5 text-body font-sans text-neutral-500">
               This is how Ampora greets you.
             </Text>
             <TextInput
-              className="mt-5 min-h-12 rounded-lg bg-raised px-4 text-body-lg text-neutral-900"
+              className="mt-5 min-h-12 rounded-lg bg-raised px-4 text-body-lg font-medium text-neutral-900"
               value={nameDraft}
               onChangeText={setNameDraft}
               placeholder="Your name"

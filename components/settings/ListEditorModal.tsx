@@ -147,7 +147,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
               Name
             </Text>
             <TextInput
-              className="min-h-12 rounded-lg bg-raised px-4 text-body-lg text-neutral-900"
+              className="min-h-12 rounded-lg bg-raised px-4 text-body-lg font-medium text-neutral-900"
               placeholder="List name"
               placeholderTextColor={theme.textDisabled}
               value={name}
@@ -191,10 +191,10 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
               {/* Toggle: custom window vs default */}
               <View className="flex-row items-center py-3.5 border-b border-line">
                 <View className="flex-1 pr-3">
-                  <Text className="text-body-lg text-neutral-900">
+                  <Text className="text-body-lg font-medium text-neutral-900">
                     Custom hours for this list
                   </Text>
-                  <Text className="mt-0.5 text-caption text-neutral-500">
+                  <Text className="mt-0.5 text-caption font-sans text-neutral-500">
                     {summary}
                   </Text>
                 </View>
@@ -209,7 +209,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
               {hoursEnabled ? (
                 <>
                   <View className="flex-row items-center py-3.5 border-b border-line">
-                    <Text className="flex-1 text-body-lg text-neutral-900">Start</Text>
+                    <Text className="flex-1 text-body-lg font-medium text-neutral-900">Start</Text>
                     <Stepper
                       value={startHour}
                       min={0}
@@ -221,7 +221,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
                     />
                   </View>
                   <View className="flex-row items-center py-3.5">
-                    <Text className="flex-1 text-body-lg text-neutral-900">End</Text>
+                    <Text className="flex-1 text-body-lg font-medium text-neutral-900">End</Text>
                     <Stepper
                       value={endHour}
                       min={Math.min(24, startHour + 1)}
@@ -235,7 +235,7 @@ export function ListEditorModal({ listId, onClose }: ListEditorModalProps) {
                 </>
               ) : null}
             </View>
-            <Text className="ml-1 mt-2 text-caption text-neutral-500">
+            <Text className="ml-1 mt-2 text-caption font-sans text-neutral-500">
               A task&apos;s own hours still win; then this list&apos;s; then your default.
             </Text>
 

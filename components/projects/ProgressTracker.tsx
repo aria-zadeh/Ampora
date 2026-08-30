@@ -69,7 +69,7 @@ export function ProgressTracker({ project, onChange }: ProgressTrackerProps) {
 
       <View className="gap-2 mt-4 mb-3">
         {sorted.length === 0 ? (
-          <Text className="text-body text-neutral-500">
+          <Text className="text-body font-sans text-neutral-500">
             No {noun}s yet.{" "}
             {kind === "study"
               ? "Add what you need to cover."
@@ -152,7 +152,7 @@ function AddRow({
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={theme.textDisabled}
-          className="flex-1 ml-2 text-body text-neutral-900"
+          className="flex-1 ml-2 text-body font-sans text-neutral-900"
           returnKeyType="done"
           onSubmitEditing={onAdd}
           accessibilityLabel={placeholder}

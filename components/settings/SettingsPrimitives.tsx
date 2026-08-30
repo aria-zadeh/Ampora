@@ -44,7 +44,7 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
 /** A calm caption under a card, for the "why" / reassurance copy. */
 export function SectionFootnote({ children }: { children: React.ReactNode }) {
   return (
-    <Text className="ml-1 mt-2 text-caption text-neutral-500">
+    <Text className="ml-1 mt-2 text-caption font-sans text-neutral-500">
       {children}
     </Text>
   )
@@ -101,9 +101,9 @@ export function Row({
       }`}
     >
       <View className="flex-1 pr-3">
-        <Text className="text-body text-neutral-900">{label}</Text>
+        <Text className="text-body font-sans text-neutral-900">{label}</Text>
         {sublabel ? (
-          <Text className="mt-0.5 text-caption text-neutral-500">
+          <Text className="mt-0.5 text-caption font-sans text-neutral-500">
             {sublabel}
           </Text>
         ) : null}

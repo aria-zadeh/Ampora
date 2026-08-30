@@ -129,7 +129,7 @@ export default function ProjectsHubScreen() {
           contentContainerStyle={{ paddingTop: 4, paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <Text className="px-5 pb-2 text-body text-neutral-500">
+            <Text className="px-5 pb-2 text-body font-sans text-neutral-500">
               {sorted.length} {sorted.length === 1 ? "project" : "projects"}. Tap one to plan its
               next session.
             </Text>

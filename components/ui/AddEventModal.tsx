@@ -176,7 +176,7 @@ export function AddEventModal({
                     placeholderTextColor={theme.textMuted}
                     // Fields inside a sheet sit on bg-raised at rounded-lg
                     // (12) per the measured spec, not the sheet's own surface.
-                    className="mb-4 min-h-11 rounded-lg border border-line bg-raised px-4 py-3 text-body text-neutral-900"
+                    className="mb-4 min-h-11 rounded-lg border border-line bg-raised px-4 py-3 text-body font-sans text-neutral-900"
                     accessibilityLabel="Event title"
                   />
 

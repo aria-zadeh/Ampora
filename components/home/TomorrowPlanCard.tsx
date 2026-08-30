@@ -195,7 +195,7 @@ export function TomorrowPlanCard() {
             <Text className="mt-1.5 text-body-lg font-medium text-ink">
               Tomorrow is open
             </Text>
-            <Text className="mt-1 text-body text-ink-muted">
+            <Text className="mt-1 text-body font-sans text-ink-muted">
               Nothing scheduled yet.
             </Text>
           </View>
@@ -249,7 +249,7 @@ export function TomorrowPlanCard() {
       {project ? (
         <View className="mt-2 flex-row items-center gap-1.5">
           <Badge label="Project" tone="accent" />
-          <Text className="flex-1 text-caption text-ink-muted" numberOfLines={1}>
+          <Text className="flex-1 text-caption font-sans text-ink-muted" numberOfLines={1}>
             {project.title}
           </Text>
         </View>

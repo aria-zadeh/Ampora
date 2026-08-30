@@ -101,7 +101,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
           </View>
 
           <Heading size="h3">New project</Heading>
-          <Text className="text-body text-neutral-500 mt-1 mb-5">
+          <Text className="text-body font-sans text-neutral-500 mt-1 mb-5">
             Bigger than a task. Ampora tracks it and hands you each next session.
           </Text>
 
@@ -116,7 +116,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
               onChangeText={setTitle}
               placeholder="e.g. Study for SciOly Remote Sensing"
               placeholderTextColor={theme.textDisabled}
-              className="flex-1 ml-2 text-body-lg text-neutral-900"
+              className="flex-1 ml-2 text-body-lg font-medium text-neutral-900"
               returnKeyType="next"
               autoFocus
               accessibilityLabel="Project name"
@@ -161,7 +161,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
                     >
                       {meta.label}
                     </Text>
-                    <Text className="text-caption text-neutral-500 mt-0.5">{meta.blurb}</Text>
+                    <Text className="text-caption font-sans text-neutral-500 mt-0.5">{meta.blurb}</Text>
                   </View>
                   {active && (
                     <Ionicons name="checkmark-circle" size={iconSizes.lg} color={theme.accent} />
@@ -181,7 +181,7 @@ export function NewProjectSheet({ visible, onClose, onCreate }: NewProjectSheetP
               onChangeText={setContextLine}
               placeholder="e.g. MLA format, topic is Cold War containment, 5 pages"
               placeholderTextColor={theme.textDisabled}
-              className="text-body text-neutral-900 min-h-11"
+              className="text-body font-sans text-neutral-900 min-h-11"
               multiline
               textAlignVertical="top"
               accessibilityLabel="Project context"

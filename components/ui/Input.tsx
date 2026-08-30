@@ -121,7 +121,7 @@ export function Input({
           onFocus={handleFocus}
           onBlur={handleBlur}
           placeholderTextColor={theme.textMuted}
-          className="flex-1 py-2.5 text-body-lg text-neutral-900"
+          className="flex-1 py-2.5 text-body-lg font-medium text-neutral-900"
           accessibilityLabel={accessibilityLabel ?? label}
         />
         {clearable && hasValue ? (

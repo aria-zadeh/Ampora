@@ -138,13 +138,13 @@ export default function AvailabilityScreen() {
           <ProgressDots total={8} current={4} />
         </Animated.View>
         <Animated.View entering={enter(0)}>
-          <Text className="text-overline text-neutral-500 uppercase mb-3">
+          <Text className="text-overline font-medium text-neutral-500 uppercase mb-3">
             Your focus window
           </Text>
           <Heading size="h1" className="text-neutral-900 max-w-330">
             When are you usually free to work?
           </Heading>
-          <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-330">
+          <Text className="text-body-lg font-medium text-neutral-600 mt-3 leading-6 max-w-330">
             Pick a typical weekday window. Ampora only plans tasks inside it.
             You can fine-tune any day later.
           </Text>
@@ -201,7 +201,7 @@ export default function AvailabilityScreen() {
 
         {/* Summary line */}
         <Animated.View entering={enter(280)} className="mt-6">
-          <Text className="text-caption text-neutral-500 leading-5">
+          <Text className="text-caption font-sans text-neutral-500 leading-5">
             <Ionicons name="time-outline" size={13} color={theme.textSecondary} /> We’ll plan
             your weekdays between{" "}
             <Text className="text-neutral-700 font-medium">
@@ -295,7 +295,7 @@ function PresetCard({ preset, isSelected, onPress }: PresetCardProps) {
           >
             {preset.label}
           </Text>
-          <Text className="text-caption text-neutral-500 mt-0.5">
+          <Text className="text-caption font-sans text-neutral-500 mt-0.5">
             {preset.subtitle}
           </Text>
         </View>
@@ -327,7 +327,7 @@ function StepperColumn({
   const theme = useThemeColors();
   return (
     <View className="flex-1 items-center">
-      <Text className="text-overline text-neutral-500 uppercase mb-2">
+      <Text className="text-overline font-medium text-neutral-500 uppercase mb-2">
         {label}
       </Text>
       <View className="flex-row items-center gap-3">

@@ -52,7 +52,7 @@ export function EmptyState({
       <Heading size="h4" className="text-center">
         {title}
       </Heading>
-      <Text className="text-body text-neutral-500 text-center mt-2 max-w-280">
+      <Text className="text-body font-sans text-neutral-500 text-center mt-2 max-w-280">
         {subtitle}
       </Text>
       {actionLabel && onAction && (

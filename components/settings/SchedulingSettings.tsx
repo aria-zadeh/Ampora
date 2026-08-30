@@ -135,7 +135,7 @@ export function SchedulingSettings() {
 
   return (
     <View>
-      <Text className="mb-4 text-body text-neutral-500">
+      <Text className="mb-4 text-body font-sans text-neutral-500">
         New tasks use these settings unless overridden.
       </Text>
 

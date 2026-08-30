@@ -138,13 +138,13 @@ export default function FirstTaskScreen() {
         </Animated.View>
 
         <Animated.View entering={enter(0)}>
-          <Text className="text-overline text-neutral-500 uppercase mb-3">
+          <Text className="text-overline font-medium text-neutral-500 uppercase mb-3">
             Let&apos;s try one for real
           </Text>
           <Heading size="h1" className="text-neutral-900 max-w-330">
             Add one real assignment
           </Heading>
-          <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-330">
+          <Text className="text-body-lg font-medium text-neutral-600 mt-3 leading-6 max-w-330">
             Type something you actually have to do. Watch Ampora break it into
             a first move you can start in minutes.
           </Text>
@@ -220,17 +220,17 @@ export default function FirstTaskScreen() {
                       <View className="h-5 w-5 items-center justify-center rounded-full border border-neutral-300">
                         <Text className="text-tiny font-semibold text-neutral-500">{i + 1}</Text>
                       </View>
-                      <Text className="flex-1 text-body text-neutral-700" numberOfLines={2}>
+                      <Text className="flex-1 text-body font-sans text-neutral-700" numberOfLines={2}>
                         {s.title}
                       </Text>
-                      <Text className="text-caption text-neutral-400">{s.estimatedMin} min</Text>
+                      <Text className="text-caption font-sans text-neutral-400">{s.estimatedMin} min</Text>
                     </View>
                   ))}
                 </View>
               ) : null}
 
               {breakdown?.isFallback ? (
-                <Text className="mt-4 text-caption text-neutral-400">
+                <Text className="mt-4 text-caption font-sans text-neutral-400">
                   {breakdown.note ?? "Showing general steps for now."}
                 </Text>
               ) : null}

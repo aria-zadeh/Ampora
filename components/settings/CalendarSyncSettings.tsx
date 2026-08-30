@@ -177,7 +177,7 @@ export function CalendarSyncSettings() {
   // --- Granted: per-calendar picker. ----------------------------------------
   return (
     <View>
-      <Text className="mb-4 text-body text-neutral-500">
+      <Text className="mb-4 text-body font-sans text-neutral-500">
         Choose which calendars count as busy time. Ampora only reads them,
         never edits anything.
       </Text>
@@ -218,7 +218,7 @@ export function CalendarSyncSettings() {
       </SectionFootnote>
 
       <View className="mt-4 flex-row items-center justify-between px-1">
-        <Text className="text-caption text-neutral-500">
+        <Text className="text-caption font-sans text-neutral-500">
           {formatSyncedAt(externalEventsSyncedAt)}
         </Text>
         <View className="flex-row items-center">

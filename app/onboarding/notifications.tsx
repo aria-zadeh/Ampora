@@ -54,13 +54,13 @@ export default function NotificationsScreen() {
             <ProgressDots total={8} current={5} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
-            <Text className="text-overline text-neutral-500 uppercase mb-3">
+            <Text className="text-overline font-medium text-neutral-500 uppercase mb-3">
               Gentle by default
             </Text>
             <Heading size="h1" className="text-neutral-900 max-w-300">
               Reminders that respect your focus
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-330">
+            <Text className="text-body-lg font-medium text-neutral-600 mt-3 leading-6 max-w-330">
               We only reach out when it actually helps. No spam, no pressure —
               here’s our promise.
             </Text>
@@ -76,7 +76,7 @@ export default function NotificationsScreen() {
                 <View className="w-9 h-9 rounded-full bg-primary-50 items-center justify-center">
                   <Ionicons name={item.icon} size={18} color={theme.primary} />
                 </View>
-                <Text className="text-body text-neutral-700 flex-1 leading-6">
+                <Text className="text-body font-sans text-neutral-700 flex-1 leading-6">
                   {item.text}
                 </Text>
               </Animated.View>

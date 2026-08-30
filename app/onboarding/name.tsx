@@ -48,13 +48,13 @@ export default function NameScreen() {
             <ProgressDots total={8} current={3} />
           </Animated.View>
           <Animated.View entering={enter(0)}>
-            <Text className="text-overline text-neutral-500 uppercase mb-3">
+            <Text className="text-overline font-medium text-neutral-500 uppercase mb-3">
               A quick hello
             </Text>
             <Heading size="h1" className="text-neutral-900 max-w-300">
               What should we call you?
             </Heading>
-            <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-xs">
+            <Text className="text-body-lg font-medium text-neutral-600 mt-3 leading-6 max-w-xs">
               Just a first name. We’ll use it to keep things personal.
             </Text>
           </Animated.View>
