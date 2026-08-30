@@ -138,13 +138,13 @@ module.exports = {
         full: "9999px",
       },
 
-      // Instrument Sans. Must match the exact exported identifiers from
-      // @expo-google-fonts/instrument-sans loaded in app/_layout.tsx.
+      // Space Grotesk. Must match the exact exported identifiers from
+      // @expo-google-fonts/space-grotesk loaded in app/_layout.tsx.
       fontFamily: {
-        sans: ["InstrumentSans_400Regular"],
-        medium: ["InstrumentSans_500Medium"],
-        semibold: ["InstrumentSans_600SemiBold"],
-        bold: ["InstrumentSans_700Bold"],
+        sans: ["SpaceGrotesk_400Regular"],
+        medium: ["SpaceGrotesk_500Medium"],
+        semibold: ["SpaceGrotesk_600SemiBold"],
+        bold: ["SpaceGrotesk_700Bold"],
       },
 
       spacing: {
