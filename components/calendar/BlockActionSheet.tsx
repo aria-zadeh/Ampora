@@ -350,7 +350,7 @@ export function BlockActionSheet({
                       blurb={
                         isPinned
                           ? 'Locked — rebuilding the schedule won\'t move it. Tap to unlock.'
-                          : "Keep this block here — rebuilding the schedule won't move it."
+                          : "Keep this block here. Rebuilding won't move it."
                       }
                       onPress={handleTogglePin}
                       active={isPinned}

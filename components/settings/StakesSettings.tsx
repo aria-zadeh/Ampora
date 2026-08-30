@@ -394,12 +394,6 @@ export function StakesSettings() {
 
   return (
     <View>
-      {/* Intro — set the protective tone before any control. */}
-      <Text className="mb-4 text-body text-neutral-500">
-        Stakes help you start. These limits keep them gentle — you are always in
-        control, and nothing here can trap you.
-      </Text>
-
       {/* Protective caps ---------------------------------------------------- */}
       <Text className="mb-2 ml-1 text-overline font-semibold uppercase text-neutral-500">
         Protective limits
@@ -421,7 +415,7 @@ export function StakesSettings() {
         />
         <Row
           label="Longest single lock"
-          sublabel="The hard ceiling on any one lock — a long until-done task simply releases here"
+          sublabel="The hard ceiling on any one lock. A long until-done task releases automatically."
           trailing={
             <Stepper
               value={singleSessionCapMin}
@@ -445,7 +439,7 @@ export function StakesSettings() {
           How firm a lock holds you to it
         </Text>
         <Text className="mt-0.5 text-caption text-neutral-500">
-          Fixed, sensible defaults per band — never a number to tune.
+          Fixed, sensible defaults per band. Never a number to tune.
         </Text>
         <View className="mt-3">
           <StrengthPicker band={strengthBand} onSelect={setStrength} />
@@ -573,9 +567,8 @@ export function StakesSettings() {
         ))}
       </View>
       <Text className="ml-1 mt-2 text-caption text-neutral-500">
-        These stay reachable no matter what — nothing here can be locked.
-        This list isn&apos;t something you manage; Ampora keeps it protected
-        automatically.
+        These stay reachable no matter what. You can&apos;t manage this list.
+        Ampora protects it automatically.
       </Text>
 
       {/* Pause for today ---------------------------------------------------- */}

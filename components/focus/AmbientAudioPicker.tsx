@@ -53,7 +53,7 @@ export function AmbientAudioPicker({ current, onPick }: AmbientAudioPickerProps)
           <Text className="text-label font-medium text-neutral-700">Ambient sound</Text>
         </View>
         <View className="flex-row items-center gap-1">
-          <Text className="text-caption text-neutral-500 capitalize">
+          <Text className="text-caption font-sans text-neutral-500 capitalize">
             {current === "none" ? "Off" : current}
           </Text>
           <Ionicons

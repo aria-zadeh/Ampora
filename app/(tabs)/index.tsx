@@ -421,7 +421,7 @@ export default function HomeScreen() {
             <Animated.View entering={cardEntering}>
               <EmptyState
                 title="You're all caught up"
-                subtitle="Nothing on deck right now. Add a task and your first move will show up here."
+                subtitle="Nothing on deck right now."
                 icon="sunny-outline"
                 actionLabel="Add a task"
                 onAction={() => router.push("/task/new")}

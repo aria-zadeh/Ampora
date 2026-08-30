@@ -196,8 +196,7 @@ export function TomorrowPlanCard() {
               Tomorrow is open
             </Text>
             <Text className="mt-1 text-body text-ink-muted">
-              Nothing scheduled yet. Add a task tonight and you will wake up
-              with a first move ready.
+              Nothing scheduled yet.
             </Text>
           </View>
           <MoonPhase reduceMotion={reduceMotion} />

@@ -28,7 +28,7 @@ export default function BusyTimesScreen() {
       <View className="flex-1">
         <ComingSoon
           title="Busy times"
-          subtitle="Set your busy times once scheduling is available."
+          subtitle="Not available yet."
           icon="time-outline"
         />
       </View>

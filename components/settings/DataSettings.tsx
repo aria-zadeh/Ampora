@@ -339,7 +339,7 @@ export function DataSettings() {
       // rather than guessing either way.
       setDeleteAccountHeading("We couldn't confirm what happened")
       setDeleteAccountError(
-        "We can't check whether this went through without a connection. Try again once you're back online — if Ampora signs you out on its own, it worked."
+        "We can't check whether this went through without a connection. Try again once you're back online. If Ampora signs you out on its own, it worked."
       )
     } else {
       // A real, still-valid session came back: the account is still there.
@@ -457,7 +457,7 @@ export function DataSettings() {
         )}
       </Group>
       <SectionFootnote>
-        Device-only. Your Ampora account and cloud copy are untouched — sign
+        Device-only. Your Ampora account and cloud copy are untouched. Sign
         back in to get everything back.
       </SectionFootnote>
 
@@ -505,7 +505,7 @@ export function DataSettings() {
             <Text className="mt-2 text-body text-neutral-600 leading-6">
               This clears every task, project, schedule, and record stored on
               this device. Your Ampora account and cloud copy are not
-              affected — sign back in here or on any device to get it all
+              affected. Sign back in here or on any device to get it all
               back.
             </Text>
             <View className="mt-6 gap-2.5">
@@ -748,7 +748,7 @@ export function DataSettings() {
                   small first step for every task, and can lock your own apps
                   behind the work if you choose to turn that on. A panic valve is
                   always available if a lock ever feels like too much. Nothing
-                  here is medical advice — it&apos;s a planning tool.
+                  here is medical advice. It&apos;s a planning tool.
                 </Text>
               </>
             ) : (
@@ -762,8 +762,8 @@ export function DataSettings() {
                 <Text className="mt-2 text-body text-neutral-600 leading-6">
                   Your tasks and settings live on your device first and sync to
                   your account so you can pick up on another device. Full,
-                  published privacy and terms documents are being finalized —
-                  this notice will link to them once they&apos;re live.
+                  published privacy and terms documents are being finalized.
+                  This notice will link to them once they&apos;re live.
                 </Text>
               </>
             )}

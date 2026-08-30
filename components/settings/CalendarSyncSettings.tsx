@@ -132,7 +132,7 @@ export function CalendarSyncSettings() {
         <EmptyState
           icon="calendar-outline"
           title="Calendar sync needs the phone app"
-          subtitle="Ampora reads your device calendar to plan around your classes. Open Ampora on your iPhone or Android phone to connect one."
+          subtitle="Open Ampora on your phone to connect one."
         />
       </Group>
     )
@@ -178,8 +178,8 @@ export function CalendarSyncSettings() {
   return (
     <View>
       <Text className="mb-4 text-body text-neutral-500">
-        Choose which calendars count as busy time. Ampora only reads them — it
-        never changes anything on your device calendar.
+        Choose which calendars count as busy time. Ampora only reads them,
+        never edits anything.
       </Text>
 
       {calendarsLoading && calendars.length === 0 ? null : calendars.length === 0 ? (
@@ -187,7 +187,7 @@ export function CalendarSyncSettings() {
           <EmptyState
             icon="calendar-clear-outline"
             title="No calendars found"
-            subtitle="This device doesn't have any calendars set up yet. Add a Google, Outlook, or iCloud account in your phone's Settings, then come back here."
+            subtitle="Add a Google, Outlook, or iCloud account in Settings."
           />
         </Group>
       ) : (
@@ -214,8 +214,7 @@ export function CalendarSyncSettings() {
       )}
 
       <SectionFootnote>
-        Events from checked calendars are shown as busy blocks and are never
-        moved or edited by Ampora.
+        Checked calendars show as busy blocks. Ampora never edits them.
       </SectionFootnote>
 
       <View className="mt-4 flex-row items-center justify-between px-1">

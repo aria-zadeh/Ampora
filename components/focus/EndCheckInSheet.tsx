@@ -128,7 +128,7 @@ export function EndCheckInSheet({
                         color={theme.primary}
                       />
                       <Text className="flex-1 text-body font-medium text-neutral-800">
-                        You served the session. Your apps are yours again.
+                        Session served. Your apps are back.
                       </Text>
                     </View>
                   ) : null}
@@ -140,7 +140,7 @@ export function EndCheckInSheet({
                     Did you finish today&apos;s goal?
                   </Heading>
                   {taskTitle ? (
-                    <Text className="mt-1.5 text-body text-neutral-600" numberOfLines={2}>
+                    <Text className="mt-1.5 text-body font-sans text-neutral-600" numberOfLines={2}>
                       {taskTitle}
                     </Text>
                   ) : null}
@@ -175,7 +175,7 @@ export function EndCheckInSheet({
                           {opt.title}
                         </Text>
                         <Text
-                          className={`text-caption ${opt.primary ? "text-primary-foreground" : "text-neutral-500"}`}
+                          className={`text-caption font-sans ${opt.primary ? "text-primary-foreground" : "text-neutral-500"}`}
                         >
                           {opt.blurb}
                         </Text>

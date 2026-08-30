@@ -116,7 +116,7 @@ export default function ProjectsHubScreen() {
           <EmptyState
             icon="rocket-outline"
             title="Projects are bigger than tasks"
-            subtitle="A project is a paper, an exam unit, an ongoing goal. Ampora tracks its progress and hands you the next session to actually start."
+            subtitle="A project is a paper, an exam unit, an ongoing goal. Ampora plans your next session."
             actionLabel="New project"
             onAction={() => setSheetOpen(true)}
           />

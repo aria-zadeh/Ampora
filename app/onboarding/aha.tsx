@@ -155,7 +155,7 @@ export default function AhaScreen() {
             </Heading>
             <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-330">
               Pick the apps that usually pull you away. They&apos;ll go dark
-              while you work on this — and come back the moment you&apos;ve
+              while you work on this, and come back the moment you&apos;ve
               earned it.
             </Text>
           </Animated.View>

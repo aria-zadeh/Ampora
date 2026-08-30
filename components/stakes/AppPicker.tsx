@@ -70,6 +70,25 @@ const CATALOG: CatalogApp[] = [
   { key: "browser_fun", label: "Web browsing", token: "group.web.leisure", icon: "globe-outline", tint: appBrandColors.browser_fun, category: "Browsing" },
 ];
 
+/**
+ * Icon/tint/category for a catalog-backed `StakeApp.id`, for display outside
+ * this picker (the Focus tab's shield preview,
+ * `components/stakes/ShieldStatusCard.tsx`). A real native-picker token (no
+ * catalog match) returns `undefined`; callers degrade to a generic icon and
+ * no category line rather than guessing.
+ */
+export interface StakeAppDisplayMeta {
+  icon: keyof typeof Ionicons.glyphMap;
+  tint: string;
+  category: string;
+}
+const CATALOG_META_BY_KEY: Record<string, StakeAppDisplayMeta> = Object.fromEntries(
+  CATALOG.map((c) => [c.key, { icon: c.icon, tint: c.tint, category: c.category }])
+);
+export function getStakeAppDisplayMeta(id: string): StakeAppDisplayMeta | undefined {
+  return CATALOG_META_BY_KEY[id];
+}
+
 /** Which `platform` value to stamp on chosen StakeApps for this device. */
 function currentPlatform(): StakeApp["platform"] {
   if (Platform.OS === "ios") return "ios";
@@ -251,8 +270,8 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                     <Heading size="h3" className="mt-1">
                       Choose apps to lock
                     </Heading>
-                    <Text className="mt-1 text-caption text-neutral-500">
-                      Pick the apps that pull you away. They go behind your task while a stake is on.
+                    <Text className="mt-1 text-caption font-sans text-neutral-500">
+                      Pick what pulls you away.
                     </Text>
                   </View>
                   <Pressable
@@ -352,9 +371,8 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
                   {/* Platform note — set expectations honestly. */}
                   <View className="mt-2 flex-row items-start gap-2.5 rounded-xl bg-raised p-3.5">
                     <Ionicons name="phone-portrait-outline" size={16} color={theme.textMuted} />
-                    <Text className="flex-1 text-caption text-neutral-500">
-                      On iPhone, you&apos;ll pick the real apps with Apple&apos;s Screen Time picker once app
-                      locking is enabled. This list is a preview of what that feels like.
+                    <Text className="flex-1 text-caption font-sans text-neutral-500">
+                      Preview only. iPhone uses Apple&apos;s own app picker.
                     </Text>
                   </View>
                 </ScrollView>

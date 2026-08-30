@@ -33,6 +33,7 @@ import { FocusHeroCard } from "@/components/focus/FocusHeroCard";
 import { ScheduledStakeRow } from "@/components/focus/ScheduledStakeRow";
 import { FocusTaskRow } from "@/components/focus/FocusTaskRow";
 import { StakeSetupSheet, type ArmedStake } from "@/components/stakes/StakeSetupSheet";
+import { ShieldStatusCard } from "@/components/stakes/ShieldStatusCard";
 import { DURATIONS, staggerDelay } from "@/utils/motion";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { Task } from "@/types";
@@ -213,13 +214,18 @@ export default function FocusScreen() {
           className="mt-5"
         >
           {showEmpty ? (
-            <EmptyState
-              title="Nothing to focus on yet"
-              subtitle="Add a task and it'll show up here, ready for a calm focus session."
-              icon="timer-outline"
-              actionLabel="Add a task"
-              onAction={() => router.push("/task/new")}
-            />
+            <>
+              <ShieldStatusCard />
+              <View className="mt-group">
+                <EmptyState
+                  title="Nothing to focus on yet"
+                  subtitle="Add a task to begin a session."
+                  icon="timer-outline"
+                  actionLabel="Add a task"
+                  onAction={() => router.push("/task/new")}
+                />
+              </View>
+            </>
           ) : (
             <FocusHeroCard
               mode={mode}
@@ -232,6 +238,22 @@ export default function FocusScreen() {
             />
           )}
         </Animated.View>
+
+        {/* "What's locked": always-visible shield preview (Aria: "the app
+            blocking feature is not shown that much"). Hidden once a session
+            is actually running — FocusHeroCard's own active-mode banner
+            already states the lock subject prominently there. */}
+        {showScheduledSection && (
+          <Animated.View
+            entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
+            className="mt-group"
+          >
+            <Heading size="h4" className="mb-3">
+              What&apos;s locked
+            </Heading>
+            <ShieldStatusCard />
+          </Animated.View>
+        )}
 
         {/* Scheduled locks: every OTHER scheduled stake beyond the one the hero shows. */}
         {showScheduledSection && otherScheduled.length > 0 && (

@@ -872,7 +872,7 @@ export function TaskEditorForm({
     }
     setFirstMoveText(result.firstMove);
     setLastBreakdown(result);
-    setAiNote(result.isFallback ? result.note ?? "Showing general steps — tap Refine to shape them." : null);
+    setAiNote(result.isFallback ? result.note ?? "General steps. Tap Refine to shape them." : null);
   };
 
   /** Does the current step list have any real progress worth protecting? */
@@ -898,7 +898,7 @@ export function TaskEditorForm({
       applyBreakdown(result);
     } catch {
       // breakdownTask never throws, but stay defensive.
-      setAiNote("Couldn't build steps right now — add them manually below.");
+      setAiNote("Couldn't build steps. Add them below.");
     } finally {
       setBreakingDown(false);
     }
@@ -939,7 +939,7 @@ export function TaskEditorForm({
       setRefineText("");
       setShowRefine(false);
     } catch {
-      setAiNote("Couldn't refine right now — your steps are unchanged.");
+      setAiNote("Couldn't refine. Your steps are unchanged.");
     } finally {
       setRefining(false);
     }

@@ -385,14 +385,14 @@ export function FocusHeroCard({
                 className="mt-3 min-h-11 items-center justify-center rounded-lg border border-line bg-surface-ghost"
                 accessibilityRole="button"
                 accessibilityLabel="Unlock early"
-                accessibilityHint="Opens a 60 second breather before your apps come back"
+                accessibilityHint="Opens a 30 second breather before your apps come back"
               >
                 <Text variant="bodyMedium" className="text-neutral-900">
                   Unlock early
                 </Text>
               </PressableScale>
               <Text variant="caption" className="mt-2 text-center text-neutral-500">
-                Opens a 60 second breather before your apps come back.
+                Opens a 30 second breather before your apps come back.
               </Text>
             </>
           )}

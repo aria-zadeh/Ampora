@@ -420,7 +420,7 @@ function RecordPanel({
       : status === "starting"
         ? "Starting…"
         : status === "recording"
-          ? "Recording — tap to stop"
+          ? "Recording. Tap to stop"
           : status === "stopping"
             ? "Finishing up…"
             : emptyNotice
@@ -641,7 +641,7 @@ function PreviewPanel({
         <Text className="text-body font-sans text-neutral-500">
           {drafts.length === 1
             ? "Here's what I heard. Edit or drop it, then add it."
-            : `Here's what I heard — split into ${drafts.length} tasks. Edit or drop any, then add them.`}
+            : `Heard ${drafts.length} tasks. Edit or drop any.`}
         </Text>
       </View>
       <ScrollView

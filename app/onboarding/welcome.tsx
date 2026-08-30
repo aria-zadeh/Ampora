@@ -83,9 +83,7 @@ export default function WelcomeScreen() {
               Big tasks, broken into first steps.
             </Heading>
             <Text className="text-body-lg text-neutral-600 mt-4 leading-7 max-w-330">
-              Ampora is built for brains that work differently. We help you find
-              the very next thing to do — so starting never feels like the hard
-              part.
+              Ampora is built for brains that work differently.
             </Text>
           </Animated.View>
 

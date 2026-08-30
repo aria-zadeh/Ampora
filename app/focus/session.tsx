@@ -658,7 +658,7 @@ export default function FocusSessionScreen() {
           <EmptyState
             icon="timer-outline"
             title="Nothing to focus on"
-            subtitle="This task couldn't be found. Head back and pick one to focus on."
+            subtitle="Task not found. Pick another to focus on."
             actionLabel="Go back"
             onAction={() => router.back()}
           />
@@ -741,10 +741,10 @@ export default function FocusSessionScreen() {
           </View>
 
           {/* Lock banner, slim, in-context while our stake is live, plus the
-              always-available panic valve right beneath it — previously
-              pinned to the bottom of a hero card this screen no longer has,
-              reachable in the same place (right where the lock is explained)
-              instead. */}
+              always-available panic valve right beneath it as its own quiet
+              full-width button — previously a bare underlined text link,
+              easy to miss for a control doc `04` requires to always be
+              reachable. Same action, same 30s countdown (PanicValveSheet). */}
           {ownStake && (
             <View className="mt-5 w-full">
               <LockBanner
@@ -752,22 +752,21 @@ export default function FocusSessionScreen() {
                 onPanic={() => setPanicOpen(true)}
                 variant="slim"
               />
-              <Text variant="caption" className="mt-2 px-1 text-neutral-500 text-center">
-                Leaving this screen keeps your apps locked. A banner will show the time left
-                and the way out.
-              </Text>
               <PressableScale
                 onPress={() => setPanicOpen(true)}
                 haptic="light"
-                className="mt-2 min-h-11 self-center px-4 items-center justify-center"
+                className="mt-3 min-h-11 w-full items-center justify-center rounded-lg border border-line bg-surface-ghost"
                 accessibilityRole="button"
                 accessibilityLabel="Unlock early"
-                accessibilityHint="Opens a 60 second breather before your apps come back"
+                accessibilityHint="Opens a 30 second breather before your apps come back"
               >
-                <Text variant="bodyMedium" className="text-neutral-600 underline">
+                <Text variant="bodyMedium" className="text-neutral-900">
                   Unlock early
                 </Text>
               </PressableScale>
+              <Text variant="caption" className="mt-2 text-center text-neutral-500">
+                Apps stay locked if you leave this screen.
+              </Text>
             </View>
           )}
 
@@ -777,7 +776,7 @@ export default function FocusSessionScreen() {
             <SessionNotice
               icon="sparkles-outline"
               className="mt-4 w-full"
-              text="Every step is done, nice. This session is held by time, so ride out the rest or unlock early whenever you want."
+              text="Steps done. The lock is timed, not task-based."
             />
           )}
 
@@ -787,7 +786,7 @@ export default function FocusSessionScreen() {
               icon="lock-open-outline"
               role="alert"
               className="mt-5 w-full"
-              text="Session served. Your apps are yours again."
+              text="Session served. Your apps are back."
             />
           )}
 
@@ -855,7 +854,7 @@ export default function FocusSessionScreen() {
         onSubmit={handleParkThoughtSubmit}
       />
 
-      {/* Panic valve — 60s breather, then the store releases the lock. */}
+      {/* Panic valve — 30s breather, then the store releases the lock. */}
       {ownStake && (
         <PanicValveSheet
           visible={panicOpen}

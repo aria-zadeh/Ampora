@@ -136,8 +136,7 @@ export function SchedulingSettings() {
   return (
     <View>
       <Text className="mb-4 text-body text-neutral-500">
-        Defaults for how Ampora places new tasks on your calendar. Any task can
-        still override these on its own.
+        New tasks use these settings unless overridden.
       </Text>
 
       {/* Buffers ------------------------------------------------------------ */}

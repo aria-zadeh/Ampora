@@ -104,7 +104,7 @@ export function BreakOverlay({ visible, minutes = 5, onResume, lockActive = fals
           <Heading size="h2" className="mt-6 text-center">
             Take a breather
           </Heading>
-          <Text className="mt-2 max-w-300 text-center text-body text-neutral-600 leading-6">
+          <Text className="mt-2 max-w-300 text-center text-body font-sans text-neutral-600 leading-6">
             {prompt.text}
           </Text>
 
@@ -129,10 +129,10 @@ export function BreakOverlay({ visible, minutes = 5, onResume, lockActive = fals
             accessibilityRole="summary"
           >
             <Ionicons name="pause-circle-outline" size={iconSizes.sm} color={theme.textSecondary} />
-            <Text className="flex-1 text-caption text-neutral-600 leading-5">
+            <Text className="flex-1 text-caption font-sans text-neutral-600 leading-5">
               {lockActive
-                ? "Your session timer is paused, so break time doesn't count toward your lock. Your apps stay on the line."
-                : "Your session timer is paused. Break time doesn't count as focus time."}
+                ? "Break time doesn't count toward your lock."
+                : "Break time doesn't count as focus time."}
             </Text>
           </View>
         </View>

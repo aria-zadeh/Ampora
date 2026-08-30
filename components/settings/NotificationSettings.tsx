@@ -169,8 +169,7 @@ export function NotificationSettings() {
       <PermissionNudge />
 
       <Text className="mb-4 text-body text-neutral-500">
-        Ampora keeps reminders rare and well-timed. Fewer nudges you actually
-        notice beat a stream you learn to ignore.
+        Turn off any reminder type below.
       </Text>
 
       {/* Reminder types ------------------------------------------------------ */}

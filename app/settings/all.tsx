@@ -90,9 +90,6 @@ export default function AllSettingsScreen() {
           <Heading size="h1" className="mt-1">
             More settings
           </Heading>
-          <Text className="mt-1.5 text-body text-neutral-500">
-            Fine-tune how Ampora plans, nudges, and stores your work.
-          </Text>
         </Animated.View>
 
         <Section title="Scheduling" index={1}>

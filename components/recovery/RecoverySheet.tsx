@@ -202,7 +202,7 @@ function PreviewBody({
         </Heading>
         <Text className="mt-2 text-body font-sans text-neutral-600 leading-6">
           {nothingToDo
-            ? "You're already on track — there's nothing to clear. Want a fresh plan anyway?"
+            ? "Already on track. Want a fresh plan anyway?"
             : preview.summary}
         </Text>
       </View>

@@ -210,8 +210,7 @@ export default function AuthScreen() {
               Ampora
             </Heading>
             <Text className="text-body-lg text-neutral-600 mt-3 max-w-xs leading-6">
-              Built for brains that work differently. Sign in and pick up right
-              where you left off.
+              Built for brains that work differently.
             </Text>
           </Animated.View>
 
@@ -339,7 +338,7 @@ export default function AuthScreen() {
               <Text className="text-body text-neutral-600 leading-6">
                 We sent a sign-in link to{" "}
                 <Text className="text-neutral-900 font-medium">{email.trim()}</Text>
-                . Tap it and you are in — no password needed.
+                . Tap it to sign in. No password needed.
               </Text>
               <Text className="text-caption text-neutral-500">
                 The link expires in 1 hour. Didn&apos;t get it? Check spam, or resend

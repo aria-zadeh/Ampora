@@ -413,7 +413,7 @@ function ConfirmDeleteSheet({
           <Text className="text-body text-neutral-500 mt-1.5 mb-5">
             &quot;{name}&quot; and its progress will be removed.
             {taskCount > 0
-              ? ` It generated ${taskCount} ${taskLabel} — choose what happens to ${taskCount === 1 ? "it" : "them"} below.`
+              ? ` It generated ${taskCount} ${taskLabel}. Choose what happens to ${taskCount === 1 ? "it" : "them"} below.`
               : " It hasn't generated any tasks yet."}
           </Text>
 
@@ -440,7 +440,7 @@ function ConfirmDeleteSheet({
                 <Text className="text-caption text-neutral-500 mt-0.5">
                   {alsoDeleteTasks
                     ? "These tasks will be permanently removed too."
-                    : `Off by default — ${taskCount === 1 ? "it" : "they"} will stay in your task list, unlinked from this project.`}
+                    : `Off by default. ${taskCount === 1 ? "It" : "They"} will stay in your task list, unlinked from this project.`}
                 </Text>
               </View>
             </Pressable>

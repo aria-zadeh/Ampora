@@ -1111,7 +1111,7 @@ function AtRiskPill({
       accessibilityHint="Opens ways to fix this so it can be scheduled"
     >
       <Ionicons name="alert-circle-outline" size={16} color={theme.dangerStrong} />
-      <Text className="text-caption font-medium text-warning-700">Couldn&apos;t schedule — fix it</Text>
+      <Text className="text-caption font-medium text-warning-700">Couldn&apos;t schedule. Fix it</Text>
     </PressableScale>
   );
 }

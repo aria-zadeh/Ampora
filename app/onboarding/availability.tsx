@@ -145,8 +145,8 @@ export default function AvailabilityScreen() {
             When are you usually free to work?
           </Heading>
           <Text className="text-body-lg text-neutral-600 mt-3 leading-6 max-w-330">
-            Pick a typical weekday window. Ampora only plans tasks inside it —
-            you can fine-tune any day later.
+            Pick a typical weekday window. Ampora only plans tasks inside it.
+            You can fine-tune any day later.
           </Text>
         </Animated.View>
 

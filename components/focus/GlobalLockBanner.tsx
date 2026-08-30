@@ -146,7 +146,7 @@ export function GlobalLockBanner() {
           <View className="flex-row items-center gap-3 px-4 pb-3 pt-2">
             <View className="flex-1 flex-row items-center gap-1.5">
               <Ionicons name="time-outline" size={iconSizes.xs} color={theme.textSecondary} />
-              <Text className="flex-1 text-caption text-neutral-600" style={tabularNums}>
+              <Text className="flex-1 text-caption font-sans text-neutral-600" style={tabularNums}>
                 {line}
               </Text>
             </View>

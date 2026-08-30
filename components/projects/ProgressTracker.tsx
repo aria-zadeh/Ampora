@@ -72,8 +72,8 @@ export function ProgressTracker({ project, onChange }: ProgressTrackerProps) {
           <Text className="text-body text-neutral-500">
             No {noun}s yet.{" "}
             {kind === "study"
-              ? "Add what you need to cover and tap each one off as you learn it."
-              : "Add the steps to your deliverable (research, outline, draft, revise) and tap each off as you go."}
+              ? "Add what you need to cover."
+              : "Try research, outline, draft, revise."}
           </Text>
         ) : (
           sorted.map((phase) => (

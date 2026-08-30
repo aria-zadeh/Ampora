@@ -416,7 +416,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
 
   let primaryLabel = "Mark done";
   if (method === "honor") primaryLabel = "I did it";
-  else if (method === "focus_time") primaryLabel = focusPassed ? "Verified — mark done" : "Not enough focus yet";
+  else if (method === "focus_time") primaryLabel = focusPassed ? "Verified, mark done" : "Not enough focus yet";
   else if (imageMethod) primaryLabel = attachLater ? "Complete, attach later" : imageUri ? "Verify & complete" : "Add proof to complete";
 
   const primaryDisabled = busy || needsImage || focusBlocked;
