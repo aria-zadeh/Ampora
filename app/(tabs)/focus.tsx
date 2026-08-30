@@ -242,8 +242,11 @@ export default function FocusScreen() {
         {/* "What's locked": always-visible shield preview (Aria: "the app
             blocking feature is not shown that much"). Hidden once a session
             is actually running — FocusHeroCard's own active-mode banner
-            already states the lock subject prominently there. */}
-        {showScheduledSection && (
+            already states the lock subject prominently there — and hidden
+            when `showEmpty` is rendering its own `ShieldStatusCard` above
+            (zero tasks is still "not active", so both would otherwise show
+            at once). */}
+        {showScheduledSection && !showEmpty && (
           <Animated.View
             entering={reduceMotion ? undefined : FadeInDown.duration(DURATIONS.base)}
             className="mt-group"

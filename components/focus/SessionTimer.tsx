@@ -134,7 +134,7 @@ export function SessionTimer({
         >
           <Ionicons name="pause-circle-outline" size={iconSizes.xs} color={theme.warning} />
           <Text variant="captionMedium" className="text-warning-700">
-            Paused while you were away. Resume when you&apos;re ready.
+            Paused while you were away.
           </Text>
         </Animated.View>
       ) : null}

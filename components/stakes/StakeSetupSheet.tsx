@@ -434,8 +434,8 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                       <Heading size="h3" className="mt-1" numberOfLines={2}>
                         {task.title}
                       </Heading>
-                      <Text className="mt-1 text-caption text-neutral-500">
-                        A lock that lifts when you&apos;ve earned it. You&apos;re always in control.
+                      <Text className="mt-1 text-caption font-sans text-neutral-500">
+                        Lifts once you&apos;ve earned it.
                       </Text>
                     </View>
                     <Pressable
@@ -461,8 +461,8 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                         <Text className="text-body-lg font-medium text-neutral-900">
                           Put something on the line
                         </Text>
-                        <Text className="mt-0.5 text-caption text-neutral-500">
-                          A gentle nudge from you, to you. You can lift it any time.
+                        <Text className="mt-0.5 text-caption font-sans text-neutral-500">
+                          A nudge from you, to you.
                         </Text>
                       </View>
                       <Toggle
@@ -473,7 +473,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                     </View>
 
                     {!stakeOn ? (
-                      <Text className="px-1 text-caption text-neutral-500">
+                      <Text className="px-1 text-caption font-sans text-neutral-500">
                         No lock this time. Turn this on whenever you&apos;re ready.
                       </Text>
                     ) : (
@@ -485,7 +485,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                             <HoldOptionTile
                               icon="hourglass-outline"
                               label="When this session ends"
-                              blurb="Apps come back once you've focused for the session length below."
+                              blurb="Apps return after this session length."
                               active={hold === "session"}
                               onPress={() => {
                                 setHold("session");
@@ -497,7 +497,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                               label="When it's done"
                               blurb={
                                 untilDoneEligible
-                                  ? "Apps come back once you show what you did."
+                                  ? "Apps return once you show what you did."
                                   : "Only offered when this task fits inside one session."
                               }
                               active={hold === "until_done"}
@@ -519,7 +519,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                                   ? `Lock automatically at ${formatTime(scheduledAt)}`
                                   : "Lock automatically at a time"}
                               </Text>
-                              <Text className="mt-0.5 text-caption text-neutral-500">
+                              <Text className="mt-0.5 text-caption font-sans text-neutral-500">
                                 Arms itself later, no need to remember.
                               </Text>
                             </View>
@@ -592,10 +592,10 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                             </Pressable>
                           </View>
                           <View className="flex-row items-center justify-between rounded-lg bg-raised px-4 py-3">
-                            <Text className="flex-1 pr-2 text-caption text-neutral-500">
+                            <Text className="flex-1 pr-2 text-caption font-sans text-neutral-500">
                               {hold === "until_done"
-                                ? "Longest this can run before it turns into a timed session."
-                                : "Apps come back once you've focused for this long."}
+                                ? "Longest before it turns into a timed session."
+                                : "Apps return once you've focused this long."}
                             </Text>
                             <Stepper
                               value={sessionMin}
@@ -624,8 +624,8 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                               onChange={setVerification}
                               a11yLabel="verification method"
                             />
-                            <Text className="text-caption text-neutral-500">
-                              A quick, lenient check on what you submit. It&apos;s a nudge, never a grade.
+                            <Text className="text-caption font-sans text-neutral-500">
+                              A quick, lenient check. Never a grade.
                             </Text>
                           </View>
                         ) : null}
@@ -658,7 +658,7 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                             </View>
                             <View className="flex-1">
                               <Text className="text-label font-medium text-neutral-900">Choose apps</Text>
-                              <Text className="mt-0.5 text-caption text-neutral-500">
+                              <Text className="mt-0.5 text-caption font-sans text-neutral-500">
                                 {selectionCount > 0
                                   ? `${selectionCount} app${selectionCount === 1 ? "" : "s"} on the line`
                                   : "Name what pulls you away"}
@@ -671,8 +671,8 @@ export function StakeSetupSheet({ visible, task, onClose, onArm, existing }: Sta
                         {/* Strength framing — words, not a slider the user must reason about. */}
                         <View className="flex-row items-center gap-2 px-1">
                           <Badge label={strengthLabel} tone="primary" />
-                          <Text className="flex-1 text-caption text-neutral-500">
-                            Ampora eases off automatically if a stretch gets rough.
+                          <Text className="flex-1 text-caption font-sans text-neutral-500">
+                            Eases off automatically if things get rough.
                           </Text>
                         </View>
                       </>
@@ -782,7 +782,7 @@ function HoldOptionTile({
         {/* gets, so it fills both lines with nothing spare. One notch of */}
         {/* Dynamic Type used to cut the sentence mid-word, and this is the */}
         {/* copy that explains what the lock will actually do. */}
-        <Text className="mt-0.5 text-caption text-neutral-500" numberOfLines={3}>
+        <Text className="mt-0.5 text-caption font-sans text-neutral-500" numberOfLines={3}>
           {blurb}
         </Text>
       </View>

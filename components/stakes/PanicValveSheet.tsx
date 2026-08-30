@@ -144,10 +144,10 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                   <Heading size="h2" className="mt-5 text-center">
                     {done ? "Your apps are back" : "Take a breath"}
                   </Heading>
-                  <Text className="mt-2 text-center text-body text-neutral-600 leading-6">
+                  <Text className="mt-2 text-center text-body font-sans text-neutral-600 leading-6">
                     {done
-                      ? "No guilt — you can pick the task back up whenever you're ready."
-                      : "Locked apps come back in 30 seconds. Take a breath, or head back to your task."}
+                      ? "No guilt. Pick it back up anytime."
+                      : "Apps unlock in 30 seconds."}
                   </Text>
 
                   {/* Countdown */}
@@ -161,7 +161,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                       >
                         {remaining}
                       </Text>
-                      <Text className="mt-1 text-caption text-neutral-500">seconds</Text>
+                      <Text className="mt-1 text-caption font-sans text-neutral-500">seconds</Text>
                       <View className="mt-4 w-full">
                         <ProgressBar progress={progress} color="bg-primary-500" height={6} />
                       </View>
@@ -194,8 +194,8 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                         icon={<Ionicons name="arrow-back" size={18} color={theme.primaryForeground} />}
                         accessibilityLabel="Cancel the unlock and go back to your task"
                       />
-                      <Text className="pb-1 text-center text-caption text-neutral-500">
-                        Or just wait — the apps unlock on their own.
+                      <Text className="pb-1 text-center text-caption font-sans text-neutral-500">
+                        Or just wait it out.
                       </Text>
                     </>
                   )}

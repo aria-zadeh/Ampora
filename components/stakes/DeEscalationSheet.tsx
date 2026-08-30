@@ -92,9 +92,8 @@ export function DeEscalationSheet({ visible, onClose, onPaused }: DeEscalationSh
                   <Heading size="h2" className="mt-5 text-center">
                     Looks like this is a rough one
                   </Heading>
-                  <Text className="mt-2 text-center text-body text-neutral-600 leading-6">
-                    That happens to everyone. Stakes are meant to help, not to pile on. Want to lift them for the
-                    rest of today?
+                  <Text className="mt-2 text-center text-body font-sans text-neutral-600 leading-6">
+                    Stakes should help, not pile on. Lift them for today?
                   </Text>
                 </View>
 

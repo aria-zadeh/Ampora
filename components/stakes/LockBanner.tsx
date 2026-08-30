@@ -51,7 +51,7 @@ import type { StakeSession } from "@/types";
 export interface LockBannerProps {
   /** The active stake session driving the lock. */
   session: StakeSession;
-  /** Open the panic valve (60s unlock-early flow). */
+  /** Open the panic valve (30s unlock-early flow). */
   onPanic: () => void;
   /**
    * `default` (unchanged): the app-wide card, its own "On the line" overline
@@ -148,7 +148,7 @@ export function LockBanner({ session, onPanic, variant = "default" }: LockBanner
         accessibilityLabel={a11y}
       >
         <Ionicons name="lock-closed" size={20} color={theme.textSecondary} />
-        <Text className="flex-1 text-body text-neutral-800">{headline}</Text>
+        <Text className="flex-1 text-body font-sans text-neutral-800">{headline}</Text>
       </Animated.View>
     );
   }
@@ -191,7 +191,7 @@ export function LockBanner({ session, onPanic, variant = "default" }: LockBanner
         className="mt-3 flex-row items-center justify-center gap-1.5 self-start rounded-full bg-white px-3.5 py-2"
         accessibilityRole="button"
         accessibilityLabel="Unlock early"
-        accessibilityHint="Opens a 60 second breather before your apps come back"
+        accessibilityHint="Opens a 30 second breather before your apps come back"
       >
         <Ionicons name="leaf-outline" size={15} color={theme.textSecondary} />
         <Text className="text-caption font-medium text-neutral-700">Unlock early</Text>

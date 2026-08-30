@@ -44,7 +44,7 @@
  * - Self-imposed, local-only lock, never remote: PRD N-goal / CLAUDE.md
  *   ("App-locking is self-imposed and local only. Never remote
  *   device-lock."), docs/04_Ignition_Sessions_and_Verification.md.
- * - Panic valve, 60-second friction, always available: PRD FR-42, FR-78,
+ * - Panic valve, 30-second friction, always available: PRD FR-42, FR-78,
  *   docs/04 §4/§6/§7.
  * - Never-lock categories (phone, messages, maps, accessibility, OS
  *   settings, Ampora itself): PRD FR-40, core/blocking/limits.ts's
@@ -247,7 +247,7 @@ export default function TermsOfServiceScreen() {
               device, and we cannot lock or unlock your device on your behalf.
             </Paragraph>
             <Paragraph>
-              A panic valve to unlock early is always available, behind a brief 60-second
+              A panic valve to unlock early is always available, behind a brief 30-second
               countdown so the choice is deliberate rather than accidental. Daily and per-session
               time limits on locking are built in and cannot be raised past their built-in
               ceiling.
