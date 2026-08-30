@@ -145,8 +145,7 @@ export default function FirstTaskScreen() {
             Add one real assignment
           </Heading>
           <Text className="text-body-lg font-medium text-neutral-600 mt-3 leading-6 max-w-330">
-            Type something you actually have to do. Watch Ampora break it into
-            a first move you can start in minutes.
+            Type something you actually have to do.
           </Text>
         </Animated.View>
 

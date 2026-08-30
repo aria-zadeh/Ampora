@@ -145,8 +145,7 @@ export default function AvailabilityScreen() {
             When are you usually free to work?
           </Heading>
           <Text className="text-body-lg font-medium text-neutral-600 mt-3 leading-6 max-w-330">
-            Pick a typical weekday window. Ampora only plans tasks inside it.
-            You can fine-tune any day later.
+            Ampora only plans tasks inside this window.
           </Text>
         </Animated.View>
 
@@ -202,12 +201,11 @@ export default function AvailabilityScreen() {
         {/* Summary line */}
         <Animated.View entering={enter(280)} className="mt-6">
           <Text className="text-caption font-sans text-neutral-500 leading-5">
-            <Ionicons name="time-outline" size={13} color={theme.textSecondary} /> We’ll plan
-            your weekdays between{" "}
+            <Ionicons name="time-outline" size={13} color={theme.textSecondary} /> Weekdays,{" "}
             <Text className="text-neutral-700 font-medium">
               {formatHour(startHour)}
             </Text>{" "}
-            and{" "}
+            to{" "}
             <Text className="text-neutral-700 font-medium">
               {formatHour(endHour)}
             </Text>

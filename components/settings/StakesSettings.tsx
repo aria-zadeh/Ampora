@@ -628,8 +628,7 @@ export function StakesSettings() {
             <Heading size="h3">Always reachable</Heading>
             <Text className="mt-2 text-body font-sans text-neutral-600">
               Phone, messages, maps, accessibility, system settings, and Ampora
-              itself can never be locked. Focus should never get between you and
-              the things that keep you safe or connected.
+              itself can never be locked.
             </Text>
             <View className="mt-6">
               <Button

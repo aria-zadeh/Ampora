@@ -223,7 +223,7 @@ export function AppPicker({ visible, onClose, onSaved }: AppPickerProps) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       setRefusalNote(
         result.reason === "all_apps"
-          ? "Pick specific apps rather than everything — that keeps phone, messages and maps reachable."
+          ? "Pick specific apps rather than everything. That keeps phone, messages and maps reachable."
           : "Some of those stay reachable no matter what, so they were left off the list."
       );
       return;

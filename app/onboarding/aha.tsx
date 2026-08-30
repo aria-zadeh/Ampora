@@ -112,7 +112,7 @@ export default function AhaScreen() {
           <EmptyState
             icon="flag-outline"
             title="No task to lock in yet"
-            subtitle="Add a real task first so you have something to start a session on."
+            subtitle="You need a task to start a session."
             actionLabel="Add a task"
             onAction={() => router.replace("/onboarding/first-task")}
           />
@@ -154,9 +154,8 @@ export default function AhaScreen() {
               Lock in your first session
             </Heading>
             <Text className="text-body-lg font-medium text-neutral-600 mt-3 leading-6 max-w-330">
-              Pick the apps that usually pull you away. They&apos;ll go dark
-              while you work on this, and come back the moment you&apos;ve
-              earned it.
+              Pick the apps that usually pull you away. They lock during the
+              session, then unlock automatically.
             </Text>
           </Animated.View>
 

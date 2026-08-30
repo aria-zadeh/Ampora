@@ -55,7 +55,7 @@ export default function NameScreen() {
               What should we call you?
             </Heading>
             <Text className="text-body-lg font-medium text-neutral-600 mt-3 leading-6 max-w-xs">
-              Just a first name. We’ll use it to keep things personal.
+              Just a first name.
             </Text>
           </Animated.View>
 

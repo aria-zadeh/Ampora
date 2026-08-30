@@ -116,7 +116,7 @@ export default function ProjectsHubScreen() {
           <EmptyState
             icon="rocket-outline"
             title="Projects are bigger than tasks"
-            subtitle="A project is a paper, an exam unit, an ongoing goal. Ampora plans your next session."
+            subtitle="A paper, an exam unit, an ongoing goal."
             actionLabel="New project"
             onAction={() => setSheetOpen(true)}
           />
@@ -130,8 +130,7 @@ export default function ProjectsHubScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <Text className="px-5 pb-2 text-body font-sans text-neutral-500">
-              {sorted.length} {sorted.length === 1 ? "project" : "projects"}. Tap one to plan its
-              next session.
+              {sorted.length} {sorted.length === 1 ? "project" : "projects"}
             </Text>
           }
         />

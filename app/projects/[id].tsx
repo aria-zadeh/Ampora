@@ -192,8 +192,7 @@ export default function ProjectDetailScreen() {
               Hand me the next move
             </Text>
             <Text className="text-body font-sans text-neutral-500 mt-1 mb-4">
-              Ampora turns where you are into one concrete {SESSION_MIN}-minute session you can
-              schedule and lock against.
+              One concrete {SESSION_MIN}-minute session.
             </Text>
             <Button
               title={planning ? "Planning…" : "Plan my next session"}

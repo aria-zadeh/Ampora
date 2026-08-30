@@ -744,11 +744,10 @@ export function DataSettings() {
                   How Ampora helps
                 </Heading>
                 <Text className="mt-2 text-body font-sans text-neutral-600 leading-6">
-                  Ampora plans your week around how you actually work, gives you a
-                  small first step for every task, and can lock your own apps
-                  behind the work if you choose to turn that on. A panic valve is
-                  always available if a lock ever feels like too much. Nothing
-                  here is medical advice. It&apos;s a planning tool.
+                  Ampora plans your week, breaks tasks into a first step, and
+                  can lock your own apps if you turn that on. A panic valve is
+                  always available. Nothing here is medical advice. It&apos;s a
+                  planning tool.
                 </Text>
               </>
             ) : (
@@ -763,7 +762,6 @@ export function DataSettings() {
                   Your tasks and settings live on your device first and sync to
                   your account so you can pick up on another device. Full,
                   published privacy and terms documents are being finalized.
-                  This notice will link to them once they&apos;re live.
                 </Text>
               </>
             )}

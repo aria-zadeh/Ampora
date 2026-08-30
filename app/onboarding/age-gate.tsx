@@ -105,8 +105,7 @@ export default function AgeGateScreen() {
               When&apos;s your birthday?
             </Heading>
             <Text variant="bodyLg" className="mt-3 max-w-xs leading-6 text-neutral-600">
-              Ampora is for ages 13 and up. We only keep a yes or no from
-              this, never the date itself.
+              We only keep a yes or no, never the date.
             </Text>
           </Animated.View>
 
