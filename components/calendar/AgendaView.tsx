@@ -239,7 +239,7 @@ export function AgendaView({ date, onBlockPress, onEventPress, testID }: AgendaV
         <EmptyState
           icon="calendar-outline"
           title="Nothing scheduled"
-          subtitle="Add a task with a duration and the engine will place it on your calendar."
+          subtitle="Your agenda is clear."
         />
       </View>
     )

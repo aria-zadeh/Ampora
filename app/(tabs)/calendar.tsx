@@ -11,7 +11,7 @@ import { runOnJS } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
-import { useScheduleStore, selectAllBlocks } from "@/store/scheduleStore";
+import { useScheduleStore } from "@/store/scheduleStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import {
   CalendarHeader,
@@ -23,7 +23,6 @@ import { WeekView } from "@/components/calendar/WeekView";
 import { MonthView } from "@/components/calendar/MonthView";
 import { AgendaView } from "@/components/calendar/AgendaView";
 import { EventActionSheet } from "@/components/calendar/EventActionSheet";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { AddEventModal } from "@/components/ui/AddEventModal";
 import { Text } from "@/components/ui/Text";
@@ -80,11 +79,6 @@ export default function CalendarScreen() {
   const [pxPerHour, setPxPerHour] = useState<ZoomPxPerHour>(() =>
     nearestZoomStop(persistedZoom ?? DEFAULT_PX_PER_HOUR)
   );
-
-  // Whether the engine has produced ANY blocks. A reactive scalar (a length
-  // check) so this subscription never returns a fresh array — no useShallow
-  // needed, and the per-day/per-week slicing stays inside each view.
-  const hasBlocks = useScheduleStore((s) => selectAllBlocks(s).length > 0);
 
   // --- Persisted view + zoom setters -------------------------------------
 
@@ -250,8 +244,6 @@ export default function CalendarScreen() {
     }
   }, [view, anchorDate, date, pxPerHour, openTask, openBlock, openDay, openEvent]);
 
-  const showEmpty = !hasBlocks && view !== "agenda"; // AgendaView renders its own empty state.
-
   return (
     <View className="flex-1 bg-canvas">
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -288,24 +280,16 @@ export default function CalendarScreen() {
           )}
         </View>
 
-        {/* The active view, or the global empty state when nothing is scheduled. */}
+        {/* The active view always renders its grid/list — a calendar with */}
+        {/* nothing scheduled is still a calendar (empty time, not an empty */}
+        {/* state); each view owns its own empty-time treatment internally. */}
         {/* Bottom padding: a plain safe-area inset plus normal spacing. The nav */}
         {/* lives in flow above the screen now instead of floating over the */}
         {/* bottom, so every view here (three time grids, month, agenda, each */}
         {/* owning its own scroller) only needs to clear the device's own */}
         {/* gesture bar, not a floating pill. */}
         <View className="flex-1" style={{ paddingBottom: insets.bottom + spacing.lg }}>
-          {showEmpty ? (
-            <View className="flex-1 items-center justify-center">
-              <EmptyState
-                icon="calendar-outline"
-                title="Nothing scheduled yet"
-                subtitle="Add a task with a due date and it lands here."
-                actionLabel="Add a task"
-                onAction={() => router.push("/task/new")}
-              />
-            </View>
-          ) : isTimeGrid ? (
+          {isTimeGrid ? (
             // Wrap time-grid views in the pinch detector. The views own their
             // own vertical ScrollView + drag gestures; Pinch composes cleanly
             // (two-finger) without stealing single-finger scroll / long-press.

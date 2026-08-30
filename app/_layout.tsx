@@ -19,17 +19,17 @@ import {
   type Theme,
 } from "@react-navigation/native";
 import { useThemeColors } from "@/hooks/useThemeColors";
-// Instrument Sans. Weight is bound into the family name (docs/02 §2.1):
+// Geist. Weight is bound into the family name (docs/02 §2.1):
 // React Native does not reliably combine fontFamily with a numeric fontWeight
 // across platforms. Swapping the typeface is a four-line change here plus the
 // two token files - nothing else in the system depends on which face it is.
 import {
   useFonts,
-  InstrumentSans_400Regular,
-  InstrumentSans_500Medium,
-  InstrumentSans_600SemiBold,
-  InstrumentSans_700Bold,
-} from "@expo-google-fonts/instrument-sans";
+  Geist_400Regular,
+  Geist_500Medium,
+  Geist_600SemiBold,
+  Geist_700Bold,
+} from "@expo-google-fonts/geist";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useScheduleStore, selectAllBlocks } from "@/store/scheduleStore";
 import { useTaskStore, selectAllTasks } from "@/store/taskStore";
@@ -85,10 +85,10 @@ export default function RootLayout() {
   const devAuthBypassed = useDevAuthBypassed();
 
   const [fontsLoaded] = useFonts({
-    InstrumentSans_400Regular,
-    InstrumentSans_500Medium,
-    InstrumentSans_600SemiBold,
-    InstrumentSans_700Bold,
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    Geist_700Bold,
   });
 
   // Drive `stakesStore.tick()` app-wide (~1/min while foregrounded, plus a

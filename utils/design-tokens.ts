@@ -209,20 +209,20 @@ export const borderRadius = {
  * combine `fontFamily` with a numeric `fontWeight` across platforms, so the
  * weight is bound into the family name.
  *
- * Space Grotesk. Outfit was the face in the Figma source but read as generic
- * in the built app, and Instrument Sans was too close to it to register as a
- * change. Space Grotesk has genuinely distinctive letterforms while staying
- * legible at the 9-11pt end of the scale. These four identifiers are the
- * exact exports of `@expo-google-fonts/instrument-sans`
+ * Geist, chosen by Aria. Outfit was the face in the Figma source but read as
+ * generic in the built app; Instrument Sans was too close to it to register as
+ * a change; Space Grotesk was too extreme. Geist is precise and even at the
+ * 9-11pt end of the scale, which matters because the measured ramp goes that
+ * small. These four identifiers are the exact exports of `@expo-google-fonts/geist`
  * loaded in `app/_layout.tsx` and must stay in lockstep with
  * `tailwind.config.js`. Swapping the face again means changing only these
  * four strings, the four in tailwind.config.js, and the loader.
  */
 export const fontFamilies = {
-  regular: "InstrumentSans_400Regular",
-  medium: "InstrumentSans_500Medium",
-  semibold: "InstrumentSans_600SemiBold",
-  bold: "InstrumentSans_700Bold",
+  regular: "Geist_400Regular",
+  medium: "Geist_500Medium",
+  semibold: "Geist_600SemiBold",
+  bold: "Geist_700Bold",
 } as const;
 
 /**

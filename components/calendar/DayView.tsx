@@ -198,6 +198,7 @@ function DraggableBlock({
   totalHeight,
   task,
   event,
+  listColorHex,
   contentWidth,
   now,
   onBlockPress,
@@ -211,6 +212,8 @@ function DraggableBlock({
   totalHeight: number
   task?: Task
   event?: CalEvent
+  /** The task's list colour (raw hex), threaded straight through to {@link CalendarBlock}. */
+  listColorHex?: string
   contentWidth: number
   now?: number
   onBlockPress: (taskId: string) => void
@@ -833,6 +836,7 @@ function DraggableBlock({
             left="0%"
             width="100%"
             measuredWidth={width}
+            listColorHex={listColorHex}
             now={now}
             fill
           />
@@ -1039,6 +1043,14 @@ export function DayBlocksLayer({
     return layoutDay(items, { eventsFirst: true })
   }, [blocks, events])
 
+  // Empty-time ghost slots (matches WeekView's own treatment): geometry once
+  // per item, reused only for the gap sweep below — the block itself computes
+  // its own geometry independently inside DraggableBlock.
+  const placedRanges = laid.map((l) =>
+    blockGeometry(l.item.start, l.item.end, dayStartMs, pxPerMin, MIN_BLOCK_HEIGHT)
+  )
+  const ghosts = ghostGaps(placedRanges, totalHeight)
+
   // Long-press EMPTY grid space -> create an Event (FR-28), prefilled with
   // the pressed time snapped to the 5-min grid (matches how drag/resize
   // already snap). `e.y` is relative to this gesture's own view, which
@@ -1084,6 +1096,14 @@ export function DayBlocksLayer({
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
       </GestureDetector>
 
+      {/* Empty time reads as a deliberate placeholder, not blank space
+          (2026-08-26 remeasure, week-view.pdf) — same treatment as WeekView.
+          Decorative only (pointerEvents none) and painted before the block
+          layer below, so it can never visually or hit-test over a real block. */}
+      {ghosts.map((g, i) => (
+        <GhostSlot key={`ghost-${i}`} top={g.top} height={g.height} />
+      ))}
+
       {/* `pointerEvents="box-none"`: this wrapper is never itself a touch
           target, so a touch on genuinely empty space passes straight through
           to the create gesture behind it — but each block child (default
@@ -1101,6 +1121,7 @@ export function DayBlocksLayer({
               const task =
                 l.item.kind === 'task' ? tasks[l.item.block.taskId] : undefined
               const event = l.item.kind === 'event' ? l.item.event : undefined
+              const listColorHex = task?.listId ? listColorById[task.listId] : undefined
               return (
                 <DraggableBlock
                   key={l.item.id}
@@ -1110,6 +1131,7 @@ export function DayBlocksLayer({
                   totalHeight={totalHeight}
                   task={task}
                   event={event}
+                  listColorHex={listColorHex}
                   contentWidth={contentWidth}
                   now={now}
                   onBlockPress={onBlockPress}
