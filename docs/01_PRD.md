@@ -169,11 +169,11 @@ Requirements are numbered (FR-#, NFR-#) and tied to goals (G#). Acceptance crite
 - FR-41 (G3). A stake has two properties: a **hold** and a **trigger**.
   - **Hold = `session` (default):** stake apps lock for the length of the focus session (Section 9.9). Default session length 45 min, tunable 15 to 50. Unlock is by focus-time served (FR-77). The First move is shown at session start as the on-ramp and does not unlock anything. This is the anti-leak mechanism: doing the first move does not end the lock, serving the session does.
   - **Hold = `until_done` (opt-in):** stake apps lock until completion is verified (photo/screenshot, lenient AI). Only offered when the task or subtask estimate fits inside one session under the wellbeing cap, so it stays for short concrete tasks. If the session cap is reached before completion, the lock converts to a normal session release (wellbeing wins, outcome logged). It is never offered against a whole project.
-- FR-41a (G3). **Trigger = `manual`:** the user taps Start now. **Trigger = `scheduled`:** the session auto-arms at a set time (the implementation-intention cue). An optional `startWindowMin` means "if I have not started within X minutes of the cue, arm the lock anyway" (this absorbs the old beat-the-clock behavior; it is not a separate mode). A scheduled lock never arms inside quiet hours, releases early if the task is completed, and can always be dismissed behind the 60-second panic-valve friction.
+- FR-41a (G3). **Trigger = `manual`:** the user taps Start now. **Trigger = `scheduled`:** the session auto-arms at a set time (the implementation-intention cue). An optional `startWindowMin` means "if I have not started within X minutes of the cue, arm the lock anyway" (this absorbs the old beat-the-clock behavior; it is not a separate mode). A scheduled lock never arms inside quiet hours, releases early if the task is completed, and can always be dismissed behind the 30-second panic-valve friction.
 - FR-41b (G3). Stakes are per-device and independent. A lock on one device does not lock another. No multi-device lock at launch.
 - FR-41c (G3). Only one session (staked or not) can be active at a time. No overlapping locks.
 - FR-41d (G3). Recurring stakes repeat. If a recurring task carries a scheduled stake, the stake config repeats with each occurrence. A weekly summary notification reminds the user the recurring stake is active, with a one-tap edit.
-- FR-42 (G3). Panic valve ("Unlock early"): always available emergency unlock behind 60 seconds of friction (countdown plus a calm message). Required for App Store and wellbeing.
+- FR-42 (G3). Panic valve ("Unlock early"): always available emergency unlock behind 30 seconds of friction (countdown plus a calm message). Required for App Store and wellbeing.
 - FR-43 (G3). De-escalation: repeated panic-valve use or repeated misses reduce stake strength, suggest a break, and offer "Pause stakes for today." The app never answers distress with more pressure.
 - FR-44 (G3). Stake strength uses fixed sensible defaults plus a single user-set strength control. (No automated calibration at launch.)
 - FR-45 (G3). Session lifecycle and edge cases per Section 9.9 and `05` (shield persists across app kill/restart, auto-expires at the session end, at the daily cap, and at the quiet-hours boundary, never locks overnight).
@@ -269,7 +269,7 @@ Feature: Scheduled lock with a start window (absorbs beat-the-clock)
     And it is not quiet hours
     Then the stake apps lock for one session length
     And completing the task during the lock releases it early
-    And I can dismiss the lock behind the 60-second panic valve
+    And I can dismiss the lock behind the 30-second panic valve
 
 Feature: Until-done hard mode is capped
   Scenario: Estimate was wrong
@@ -283,8 +283,8 @@ Feature: Panic valve de-escalation
   Scenario: User repeatedly needs out
     Given I am in a staked session
     When I tap "Unlock early"
-    Then I see a 60-second countdown and a calm message
-    And after 60 seconds the stake apps unlock
+    Then I see a 30-second countdown and a calm message
+    And after 30 seconds the stake apps unlock
     When I use the panic valve repeatedly in a short window
     Then the app offers "Pause stakes for today" and lowers stake strength
     And it never increases pressure
@@ -362,7 +362,7 @@ Below the hero: a `Scheduled locks` section when any exist, an `Up next` list (m
 - Lock banner during a session: "{Instagram and 2 more} are locked. {N} min left." Neutral surface, no alarm colors, since the lock is consensual.
 - Stake app picker: Opal-style native picker, editable, with the six never-lock categories shown as permanently protected.
 - End check-in sheet: `Done` / `Keep going` / `Stop here`.
-- Panic valve: `Unlock early`, a 60-second countdown, a calm message.
+- Panic valve: `Unlock early`, a 30-second countdown, a calm message.
 
 **8.9 Notifications (copy)**
 - Start Reminder: "Hey, {task} is on your plate. Want to do the first move? It takes 5 minutes."

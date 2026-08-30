@@ -62,7 +62,7 @@ on the hold condition:
       if not -> gentle message + retry, OR "Unlock anyway" override (logged)
     if the single-session cap is reached first -> removeShield (session_served), log expired
 
-ALWAYS, regardless of hold: the panic valve "Unlock early" (60s friction) is available
+ALWAYS, regardless of hold: the panic valve "Unlock early" (30s friction) is available
 ```
 
 Taking a photo (Camera) and taking a screenshot (OS) are never blocked (they are on the never-lock list), and uploading happens inside Ampora, so the user can always produce proof while their leisure apps are shielded. No conflict.

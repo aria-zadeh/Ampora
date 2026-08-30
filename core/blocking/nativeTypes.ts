@@ -148,7 +148,7 @@ export interface IgnitionNativeModule {
 
   /**
    * BEYOND `BlockingStrategy`. `ShieldActionExtension` cannot show rich UI or
-   * run the 60s panic-valve friction itself (docs/05 §3.8), so it writes a
+   * run the 30s panic-valve friction itself (docs/05 §3.8), so it writes a
    * timestamp into the App Group and posts a notification; call this once on
    * every foreground (alongside re-checking authorization status, docs/05
    * §3.1) and, if it resolves non-null, run the panic-valve friction screen.

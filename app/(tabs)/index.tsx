@@ -20,6 +20,7 @@ import { ProjectsEntryCard } from "@/components/home/ProjectsEntryCard";
 import { NeedsAttention } from "@/components/home/NeedsAttention";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FAB } from "@/components/ui/FAB";
+import { BrainDumpSheet } from "@/components/capture/BrainDumpSheet";
 import { Heading } from "@/components/ui/Heading";
 import { Text } from "@/components/ui/Text";
 import { PressableScale } from "@/components/ui/PressableScale";
@@ -196,6 +197,11 @@ export default function HomeScreen() {
   // Nearest-due incomplete task within the urgent window, computed against a
   // once-per-mount "now" (matches this file's existing tomorrowStart pattern,
   // no new interval/timer).
+  // Voice capture (FR-4). It already existed but lived only as a small mic
+  // icon on the Tasks tab, which is why it was undiscoverable. It now has a
+  // real entry point on the screen people actually open first.
+  const [brainDumpOpen, setBrainDumpOpen] = useState(false);
+
   const nowMs = useMemo(() => Date.now(), []);
   const urgentTask = useMemo(() => selectUrgentTask(tasks, nowMs), [tasks, nowMs]);
 
@@ -439,7 +445,16 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <FAB onPress={() => router.push("/task/new")} />
+      <FAB
+        icon="mic"
+        tone="secondary"
+        stackIndex={1}
+        accessibilityLabel="Capture a task by voice"
+        onPress={() => setBrainDumpOpen(true)}
+      />
+      <FAB onPress={() => router.push("/task/new")} accessibilityLabel="Add a task" />
+
+      <BrainDumpSheet visible={brainDumpOpen} onClose={() => setBrainDumpOpen(false)} />
     </View>
   );
 }

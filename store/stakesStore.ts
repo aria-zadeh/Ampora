@@ -326,7 +326,7 @@ interface StakesState {
   completeStake: (sessionId: string, via?: CompleteVia) => void
 
   /**
-   * Panic valve (FR-42). Call AFTER the UI's 60s friction countdown. Removes
+   * Panic valve (FR-42). Call AFTER the UI's 30s friction countdown. Removes
    * the shield, ends the session `panic_valve`, increments `recentPanics`, and
    * DE-ESCALATES (lowers `settings.stakeStrength`) when panics cross the
    * threshold. Logs `panic_valve` + `shield_off`. Always succeeds — never traps.

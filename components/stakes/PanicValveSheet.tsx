@@ -2,14 +2,14 @@
  * PanicValveSheet — Ampora Phase 5 Ignition (FR-42, PRD §9.10).
  *
  * The always-available "unlock early" escape hatch. It is NOT a wall — it is a
- * calm, 60-second breath. The delay is the ONLY friction (a moment to let the
+ * calm, 30-second breath. The delay is the ONLY friction (a moment to let the
  * impulse pass), never a punishment or a shame screen. Two paths, both kind:
  *   - "Back to task": dismiss and stay focused (the gently encouraged choice).
- *   - Wait out the 60s: the apps come back, no guilt. On expiry we call
+ *   - Wait out the 30s: the apps come back, no guilt. On expiry we call
  *     `stakesStore.panicValve(session.id)`, which removes the shield, ends the
  *     session as `panic_valve`, and DE-ESCALATES future stakes (never punishes).
  *
- * The 60s countdown is the friction the store's `panicValve` expects the UI to
+ * The 30s countdown is the friction the store's `panicValve` expects the UI to
  * impose BEFORE calling it (see stakesStore.panicValve docstring). The store
  * owns the state change + de-escalation; this sheet owns only the humane pause.
  *
@@ -35,7 +35,7 @@ import { useStakesStore } from "@/store/stakesStore";
 import type { StakeSession } from "@/types";
 
 /** The single source-of-truth friction window (doc 06 §3.9, FR-42). */
-const PANIC_COUNTDOWN_SEC = 60;
+const PANIC_COUNTDOWN_SEC = 30;
 
 export interface PanicValveSheetProps {
   visible: boolean;
@@ -43,7 +43,7 @@ export interface PanicValveSheetProps {
   session: StakeSession;
   /** Close without unlocking (the "Back to task" path). */
   onClose: () => void;
-  /** Called after the 60s lapses and the store has released the lock. */
+  /** Called after the 30s lapses and the store has released the lock. */
   onReleased?: () => void;
 }
 
@@ -147,7 +147,7 @@ export function PanicValveSheet({ visible, session, onClose, onReleased }: Panic
                   <Text className="mt-2 text-center text-body text-neutral-600 leading-6">
                     {done
                       ? "No guilt — you can pick the task back up whenever you're ready."
-                      : "Locked apps come back in 60 seconds. Take a breath, or head back to your task."}
+                      : "Locked apps come back in 30 seconds. Take a breath, or head back to your task."}
                   </Text>
 
                   {/* Countdown */}

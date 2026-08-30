@@ -21,9 +21,25 @@ const FAB_SIZE = 56;
 interface FABProps {
   onPress: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Screen-reader name. Defaults to the add-task action. */
+  accessibilityLabel?: string;
+  /**
+   * Stack index from the bottom. 0 is the resting position; 1 sits directly
+   * above it, so a screen can offer a second action (voice capture) without
+   * hiding the primary one.
+   */
+  stackIndex?: number;
+  /** Secondary actions use the raised surface so only ONE accent FAB reads as primary. */
+  tone?: "primary" | "secondary";
 }
 
-export function FAB({ onPress, icon = "add" }: FABProps) {
+export function FAB({
+  onPress,
+  icon = "add",
+  accessibilityLabel = "Add a task",
+  stackIndex = 0,
+  tone = "primary",
+}: FABProps) {
   const reduceMotion = useReduceMotion();
   const theme = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -76,12 +92,12 @@ export function FAB({ onPress, icon = "add" }: FABProps) {
       onPressOut={handlePressOut}
       className="absolute items-center justify-center"
       accessibilityRole="button"
-      accessibilityLabel="Add new task"
+      accessibilityLabel={accessibilityLabel}
       accessibilityHint="Opens the new task form"
       style={[
         {
           position: "absolute",
-          bottom: 24 + insets.bottom,
+          bottom: 24 + insets.bottom + stackIndex * (FAB_SIZE + 12),
           right: 20,
           width: FAB_SIZE,
           height: FAB_SIZE,
@@ -91,7 +107,9 @@ export function FAB({ onPress, icon = "add" }: FABProps) {
           // painted this white-on-white with the white glyph below. The FAB
           // is the one primary action on its screen, so it takes the accent
           // fill like every other primary control, not a literal ink fill.
-          backgroundColor: theme.primary,
+          // Only the primary FAB carries the accent, so a screen never shows
+          // two equally-loud floating actions (docs/02 13.4).
+          backgroundColor: tone === "primary" ? theme.primary : theme.elevated,
           alignItems: "center",
           justifyContent: "center",
           zIndex: 50,
@@ -99,7 +117,7 @@ export function FAB({ onPress, icon = "add" }: FABProps) {
         animatedStyle,
       ]}
     >
-      <Ionicons name={icon} size={iconSizes.lg} color={theme.primaryForeground} />
+      <Ionicons name={icon} size={iconSizes.lg} color={tone === "primary" ? theme.primaryForeground : theme.text} />
     </AnimatedPressable>
   );
 }
