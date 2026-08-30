@@ -158,7 +158,7 @@ function Field({
         {label}
       </Text>
       {helper ? (
-        <Text className="mb-2 text-caption text-neutral-500">{helper}</Text>
+        <Text className="mb-2 text-caption font-sans text-neutral-500">{helper}</Text>
       ) : null}
       {children}
     </View>
@@ -404,7 +404,7 @@ function RepeatControl({
       {value ? (
         <>
           <Text
-            className="text-caption text-neutral-500"
+            className="text-caption font-sans text-neutral-500"
             accessibilityLabel={`Repeat summary: ${describeRepeatRule(value)}`}
           >
             {describeRepeatRule(value)}
@@ -541,7 +541,7 @@ function RepeatControl({
                   <Text className="text-label font-medium text-neutral-800">
                     Count from when I finish
                   </Text>
-                  <Text className="mt-0.5 text-caption text-neutral-500">
+                  <Text className="mt-0.5 text-caption font-sans text-neutral-500">
                     Off: always the same day. On: the clock starts once you complete it.
                   </Text>
                 </View>
@@ -559,7 +559,7 @@ function RepeatControl({
                     <Text className="text-label font-medium text-neutral-800">
                       Only within a time window
                     </Text>
-                    <Text className="mt-0.5 text-caption text-neutral-500">
+                    <Text className="mt-0.5 text-caption font-sans text-neutral-500">
                       Keep every occurrence inside a set time of day.
                     </Text>
                   </View>
@@ -578,7 +578,7 @@ function RepeatControl({
                 {value.startWindow ? (
                   <View className="flex-row gap-3">
                     <View className="flex-1">
-                      <Text className="mb-1 text-caption text-neutral-500">From</Text>
+                      <Text className="mb-1 text-caption font-sans text-neutral-500">From</Text>
                       <DateTimePickerCrossPlatform
                         mode="time"
                         value={minutesToDate(value.startWindow.start)}
@@ -591,7 +591,7 @@ function RepeatControl({
                       />
                     </View>
                     <View className="flex-1">
-                      <Text className="mb-1 text-caption text-neutral-500">Until</Text>
+                      <Text className="mb-1 text-caption font-sans text-neutral-500">Until</Text>
                       <DateTimePickerCrossPlatform
                         mode="time"
                         value={minutesToDate(value.startWindow.end)}
@@ -613,7 +613,7 @@ function RepeatControl({
                   <Text className="text-label font-medium text-neutral-800">
                     Carry forward if missed
                   </Text>
-                  <Text className="mt-0.5 text-caption text-neutral-500">
+                  <Text className="mt-0.5 text-caption font-sans text-neutral-500">
                     Off (default): a missed one is dropped, not stacked onto the next.
                   </Text>
                 </View>
@@ -1014,7 +1014,7 @@ export function TaskEditorForm({
               Task name
             </Text>
             <TextInput
-              className="p-0 text-body-lg text-neutral-900"
+              className="p-0 text-body-lg font-medium text-neutral-900"
               placeholder="What needs doing?"
               placeholderTextColor={theme.textDisabled}
               value={draft.title ?? ""}
@@ -1111,7 +1111,7 @@ export function TaskEditorForm({
             </PressableScale>
 
             {!canBreakDown ? (
-              <Text className="text-caption text-neutral-500">
+              <Text className="text-caption font-sans text-neutral-500">
                 Add a title first, then let AI suggest a first move and steps.
               </Text>
             ) : null}
@@ -1130,7 +1130,7 @@ export function TaskEditorForm({
                 className="flex-row items-start gap-2 rounded-lg border border-warning-100 bg-warning-100/50 p-3"
               >
                 <Ionicons name="cloud-offline-outline" size={16} color={theme.warningStrong} />
-                <Text className="flex-1 text-caption text-warning-700">{aiNote}</Text>
+                <Text className="flex-1 text-caption font-sans text-warning-700">{aiNote}</Text>
               </Animated.View>
             ) : null}
           </View>
@@ -1286,7 +1286,7 @@ export function TaskEditorForm({
                   className="gap-2"
                 >
                   <TextInput
-                    className="min-h-12 rounded-lg border border-primary-500 bg-raised px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-lg border border-primary-500 bg-raised px-4 text-body-lg font-medium text-neutral-900"
                     placeholder='e.g. "break it down by function" or "step 2 is too big"'
                     placeholderTextColor={theme.textDisabled}
                     value={refineText}
@@ -1332,7 +1332,7 @@ export function TaskEditorForm({
               <Text className="text-label font-medium text-neutral-800">
                 Auto-schedule
               </Text>
-              <Text className="mt-0.5 text-caption text-neutral-500">
+              <Text className="mt-0.5 text-caption font-sans text-neutral-500">
                 Let Ampora find time for this task.
               </Text>
             </View>
@@ -1355,10 +1355,10 @@ export function TaskEditorForm({
           >
             {hasSubtasks ? (
               <View className="min-h-12 flex-row items-center justify-between rounded-lg border border-line bg-raised px-4">
-                <Text className="text-body-lg text-neutral-900">
+                <Text className="text-body-lg font-medium text-neutral-900">
                   {rollupDuration}m
                 </Text>
-                <Text className="text-caption text-neutral-500">from steps</Text>
+                <Text className="text-caption font-sans text-neutral-500">from steps</Text>
               </View>
             ) : (
               <TextInput
@@ -1421,7 +1421,7 @@ export function TaskEditorForm({
                 accessibilityLabel="Set a due date"
               >
                 <Ionicons name="calendar-outline" size={18} color={theme.textMuted} />
-                <Text className="ml-2 text-body-lg text-neutral-500">
+                <Text className="ml-2 text-body-lg font-medium text-neutral-500">
                   Set a deadline
                 </Text>
               </Pressable>
@@ -1463,7 +1463,7 @@ export function TaskEditorForm({
                 accessibilityLabel="Set a start-after date"
               >
                 <Ionicons name="time-outline" size={18} color={theme.textMuted} />
-                <Text className="ml-2 text-body-lg text-neutral-500">
+                <Text className="ml-2 text-body-lg font-medium text-neutral-500">
                   Set a start date
                 </Text>
               </Pressable>
@@ -1476,7 +1476,7 @@ export function TaskEditorForm({
               <Text className="text-label font-medium text-neutral-800">
                 Split into sessions
               </Text>
-              <Text className="mt-0.5 text-caption text-neutral-500">
+              <Text className="mt-0.5 text-caption font-sans text-neutral-500">
                 Allow this task to be broken across multiple blocks.
               </Text>
             </View>
@@ -1494,7 +1494,7 @@ export function TaskEditorForm({
               <View className="flex-1">
                 <Field label="Min block (min)">
                   <TextInput
-                    className="min-h-12 rounded-lg border border-line bg-raised px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-lg border border-line bg-raised px-4 text-body-lg font-medium text-neutral-900"
                     placeholder="e.g. 30"
                     placeholderTextColor={theme.textDisabled}
                     value={draft.minBlockMin != null ? String(draft.minBlockMin) : ""}
@@ -1510,7 +1510,7 @@ export function TaskEditorForm({
               <View className="flex-1">
                 <Field label="Max block (min)">
                   <TextInput
-                    className="min-h-12 rounded-lg border border-line bg-raised px-4 text-body-lg text-neutral-900"
+                    className="min-h-12 rounded-lg border border-line bg-raised px-4 text-body-lg font-medium text-neutral-900"
                     placeholder="e.g. 90"
                     placeholderTextColor={theme.textDisabled}
                     value={draft.maxBlockMin != null ? String(draft.maxBlockMin) : ""}
@@ -1535,7 +1535,7 @@ export function TaskEditorForm({
                 <Text className="text-label font-medium text-neutral-800">
                   Buffer before
                 </Text>
-                <Text className="mt-0.5 text-caption text-neutral-500">
+                <Text className="mt-0.5 text-caption font-sans text-neutral-500">
                   Quiet time held before each block
                 </Text>
               </View>
@@ -1555,7 +1555,7 @@ export function TaskEditorForm({
                 <Text className="text-label font-medium text-neutral-800">
                   Buffer after
                 </Text>
-                <Text className="mt-0.5 text-caption text-neutral-500">
+                <Text className="mt-0.5 text-caption font-sans text-neutral-500">
                   Quiet time held after each block
                 </Text>
               </View>
@@ -1619,7 +1619,7 @@ export function TaskEditorForm({
                   <Ionicons name="sparkles-outline" size={13} color={theme.primary} />
                 )}
                 <Text
-                  className={`text-caption ${
+                  className={`text-caption font-sans ${
                     draft.color == null ? "text-primary-700" : "text-neutral-600"
                   }`}
                 >
@@ -1724,7 +1724,7 @@ export function TaskEditorForm({
               </View>
               <View className="px-6 pb-6 pt-4">
                 <Heading size="h3">Replace your steps?</Heading>
-                <Text className="mt-2 text-body text-neutral-600">
+                <Text className="mt-2 text-body font-sans text-neutral-600">
                   You have progress on these steps. Regenerating will replace the list — completed steps
                   won&apos;t carry over unless you keep them.
                 </Text>

@@ -163,7 +163,7 @@ export function ListTagPicker(props: ListTagPickerProps) {
             <Heading size="h3">{isSingle ? "New list" : "New tag"}</Heading>
 
             <TextInput
-              className="mt-5 min-h-12 rounded-lg border border-neutral-200 bg-raised px-4 text-body-lg text-neutral-900"
+              className="mt-5 min-h-12 rounded-lg border border-neutral-200 bg-raised px-4 text-body-lg font-medium text-neutral-900"
               placeholder={isSingle ? "List name" : "Tag name"}
               placeholderTextColor={theme.textDisabled}
               value={draftName}

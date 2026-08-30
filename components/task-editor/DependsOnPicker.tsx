@@ -59,7 +59,7 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
       <View className="mb-2 min-h-12 flex-row items-center rounded-lg border border-neutral-200 bg-raised px-3">
         <Ionicons name="search" size={16} color={theme.textDisabled} />
         <TextInput
-          className="ml-2 flex-1 text-body-lg text-neutral-900"
+          className="ml-2 flex-1 text-body-lg font-medium text-neutral-900"
           placeholder="Search tasks"
           placeholderTextColor={theme.textDisabled}
           value={query}
@@ -69,7 +69,7 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
       </View>
 
       {candidates.length === 0 ? (
-        <Text className="px-1 py-2 text-caption text-neutral-500">
+        <Text className="px-1 py-2 text-caption font-sans text-neutral-500">
           {query.trim() ? "No matching tasks" : "No other tasks yet"}
         </Text>
       ) : (
@@ -99,7 +99,7 @@ export function DependsOnPicker({ value, onChange, selfId }: DependsOnPickerProp
                   ) : null}
                 </View>
                 <Text
-                  className="flex-1 text-body text-neutral-900"
+                  className="flex-1 text-body font-sans text-neutral-900"
                   numberOfLines={1}
                 >
                   {t.title}

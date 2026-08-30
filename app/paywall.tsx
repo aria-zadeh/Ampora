@@ -179,7 +179,7 @@ function PlanCard({
           <Text className="mt-3 text-h2 font-bold text-neutral-900">
             {plan.price}
           </Text>
-          <Text className="text-caption text-neutral-500">{plan.cadence}</Text>
+          <Text className="text-caption font-sans text-neutral-500">{plan.cadence}</Text>
           {plan.note ? (
             <Text className="mt-1 text-caption font-medium text-accent-700">{plan.note}</Text>
           ) : null}
@@ -445,7 +445,7 @@ export default function PaywallScreen() {
           <Heading size="h2" className="mt-5 text-center">
             You&apos;re all set
           </Heading>
-          <Text className="mt-2 text-center text-body text-neutral-500">
+          <Text className="mt-2 text-center text-body font-sans text-neutral-500">
             Your {subscription.plan ?? 'Ampora'} subscription is active. Thanks for
             being here.
           </Text>
@@ -527,7 +527,7 @@ export default function PaywallScreen() {
           <Heading size="h1" className={showTrialChip ? 'mt-3' : 'mt-5'}>
             {heroTitle}
           </Heading>
-          <Text className="mt-2 text-body-lg text-neutral-500">{heroSubtitle}</Text>
+          <Text className="mt-2 text-body-lg font-medium text-neutral-500">{heroSubtitle}</Text>
         </Animated.View>
 
         {/* Value list */}
@@ -545,7 +545,7 @@ export default function PaywallScreen() {
               <View className="h-8 w-8 items-center justify-center rounded-full bg-accent-100">
                 <Ionicons name={point.icon} size={16} color={theme.accent} />
               </View>
-              <Text className="ml-3 flex-1 text-body text-neutral-800">{point.text}</Text>
+              <Text className="ml-3 flex-1 text-body font-sans text-neutral-800">{point.text}</Text>
             </View>
           ))}
         </Animated.View>
@@ -602,7 +602,7 @@ export default function PaywallScreen() {
           {purchaseMessage ? (
             <Text
               accessibilityLiveRegion="polite"
-              className="mt-3 text-center text-caption text-neutral-500"
+              className="mt-3 text-center text-caption font-sans text-neutral-500"
             >
               {purchaseMessage}
             </Text>
@@ -688,7 +688,7 @@ export default function PaywallScreen() {
         </Animated.View>
 
         {/* IAP honesty note */}
-        <Text className="mt-6 text-center text-caption text-neutral-500 leading-5">
+        <Text className="mt-6 text-center text-caption font-sans text-neutral-500 leading-5">
           {strategy.kind === 'native'
             ? 'Billing runs through the App Store. Cancel anytime in your device Settings.'
             : Platform.OS === 'ios'

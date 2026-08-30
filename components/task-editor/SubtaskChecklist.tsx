@@ -227,7 +227,7 @@ export function SubtaskChecklist({
       {/* Add-row input. */}
       <View className="mt-3 flex-row items-center gap-2">
         <TextInput
-          className="min-h-12 flex-1 rounded-lg border border-neutral-200 bg-raised px-3 text-body-lg text-neutral-900"
+          className="min-h-12 flex-1 rounded-lg border border-neutral-200 bg-raised px-3 text-body-lg font-medium text-neutral-900"
           placeholder="Add a step"
           placeholderTextColor={theme.textDisabled}
           value={newTitle}
@@ -237,7 +237,7 @@ export function SubtaskChecklist({
           accessibilityLabel="New step title"
         />
         <TextInput
-          className="min-h-12 w-16 rounded-lg border border-neutral-200 bg-raised px-2 text-center text-body-lg text-neutral-900"
+          className="min-h-12 w-16 rounded-lg border border-neutral-200 bg-raised px-2 text-center text-body-lg font-medium text-neutral-900"
           placeholder="min"
           placeholderTextColor={theme.textDisabled}
           value={newMin}

@@ -182,7 +182,7 @@ export default function BlindfoldScreen() {
               <Text className="text-h2 font-semibold text-warning-700 text-center">
                 {"You're clear."}
               </Text>
-              <Text className="text-body text-neutral-500 text-center mt-3 max-w-300">
+              <Text className="text-body font-sans text-neutral-500 text-center mt-3 max-w-300">
                 Nothing left to do right now. Take a breath.
               </Text>
             </Animated.View>
@@ -231,7 +231,7 @@ export default function BlindfoldScreen() {
                   I did this
                 </Text>
               </PressableScale>
-              <Text className="text-caption text-neutral-500 text-center mt-4">
+              <Text className="text-caption font-sans text-neutral-500 text-center mt-4">
                 The next step stays hidden until this one is done.
               </Text>
             </>

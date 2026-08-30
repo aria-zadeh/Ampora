@@ -119,7 +119,7 @@ function ProofRow({
         <Text className="text-body-lg font-medium text-neutral-900" numberOfLines={1}>
           {taskTitle}
         </Text>
-        <Text className="mt-0.5 text-caption text-neutral-500" numberOfLines={1}>
+        <Text className="mt-0.5 text-caption font-sans text-neutral-500" numberOfLines={1}>
           {meta.label} · {formatWhen(proof.at)}
         </Text>
       </View>

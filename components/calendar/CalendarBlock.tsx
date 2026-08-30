@@ -103,9 +103,10 @@ function resolveListAccent(
  *
  * - Absolutely positioned via `top`/`height`/`left`/`width` (the caller runs
  *   the geometry + overlap math from `core/calendar`).
- * - Flat `bg-raised` surface (no per-status tint) plus a strong left accent
- *   bar in the deadline-slack color (neutral for events); a status dot
- *   repeats the signal for a11y.
+ * - Flat `bg-raised` surface (no per-status wash) plus a strong left accent
+ *   bar tinted by the task's list colour (neutral "slate" for events) when
+ *   on track, or the warning/danger colour when getting-close/at-risk; a
+ *   status dot repeats the signal for a11y.
  * - Dynamic typography (§8.7): time+title at >=44px, title-only 28–44px,
  *   ~6 chars when very short or in a dense (<56px wide) column. Never clips —
  *   always ellipsizes.

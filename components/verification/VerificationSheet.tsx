@@ -241,7 +241,7 @@ function MethodTile({
         <Text className={`text-body-lg font-medium ${active ? "text-primary-700" : "text-neutral-900"}`}>
           {option.title}
         </Text>
-        <Text className="mt-0.5 text-caption text-neutral-500">{option.blurb}</Text>
+        <Text className="mt-0.5 text-caption font-sans text-neutral-500">{option.blurb}</Text>
       </View>
       {right ?? (
         <Ionicons
@@ -459,7 +459,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                     <Heading size="h3" className="mt-1" numberOfLines={2}>
                       {task.title}
                     </Heading>
-                    <Text className="mt-1 text-caption text-neutral-500">
+                    <Text className="mt-1 text-caption font-sans text-neutral-500">
                       Choose how you want to keep yourself honest. You can always change it.
                     </Text>
                   </View>
@@ -537,14 +537,14 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                       {focusPassed ? (
                         <View className="flex-row items-center gap-2">
                           <Ionicons name="checkmark-circle" size={18} color={theme.successAccent} />
-                          <Text className="flex-1 text-caption text-neutral-600">
+                          <Text className="flex-1 text-caption font-sans text-neutral-600">
                             You focused {focusedMin}m — that clears the {requiredFocusMin}m needed. Nice.
                           </Text>
                         </View>
                       ) : (
                         <View className="flex-row items-center gap-2">
                           <Ionicons name="time-outline" size={18} color={theme.textMuted} />
-                          <Text className="flex-1 text-caption text-neutral-600">
+                          <Text className="flex-1 text-caption font-sans text-neutral-600">
                             {focusedMin}m focused so far. Start a focus session to reach {requiredFocusMin}m — or complete anyway below.
                           </Text>
                         </View>
@@ -576,7 +576,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                               Choose a different image
                             </Text>
                           </Pressable>
-                          <Text className="text-caption text-neutral-500">
+                          <Text className="text-caption font-sans text-neutral-500">
                             The check is a light nudge, not a grader — it accepts unless the image is clearly unrelated.
                           </Text>
                         </View>
@@ -600,7 +600,7 @@ export function VerificationSheet({ visible, task, onClose, onCompleted }: Verif
                         <View className="gap-2">
                           <View className="flex-row items-center gap-2">
                             <Ionicons name="information-circle-outline" size={18} color={theme.textMuted} />
-                            <Text className="flex-1 text-caption text-neutral-600">
+                            <Text className="flex-1 text-caption font-sans text-neutral-600">
                               Image capture isn&apos;t available on this device. You can complete now and attach proof later.
                             </Text>
                           </View>

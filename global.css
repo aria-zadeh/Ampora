@@ -147,3 +147,18 @@ select:focus {
 * {
   -webkit-tap-highlight-color: transparent;
 }
+
+/*
+ * Base family. Some Text nodes carry a `text-*` size class but no `font-*`
+ * family class, so NativeWind applies no fontFamily and they fell back to the
+ * OS default (-apple-system on web). That is why the settings labels and body
+ * copy rendered in a different face from everything else. This makes the app
+ * family the inherited default on web; the codemod that adds `font-sans` to
+ * those call sites is what fixes it on native, where fontFamily does not
+ * cascade.
+ */
+html,
+body,
+#root {
+  font-family: "Geist_400Regular", system-ui, sans-serif;
+}

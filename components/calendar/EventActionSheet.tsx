@@ -111,7 +111,7 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
                     <Heading size="h3" numberOfLines={2}>
                       {event.title}
                     </Heading>
-                    <Text className="mt-1 text-caption text-ink-muted">{timeRange}</Text>
+                    <Text className="mt-1 text-caption font-sans text-ink-muted">{timeRange}</Text>
                   </View>
                   <Pressable
                     onPress={onClose}
@@ -138,7 +138,7 @@ export function EventActionSheet({ visible, event, onClose, onEdit, onDelete }: 
                       accessibilityLabel={`Synced from ${SOURCE_LABEL[event.source]}. Edit or delete it there.`}
                     >
                       <Ionicons name="link-outline" size={20} color={theme.textMuted} style={{ marginTop: 1 }} />
-                      <Text className="flex-1 text-body text-ink-secondary">
+                      <Text className="flex-1 text-body font-sans text-ink-secondary">
                         Synced from {SOURCE_LABEL[event.source]}. Edit or delete it there — Ampora only reads it
                         to keep this time free.
                       </Text>

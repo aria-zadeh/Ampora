@@ -247,7 +247,7 @@ export function BlockActionSheet({
                     <Heading size="h3" numberOfLines={2}>
                       {title}
                     </Heading>
-                    <Text className="mt-1 text-caption text-ink-muted">{timeRange}</Text>
+                    <Text className="mt-1 text-caption font-sans text-ink-muted">{timeRange}</Text>
                   </View>
                   <Pressable
                     onPress={onClose}
@@ -447,7 +447,7 @@ export function ActionRow({
       <View className="flex-1">
         <Text className={`text-body-lg font-medium ${t.text}`}>{label}</Text>
         {blurb ? (
-          <Text className="mt-0.5 text-caption text-ink-muted" numberOfLines={2}>
+          <Text className="mt-0.5 text-caption font-sans text-ink-muted" numberOfLines={2}>
             {blurb}
           </Text>
         ) : null}

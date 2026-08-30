@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated as RNAnimated, View, Text, Pressable, Modal } from "react-native";
+import { Animated as RNAnimated, View, Text, Pressable, Modal, ScrollView } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
@@ -43,7 +43,7 @@ import { DURATIONS, SPRINGS, staggerDelay } from "@/utils/motion";
 import { listColors } from "@/utils/design-tokens";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useThemeColors } from "@/hooks/useThemeColors";
-import type { Task } from "@/types";
+import type { Task, List, Tag } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Constants and small helpers
@@ -212,6 +212,12 @@ export default function TasksScreen() {
   // fixed Overdue/Today/This week/Later section buckets below.
   const [dueRangeFilter, setDueRangeFilter] = useState<DueRange | null>(null);
   const [dueRangeModalOpen, setDueRangeModalOpen] = useState(false);
+  // Filter sheet (Aria's feedback: "instead of all those filters have a plus
+  // button to choose which ones to show"). Every filter above still exists
+  // and still drives the exact same predicate below; this only controls
+  // whether its control is currently showing inline (as a removable chip,
+  // once active) or inside the sheet the + button opens.
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [completedCollapsed, setCompletedCollapsed] = useState(true);
   const [scheduleFor, setScheduleFor] = useState<Task | null>(null);
   const [menuFor, setMenuFor] = useState<Task | null>(null);
@@ -281,6 +287,69 @@ export default function TasksScreen() {
     for (const stake of Object.values(scheduledStakesRecord)) s.add(stake.taskId);
     return s;
   }, [activeStakeTaskId, scheduledStakesRecord]);
+
+  // Compact "active filters" row (Aria: "instead of all those filters have a
+  // plus button to choose which ones to show"). Every filter that used to
+  // render as a permanent chip now shows here ONLY while it's actually on,
+  // as a removable chip — the `+` (rendered below) opens `FilterSheet`, where
+  // every filter, active or not, stays reachable. Every `onRemove` below sets
+  // the SAME state the old always-visible chip toggled off; nothing here
+  // changes a predicate, only where the control to flip it lives.
+  const activeFilters = useMemo(() => {
+    const out: { key: string; label: string; color?: string; onRemove: () => void }[] = [];
+    if (statusFilter !== "all") {
+      out.push({
+        key: "status",
+        label: statusFilter === "todo" ? "To do" : "Done",
+        onRemove: () => setStatusFilter("all"),
+      });
+    }
+    if (missedFilter) {
+      out.push({ key: "missed", label: "Missed", color: theme.warning, onRemove: () => setMissedFilter(false) });
+    }
+    if (atRiskFilter) {
+      out.push({ key: "at-risk", label: "At risk", color: theme.danger, onRemove: () => setAtRiskFilter(false) });
+    }
+    if (unscheduledFilter) {
+      out.push({ key: "unscheduled", label: "Unscheduled", onRemove: () => setUnscheduledFilter(false) });
+    }
+    if (dueRangeFilter) {
+      out.push({
+        key: "due-range",
+        label: `Due: ${dueRangeFilter.label}`,
+        onRemove: () => setDueRangeFilter(null),
+      });
+    }
+    if (hasStakeFilter) {
+      out.push({ key: "stakes", label: "Stakes active", onRemove: () => setHasStakeFilter(false) });
+    }
+    if (priorityFilter !== 0) {
+      out.push({ key: "priority", label: PRIORITY_LABEL[priorityFilter], onRemove: () => setPriorityFilter(0) });
+    }
+    if (listFilter) {
+      const l = lists.find((x) => x.id === listFilter);
+      out.push({ key: "list", label: l?.name ?? "List", color: l?.color, onRemove: () => setListFilter(null) });
+    }
+    if (tagFilter) {
+      const t = tags.find((x) => x.name === tagFilter);
+      out.push({ key: "tag", label: `#${tagFilter}`, color: t?.color, onRemove: () => setTagFilter(null) });
+    }
+    return out;
+  }, [
+    statusFilter,
+    missedFilter,
+    atRiskFilter,
+    unscheduledFilter,
+    dueRangeFilter,
+    hasStakeFilter,
+    priorityFilter,
+    listFilter,
+    tagFilter,
+    lists,
+    tags,
+    theme.warning,
+    theme.danger,
+  ]);
 
   const listColorById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -804,100 +873,32 @@ export default function TasksScreen() {
         />
       </View>
 
-      {/* Filter chips */}
+      {/* Active filters (Aria: "instead of all those filters have a plus
+          button to choose which ones to show"). Only currently-active
+          filters render here, each a removable chip; every filter — active
+          or not — stays reachable through the sheet the + opens below. When
+          nothing is active this collapses to just the + (empty `map`
+          produces no chips), so a clean list is the default. */}
       <View className="mt-3">
-        <View className="px-5 flex-row flex-wrap gap-2">
-          {/* Status */}
-          <Chip
-            label="To do"
-            selected={statusFilter === "todo"}
-            onPress={() => setStatusFilter((s) => (s === "todo" ? "all" : "todo"))}
-          />
-          <Chip
-            label="Done"
-            selected={statusFilter === "done"}
-            onPress={() => setStatusFilter((s) => (s === "done" ? "all" : "done"))}
-          />
-          {/* Missed (FR-16) — only surfaced when something is actually missed,
-              so it never clutters the row otherwise. */}
-          {missedTaskIds.length > 0 && (
-            <Chip
-              label="Missed"
-              color={theme.warning}
-              selected={missedFilter}
-              onPress={() => setMissedFilter((m) => !m)}
-            />
-          )}
-          {/* At risk (FR-20) — same conditional-visibility pattern as Missed
-              above: only shown once the engine has actually flagged
-              something, never an always-there empty affordance. Danger-toned
-              (not warning) to match `AtRiskPill` below — both are the same
-              "engine could not place this" signal. */}
-          {unschedulableByTaskId.size > 0 && (
-            <Chip
-              label="At risk"
-              color={theme.danger}
-              selected={atRiskFilter}
-              onPress={() => setAtRiskFilter((v) => !v)}
-            />
-          )}
-          {/* Unscheduled (FR-6) — a dated task with zero ScheduledBlocks; the
-              at-risk case that "Inbox" (undated) doesn't cover. */}
-          <Chip
-            label="Unscheduled"
-            selected={unscheduledFilter}
-            onPress={() => setUnscheduledFilter((v) => !v)}
-          />
-          {/* Due range (FR-6) — a user-selectable window (opens a small
-              preset picker), distinct from the fixed section buckets below. */}
-          <Chip
-            label={dueRangeFilter ? `Due: ${dueRangeFilter.label}` : "Due range"}
-            selected={dueRangeFilter != null}
-            onPress={() => setDueRangeModalOpen(true)}
-          />
-          {/* Stakes active (FR-6) — tasks currently carrying a stake
-              commitment. Always visible like Unscheduled/Due range above
-              (a normal browsing filter), not conditionally shown like
-              Missed/At risk (those are anomaly flags). */}
-          <Chip
-            label="Stakes active"
-            selected={hasStakeFilter}
-            onPress={() => setHasStakeFilter((v) => !v)}
-          />
-          {/* Priority */}
-          {([4, 3, 2, 1] as const).map((p) => (
-            <Chip
-              key={`p-${p}`}
-              label={PRIORITY_LABEL[p]}
-              selected={priorityFilter === p}
-              onPress={() => setPriorityFilter((cur) => (cur === p ? 0 : p))}
-            />
+        <View className="px-5 flex-row flex-wrap items-center gap-2">
+          {activeFilters.map((f) => (
+            <Chip key={f.key} label={f.label} color={f.color} selected onRemove={f.onRemove} />
           ))}
-          {/* Lists */}
-          {lists.map((l) => (
-            <Chip
-              key={l.id}
-              label={l.name}
-              color={l.color}
-              selected={listFilter === l.id}
-              onPress={() => setListFilter((cur) => (cur === l.id ? null : l.id))}
-            />
-          ))}
-          {/* Tags */}
-          {tags.map((t) => (
-            <Chip
-              key={t.id}
-              label={`#${t.name}`}
-              color={t.color}
-              selected={tagFilter === t.name}
-              onPress={() => setTagFilter((cur) => (cur === t.name ? null : t.name))}
-            />
-          ))}
+          <Pressable
+            onPress={() => setFilterSheetOpen(true)}
+            hitSlop={8}
+            className="h-11 w-11 items-center justify-center rounded-full bg-primary-50 border border-primary-100"
+            accessibilityRole="button"
+            accessibilityLabel="Filters"
+            accessibilityHint="Choose which filters to show"
+          >
+            <Ionicons name="add" size={22} color={theme.primary} />
+          </Pressable>
         </View>
 
-        {/* Edit-list affordance — appears only when a list filter is active, so
-            the active list's name/color/scheduling-hours are one tap away
-            (FR-6 / FR-13). */}
+        {/* Edit-list affordance — unchanged: still appears only when a list
+            filter is active, so the active list's name/color/scheduling-hours
+            stay one tap away (FR-6 / FR-13). */}
         {listFilter && (
           <View className="px-5 mt-2">
             <Pressable
@@ -943,7 +944,7 @@ export default function TasksScreen() {
             subtitle={
               hasAnyTasks
                 ? "Nothing fits those filters. Try clearing a chip or your search."
-                : "Add your first task above, or tap the + button to get started."
+                : "Add your first task above, or use the button below."
             }
             icon={hasAnyTasks ? "search-outline" : "sparkles-outline"}
             actionLabel={hasAnyTasks ? undefined : "New task"}
@@ -973,6 +974,39 @@ export default function TasksScreen() {
           if (scheduleFor) updateTask(scheduleFor.id, { durationMin, due });
           setScheduleFor(null);
         }}
+      />
+
+      {/* Filter sheet — every filter grouped by family, reachable from the +
+          button above. Props below are the exact same predicates/setters the
+          old permanent chip wall used. */}
+      <FilterSheet
+        visible={filterSheetOpen}
+        onClose={() => setFilterSheetOpen(false)}
+        statusFilter={statusFilter}
+        onToggleStatus={(which) => setStatusFilter((s) => (s === which ? "all" : which))}
+        missedAvailable={missedTaskIds.length > 0}
+        missedFilter={missedFilter}
+        onToggleMissed={() => setMissedFilter((v) => !v)}
+        atRiskAvailable={unschedulableByTaskId.size > 0}
+        atRiskFilter={atRiskFilter}
+        onToggleAtRisk={() => setAtRiskFilter((v) => !v)}
+        unscheduledFilter={unscheduledFilter}
+        onToggleUnscheduled={() => setUnscheduledFilter((v) => !v)}
+        dueRangeLabel={dueRangeFilter?.label ?? null}
+        onOpenDueRange={() => {
+          setFilterSheetOpen(false);
+          setDueRangeModalOpen(true);
+        }}
+        hasStakeFilter={hasStakeFilter}
+        onToggleHasStake={() => setHasStakeFilter((v) => !v)}
+        priorityFilter={priorityFilter}
+        onTogglePriority={(p) => setPriorityFilter((cur) => (cur === p ? 0 : p))}
+        lists={lists}
+        listFilter={listFilter}
+        onToggleList={(id) => setListFilter((cur) => (cur === id ? null : id))}
+        tags={tags}
+        tagFilter={tagFilter}
+        onToggleTag={(name) => setTagFilter((cur) => (cur === name ? null : name))}
       />
 
       {/* Due range filter picker (FR-6) */}
@@ -1612,6 +1646,299 @@ function DueRangeModal({ visible, activeLabel, onClose, onSelect, onClear }: Due
         </Pressable>
       </Pressable>
     </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Filter sheet (Aria: "instead of all those filters have a plus button to
+// choose which ones to show"). Every filter chip that used to render
+// permanently across the top now lives here, grouped by family — nothing
+// lost, just hidden until asked for. Every prop below is the exact predicate/
+// setter TasksScreen already had (see its `onPress={...}` call site above);
+// this component only decides where the control sits and how it's grouped.
+// ---------------------------------------------------------------------------
+
+interface FilterSheetProps {
+  visible: boolean;
+  onClose: () => void;
+
+  statusFilter: StatusFilter;
+  onToggleStatus: (which: "todo" | "done") => void;
+
+  missedAvailable: boolean;
+  missedFilter: boolean;
+  onToggleMissed: () => void;
+
+  atRiskAvailable: boolean;
+  atRiskFilter: boolean;
+  onToggleAtRisk: () => void;
+
+  unscheduledFilter: boolean;
+  onToggleUnscheduled: () => void;
+
+  /** Label of the active due-range preset, or null when unset — mirrors `DueRangeModal`'s `activeLabel`. */
+  dueRangeLabel: string | null;
+  onOpenDueRange: () => void;
+
+  hasStakeFilter: boolean;
+  onToggleHasStake: () => void;
+
+  priorityFilter: PriorityFilter;
+  onTogglePriority: (p: 1 | 2 | 3 | 4) => void;
+
+  lists: List[];
+  listFilter: string | null;
+  onToggleList: (id: string) => void;
+
+  tags: Tag[];
+  tagFilter: string | null;
+  onToggleTag: (name: string) => void;
+}
+
+function FilterSheet({
+  visible,
+  onClose,
+  statusFilter,
+  onToggleStatus,
+  missedAvailable,
+  missedFilter,
+  onToggleMissed,
+  atRiskAvailable,
+  atRiskFilter,
+  onToggleAtRisk,
+  unscheduledFilter,
+  onToggleUnscheduled,
+  dueRangeLabel,
+  onOpenDueRange,
+  hasStakeFilter,
+  onToggleHasStake,
+  priorityFilter,
+  onTogglePriority,
+  lists,
+  listFilter,
+  onToggleList,
+  tags,
+  tagFilter,
+  onToggleTag,
+}: FilterSheetProps) {
+  const reduceMotion = useReduceMotion();
+  const theme = useThemeColors();
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType={reduceMotion ? "fade" : "slide"}
+      onRequestClose={onClose}
+    >
+      <Pressable
+        className="flex-1 bg-black/40 justify-end"
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss"
+      >
+        <Pressable className="bg-surface rounded-t-sheet pt-3 pb-8" onPress={(e) => e.stopPropagation()}>
+          <View className="items-center">
+            <View className="w-10 h-1 rounded-xxs bg-line" />
+          </View>
+
+          <View className="px-5 pt-3 pb-1">
+            <Heading size="h3">Filters</Heading>
+          </View>
+
+          <ScrollView
+            className="max-h-[65vh]"
+            contentContainerClassName="px-5 pt-2 pb-2 gap-3"
+            showsVerticalScrollIndicator={false}
+          >
+            <FilterGroup label="Status">
+              <View className="flex-row flex-wrap gap-2">
+                <FilterChip
+                  label="To do"
+                  selected={statusFilter === "todo"}
+                  onPress={() => onToggleStatus("todo")}
+                />
+                <FilterChip
+                  label="Done"
+                  selected={statusFilter === "done"}
+                  onPress={() => onToggleStatus("done")}
+                />
+              </View>
+            </FilterGroup>
+
+            {/* Missed (FR-16) / At risk (FR-20) — only surfaced when
+                something is actually flagged, matching the same conditional
+                visibility the old permanent chip wall used. */}
+            {(missedAvailable || atRiskAvailable) && (
+              <FilterGroup label="Flags">
+                <View className="flex-row flex-wrap gap-2">
+                  {missedAvailable && (
+                    <FilterChip
+                      label="Missed"
+                      color={theme.warning}
+                      selected={missedFilter}
+                      onPress={onToggleMissed}
+                    />
+                  )}
+                  {atRiskAvailable && (
+                    <FilterChip
+                      label="At risk"
+                      color={theme.danger}
+                      selected={atRiskFilter}
+                      onPress={onToggleAtRisk}
+                    />
+                  )}
+                </View>
+              </FilterGroup>
+            )}
+
+            <FilterGroup label="Scheduling">
+              <View className="flex-row flex-wrap gap-2">
+                <FilterChip label="Unscheduled" selected={unscheduledFilter} onPress={onToggleUnscheduled} />
+                <FilterChip label="Stakes active" selected={hasStakeFilter} onPress={onToggleHasStake} />
+              </View>
+            </FilterGroup>
+
+            <FilterLinkRow label="Due range" value={dueRangeLabel ?? "Any time"} onPress={onOpenDueRange} />
+
+            <FilterGroup label="Priority">
+              <View className="flex-row flex-wrap gap-2">
+                {([4, 3, 2, 1] as const).map((p) => (
+                  <FilterChip
+                    key={p}
+                    label={PRIORITY_LABEL[p]}
+                    selected={priorityFilter === p}
+                    onPress={() => onTogglePriority(p)}
+                  />
+                ))}
+              </View>
+            </FilterGroup>
+
+            {lists.length > 0 && (
+              <FilterGroup label="Lists">
+                <View className="flex-row flex-wrap gap-2">
+                  {lists.map((l) => (
+                    <FilterChip
+                      key={l.id}
+                      label={l.name}
+                      color={l.color}
+                      selected={listFilter === l.id}
+                      onPress={() => onToggleList(l.id)}
+                    />
+                  ))}
+                </View>
+              </FilterGroup>
+            )}
+
+            {tags.length > 0 && (
+              <FilterGroup label="Tags">
+                <View className="flex-row flex-wrap gap-2">
+                  {tags.map((t) => (
+                    <FilterChip
+                      key={t.id}
+                      label={`#${t.name}`}
+                      color={t.color}
+                      selected={tagFilter === t.name}
+                      onPress={() => onToggleTag(t.name)}
+                    />
+                  ))}
+                </View>
+              </FilterGroup>
+            )}
+          </ScrollView>
+
+          <View className="px-5 pt-4">
+            <Button title="Done" variant="primaryBlue" onPress={onClose} />
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+/** One family of filters — a raised card (contract 3b: "rows on bg-raised at rounded-lg") with an overline label. */
+function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View className="rounded-lg bg-raised p-3 gap-2.5">
+      <Text className="text-overline font-semibold text-neutral-500 uppercase">{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+/**
+ * A single toggleable filter option inside the sheet. Solid fill when
+ * selected (contract 3b: "chips inside a sheet ... selected chip is
+ * bg-primary"), an outline only when not, so it stays visible whether it
+ * sits on a raised group or directly on the sheet surface.
+ */
+function FilterChip({
+  label,
+  selected,
+  color,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  color?: string;
+  onPress: () => void;
+}) {
+  const handlePress = () => {
+    Haptics.selectionAsync().catch(() => {});
+    onPress();
+  };
+  return (
+    <Pressable
+      onPress={handlePress}
+      className={`flex-row items-center gap-1.5 rounded-full px-3.5 h-8 ${
+        selected ? "bg-primary-600" : "border border-line"
+      }`}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+    >
+      {color && (
+        <View
+          className="w-2 h-2 rounded-full"
+          style={{ backgroundColor: color }}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+      )}
+      <Text
+        className={
+          selected
+            ? "text-caption font-semibold text-primary-foreground"
+            : "text-caption font-medium text-neutral-600"
+        }
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** A single-value filter that opens its own picker (Due range) rather than toggling in place. */
+function FilterLinkRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+  const theme = useThemeColors();
+  const handlePress = () => {
+    Haptics.selectionAsync().catch(() => {});
+    onPress();
+  };
+  return (
+    <Pressable
+      onPress={handlePress}
+      className="flex-row items-center justify-between rounded-lg bg-raised px-3.5 min-h-11"
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+      accessibilityHint="Opens a picker for this filter"
+    >
+      <Text className="text-caption font-medium text-neutral-600">{label}</Text>
+      <View className="flex-row items-center gap-1">
+        <Text className="text-caption font-medium text-neutral-900">{value}</Text>
+        <Ionicons name="chevron-forward" size={14} color={theme.textMuted} />
+      </View>
+    </Pressable>
   );
 }
 

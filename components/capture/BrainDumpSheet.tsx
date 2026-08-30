@@ -365,7 +365,7 @@ function UnavailablePanel({ onClose }: { onClose: () => void }) {
       <Heading size="h4" className="text-center">
         Voice capture isn&apos;t available here
       </Heading>
-      <Text className="text-body text-neutral-500 text-center mt-2 max-w-280">
+      <Text className="text-body font-sans text-neutral-500 text-center mt-2 max-w-280">
         This device or browser doesn&apos;t support on-device speech recognition. You can still type your tasks below.
       </Text>
       <View className="mt-6">
@@ -442,7 +442,7 @@ function RecordPanel({
     return (
       <View className="flex-1 items-center justify-center px-8">
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text className="text-body text-neutral-500 text-center mt-4">{statusLabel}</Text>
+        <Text className="text-body font-sans text-neutral-500 text-center mt-4">{statusLabel}</Text>
       </View>
     );
   }
@@ -474,7 +474,7 @@ function RecordPanel({
       {isRecording && <LevelMeter level={level} reduceMotion={reduceMotion} />}
 
       {isRecording && (transcript || interim) ? (
-        <Text className="text-body text-neutral-500 text-center mt-5 max-w-300" numberOfLines={3}>
+        <Text className="text-body font-sans text-neutral-500 text-center mt-5 max-w-300" numberOfLines={3}>
           {transcript}
           {interim ? ` ${interim}` : ""}
         </Text>
@@ -638,7 +638,7 @@ function PreviewPanel({
   return (
     <View className="flex-1">
       <View className="px-6 pt-4 pb-2">
-        <Text className="text-body text-neutral-500">
+        <Text className="text-body font-sans text-neutral-500">
           {drafts.length === 1
             ? "Here's what I heard. Edit or drop it, then add it."
             : `Here's what I heard — split into ${drafts.length} tasks. Edit or drop any, then add them.`}

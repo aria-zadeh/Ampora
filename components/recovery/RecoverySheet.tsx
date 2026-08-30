@@ -200,7 +200,7 @@ function PreviewBody({
         <Heading size="h1" className="mt-4">
           Let&apos;s catch you up
         </Heading>
-        <Text className="mt-2 text-body text-neutral-600 leading-6">
+        <Text className="mt-2 text-body font-sans text-neutral-600 leading-6">
           {nothingToDo
             ? "You're already on track — there's nothing to clear. Want a fresh plan anyway?"
             : preview.summary}
@@ -238,7 +238,7 @@ function PreviewBody({
           {preview.rebuildCount > 0 && (
             <View className="mb-2 mt-2 flex-row items-center gap-2 px-1">
               <Ionicons name="calendar-outline" size={16} color={theme.textMuted} />
-              <Text className="text-caption text-neutral-500">
+              <Text className="text-caption font-sans text-neutral-500">
                 {preview.rebuildCount} other{' '}
                 {preview.rebuildCount === 1 ? 'task' : 'tasks'} replanned around your week.
               </Text>
@@ -357,7 +357,7 @@ function PreviewGroup({
         </View>
         <Text className="text-label font-semibold text-neutral-900">{title}</Text>
       </View>
-      <Text className="mb-3 px-1 text-caption text-neutral-500">{caption}</Text>
+      <Text className="mb-3 px-1 text-caption font-sans text-neutral-500">{caption}</Text>
       {/* Each task is its own bordered card, not rows merged into one shared
           container — matches the recovery-mode source's stack of cards. */}
       <View className="gap-3">
@@ -398,7 +398,7 @@ function SuccessBody({
       <Heading size="h2" className="mt-5 text-center">
         Rebuilt your week.
       </Heading>
-      <Text className="mt-2 text-center text-body text-neutral-600 leading-6">
+      <Text className="mt-2 text-center text-body font-sans text-neutral-600 leading-6">
         Fresh start. Your plan is ready whenever you are.
       </Text>
 
