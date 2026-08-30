@@ -904,56 +904,6 @@ function DraggableBlock({
   )
 }
 
-/** Ghost-slot minimum height (px) — smaller gaps read as visual noise, so they render as bare canvas instead of a sliver placeholder (mirrors WeekView's own constant). */
-const MIN_GHOST_HEIGHT = 4
-
-/**
- * The vertical spans NOT covered by any of `ranges` (2026-08-26 remeasure,
- * week-view.pdf: an empty slot renders as a deliberate `bg-surface-hairline`
- * placeholder, "the visual distinction between a real block and open space",
- * rather than blank canvas). Duplicated from WeekView's own identically-named
- * helper rather than shared — same discipline as WeekView, which doesn't
- * export it either. Pure geometry only, no store reads, no gesture
- * involvement. Gaps under {@link MIN_GHOST_HEIGHT} are dropped as visual noise.
- */
-function ghostGaps(
-  ranges: { top: number; height: number }[],
-  totalHeight: number
-): { top: number; height: number }[] {
-  if (ranges.length === 0) {
-    return totalHeight >= MIN_GHOST_HEIGHT ? [{ top: 0, height: totalHeight }] : []
-  }
-  const merged: { top: number; bottom: number }[] = []
-  for (const r of [...ranges].sort((a, b) => a.top - b.top)) {
-    const bottom = r.top + r.height
-    const last = merged[merged.length - 1]
-    if (last && r.top <= last.bottom) {
-      last.bottom = Math.max(last.bottom, bottom)
-    } else {
-      merged.push({ top: r.top, bottom })
-    }
-  }
-  const gaps: { top: number; height: number }[] = []
-  let cursor = 0
-  for (const m of merged) {
-    if (m.top - cursor >= MIN_GHOST_HEIGHT) gaps.push({ top: cursor, height: m.top - cursor })
-    cursor = Math.max(cursor, m.bottom)
-  }
-  if (totalHeight - cursor >= MIN_GHOST_HEIGHT) gaps.push({ top: cursor, height: totalHeight - cursor })
-  return gaps
-}
-
-/** A placeholder for empty grid time — decorative only, never intercepts a tap/drag meant for the grid underneath. Matches WeekView's own `GhostSlot`. */
-function GhostSlot({ top, height }: { top: number; height: number }) {
-  return (
-    <View
-      pointerEvents="none"
-      style={{ position: 'absolute', top, height, left: 2, right: 2 }}
-      className="rounded-md bg-surface-hairline"
-    />
-  )
-}
-
 /**
  * The gutter-less, scroll-less block LAYER for one day: it lays out the day's
  * tasks + events into overlap columns (§9.8), renders each as a
@@ -1043,14 +993,6 @@ export function DayBlocksLayer({
     return layoutDay(items, { eventsFirst: true })
   }, [blocks, events])
 
-  // Empty-time ghost slots (matches WeekView's own treatment): geometry once
-  // per item, reused only for the gap sweep below — the block itself computes
-  // its own geometry independently inside DraggableBlock.
-  const placedRanges = laid.map((l) =>
-    blockGeometry(l.item.start, l.item.end, dayStartMs, pxPerMin, MIN_BLOCK_HEIGHT)
-  )
-  const ghosts = ghostGaps(placedRanges, totalHeight)
-
   // Long-press EMPTY grid space -> create an Event (FR-28), prefilled with
   // the pressed time snapped to the 5-min grid (matches how drag/resize
   // already snap). `e.y` is relative to this gesture's own view, which
@@ -1095,14 +1037,6 @@ export function DayBlocksLayer({
       <GestureDetector gesture={createGesture}>
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
       </GestureDetector>
-
-      {/* Empty time reads as a deliberate placeholder, not blank space
-          (2026-08-26 remeasure, week-view.pdf) — same treatment as WeekView.
-          Decorative only (pointerEvents none) and painted before the block
-          layer below, so it can never visually or hit-test over a real block. */}
-      {ghosts.map((g, i) => (
-        <GhostSlot key={`ghost-${i}`} top={g.top} height={g.height} />
-      ))}
 
       {/* `pointerEvents="box-none"`: this wrapper is never itself a touch
           target, so a touch on genuinely empty space passes straight through

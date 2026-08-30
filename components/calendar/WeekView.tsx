@@ -51,9 +51,6 @@ const MIN_DAY_COL_WIDTH = 44
 /** Sticky header height (weekday abbreviation + date number pill). */
 const HEADER_HEIGHT = 56
 
-/** Ghost-slot minimum height (px) — smaller gaps read as visual noise, so they render as bare canvas instead of a sliver placeholder. */
-const MIN_GHOST_HEIGHT = 4
-
 /** All-day strip: chip height, gap between stacked chips, and the max stacked rows before collapsing to "+N" (mirrors MonthView's MAX_DOTS overflow treatment). */
 const ALLDAY_CHIP_H = 22
 const ALLDAY_CHIP_GAP = 3
@@ -91,52 +88,6 @@ interface DayColumn {
   dayStartMs: number
   isToday: boolean
   laid: LaidOutItem<WeekGridItem>[]
-}
-
-/**
- * The vertical spans NOT covered by any of `ranges` (2026-08-26 remeasure,
- * week-view.pdf: an empty slot renders as a deliberate `bg-surface-hairline`
- * placeholder, "the visual distinction between a real block and open space",
- * rather than blank canvas). Pure geometry over data the column already has —
- * no store reads, no gesture involvement. Gaps under {@link MIN_GHOST_HEIGHT}
- * are dropped as visual noise.
- */
-function ghostGaps(
-  ranges: { top: number; height: number }[],
-  totalHeight: number
-): { top: number; height: number }[] {
-  if (ranges.length === 0) {
-    return totalHeight >= MIN_GHOST_HEIGHT ? [{ top: 0, height: totalHeight }] : []
-  }
-  const merged: { top: number; bottom: number }[] = []
-  for (const r of [...ranges].sort((a, b) => a.top - b.top)) {
-    const bottom = r.top + r.height
-    const last = merged[merged.length - 1]
-    if (last && r.top <= last.bottom) {
-      last.bottom = Math.max(last.bottom, bottom)
-    } else {
-      merged.push({ top: r.top, bottom })
-    }
-  }
-  const gaps: { top: number; height: number }[] = []
-  let cursor = 0
-  for (const m of merged) {
-    if (m.top - cursor >= MIN_GHOST_HEIGHT) gaps.push({ top: cursor, height: m.top - cursor })
-    cursor = Math.max(cursor, m.bottom)
-  }
-  if (totalHeight - cursor >= MIN_GHOST_HEIGHT) gaps.push({ top: cursor, height: totalHeight - cursor })
-  return gaps
-}
-
-/** A placeholder for empty grid time — decorative only, never intercepts a tap/drag meant for the grid underneath. */
-function GhostSlot({ top, height }: { top: number; height: number }) {
-  return (
-    <View
-      pointerEvents="none"
-      style={{ position: 'absolute', top, height, left: 2, right: 2 }}
-      className="rounded-md bg-surface-hairline"
-    />
-  )
 }
 
 /**
@@ -318,13 +269,11 @@ export function WeekView({
           {/* Per-day columns. */}
           <View className="flex-row" style={{ height: totalHeight }}>
             {days.map((day) => {
-              // Geometry once per item — reused for both the ghost-gap sweep
-              // below and the block itself, instead of recomputing it twice.
+              // Geometry once per item, reused by the block render below.
               const placed = day.laid.map((laid) => ({
                 laid,
                 ...blockGeometry(laid.item.start, laid.item.end, day.dayStartMs, pxPerMin),
               }))
-              const gaps = ghostGaps(placed, totalHeight)
 
               return (
                 <View
@@ -332,13 +281,6 @@ export function WeekView({
                   style={{ width: colWidth, height: totalHeight }}
                   className={`border-l border-line ${day.isToday ? 'bg-primary-50/40' : ''}`}
                 >
-                  {/* Empty time reads as a deliberate placeholder, not blank
-                      space (2026-08-26 remeasure, week-view.pdf). Behind the
-                      real blocks so it can never visually or hit-test over one. */}
-                  {gaps.map((g, i) => (
-                    <GhostSlot key={`ghost-${i}`} top={g.top} height={g.height} />
-                  ))}
-
                   {placed.map(({ laid, top, height }) => {
                     const item = laid.item
                     const isTask = item.kind === 'task'
