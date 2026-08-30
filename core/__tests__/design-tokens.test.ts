@@ -150,12 +150,18 @@ describe('typography (every size measured off the PDF text matrices)', () => {
   })
 })
 
-describe('fonts are Outfit, in lockstep with app/_layout.tsx and tailwind', () => {
-  it('every family is an Outfit identifier with the weight bound into the name', () => {
-    expect(fontFamilies.regular).toBe('Outfit_400Regular')
-    expect(fontFamilies.medium).toBe('Outfit_500Medium')
-    expect(fontFamilies.semibold).toBe('Outfit_600SemiBold')
-    expect(fontFamilies.bold).toBe('Outfit_700Bold')
+describe('fonts are in lockstep with app/_layout.tsx and tailwind', () => {
+  it('every family binds the weight into the name, one face across all four', () => {
+    // The face itself is swappable; what must hold is that all four are the
+    // SAME family and each carries its weight in the identifier, since RN
+    // cannot combine fontFamily with a numeric fontWeight reliably.
+    const fams = Object.values(fontFamilies)
+    const base = fams.map((f) => f.split('_')[0])
+    expect(new Set(base).size, 'all four must be the same family').toBe(1)
+    expect(fontFamilies.regular).toMatch(/_400Regular$/)
+    expect(fontFamilies.medium).toMatch(/_500Medium$/)
+    expect(fontFamilies.semibold).toMatch(/_600SemiBold$/)
+    expect(fontFamilies.bold).toMatch(/_700Bold$/)
   })
 
   it('tailwind fontFamily mirrors it exactly', () => {
@@ -166,9 +172,9 @@ describe('fonts are Outfit, in lockstep with app/_layout.tsx and tailwind', () =
     expect(ff.bold).toEqual([fontFamilies.bold])
   })
 
-  it('no Lexend or Inter survives anywhere in the token layer', () => {
+  it('no retired face survives anywhere in the token layer', () => {
     const blob = JSON.stringify({ fontFamilies, typography })
-    expect(blob).not.toMatch(/Lexend|Inter_/)
+    expect(blob).not.toMatch(/Lexend|Outfit/)
   })
 })
 

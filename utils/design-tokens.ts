@@ -209,17 +209,18 @@ export const borderRadius = {
  * combine `fontFamily` with a numeric `fontWeight` across platforms, so the
  * weight is bound into the family name.
  *
- * Outfit, confirmed 2026-08-26 as the typeface behind the Figma source
- * screens (the PDFs themselves cannot carry it — Figma outlines all text as
- * Type3 glyphs with no /BaseFont). Replaced Lexend. These four identifiers
- * are the exact exports of `@expo-google-fonts/outfit` loaded in
- * `app/_layout.tsx` and must stay in lockstep with `tailwind.config.js`.
+ * Instrument Sans. Outfit was the face in the Figma source, but it read as
+ * generic in the built app, so it was replaced on Aria's call. These four
+ * identifiers are the exact exports of `@expo-google-fonts/instrument-sans`
+ * loaded in `app/_layout.tsx` and must stay in lockstep with
+ * `tailwind.config.js`. Swapping the face again means changing only these
+ * four strings, the four in tailwind.config.js, and the loader.
  */
 export const fontFamilies = {
-  regular: "Outfit_400Regular",
-  medium: "Outfit_500Medium",
-  semibold: "Outfit_600SemiBold",
-  bold: "Outfit_700Bold",
+  regular: "InstrumentSans_400Regular",
+  medium: "InstrumentSans_500Medium",
+  semibold: "InstrumentSans_600SemiBold",
+  bold: "InstrumentSans_700Bold",
 } as const;
 
 /**

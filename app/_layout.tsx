@@ -19,17 +19,17 @@ import {
   type Theme,
 } from "@react-navigation/native";
 import { useThemeColors } from "@/hooks/useThemeColors";
-// Outfit (docs/02 §2.1 binding convention: weight lives in the family name).
-// Confirmed as the typeface behind the Figma source screens; replaced Lexend
-// 2026-08-26. Inter and Lexend were both removed from package.json in the same
-// pass, so this is the only font family the app loads.
+// Instrument Sans. Weight is bound into the family name (docs/02 §2.1):
+// React Native does not reliably combine fontFamily with a numeric fontWeight
+// across platforms. Swapping the typeface is a four-line change here plus the
+// two token files - nothing else in the system depends on which face it is.
 import {
   useFonts,
-  Outfit_400Regular,
-  Outfit_500Medium,
-  Outfit_600SemiBold,
-  Outfit_700Bold,
-} from "@expo-google-fonts/outfit";
+  InstrumentSans_400Regular,
+  InstrumentSans_500Medium,
+  InstrumentSans_600SemiBold,
+  InstrumentSans_700Bold,
+} from "@expo-google-fonts/instrument-sans";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useScheduleStore, selectAllBlocks } from "@/store/scheduleStore";
 import { useTaskStore, selectAllTasks } from "@/store/taskStore";
@@ -85,10 +85,10 @@ export default function RootLayout() {
   const devAuthBypassed = useDevAuthBypassed();
 
   const [fontsLoaded] = useFonts({
-    Outfit_400Regular,
-    Outfit_500Medium,
-    Outfit_600SemiBold,
-    Outfit_700Bold,
+    InstrumentSans_400Regular,
+    InstrumentSans_500Medium,
+    InstrumentSans_600SemiBold,
+    InstrumentSans_700Bold,
   });
 
   // Drive `stakesStore.tick()` app-wide (~1/min while foregrounded, plus a

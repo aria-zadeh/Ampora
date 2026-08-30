@@ -138,14 +138,13 @@ module.exports = {
         full: "9999px",
       },
 
-      // Outfit (docs/02 §2.1: weight lives in the family name). Loaded in
-      // app/_layout.tsx via useFonts — these must match the exact exported
-      // identifiers from @expo-google-fonts/outfit.
+      // Instrument Sans. Must match the exact exported identifiers from
+      // @expo-google-fonts/instrument-sans loaded in app/_layout.tsx.
       fontFamily: {
-        sans: ["Outfit_400Regular"],
-        medium: ["Outfit_500Medium"],
-        semibold: ["Outfit_600SemiBold"],
-        bold: ["Outfit_700Bold"],
+        sans: ["InstrumentSans_400Regular"],
+        medium: ["InstrumentSans_500Medium"],
+        semibold: ["InstrumentSans_600SemiBold"],
+        bold: ["InstrumentSans_700Bold"],
       },
 
       spacing: {
