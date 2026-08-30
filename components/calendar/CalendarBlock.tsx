@@ -5,7 +5,8 @@ import type { ScheduledBlock, CalEvent, Task } from '@/types'
 import { slackColor } from '@/core/scheduler'
 import { PressableScale } from '@/components/ui/PressableScale'
 import { Text } from '@/components/ui/Text'
-import { useThemeColors } from '@/hooks/useThemeColors'
+import { useThemeColors, useListColors } from '@/hooks/useThemeColors'
+import type { ListColorName } from '@/utils/design-tokens'
 import { formatBlockTimeRange } from './hours'
 
 /**
@@ -49,6 +50,15 @@ interface CalendarBlockProps {
   width?: DimensionValue
   /** Measured px width of the block, if known — drives the §8.7 WIDTH thresholds (dense mode). */
   measuredWidth?: number
+  /**
+   * The owning task's list colour (raw hex from `List.color`), resolved by
+   * the caller from `task.listId` — the same value `TaskCard`/`AgendaView`
+   * already resolve. Tints the ON-TRACK accent/dot the way Google Calendar
+   * tints a block by its owning calendar. Ignored for events (a `CalEvent`
+   * has no list) and for getting-close/at-risk tasks, which always keep
+   * their own warning/danger colour + glyph regardless of list.
+   */
+  listColorHex?: string
   /** "now" for slack computation; defaults to Date.now(). Pass explicitly for determinism/tests. */
   now?: number
   onPress?: () => void
@@ -67,6 +77,25 @@ interface CalendarBlockProps {
 function remainingSteps(task?: Task): number {
   if (!task || task.subtasks.length === 0) return 0
   return task.subtasks.filter((s) => s.completedAt == null).length
+}
+
+/**
+ * Resolve a stored list-colour hex to its nearest themed `listColors` bar
+ * tone (mirrors `TaskCard`'s `resolveBarColor` / `AgendaView`'s
+ * `listDotColor`), so a task's calendar block tints identically to its list
+ * everywhere else in the app. Falls back to the raw hex when it doesn't
+ * match a known tone, and to `undefined` when the task has no list.
+ */
+function resolveListAccent(
+  hex: string | undefined,
+  palette: ReturnType<typeof useListColors>
+): string | undefined {
+  if (!hex) return undefined
+  const upper = hex.toUpperCase()
+  const match = (Object.keys(palette) as ListColorName[]).find(
+    (name) => palette[name].bar.toUpperCase() === upper || palette[name].text.toUpperCase() === upper
+  )
+  return match ? palette[match].bar : hex
 }
 
 /**
@@ -93,6 +122,7 @@ export function CalendarBlock({
   left = '0%',
   width = '100%',
   measuredWidth,
+  listColorHex,
   now,
   onPress,
   fill = false,
@@ -103,15 +133,39 @@ export function CalendarBlock({
   const end = event?.end ?? block?.end ?? 0
   const nowMs = now ?? Date.now()
   const theme = useThemeColors()
+  const listColorsMap = useListColors()
+
+  // The task's own list colour, if any, resolved to the nearest themed tone
+  // — same resolution AgendaView/TaskCard already use, so a task's block
+  // tints identically here as everywhere else in the app.
+  const listAccent = useMemo(
+    () => resolveListAccent(listColorHex, listColorsMap),
+    [listColorHex, listColorsMap]
+  )
 
   // Theme-driven deadline-slack style (accent border / status dot). The
   // container itself is a flat `bg-raised` tile (2026-08-26 remeasure,
   // week-view.pdf) — the per-status tint wash this used to carry is gone, so
   // slack/event status lives in the border + the 6x6 dot + the a11y label
   // below ("never color alone", doc 02 §13.2).
+  //
+  // ON TRACK tints by the task's LIST colour instead of a flat success
+  // green — Google Calendar reads a block by its owning calendar, not by
+  // urgency, and success/green is reserved for a DONE, terminal state (doc
+  // 02 §13.1 blue/green ruling), never a block that is merely on schedule
+  // and still pressable. A list-less task falls back to the general accent.
+  // Getting-close/at-risk are untouched: colour is never their only signal,
+  // so they always keep their own warning/danger tone AND glyph regardless
+  // of list. Events have no list, so they tint with the neutral categorical
+  // "slate" tone (matches AgendaView's own EventRow dot).
   const style = useMemo(() => {
     if (isEvent) {
-      return { accent: theme.textMuted, dot: theme.textMuted, label: EVENT_LABEL, glyph: null }
+      return {
+        accent: listColorsMap.slate.bar,
+        dot: listColorsMap.slate.bar,
+        label: EVENT_LABEL,
+        glyph: null,
+      }
     }
     const slack = task ? slackColor(task, nowMs) : 'green'
     if (slack === 'red') {
@@ -120,8 +174,9 @@ export function CalendarBlock({
     if (slack === 'amber') {
       return { accent: theme.warning, dot: theme.warning, label: SLACK_LABELS.amber, glyph: 'time' as const }
     }
-    return { accent: theme.success, dot: theme.success, label: SLACK_LABELS.green, glyph: null }
-  }, [isEvent, task, nowMs, theme])
+    const tint = listAccent ?? theme.primary
+    return { accent: tint, dot: tint, label: SLACK_LABELS.green, glyph: null }
+  }, [isEvent, task, nowMs, theme, listColorsMap, listAccent])
 
   const title = event?.title ?? task?.title ?? 'Untitled'
   const steps = remainingSteps(task)

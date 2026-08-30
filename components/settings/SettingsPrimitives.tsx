@@ -35,7 +35,7 @@ import { useThemeColors } from '@/hooks/useThemeColors'
 /** Uppercase overline section label, matched to the Profile screen. */
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Text className="mb-2 ml-1 text-overline font-semibold uppercase text-neutral-500">
+    <Text className="mb-2 ml-1 text-overline font-medium uppercase text-neutral-500">
       {children}
     </Text>
   )
@@ -101,7 +101,7 @@ export function Row({
       }`}
     >
       <View className="flex-1 pr-3">
-        <Text className="text-body-lg text-neutral-900">{label}</Text>
+        <Text className="text-body text-neutral-900">{label}</Text>
         {sublabel ? (
           <Text className="mt-0.5 text-caption text-neutral-500">
             {sublabel}
@@ -166,7 +166,10 @@ export function Stepper({
         <Ionicons name="remove" size={18} color={theme.text} />
       </Pressable>
       <Text
-        className="mx-3 min-w-16 text-center text-body-lg font-semibold text-neutral-900"
+        // 15pt medium, not 16pt semibold. At semibold this value read as a
+        // heading rather than a setting, and heavy type on a dark surface
+        // blooms - the "glowing" Aria flagged.
+        className="mx-3 min-w-16 text-center text-body font-medium text-neutral-900"
         accessibilityLabel={`${a11yLabel}: ${format(value)}`}
       >
         {format(value)}
@@ -230,7 +233,7 @@ export function InlineSegmented<T extends string>({
             <Text
               className={
                 active
-                  ? 'text-label font-semibold text-neutral-900'
+                  ? 'text-label font-medium text-neutral-900'
                   : 'text-label font-medium text-neutral-500'
               }
             >

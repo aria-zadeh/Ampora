@@ -36,6 +36,7 @@ import {
   selectEventsByDay,
 } from '@/store/scheduleStore'
 import { useTaskStore } from '@/store/taskStore'
+import { useListStore, selectAllLists } from '@/store/listStore'
 import { useReduceMotion } from '@/hooks/useReduceMotion'
 import { useThemeColors } from '@/hooks/useThemeColors'
 import { EASINGS, DURATIONS, SPRINGS } from '@/utils/motion'
@@ -899,6 +900,56 @@ function DraggableBlock({
   )
 }
 
+/** Ghost-slot minimum height (px) — smaller gaps read as visual noise, so they render as bare canvas instead of a sliver placeholder (mirrors WeekView's own constant). */
+const MIN_GHOST_HEIGHT = 4
+
+/**
+ * The vertical spans NOT covered by any of `ranges` (2026-08-26 remeasure,
+ * week-view.pdf: an empty slot renders as a deliberate `bg-surface-hairline`
+ * placeholder, "the visual distinction between a real block and open space",
+ * rather than blank canvas). Duplicated from WeekView's own identically-named
+ * helper rather than shared — same discipline as WeekView, which doesn't
+ * export it either. Pure geometry only, no store reads, no gesture
+ * involvement. Gaps under {@link MIN_GHOST_HEIGHT} are dropped as visual noise.
+ */
+function ghostGaps(
+  ranges: { top: number; height: number }[],
+  totalHeight: number
+): { top: number; height: number }[] {
+  if (ranges.length === 0) {
+    return totalHeight >= MIN_GHOST_HEIGHT ? [{ top: 0, height: totalHeight }] : []
+  }
+  const merged: { top: number; bottom: number }[] = []
+  for (const r of [...ranges].sort((a, b) => a.top - b.top)) {
+    const bottom = r.top + r.height
+    const last = merged[merged.length - 1]
+    if (last && r.top <= last.bottom) {
+      last.bottom = Math.max(last.bottom, bottom)
+    } else {
+      merged.push({ top: r.top, bottom })
+    }
+  }
+  const gaps: { top: number; height: number }[] = []
+  let cursor = 0
+  for (const m of merged) {
+    if (m.top - cursor >= MIN_GHOST_HEIGHT) gaps.push({ top: cursor, height: m.top - cursor })
+    cursor = Math.max(cursor, m.bottom)
+  }
+  if (totalHeight - cursor >= MIN_GHOST_HEIGHT) gaps.push({ top: cursor, height: totalHeight - cursor })
+  return gaps
+}
+
+/** A placeholder for empty grid time — decorative only, never intercepts a tap/drag meant for the grid underneath. Matches WeekView's own `GhostSlot`. */
+function GhostSlot({ top, height }: { top: number; height: number }) {
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: 'absolute', top, height, left: 2, right: 2 }}
+      className="rounded-md bg-surface-hairline"
+    />
+  )
+}
+
 /**
  * The gutter-less, scroll-less block LAYER for one day: it lays out the day's
  * tasks + events into overlap columns (§9.8), renders each as a
@@ -933,6 +984,18 @@ export function DayBlocksLayer({
   // Available width for the block layer. Measured so the fractional overlap
   // widths resolve to real px (§9.8).
   const [contentWidth, setContentWidth] = React.useState(0)
+
+  // id -> raw hex, so a task's block can tint by its list colour (mirrors
+  // AgendaView/WeekView's own `listColorById`) — resolved to a themed tone
+  // inside CalendarBlock itself, not here. Lists are a small, global set (no
+  // per-day slicing needed), so this reads the store directly here rather
+  // than threading it through DayColumn/ThreeDayView as another prop.
+  const lists = useListStore(useShallow(selectAllLists))
+  const listColorById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const l of lists) map[l.id] = l.color
+    return map
+  }, [lists])
 
   // The block the action sheet targets (null = closed).
   const [sheetTarget, setSheetTarget] = useState<SheetTarget | null>(null)

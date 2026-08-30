@@ -270,15 +270,16 @@ export default function ProfileScreen() {
                 size={14}
                 color={chipIconColor}
               />
-              <Text
-                className={`ml-1.5 text-caption font-semibold ${
-                  subscriptionChip.tone === "active"
-                    ? "text-accent-700"
-                    : subscriptionChip.tone === "trial"
-                      ? "text-primary-700"
-                      : "text-warning-700"
-                }`}
-              >
+              {/*
+                Neutral ink, not the chip's own hue. Same-hue text on a
+                same-hue tint at semibold is what made this read as "glowing":
+                in dark theme the -700 step is LIGHTER than the base, so a
+                blue label on a blue wash bloomed. The tinted icon still
+                carries the colour signal, so nothing is lost by calming the
+                label - and colour is not the only signal either way, since
+                the label states the state in words.
+              */}
+              <Text className="ml-1.5 text-caption font-medium text-neutral-900">
                 {subscriptionChip.label}
               </Text>
               <Ionicons

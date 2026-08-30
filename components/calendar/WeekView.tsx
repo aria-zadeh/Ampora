@@ -12,6 +12,7 @@ import {
 } from '@/core/calendar'
 import { useScheduleStore, selectAllBlocks, selectAllCalEvents } from '@/store/scheduleStore'
 import { useTaskStore } from '@/store/taskStore'
+import { useListStore, selectAllLists } from '@/store/listStore'
 import type { CalEvent, ScheduledBlock } from '@/types'
 import { CalendarBlock } from './CalendarBlock'
 import { Text } from '@/components/ui/Text'
@@ -169,6 +170,16 @@ export function WeekView({
   const blocks = useScheduleStore(useShallow(selectAllBlocks))
   const calEvents = useScheduleStore(useShallow(selectAllCalEvents))
   const tasks = useTaskStore((s) => s.tasks)
+  const lists = useListStore(useShallow(selectAllLists))
+
+  // id -> raw hex, so a task's block can tint by its list colour (mirrors
+  // AgendaView's own `listColorById`) — resolved to a themed tone inside
+  // CalendarBlock itself, not here.
+  const listColorById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const l of lists) map[l.id] = l.color
+    return map
+  }, [lists])
 
   // Content width available for the 7 day columns (screen minus the gutter,
   // clamped so we never divide by a stale zero on first paint).
@@ -334,21 +345,26 @@ export function WeekView({
                     // Inner block width after the overlap fraction, minus a hair of
                     // padding — this measured width drives CalendarBlock's dense mode.
                     const measuredWidth = colWidth * laid.widthFraction - 4
-                    return isTask ? (
-                      <CalendarBlock
-                        key={item.id}
-                        block={item.block}
-                        task={tasks[item.block.taskId]}
-                        top={top}
-                        height={height}
-                        left={`${laid.xFraction * 100}%`}
-                        width={`${laid.widthFraction * 100}%`}
-                        measuredWidth={measuredWidth}
-                        now={now}
-                        onPress={onBlockPress ? () => onBlockPress(item.block) : undefined}
-                        testID={`week-block-${item.id}`}
-                      />
-                    ) : (
+                    if (isTask) {
+                      const t = tasks[item.block.taskId]
+                      return (
+                        <CalendarBlock
+                          key={item.id}
+                          block={item.block}
+                          task={t}
+                          listColorHex={t?.listId ? listColorById[t.listId] : undefined}
+                          top={top}
+                          height={height}
+                          left={`${laid.xFraction * 100}%`}
+                          width={`${laid.widthFraction * 100}%`}
+                          measuredWidth={measuredWidth}
+                          now={now}
+                          onPress={onBlockPress ? () => onBlockPress(item.block) : undefined}
+                          testID={`week-block-${item.id}`}
+                        />
+                      )
+                    }
+                    return (
                       <CalendarBlock
                         key={item.id}
                         event={item.event}

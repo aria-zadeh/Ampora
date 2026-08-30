@@ -213,16 +213,16 @@ export const borderRadius = {
  * in the built app, and Instrument Sans was too close to it to register as a
  * change. Space Grotesk has genuinely distinctive letterforms while staying
  * legible at the 9-11pt end of the scale. These four identifiers are the
- * exact exports of `@expo-google-fonts/space-grotesk`
+ * exact exports of `@expo-google-fonts/instrument-sans`
  * loaded in `app/_layout.tsx` and must stay in lockstep with
  * `tailwind.config.js`. Swapping the face again means changing only these
  * four strings, the four in tailwind.config.js, and the loader.
  */
 export const fontFamilies = {
-  regular: "SpaceGrotesk_400Regular",
-  medium: "SpaceGrotesk_500Medium",
-  semibold: "SpaceGrotesk_600SemiBold",
-  bold: "SpaceGrotesk_700Bold",
+  regular: "InstrumentSans_400Regular",
+  medium: "InstrumentSans_500Medium",
+  semibold: "InstrumentSans_600SemiBold",
+  bold: "InstrumentSans_700Bold",
 } as const;
 
 /**
