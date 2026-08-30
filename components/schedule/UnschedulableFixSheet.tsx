@@ -247,13 +247,13 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
             <Heading size="h3">Couldn&apos;t schedule</Heading>
           </View>
           {task && (
-            <Text className="text-body text-neutral-500 mt-1 mb-4" numberOfLines={2}>
+            <Text className="text-body font-sans text-neutral-500 mt-1 mb-4" numberOfLines={2}>
               {task.title}
             </Text>
           )}
 
           {info && (
-            <Text className="text-body text-neutral-700 mb-6">{info.reason}</Text>
+            <Text className="text-body font-sans text-neutral-700 mb-6">{info.reason}</Text>
           )}
 
           {confirmDeleteEvent ? (
@@ -301,7 +301,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
                     accessibilityLabel={`"${blockingFix.event.title}" is on your ${SOURCE_LABEL[blockingFix.event.source]} calendar and is in the way. Edit or remove it there to free this time.`}
                   >
                     <Ionicons name="link-outline" size={20} color={theme.textMuted} style={{ marginTop: 1 }} />
-                    <Text className="flex-1 text-body text-neutral-600">
+                    <Text className="flex-1 text-body font-sans text-neutral-600">
                       &quot;{blockingFix.event.title}&quot; on your {SOURCE_LABEL[blockingFix.event.source]}{" "}
                       calendar is in the way. Ampora only reads it — edit or remove it there to free this
                       time.
@@ -311,7 +311,7 @@ export function UnschedulableFixSheet({ task, info, onClose }: UnschedulableFixS
               ) : null}
 
               {fixes.length === 0 && !blockingFix ? (
-                <Text className="text-caption text-neutral-500 mb-2">
+                <Text className="text-caption font-sans text-neutral-500 mb-2">
                   This clears up on its own once the other task is scheduled or finished — nothing to
                   fix here.
                 </Text>
@@ -351,7 +351,7 @@ function DeleteEventConfirm({
           <Text className="text-body font-semibold text-neutral-900">
             Delete &quot;{event.title}&quot;?
           </Text>
-          <Text className="mt-1 text-caption text-neutral-600">
+          <Text className="mt-1 text-caption font-sans text-neutral-600">
             This removes it from your calendar for good.
           </Text>
         </View>

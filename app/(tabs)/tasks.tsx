@@ -832,7 +832,7 @@ export default function TasksScreen() {
         {preview && (
           <View className="flex-row items-center flex-wrap gap-2 mt-2.5 px-1">
             <Text
-              className="text-caption text-neutral-500"
+              className="text-caption font-sans text-neutral-500"
               numberOfLines={1}
               style={{ maxWidth: "55%" }}
             >
@@ -1217,7 +1217,7 @@ function TaskRowImpl({
             accessibilityLabel="Mark task done"
           >
             <Ionicons name="checkmark" size={24} color={theme.primaryForeground} />
-            <Text className="text-tiny text-primary-foreground mt-1">Done</Text>
+            <Text className="text-tiny font-sans text-primary-foreground mt-1">Done</Text>
           </Pressable>
         </RNAnimated.View>
       );
@@ -1284,7 +1284,7 @@ function TaskRowImpl({
               accessibilityLabel={isInbox ? "Schedule task" : "Schedule tomorrow"}
             >
               <Ionicons name={isInbox ? "calendar-outline" : "sunny-outline"} size={20} color={theme.primaryForeground} />
-              <Text className="text-tiny text-primary-foreground mt-1">{isInbox ? "Schedule" : "Tomorrow"}</Text>
+              <Text className="text-tiny font-sans text-primary-foreground mt-1">{isInbox ? "Schedule" : "Tomorrow"}</Text>
             </Pressable>
           </RNAnimated.View>
           <RNAnimated.View
@@ -1302,7 +1302,7 @@ function TaskRowImpl({
               accessibilityLabel="Delete task"
             >
               <Ionicons name="trash-outline" size={20} color={theme.primaryForeground} />
-              <Text className="text-tiny text-primary-foreground mt-1">Delete</Text>
+              <Text className="text-tiny font-sans text-primary-foreground mt-1">Delete</Text>
             </Pressable>
           </RNAnimated.View>
         </View>
@@ -1622,7 +1622,7 @@ function DueRangeModal({ visible, activeLabel, onClose, onSelect, onClear }: Due
             <View className="w-10 h-1 rounded-full bg-neutral-200" />
           </View>
           <Heading size="h3">Due range</Heading>
-          <Text className="text-body text-neutral-500 mt-1 mb-5">
+          <Text className="text-body font-sans text-neutral-500 mt-1 mb-5">
             Show only tasks due in this window.
           </Text>
 
@@ -1979,7 +1979,7 @@ function ScheduleModal({ task, onClose, onSave }: ScheduleModalProps) {
           </View>
           <Heading size="h3">Schedule</Heading>
           {task && (
-            <Text className="text-body text-neutral-500 mt-1 mb-5" numberOfLines={1}>
+            <Text className="text-body font-sans text-neutral-500 mt-1 mb-5" numberOfLines={1}>
               {task.title}
             </Text>
           )}
