@@ -44,6 +44,15 @@ import type { Task, StakeApp } from "@/types";
 
 interface TodayFocusCardProps {
   task: Task;
+  /**
+   * Epoch ms this task is scheduled for. When present the card renders the
+   * measured agenda header - time on the left, title, duration right-aligned -
+   * matching the source screen, where EVERY task on Today is one of these
+   * cards rather than a hero plus a list of thin rows.
+   */
+  scheduledAt?: number;
+  /** Hides the "Today's focus" eyebrow for the non-lead cards in the stack. */
+  showFocusLabel?: boolean;
   /** "Not now": advances Today to the next First-move candidate, if any. */
   onNotNow: () => void;
 }
@@ -192,7 +201,7 @@ function LockChip({ task }: { task: Task }) {
   );
 }
 
-export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
+export function TodayFocusCard({ task, scheduledAt, showFocusLabel = true, onNotNow }: TodayFocusCardProps) {
   // Raw select of the resolved List, same shape as TomorrowPlanCard's
   // project lookup, stable unless the list itself changes, no useShallow.
   const list = useListStore((s) => (task.listId ? s.lists[task.listId] : undefined));
@@ -255,14 +264,21 @@ export function TodayFocusCard({ task, onNotNow }: TodayFocusCardProps) {
 
   return (
     <View className="rounded-xl border border-line bg-surface p-4">
-      <Text variant="overline" className="text-primary-600">
-        Today&apos;s focus
-      </Text>
+      {showFocusLabel ? (
+        <Text variant="overline" className="text-primary-600">
+          Today&apos;s focus
+        </Text>
+      ) : null}
 
       {/* Header row (measured layout): title on the left, duration
           right-aligned. List name / step count moved to a secondary line
           under the title so neither is dropped. */}
       <View className="mt-1.5 flex-row items-start justify-between gap-3">
+        {scheduledAt != null ? (
+          <Text variant="caption" className="text-ink-muted" style={tabularNums}>
+            {formatClock(scheduledAt)}
+          </Text>
+        ) : null}
         <View className="flex-1">
           <Text variant="bodyLg" numberOfLines={1}>
             {task.title}

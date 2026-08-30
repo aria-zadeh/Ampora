@@ -54,6 +54,12 @@ function TabItem({ route, active }: { route: TabRoute; active: boolean }) {
       accessibilityRole="tab"
       accessibilityLabel={route.accessibilityLabel}
       accessibilityState={{ selected: active }}
+      // `accessibilityState` alone does NOT emit `aria-selected` on web -
+      // verified in the running app, where every tab reported aria-selected
+      // null and a screen reader could not tell which one was active. RN
+      // supports the direct aria-* props, so both are passed: native reads
+      // accessibilityState, web reads this.
+      aria-selected={active}
       // The whole column is the target, so it clears 44x44 comfortably.
       className="flex-1 items-center justify-start pt-5 active:opacity-70"
     >

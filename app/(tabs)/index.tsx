@@ -155,7 +155,7 @@ export default function HomeScreen() {
   );
 
   // The three nearest upcoming blocks, resolved to their task + list.
-  const upcomingBlocks = useScheduleStore(useShallow(selectUpcomingBlocks(3)));
+  const upcomingBlocks = useScheduleStore(useShallow(selectUpcomingBlocks(6)));
   const upNextRows = useMemo<UpNextRowData[]>(() => {
     const rows: UpNextRowData[] = [];
     for (const block of upcomingBlocks) {
@@ -199,6 +199,21 @@ export default function HomeScreen() {
   const nowMs = useMemo(() => Date.now(), []);
   const urgentTask = useMemo(() => selectUrgentTask(tasks, nowMs), [tasks, nowMs]);
 
+  // Every scheduled task today renders as a full card (the source's agenda).
+  // Only cards with a first move can show the nested step panel, but the card
+  // handles a missing one itself, so the agenda is simply "what is scheduled".
+  const agendaCards = useMemo(
+    () => upNextRows.filter((r) => r.task.firstMove != null),
+    [upNextRows]
+  );
+
+  // A first-move task that has no block yet - shown after the agenda so it is
+  // still reachable rather than silently dropped.
+  const scheduledTaskIds = useMemo(
+    () => new Set(agendaCards.map((r) => r.task.id)),
+    [agendaCards]
+  );
+
   // Take the top few for display.
   const comingUp = useMemo(() => incompleteTasks.slice(0, 5), [incompleteTasks]);
 
@@ -213,6 +228,11 @@ export default function HomeScreen() {
   const firstMoveTask = useMemo(
     () => focusCandidates.find((t) => !skippedTaskIds.has(t.id)) ?? null,
     [focusCandidates, skippedTaskIds]
+  );
+
+  const unscheduledFocus = useMemo(
+    () => (firstMoveTask && !scheduledTaskIds.has(firstMoveTask.id) ? firstMoveTask : undefined),
+    [firstMoveTask, scheduledTaskIds]
   );
   const handleNotNow = useCallback(() => {
     if (!firstMoveTask) return;
@@ -325,35 +345,50 @@ export default function HomeScreen() {
             </Animated.View>
           )}
 
-          {/* Today's focus: the screen's one elevated hero. Hides when there
-              is no First-move candidate left to surface. */}
-          {firstMoveTask?.firstMove && (
-            <Animated.View entering={cardEntering}>
-              <TodayFocusCard task={firstMoveTask} onNotNow={handleNotNow} />
-            </Animated.View>
+          {/*
+            THE AGENDA. In the source screen every task on Today is a full
+            card - time, title, duration, a nested first-move panel, a Start
+            button and the app-lock chip - not a hero plus a list of thin
+            rows. So the same card renders for each scheduled task, in time
+            order, and it is the body of the screen.
+
+            Nothing was dropped to do this: the urgent strip, missed work,
+            tomorrow's plan and Projects all still render, they just sit below
+            the agenda instead of competing with it.
+          */}
+          {agendaCards.length > 0 && (
+            <View className="gap-3">
+              {agendaCards.map((row, index) => (
+                <Animated.View
+                  key={row.block.id}
+                  entering={
+                    reduceMotion
+                      ? undefined
+                      : FadeInDown.delay(staggerDelay(index)).duration(DURATIONS.base)
+                  }
+                >
+                  <TodayFocusCard
+                    task={row.task}
+                    scheduledAt={row.block.start}
+                    showFocusLabel={index === 0}
+                    onNotNow={handleNotNow}
+                  />
+                </Animated.View>
+              ))}
+            </View>
           )}
 
-          {/* Up next: a short, plain agenda preview (max 3). The Calendar tab
-              remains the full schedule view. */}
-          {upNextRows.length > 0 && (
+          {/* An actionable first move that has no block yet still deserves the
+              same card, so it is never stranded off the agenda. */}
+          {unscheduledFocus?.firstMove && (
             <Animated.View entering={cardEntering}>
-              <Text variant="overline" className="px-0.5 text-ink-muted">
-                Up next
-              </Text>
-              <View className="mt-2 gap-2">
-                {upNextRows.map((row, index) => (
-                  <Animated.View
-                    key={row.block.id}
-                    entering={
-                      reduceMotion
-                        ? undefined
-                        : FadeInDown.delay(staggerDelay(index)).duration(DURATIONS.base)
-                    }
-                  >
-                    <UpNextRow row={row} />
-                  </Animated.View>
-                ))}
-              </View>
+              <TodayFocusCard
+                task={unscheduledFocus}
+                // The eyebrow names the ONE lead card. If the agenda already
+                // rendered a lead, this card must not claim the label too.
+                showFocusLabel={agendaCards.length === 0}
+                onNotNow={handleNotNow}
+              />
             </Animated.View>
           )}
 
