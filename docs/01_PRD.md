@@ -499,7 +499,7 @@ for task in orderedTasks:
 
 **9.9 Session lifecycle.** A session has a length (`sessionMin`, default 45). On start (manual tap or scheduled auto-arm), if a stake is attached the shield is applied and a LockEvent `shield_on` is logged. The foreground-only timer runs (pauses on background, resumes on foreground). On timer completion the shield is removed (`shield_off`, `session_complete`), the end check-in appears, and the outcome is logged. The shield persists across app kill/restart; it auto-expires at the session end, at the daily cap, and at the quiet-hours boundary, and never locks overnight. For `until_done`, the shield holds until verified completion or until the single-session cap converts it to a normal release. Only one session is active at a time.
 
-**9.10 Wellbeing safety layer (overrides features).** Daily lock cap (default 180 min, user-lowerable, hard ceiling). Single-session cap 50 min. Quiet-hours auto-release. The six never-lock categories are never shielded. Panic valve is always available behind 60 seconds. De-escalation lowers stake strength and offers a pause after repeated panic use or repeated misses, and never escalates. No shame copy anywhere. Enforced client- and server-side.
+**9.10 Wellbeing safety layer (overrides features).** Daily lock cap (default 180 min, user-lowerable, hard ceiling). Single-session cap 50 min. Quiet-hours auto-release. The six never-lock categories are never shielded. Panic valve is always available behind 30 seconds. De-escalation lowers stake strength and offers a pause after repeated panic use or repeated misses, and never escalates. No shame copy anywhere. Enforced client- and server-side.
 
 **9.11 AI Edge Functions.** `ai-breakdown` (subtasks + First move, grounded when a source is present), `ai-refine-breakdown` (regenerate from an instruction), `ai-verify-proof` (lenient photo/screenshot plausibility, default-pass). All behind the no-key contract with local fallbacks.
 
@@ -529,7 +529,7 @@ All are pre-launch targets, not observed data. The two headline numbers to instr
 | Scheduler churn or missed deadlines | Medium | Deterministic engine, stability rule, pinned blocks, latenessPenalty dominates placement |
 | Calendar performance under load | Medium | Reanimated worklets, interval-graph overlap, Skia fallback for the time grid |
 | Photo verification is spoofable | Low | Lenient by design; the lock is self-imposed so faking only cheats the user; session hold (not photo) is the default |
-| Scheduled lock surprises a busy user | Medium | Never arms in quiet hours, 60-second dismiss, completing the task releases early, de-escalation on repeated dismiss |
+| Scheduled lock surprises a busy user | Medium | Never arms in quiet hours, 30-second dismiss, completing the task releases early, de-escalation on repeated dismiss |
 
 ---
 
@@ -604,7 +604,7 @@ It is a Sunday night in October. Maya, a junior with three AP classes, opens Amp
 - **Hold:** what keeps apps locked. `session` (locked for the session, the default) or `until_done` (locked until verified complete, short tasks only).
 - **Trigger:** what starts the session. `manual` (tap Start) or `scheduled` (auto-arms at a set time, with an optional start window).
 - **Start window:** on a scheduled stake, the grace minutes after the cue before the lock arms (the old beat-the-clock, absorbed).
-- **Panic valve:** the always-available emergency unlock for a stake, behind 60 seconds.
+- **Panic valve:** the always-available emergency unlock for a stake, behind 30 seconds.
 - **First move:** the 2 to 5 minute concrete starter action; the session on-ramp and the Blindfold unit, not an unlock condition.
 - **Blindfold:** collapsing the screen to a single next step.
 - **Recovery Mode:** the one-tap, shame-free rebuild after a lapse.
